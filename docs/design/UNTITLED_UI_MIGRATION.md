@@ -233,6 +233,47 @@ MCP/catalogue note:
   pages for command menus, page headers, sidebar navigations, theming, dark mode,
   components and introduction.
 
+## Phase 2 baseline: Today
+
+Status: implemented as the first feature-surface migration after the shared
+shell foundation. This phase does not redesign Tasks, Meetings, Goals, Notes or
+any other feature page.
+
+Untitled source and patterns used:
+
+- Shared `PaneHeader` page-header composition, based on Untitled Application UI
+  page-header and dashboard header grammar.
+- Existing genuine Untitled-backed `Button` for capture and Goal check-in
+  actions.
+- Existing shared `TaskRow`, `TaskList`, `ProgressTrack`, `GoalProgressReadout`,
+  `HabitRow`, schedule tabs and DalyHub activity/trend composition. These are
+  product compositions that already use the appropriate Untitled primitives or
+  preserve domain-specific interaction contracts.
+- Untitled semantic tokens and Tailwind v4 utilities for neutral surfaces,
+  purple brand interaction, borders, typography, focus, responsive grid and
+  dark mode.
+
+The implementation preserves Today product behavior: server-side owner-local
+date/greeting, bounded and independently degrading reads, canonical task
+completion and inline-edit routes, task drawers, schedule day selection and
+event drawers, goal check-ins, habit check-ins, shared capture, keyboard help,
+attention facts, review-door behavior, offline-safe loading boundaries and
+honest empty states. No schema, API, authentication, workspace or business
+logic changed.
+
+The old Today stylesheet was replaced rather than carried forward. The new
+file is a small Tailwind/Untitled composition layer. Legacy class names remain
+only where they are semantic/test hooks or where child product components still
+publish their established contract. The remaining compatibility boundary is
+the shared task/schedule/habit/goal component styling and the global keyboard
+help/capture/drawer machinery; those belong to later focused migrations.
+
+Untitled MCP access was retried after successful CLI Pro authentication and
+again returned HTTP 429 / Cloudflare 1015. No unavailable Application UI name,
+source snippet or screenshot was fabricated. The exact official documentation
+topics consulted and the fallback source workflow are recorded in
+`UNTITLED_UI_IMPLEMENTATION.md`.
+
 ## Dependencies
 
 - Licensed Untitled UI React Pro source and configured discovery workflow.

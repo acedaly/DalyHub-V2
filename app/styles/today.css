@@ -1,2377 +1,274 @@
-/*
- * TODAY-DAY — the Today screen (design tokens only).
- *
- * The surface is a header block on the page canvas and three regions: the day's
- * dominant summary, the day itself, and the rail of supporting surfaces beside
- * them (M3X-02's hierarchy Levels 1, 3 and 2 respectively).
- * There is no widget chrome here any more, because there are no widgets: the old
- * surface was fourteen cards with disclosure carets, a customise toolbar and three
- * copies of the same counts, and the layout rules that supported all of that went
- * with them.
- *
- * ── THE VISUAL CONTRACT ──────────────────────────────────────────────────────
- *   - The PAGE is the canvas (`surface-page`, painted by the pane). The two
- *     columns are ONE tonal surface each (`surface-card`) with a large radius and
- *     NO outline: separation is carried by surface value, which is the DalyHub
- *     ramp (`page → card → raised`, ΔL* ≥ 3 in both appearances) rather than by a
- *     border. Nothing on this screen floats, and nothing has a shadow.
- *   - Inside a column there are PLAIN ROWS with a hairline between them. There is
- *     no card inside a panel anywhere on this screen — the nesting that made the
- *     old surface read as a stack of boxes inside boxes.
- *   - Colour is spent ONCE: overdue work sits on the `error-container` pair, and
- *     nothing else on the page is tinted. The overdue rows carry no heading,
- *     because the tint IS the heading; the trailing "Due 3 days ago" says it in
- *     words as well, so nothing depends on seeing the colour (AGENTS.md §15).
- *   - Every number is drawn in tabular figures, so a column of times and counts
- *     lines up and a changing figure does not shift the text beside it.
- *
- * Layout and rhythm ONLY: every value below is a DS-01 token, and all real chrome
- * (buttons, progress, drawer, icons) comes from the shared components.
- */
+/* Today composition: Untitled UI application dashboard grammar over DalyHub data. */
 
-/* -------------------------------------------------------------------------- */
-/* The page                                                                    */
-/* -------------------------------------------------------------------------- */
-
-.dh-today {
-  /*
-   * A container context, so the two columns respond to the PANE's width rather
-   * than the viewport's: the same screen is correct with the navigation drawer
-   * open, collapsed, or inside a narrow window.
-   */
-  container-type: inline-size;
-  container-name: today;
-  display: flex;
-  flex-direction: column;
-  gap: var(--dh-space-6);
-  padding: var(--app-space-6) var(--app-page-padding) var(--app-space-8);
-  /*
-   * The dashboard measure. Wider than the standard collection cap because this
-   * is genuinely two columns: at 108rem the day column is ~66rem, which is
-   * SHORTER than a capped single-column list, while the rail stops a wide
-   * monitor ending in empty canvas.
-   */
-  max-inline-size: calc(
-    var(--app-width-dashboard) + 2 * var(--app-page-padding)
-  );
-  /*
-   * CONVERGE-01 §1 / the ultra-wide standard — the CONTENT CANVAS is centred
-   * once the viewport outgrows it.
-   *
-   * Measured on `/today` before this change: at 3440 the rail took 224px and
-   * the canvas capped at 1808px, start-aligned — leaving a 1408px column of
-   * empty canvas down the right-hand side of the page and nothing on it. The
-   * cap was already correct; what was missing was anywhere for the leftover
-   * width to GO. Balanced margins read as a deliberate measure; 1408px of void
-   * on one side reads as a layout that ran out.
-   *
-   * ── This is a scoped, recorded DEPARTURE from the one-origin rule ─────────
-   * AGENTS.md §6 says a page start-aligns and never centres, because the rail is
-   * on the left and a centred column drifts away from it. That rule's ACTUAL
-   * requirement — "a page's title and the first row of its content start on the
-   * same vertical line" — is preserved, because the whole collection moves
-   * together: `.dh-collection--dashboard` centres its header, its filters and
-   * its content as one block (see `collection-layout.css`), so nothing inside
-   * Today detaches from anything else inside Today.
-   *
-   * What no longer shares that line is the SHELL's top bar, which stays
-   * full-width — and the audit permits exactly that ("shell/topbar may remain
-   * full-width"). Below the cap `margin-inline: auto` resolves to zero and the
-   * page is start-aligned exactly as before, so 1280/1440/1728 — every width the
-   * owner actually works at — are pixel-identical to the previous behaviour.
-   */
-  margin-inline: auto;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Header block — page content, not a card                                     */
-/* -------------------------------------------------------------------------- */
-
-/*
- * TODAY-TASK-01 §B3 — ONE calm heading AREA.
- *
- * The greeting, the date and the Today · Tomorrow · Next 7 days rail were three
- * siblings of the page's own flex column, so each pair was separated by the
- * page gap (20px) whether or not they belonged together. MEASURED at 1440 before
- * this change: 107px from the greeting's box to the foot of the rail, reading as
- * "heading — gap — navigation — gap — dashboard".
- *
- * They are one thing: *who and when, and which day am I looking at*. So they are
- * one element with its own internal rhythm, and on a desktop the rail sits on the
- * BASELINE ROW of the greeting rather than under it — which is where every other
- * collection in DalyHub puts its principal-mode rail, and which returns the
- * vertical space to the day.
- */
-.dh-today__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  /* The row gap is what a WRAPPED rail pays; the column gap keeps the rail off
-     the greeting's descenders on a wide screen. */
-  gap: var(--dh-space-2) var(--app-space-6);
-}
-
-.dh-today__identity {
-  min-inline-size: 0;
-  display: grid;
-  gap: var(--dh-space-1);
-}
-
-/*
- * The rail loses its own leading space inside the heading area.
- *
- * `ViewTabs` is authored to sit under a heading with air above it, which is
- * correct where it IS its own band. Here it is part of the heading, so the block
- * space it brings would reintroduce exactly the beat this section removes.
- */
-.dh-today__head .dh-schedule__nav {
-  margin-block: 0;
-  flex: none;
-}
-
-/* -------------------------------------------------------------------------- */
-/* The measure strip                                                           */
-/* -------------------------------------------------------------------------- */
-
-/*
- * TODAY-TASK-01 §B2 — the week's measures are a STRIP, not three cards.
- *
- * ── What was here ───────────────────────────────────────────────────────────
- * Three bordered, `--dh-color-surface` cards with 16px of padding on all four
- * sides, a 24px figure, a note and a 32px plot each. MEASURED at 1440 on the
- * seeded fixture: 176px tall, occupying the whole width of the page directly
- * under the greeting — three rectangles of exactly the weight of the Today's
- * plan card below them, on a page whose argument is that ONE thing is the
- * subject. That is the "dashboard of widgets" reading in one band.
- *
- * ── What it is now ──────────────────────────────────────────────────────────
- * The same three facts, the same real figures and the same real plots, drawn as
- * a statistics strip: no boxes, no fill, one hairline BETWEEN measures, and the
- * figure sharing a line with its own evidence. MEASURED after: 82px.
- *
- * Nothing was removed. The label, the figure, the note and the plot are all
- * still here, and each measure still links where it linked — the change is that
- * they no longer each carry a container arguing for their own importance.
- */
-.dh-today__summary {
-  display: block;
-  margin: 0;
-  padding: 0;
-  border: var(--dh-border-width) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface);
-  overflow: hidden;
-}
-
-.dh-today__weekly > summary {
-  display: flex;
-  align-items: center;
-  min-block-size: var(--app-touch-target-min);
-  padding-inline: var(--dh-space-4);
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-label-size);
-  font-weight: var(--dh-text-label-weight);
-  cursor: pointer;
-}
-
-.dh-today__weekly > summary::before {
-  content: "›";
-  margin-inline-end: var(--dh-space-2);
-  transition: transform var(--dh-motion-fast) var(--dh-ease-standard);
-}
-
-.dh-today__weekly[open] > summary::before {
-  transform: rotate(90deg);
-}
-
-.dh-today__weekly-list {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--dh-space-3);
-  margin: 0;
-  padding: var(--dh-space-4) var(--dh-space-5);
-  list-style: none;
-  border-block-start: var(--dh-border-width) solid var(--dh-color-divider);
-}
-
-/*
- * Three measures abreast, with a RULE between them.
- *
- * The rule is `--dh-color-divider` — the quieter of the two hairlines, the one
- * that separates parts of one object rather than one object from the next. That
- * is what these are: one statement about the week, in three parts.
- */
-@container today (min-width: 34rem) {
-  .dh-today__weekly-list {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0;
-  }
-
-  /*
-   * Fewer than three REAL measures is a normal state — every figure on this page
-   * is conditional on its own count — so the surviving measures share the width
-   * rather than sitting beside an empty track that reads as one which failed to
-   * render.
-   */
-  .dh-today__weekly-list:has(> :last-child:nth-child(2)) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .dh-today__weekly-list:has(> :only-child) {
-    grid-template-columns: minmax(0, 24rem);
-  }
-
-  .dh-today__measure + .dh-today__measure {
-    padding-inline-start: var(--dh-space-5);
-    border-inline-start: var(--dh-border-width) solid var(--dh-color-divider);
-  }
-
-  .dh-today__measure:not(:last-child) {
-    padding-inline-end: var(--dh-space-5);
-  }
-}
-
-.dh-today__measure {
-  display: flex;
-  flex-direction: column;
-  min-inline-size: 0;
-}
-
-/*
- * The measure's body: three quiet rows, no surface, no inset of its own.
- *
- * The padding that used to live here was the CARD's; with no card the strip's
- * own rhythm is the page's, and a linked measure is the whole body rather than a
- * target inset from a border.
- */
-.dh-today__measure-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--dh-space-1);
-  min-inline-size: 0;
-  border-radius: var(--dh-radius-sm);
-  color: inherit;
-  text-decoration: none;
-}
-
-/* The figure is what the owner is following, so the figure is what underlines. */
-.dh-today__measure-link:hover .dh-today__measure-value {
-  text-decoration: underline;
-}
-
-.dh-today__measure-label {
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-meta-size);
-  line-height: 1.4;
-}
-
-/* The figure and its evidence, on one line: the whole point of the strip. */
-.dh-today__measure-figure {
-  display: flex;
-  align-items: center;
-  gap: var(--dh-space-3);
-  min-inline-size: 0;
-}
-
-/*
- * The FIGURE is the only loud thing in the measure, and it is a figure: tabular
- * numerals so three of them side by side align on the digit rather than
- * shimmering against each other, and so a count that ticks up does not shift the
- * label beside it.
- */
-.dh-today__measure-value {
-  flex: none;
-  color: var(--dh-color-text);
-  font: var(--t-stat);
-  letter-spacing: var(--t-stat-tracking);
-  font-variant-numeric: var(--dh-font-numeric);
-}
-
-.dh-today__measure-note {
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-meta-size);
-  line-height: 1.4;
-  font-variant-numeric: var(--dh-font-numeric);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/*
- * MOBILE-02 §5 — on a PHONE the measures stay ONE COMPACT BAND.
- *
- * Three measures abreast at ~112px each, carrying the figure and its label and
- * nothing else: the note ("Last 7 days · −6 on the previous 7") wraps to four
- * lines at a third of a phone, and it is supporting evidence for a figure in the
- * same class as the plot this width already drops. The full note is one tap away
- * on every measure that links.
- *
- * Same DOM, same reading order, nothing hidden that carries a fact the screen
- * does not otherwise state, and nothing moved by `order`.
- */
-@container today (max-width: 34rem) {
-  .dh-today__weekly-list {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--dh-space-3);
-  }
-
-  .dh-today__weekly-list:has(> :last-child:nth-child(2)) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .dh-today__weekly-list:has(> :only-child) {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .dh-today__measure-value {
-    font: var(--t-heading);
-    letter-spacing: var(--t-heading-tracking);
-  }
-
-  .dh-today__measure-note {
-    display: none;
-  }
-
-  .dh-today__measure-body {
-    gap: 0;
-  }
-}
-
-/*
- * M3X — `headline-small` EMPHASIZED, down from `headline-large`.
- *
- * The audit's central typography finding was that the biggest string on Today
- * was also the least actionable one (§5, H2). The greeting is still the screen's
- * heading and still the first thing read; it is simply no longer the loudest
- * thing on the page, because the summary beneath it now is. Weight rather than
- * size keeps it feeling like a heading at a size that leaves the phone's first
- * viewport to the day.
- */
-.dh-today__greeting {
-  margin: 0;
-  color: var(--dh-color-text);
-  /*
-   * FINAL-UI — the PAGE TITLE role, which is what UIX-06 was reaching for.
-   *
-   * UIX-06's reasoning was right and its token was not: "Today is a page, and
-   * its greeting is its heading", so it should be whatever a page title is —
-   * and it hard-coded `headline-medium` (28px) while every other page title in
-   * the product read `--dh-text-page-title-*`. When FINAL-UI took that role down
-   * to 22px, Today alone stayed at 28 and became the largest type in the
-   * application.
-   *
-   * It now reads the role. Concept 1 draws "Good afternoon, Aidan" at roughly
-   * the same size as "Projects" or "Tasks" on their own screens, with the date
-   * a quiet line under it — one page-title scale, thirteen pages, no exception.
-   * The emphasized weight comes back with the role, which is what the concept
-   * draws and what every other page title now has.
-   */
-  font-size: var(--dh-text-page-title-size);
-  line-height: var(--dh-text-page-title-line-height);
-  font-weight: var(--dh-text-page-title-weight);
-  overflow-wrap: anywhere;
-}
-
-.dh-today__date {
-  margin: 0;
-  color: var(--dh-color-accent);
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-  font-weight: var(--dh-text-label-weight);
-  text-transform: uppercase;
-}
-
-.dh-today__status {
-  margin: 0;
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-body-size);
-  line-height: var(--dh-text-body-line-height);
-}
-
-/* -------------------------------------------------------------------------- */
-/* The day's figures                                                           */
-/* -------------------------------------------------------------------------- */
-
-/*
- * A row of quiet stat cards on the canvas, where a tinted hero used to be.
- *
- * The whole anatomy lives with the shared component (`card-family.css` →
- * StatCard); the only thing Today has an opinion about is that the row spans the
- * page above the columns, and that it carries no surface of its own — the cards
- * ARE the surfaces, and a container around them would be a card of cards.
- *
- * Why the hero went: it spent the page's largest type on a headline ("Your day")
- * and left the figures at label size beside it, on the one screen whose whole
- * question is the figures. The row spends it on the numbers instead, and it does
- * so without tinting a third of the first viewport
- * (DALYHUB_DESIGN_SYSTEM.md §1 — calm workspace, expressive moments).
- */
-.dh-today__stats {
-  min-inline-size: 0;
-}
-
-/* -------------------------------------------------------------------------- */
-/* The two columns                                                             */
-/* -------------------------------------------------------------------------- */
-
-/*
- * CONVERGE-01 §1 — ONE TWELVE-COLUMN GRID, and everything sits on it.
- *
- * ── What this replaces ──────────────────────────────────────────────────────
- * TODAY-11 gave the page three separately-defined "ranks", each with its own
- * `grid-template-columns` chosen for its own contents:
- *
- *   work     minmax(0, 1.55fr) minmax(19rem, 1fr)
- *   context  minmax(0, 1.2fr) minmax(0, 1fr) minmax(17rem, 1fr)
- *   support  repeat(2, minmax(0, 1fr))
- *
- * Each was defensible on its own and no two of them agreed, so no vertical line
- * survived from one band to the next. Measured at 3440 on the seeded fixture,
- * the panel x-origins down the page were 264 / 1322, then 264 / 917 / 1465, then
- * 264 / 1138 — three gutters, three column systems, one page. That is precisely
- * the "widget board rather than one workspace" reading the audit names, and no
- * amount of spacing or colour work fixes it, because the defect is the geometry.
- *
- * Twelve tracks fix it by construction: every panel's edges land on the same
- * lines as every other panel's, at every width, in every band.
- *
- * ── The spans ───────────────────────────────────────────────────────────────
- *   stats                 4 · 4 · 4      (inside the strip's own three tracks)
- *   plan / schedule       7 · 5
- *   attention / continue  7 · 5
- *   goals / support       7 · 5
- *
- * 7/5 rather than 8/4 or 6/6: the left column of every row is a list of TITLES
- * (task titles, record labels, Goal names) and wants the measure; the right is
- * a strip of times, a short run of facts and two small doorways, which read
- * comfortably narrower. 6/6 gives the schedule width it has nothing to do with;
- * 8/4 takes the week strip below the width seven day-columns need.
- *
- * ── Below the two-column step ───────────────────────────────────────────────
- * One track, and every cell spans it. The DOM order IS the phone order —
- * nothing on this screen is moved by `order`, because `order` moves pixels and
- * leaves the reading order and the tab order behind. That is why CONVERGE-01 §1
- * had to land before MOBILE-02 §5 rather than beside it.
- */
-.dh-today__grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--dh-space-4);
-  align-items: start;
-  min-inline-size: 0;
-}
-
-/* TODAY-12 — decision-first composition. The first row is the one decision the
- * owner can act on now and the next fixed commitment; reporting follows work. */
-.dh-today__now {
-  box-shadow: inset var(--dh-border-width-strong) 0 0 var(--dh-color-accent);
-}
-
-.dh-today__now[data-overdue="true"] {
-  box-shadow: inset var(--dh-border-width-strong) 0 0 var(--dh-color-overdue);
-}
-
-.dh-today__now-label {
-  margin: 0;
-  color: var(--dh-color-accent);
-  font-size: var(--dh-text-label-size);
-  line-height: var(--dh-text-label-line-height);
-  font-weight: var(--dh-text-label-weight);
-}
-
-.dh-today__now[data-overdue="true"] .dh-today__now-label {
-  color: var(--dh-color-overdue);
-}
-
-.dh-today__next {
-  padding: var(--dh-space-5);
-  border: var(--dh-border-width) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface);
-}
-
-.dh-today__next-link {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--dh-space-4);
-  min-block-size: var(--app-touch-target-min);
-  color: var(--dh-color-text);
-  text-decoration: none;
-}
-
-.dh-today__next-time {
-  color: var(--dh-color-text);
-  font-size: var(--dh-text-body-size);
-  font-weight: var(--dh-text-label-weight);
-  font-variant-numeric: var(--dh-font-numeric);
-}
-
-.dh-today__next-copy {
-  display: flex;
-  flex-direction: column;
-  min-inline-size: 0;
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-meta-size);
-}
-
-.dh-today__next-copy strong {
-  overflow: hidden;
-  color: var(--dh-color-text);
-  font-size: var(--dh-text-body-size);
-  font-weight: var(--dh-text-row-weight);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.dh-today__next-arrow {
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-section-title-size);
-}
-
-.dh-today__completed {
-  border-block-start: var(--dh-border-width) solid var(--dh-color-divider);
-}
-
-.dh-today__completed > summary {
-  min-block-size: var(--app-touch-target-min);
-  padding-inline: var(--dh-space-5);
-  display: flex;
-  align-items: center;
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-label-size);
-  font-weight: var(--dh-text-label-weight);
-  cursor: pointer;
-  font-variant-numeric: var(--dh-font-numeric);
-}
-
-/*
- * The marker turns at the SHARED disclosure duration (DHDS-08), so it reads as
- * the same interaction as a task group's chevron.
- *
- * The REGION does not transition, and that is deliberate rather than missed:
- * this is a native `<details>`, whose content cannot be animated open without
- * the `height: auto` machinery §9 rules out. A native disclosure that opens
- * instantly is honest; a fragile one that sometimes clips its content is not.
- * Recorded as a deliberate static exception in the DHDS-08 record.
- */
-.dh-today__completed > summary::before {
-  content: "›";
-  margin-inline-end: var(--dh-space-2);
-  transform: rotate(0deg);
-  transition: transform var(--dh-motion-base) var(--dh-ease-standard);
-}
-
-.dh-today__completed[open] > summary::before {
-  transform: rotate(90deg);
-}
-
-/* Two panels stacked inside ONE cell of the context rank (capture, then
- * reflection), which is how the mockup draws its right-hand column. */
-.dh-today__stack {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--app-space-5);
-  align-content: start;
-  min-inline-size: 0;
-}
-
-/*
- * The TWO-COLUMN step: twelve real tracks.
- *
- * The step is a container query on the PANE rather than the viewport, so the
- * layout is correct with the navigation drawer open, collapsed or in a narrow
- * window. 52rem against the pane puts the columns in place at the 1280px review
- * width (pane ≈ 64rem) as well as on a wide monitor.
- */
-@container today (min-width: 52rem) {
-  .dh-today__grid {
-    grid-template-columns: repeat(12, minmax(0, 1fr));
-  }
-
-  /* The strip of measures owns the full width and splits it three ways: the
-     audit's 4 · 4 · 4. */
-  .dh-today__summary {
-    grid-column: span 12;
-  }
-
-  /*
-   * The MAJOR / MINOR spans are NOT declared here. They are one block, below,
-   * at "ONE SEAM" — this block owns the twelve tracks and the BANDS that take
-   * all of them. Three sets of spans used to live here and in two blocks after
-   * it, and the last one won by source order rather than by decision.
-   */
-
-  /*
-   * STEER-05 — the week's door is a BAND, not a column.
-   *
-   * MEASURED before this rule was written: at 1440 the foot row already holds
-   * `Continue working` (x 264, w 560) and `Daily reflection` (x 840, w 560), so
-   * a third six-column cell wrapped and left 560px of empty grid beside it —
-   * and whether it did so depended on `Continue working`, which is
-   * data-conditional. Full width is deterministic at every width and in every
-   * data state. It is the `HabitsPanel` rule, for the mirror-image reason.
-   */
-  .dh-today__review-door {
-    grid-column: span 12;
-  }
-
-  /*
-   * HABITS-01 — the routine band takes the full width.
-   *
-   * It sits between the day's work and the decision row, and it is a short list
-   * of ONE-LINE rows: a title, a cadence, a context and two counts. Given a
-   * column it would leave the other half of its row empty for the sake of a
-   * five-word list; given the full twelve it reads as a single quiet band and
-   * the decision row below it starts clean.
-   */
-  .dh-today__habits-panel {
-    grid-column: span 12;
-  }
-}
-
-/*
- * TODAY-TASK-01 §B1 — 8 · 4 once the rail can still hold a comfortable week.
- *
- * The brief asks whether the split should move from 7/5 towards 8/4, and asks
- * for the answer to be MEASURED rather than assumed. It was, on the seeded
- * fixture, and the measurement decides both the answer and the threshold.
- *
- * ── What the plan gains ─────────────────────────────────────────────────────
- * The plan's card holds the shared task row, whose title track is the only
- * flexible column; every pixel the cell gains goes to task titles.
- *
- *              container   7/5 plan   8/4 plan   7/5 title   8/4 title
- *   1280           976px      561px      644px       201px       248px
- *   1440          1136px      654px      751px       248px       306px
- *   1728+ (cap)   1424px      822px      943px       373px       458px
- *
- * ── What the Schedule can afford ────────────────────────────────────────────
- * The binding constraint is the week strip: seven day columns, each holding a
- * 28px selected-date disc and a three-letter weekday. Below ~40px per column the
- * disc and the label start to collide.
- *
- *              7/5 rail   8/4 rail   8/4 per day
- *   832px         335px      264px        34.3px   ← too tight
- *   976px         395px      312px        41.1px
- *   1136px        462px      365px        48.7px
- *   1424px        582px      461px        62.4px
- *
- * So the step is 8/4 from a 60rem container (960px) — which is 1280 and up on a
- * desktop with the rail expanded — and 7/5 below it, where the week is what would
- * pay. That is the measured result rather than the blanket change, and it is why
- * this is a second query rather than an edit to the one above.
- */
-/*
- * ONE SEAM, and it is 8/4 — stated once, here, and nowhere else.
- *
- * CONVERGE-01 §1 put every panel on twelve tracks to end "three gutters, three
- * column systems, one page". Two later blocks quietly reintroduced the second
- * gutter, both by source order rather than by decision:
- *
- *   - a `min-width: 60rem` block carried TODAY-TASK-01's MEASURED 8/4 step and
- *     was then overridden, in full, by a `min-width: 52rem` block written after
- *     it. Same container, later source, equal specificity: the measurement never
- *     reached the screen it was measured for;
- *   - that same block gave `Continue working` / `Daily reflection` `span 6`
- *     each, so the foot of the page split at x=576 while everything above it
- *     split at x=768. MEASURED at 1440 on the seeded fixture, which is how it
- *     was found: 752/368 for three rows, then 560/560 for the fourth.
- *
- * It also re-declared the lone-survivor rule as `span 6`, undoing the outer
- * block's `span 12` — so "Needs attention" with no "Continue working" beside it
- * left six columns of hole, which is the exact failure the outer rule's own
- * comment exists to prevent.
- *
- * The three blocks are now one. Every working row is MAJOR 8 / MINOR 4: the left
- * cell is a list of titles and wants the measure, the right is a strip of times,
- * a short run of facts or a doorway. The bands (the day's decision, the week's
- * door, habits, the measures) take all twelve.
- */
-@container today (min-width: 52rem) {
-  /*
-   * The MAJOR cell of every working row — the list of titles. These are the
-   * LEFT-HAND member of each pair in DOM order (plan · goals · continue), and
-   * the pairing is auto-placement's, so the majors and minors must alternate or
-   * a row cannot close: two adjacent eights leave four columns of hole and push
-   * the next panel down past it.
-   */
-  .dh-today__now,
-  .dh-today__timeline,
-  .dh-today__goals,
-  .dh-today__continue {
-    grid-column: span 8;
-  }
-
-  /* The MINOR cell — the week strip, the short run of facts, the doorway. */
-  .dh-today__next,
-  .dh-today__schedule,
-  .dh-today__stack,
-  .dh-today__attention,
-  .dh-today__reflection {
-    grid-column: span 4;
-  }
-
-  /* The attention list is actionable context; keep it in the primary column.
-     Goal progress follows it as the slower supporting read. */
-  .dh-today__attention {
-    grid-column: 1 / span 8;
-  }
-
-  .dh-today__goals {
-    grid-column: 9 / span 4;
-  }
-
-  /*
-   * The decision row is DATA-CONDITIONAL, so its spans are too. "Needs
-   * attention" and "Continue working" each render only when they hold
-   * something, and a lone survivor takes the full twelve rather than leaving
-   * four columns of hole that read as a panel which failed to load.
-   */
-  .dh-today__grid[data-support="attention"] .dh-today__attention,
-  .dh-today__grid[data-support="continue"] .dh-today__continue,
-  .dh-today__grid[data-now-context="now"] .dh-today__now,
-  .dh-today__grid[data-now-context="next"] .dh-today__next {
-    grid-column: span 12;
-  }
-}
-
-@container today (max-width: 33.999rem) {
-  .dh-today__next {
-    padding: var(--dh-space-4);
-  }
-}
-
-/*
- * A middle rung, so a tablet is not twelve 40px tracks.
- *
- * Between 34rem and 52rem the grid is two equal halves and every cell takes one
- * of them — which is the same composition, at the count the width can hold.
- */
-@container today (min-width: 34rem) and (max-width: 51.999rem) {
-  .dh-today__grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  /*
-   * The BANDS keep the full width here too, for the same reasons they have it
-   * at twelve tracks — and this is where a 1024px laptop lands, so getting it
-   * wrong is not a tablet-only cost.
-   *
-   * MEASURED at 1024 before this rule: the day's one actionable decision ("Now")
-   * was drawn at half width beside nothing, the plan below it at full width, and
-   * "This week's Review" — a band everywhere else — ended up as a 352px box in
-   * the bottom-right corner because auto-placement had a hole to fill. The
-   * composition is the same composition at every rung or it is not one.
-   */
-  .dh-today__summary,
-  .dh-today__timeline,
-  .dh-today__habits-panel,
-  .dh-today__review-door,
-  .dh-today__grid[data-support="attention"] .dh-today__attention,
-  .dh-today__grid[data-support="continue"] .dh-today__continue,
-  .dh-today__grid[data-now-context="now"] .dh-today__now,
-  .dh-today__grid[data-now-context="next"] .dh-today__next {
-    grid-column: 1 / -1;
-  }
-}
-
-/*
- * FINAL-UI — a region is a SECTION. One of them is a card.
- *
- * DS-05 gave every region on this screen the product's one card boundary, on the
- * reasoning that at six panels a tonal step alone stops being a boundary. That
- * was the right diagnosis of the wrong problem: the answer to six equal-weight
- * rectangles is not to draw six confident edges around them, it is to stop
- * having six. §31 of the refinement brief says so directly — "reduce
- * equal-weight rectangles; some sections may not need outer cards" — and
- * concept 1's Today is drawn exactly that way: ONE bordered card holding the
- * day's tasks, and a right-hand column of sections (Schedule, then Goals) with
- * nothing behind them but a hairline between one and the next.
- *
- * So the default is a plain section — a heading, its rows, and space. The DAY
- * takes the card (`--card` below), because it is the page's subject and the
- * concept cards it. Everything else is supporting context and reads as such
- * without a rectangle to say so.
- */
-.dh-today__panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--dh-space-3);
-  min-inline-size: 0;
-}
-
-/*
- * The one card: the day's own work.
- *
- * TODAY-TASK-01 §B1 — the card is the page's STRONGEST surface, and it earns
- * that by being the only one with an edge, not by being loud. Two changes make
- * it read as the hero without becoming a hero banner:
- *
- *   - the block inset tightens to `space-4`, because the card now holds the
- *     shared task row, whose own rows already carry the list's rhythm. 20px of
- *     card padding above a row that starts with 8px of its own is 28px of nothing
- *     between the heading and the first task;
- *   - the ROWS bleed to the card's inline edges. The list's hairlines running the
- *     full width of the card is what makes it read as one continuous plan rather
- *     than as a list floating inside a box — the same relationship the reference
- *     products draw. The heading and the foot keep the inset, so the card still
- *     has a margin; only the rules cross it.
- */
-.dh-today__panel--card {
-  padding-block: var(--dh-space-4);
-  border: var(--dh-border-width) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface);
-}
-
-.dh-today__timeline {
-  box-shadow: inset var(--dh-border-width) 0 0 var(--dh-color-accent);
-}
-
-@container today (min-width: 52rem) {
-  .dh-today__schedule,
-  .dh-today__continue,
-  .dh-today__stack {
-    padding-inline-start: var(--dh-space-4);
-  }
-}
-
-/*
- * TODAY-13 — production showed that loose supporting sections did not read as
- * calm; their headings and rows simply ran into adjacent columns. These are
- * compact bounded regions, not elevated widgets: one hairline, one surface and
- * no resting shadow.
- *
- * ── What changed, and what did not ──────────────────────────────────────────
- * The BOUNDARY stays. TODAY-13 diagnosed a real failure and a hairline is the
- * right answer to it. What it also did, unintentionally, was hand every
- * supporting region the SAME surface as the day's card — so the file ended up
- * carrying FINAL-UI's "ONE bordered card holding the day's tasks" beside eight
- * identical rectangles, and the page's whole hierarchy came down to which
- * heading you happened to read first.
- *
- * Supporting regions are now RECESSED rather than raised: the page reads as one
- * canvas with the day lifted off it and its context set into it, which is three
- * ground values doing the work eight equal borders were failing to do. No new
- * token, no shadow, no second radius — the ordinal ladder the product already
- * has (`bg-sunken` < `bg` < `surface`), used in the order it was defined for.
- */
-.dh-today__schedule,
-.dh-today__habits-panel,
-.dh-today__goals,
-.dh-today__attention,
-.dh-today__continue,
-.dh-today__reflection,
-/* STEER-05 — the week's door wears the SAME chrome as the day's reflection,
-   because it is the same kind of thing at a different cadence. Nothing here is
-   a new panel treatment. */
-.dh-today__review-door {
-  padding-block: var(--dh-space-2);
-  border-block-start: var(--dh-border-width) solid var(--dh-color-divider);
-  background: transparent;
-}
-
-/*
- * Phase 4: supporting context is a continuation of the page, not a second
- * dashboard. The task plan keeps the sole framed surface; schedule, attention,
- * progress and reflection use typography, spacing and one quiet divider to
- * stay scannable without competing with the next action.
- */
-.dh-today__schedule,
-.dh-today__habits-panel,
-.dh-today__goals,
-.dh-today__attention,
-.dh-today__continue,
-.dh-today__reflection,
-.dh-today__review-door {
-  border-radius: 0;
-  box-shadow: none;
-}
-
-.dh-today__now .dh-tasklist {
-  margin-block: calc(-1 * var(--dh-space-1));
-}
-
-.dh-today__panel--card > :where(.dh-today__panel-head, .dh-today__panel-foot),
-.dh-today__panel--card > .dh-today__quiet {
-  padding-inline: var(--dh-space-5);
-}
-
-/*
- * The band's heading keeps the card's inset; its ROWS do not.
- *
- * `--dh-inset-inline` is the shared list's own inline padding, so subtracting it
- * from the card's is what lands a task title on exactly the same vertical line as
- * the band label above it — which is the alignment that makes the plan read as
- * one object.
- */
-.dh-today__panel--card .dh-day-section__label {
-  padding-inline: var(--dh-space-5);
-}
-
-.dh-today__panel--card .dh-tasklist {
-  padding-inline: calc(var(--dh-space-5) - var(--dh-inset-inline));
-}
-
-/*
- * Two plain sections stacked in one column are separated by a rule, which is
- * what the card boundary used to do and is a quieter way of doing it. It is the
- * DIVIDER value rather than the boundary one: these are two parts of one column,
- * not two objects.
- */
-.dh-today__stack
-  > .dh-today__panel:not(.dh-today__panel--card)
-  + .dh-today__panel:not(.dh-today__panel--card) {
-  padding-block-start: var(--dh-space-5);
-  border-block-start: var(--dh-border-width) solid var(--dh-color-divider);
-}
-
-.dh-today__panel-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--app-space-3);
-}
-
-/*
- * V2.7 RECALL-04 — a panel's HEADING GROUP: the title and the fact it states,
- * kept together on the left so the head's `space-between` still pushes the one
- * trailing action to the right edge.
- *
- * Without it a head with three children distributes all three across the line
- * and the fact drifts into the middle of the panel, unattached to the heading it
- * belongs to. `baseline` rather than `center` because the fact is meta-sized
- * text sitting beside a section title, and centring two different type sizes
- * against each other is what makes a number look like it is floating.
- */
-.dh-today__panel-heading {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--app-space-2);
-  min-inline-size: 0;
-}
-
-/*
- * TODAY-11 — a panel's ONE optional trailing action.
- *
- * "View all", "View full schedule", "View analytics", "View all reflections" —
- * the mockup gives most panels exactly one, in the accent, at meta size, at the
- * end of the header line. It is a text link rather than a `dh-btn--ghost`
- * because a button's inline padding pushes it off the header's right edge and
- * because these are navigations, not actions.
- *
- * It keeps the touch floor: a link is a control, and a control on a coarse
- * pointer is 44px whatever else it is (WCAG 2.2 SC 2.5.8).
- */
-.dh-today__panel-action {
-  display: inline-flex;
-  align-items: center;
-  flex: none;
-  color: var(--dh-color-accent);
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-  font-weight: 500;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.dh-today__panel-action:hover {
-  text-decoration: underline;
-}
-
-@media (pointer: coarse) {
-  .dh-today__panel-action {
-    min-block-size: var(--app-touch-target-min);
-  }
-}
-
-/*
- * A panel's quiet trailing FACT — "8 tasks", "Last 7 days". Not a control, so
- * it takes the muted ramp and no target: the mockup draws the plan's count and
- * the Insights window this way, and drawing them like the action beside them
- * would invite a click that does nothing.
- */
-.dh-today__panel-note {
-  flex: none;
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-  font-variant-numeric: var(--dh-font-numeric);
-  white-space: nowrap;
-}
-
-.dh-today__panel-title {
-  margin: 0;
-  color: var(--dh-color-text);
-  font-size: var(--dh-text-section-title-size);
-  line-height: var(--dh-text-section-title-line-height);
-  font-weight: var(--dh-text-section-title-weight);
-}
-
-/*
- * A panel's foot. TODAY-11 gave the plan's foot TWO controls — "+ Add task" and,
- * when the day exceeds its bound, "View all N tasks for today" — so the row
- * needs a gap and a wrap. Both are `dh-btn--ghost`, so they read as one set.
- */
-.dh-today__panel-foot {
-  margin: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--app-space-2);
-}
-
-/*
- * The day's three bands, separated by space rather than by another surface.
- *
- * TODAY-TASK-01 — tightened from `space-4` to `space-3` between bands and from
- * `space-1` to `space-2` under a band's own label. The shared row carries more
- * inside it than the private one did, so the space BETWEEN groups is where the
- * height has to come back from: a band label sitting 16px above its first row and
- * 20px below the last row of the band before it made three short lists read as
- * three panels.
- */
-.dh-today__sections {
-  display: flex;
-  flex-direction: column;
-  gap: var(--dh-space-3);
-}
-
-.dh-day-section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--dh-space-2);
-}
-
-/*
- * FINAL-UI — a band label is the TASKS group heading, said on Today.
- *
- * M3X-02 made this an uppercase, letter-spaced `label-medium` and claimed it was
- * "the treatment the approved direction uses for every band label in the
- * product". The approved concepts use no small caps anywhere: concept 2 and
- * concept 3 both draw "Overdue · 2" and "Today · 5" in sentence case at the
- * list's own type size, semibold, with the overdue bucket in red — and Today's
- * bands are the same buckets over the same tasks. Two vocabularies for one idea
- * was the inconsistency §98 asks this pass to find; there is now one, and
- * `task-list.css` owns it.
- *
- * Overdue takes the state colour here for the same reason it does there, and
- * `--dh-color-overdue` rather than `--dh-color-danger`: a slipped task is a
- * state of a record, not an application fault (D3).
- */
-.dh-day-section__label {
-  margin: 0;
-  color: var(--dh-color-text);
-  font-size: var(--dh-text-row-size);
-  line-height: var(--dh-text-row-line-height);
-  font-weight: 600;
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-.dh-day-section[data-tone="overdue"] .dh-day-section__label {
-  color: var(--dh-color-overdue);
-}
-
-/* -------------------------------------------------------------------------- */
-/* Rows                                                                        */
-/* -------------------------------------------------------------------------- */
-
-.dh-day-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-}
-
-/*
- * A plain row: 44px of target, a hairline between siblings, and nothing else.
- * The hairline is BETWEEN rows only — a rule under the last row would draw a
- * boundary the panel's own edge already draws.
- */
-/*
- * FINAL-UI — Today's row is the TASKS row, at the same density.
- *
- * DS-04 built the concept row for `/tasks` and Today kept a 45px + 8px-padding
- * row of its own, so the same five tasks were 61px tall on the day screen and
- * 37px on the list. Concept 1 draws them identically, and it should: it is the
- * same object.
- *
- * The height is `--dh-row-height`, so it follows the density model rather than
- * restating a number — and the fine-pointer floor on the shared completion
- * target (task-signals.css) is what actually lets the row reach it. The block
- * padding goes: the row's height IS its target.
- */
-.dh-day-row {
-  display: flex;
-  align-items: center;
-  gap: var(--app-space-3);
-  min-block-size: var(--dh-row-height);
-  padding-block: 0;
-  min-inline-size: 0;
-  font-size: var(--dh-text-row-size);
-  line-height: var(--dh-text-row-line-height);
-}
-
-/* FINAL-UI — a rule between two rows of one list is `--dh-color-divider`, the
- * quieter of the two hairlines. `--dh-color-border` is the panel's own edge, one
- * object out; drawing both with the same value put the panel's boundary and its
- * internal rhythm at the same weight. */
-.dh-day-row + .dh-day-row {
-  border-block-start: var(--app-border-width-thin) solid var(--dh-color-divider);
-}
-
-/*
- * The completion control is the SHARED circle (`.dh-check-circle`,
- * task-signals.css). Today's rows and the Tasks collection's rows draw exactly
- * the same object because they mean exactly the same thing; UIX-01 moved the
- * drawing out of this file so the second consumer could not fork it.
- */
-
-/*
- * UIX-01 — ONE line, and an ellipsis rather than a wrap.
- *
- * A rail of rows is read down its left edge, and a list whose rows are 44px,
- * 44px, 66px, 44px cannot be read that way — the eye stops at every tall one.
- * The reference draws each focus row as a single line, and the Tasks collection
- * already decided the same thing for the same reason. The whole title is still
- * on the record, in the row's `title` attribute and in the Drawer a tap away.
- */
-/* FINAL-UI — the same weight step the Tasks row takes (§14). Today's row IS the
- * Tasks row; a title that dominates on one screen and not on the other is the
- * inconsistency §55 asks this pass to find. */
-.dh-day-row__title {
-  flex: 1 1 auto;
-  min-inline-size: 0;
-  color: var(--dh-color-text);
-  font-size: var(--dh-text-row-size);
-  line-height: var(--dh-text-row-line-height);
-  font-weight: 500;
-  text-decoration: none;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  /*
-   * STEER-05 / DEBT-213 — the same WCAG 2.2 AA floor the next-action line
-   * below now carries, for the same reason and by the same token.
-   *
-   * MEASURED at 320 on the seeded workspace: the row title is 19.6px tall, and
-   * axe's spacing fallback measured 18.2px of safe clickable space around it —
-   * a serious `target-size` violation on Today's attention rail and its
-   * "Continue working" cards, which `goal-measurement.spec.ts`'s own
-   * *"Today's progress sections fit a 320px phone"* scan was failing on. (The
-   * next-action fix alone moved it to 21.6px, which is closer and still
-   * short.) The floor takes it to a real 24px target.
-   *
-   * `align-content` rather than a flex box: this is a single-line ellipsised
-   * link, and `display: flex` would put its text in an anonymous box where
-   * `text-overflow` cannot reach it. On a browser that does not centre block
-   * content the text simply sits at the top of a 24px target, which is a
-   * cosmetic difference rather than a functional one.
-   */
-  min-block-size: var(--app-pointer-target-min);
-  align-content: center;
-}
-
-.dh-day-row__title:hover {
-  text-decoration: underline;
-}
-
-/*
- * TODAY-10 — the priority tag on a Focus row.
- *
- * The SHARED `.dh-priority` object (task-signals.css), unchanged in appearance:
- * this rule only stops it stretching or shrinking inside the row's flex line,
- * and holds it out of the title's way. It is absent from every untriaged row,
- * because `PriorityIndicator` renders nothing for a null priority — which is why
- * adding it costs the ordinary row no width at all.
- */
-.dh-day-row__priority {
-  flex: none;
-}
-
-/*
- * The row's one trailing fact: the project, the location, the waiting age.
- *
- * Capped at a third rather than at the 40% it took before TODAY-10, and capped
- * at the SAME third at every width instead of two numbers that had to be kept
- * in step. 40% was already close at 1280, where the three-region body gives
- * Focus a ~318px column; with a priority tag now on some rows it INVERTED the
- * row — a 96px title beside a 127px project name, which is a list you read by
- * its metadata. A third keeps the title the widest thing on every row at every
- * measured width from 320 to 1920 (see TODAY_DASHBOARD.md → Mobile).
- */
-.dh-day-row__meta {
-  flex: none;
-  max-inline-size: 33%;
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-  font-variant-numeric: tabular-nums;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/*
- * TODAY-TASK-01 — the overdue REMAINDER row, inside the shared task list.
- *
- * "+3 more overdue" is the one row in the plan that is NOT a task: it carries no
- * completion control and it opens a collection rather than a record. It lives
- * inside the shared `TaskList`'s `<ul>` so it sits in the band it describes, and
- * it borrows nothing from the row anatomy beyond the list's inset — a link at the
- * touch floor, in the state colour, stating the TRUE count.
- *
- * Everything else in this section went with the private row: the `data-done`
- * strike-through, the overdue tint, the trailing "Due 3 days ago" span, the
- * context pill and the priority slot are all the shared row's now, drawn once in
- * `task-list.css` for `/today` and `/tasks` alike.
- */
-.dh-day-row--more {
-  display: flex;
-  align-items: center;
-  min-block-size: var(--dh-row-height);
-  padding-inline: var(--dh-inset-inline);
-}
-
-.dh-day-row__more-link {
-  display: inline-flex;
-  align-items: center;
-  min-block-size: var(--app-touch-target-min);
-  color: var(--dh-color-overdue);
-  font-size: var(--dh-text-label-size);
-  line-height: var(--dh-text-label-line-height);
-  font-weight: var(--dh-text-label-weight);
-  font-variant-numeric: tabular-nums;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Meeting rows                                                                */
-/* -------------------------------------------------------------------------- */
-
-/* A fixed-width time slot in tabular figures, so every start time in the day
- * lines up on one axis regardless of digit widths. */
-.dh-day-row__time {
-  flex: none;
-  inline-size: 3.25rem;
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-  font-variant-numeric: tabular-nums;
-}
-
-.dh-day-row__glyph {
-  display: inline-flex;
-  flex: none;
-  font-size: 1.125rem;
-  line-height: 0;
-  color: var(--dh-color-text-muted);
-}
-
-/*
- * M3X-02 — the meeting marker.
- *
- * It stands exactly where a task's completion circle stands, at the same width,
- * so the day reads as one column of events with two kinds in it rather than as
- * two lists that happen to be adjacent. It is the Meeting entity's own colour,
- * and it is decorative: the row is a link to a Meeting record, its accessible
- * name is the meeting's title, and its time and location are text beside it.
- */
-.dh-day-row--meeting {
-  align-items: start;
-}
-
-.dh-day-row__dot {
-  flex: none;
-  inline-size: 0.5rem;
-  block-size: 0.5rem;
-  /* Optically centred against the title's first line box, since the row is
-   * top-aligned to keep the time on the title's line. */
-  margin-block-start: 0.4375rem;
-  margin-inline: calc((1.25rem - 0.5rem) / 2);
-  border-radius: var(--dh-radius-pill);
-  background: var(--dh-color-entity-meeting);
-}
-
-@media (forced-colors: active) {
-  .dh-day-row__dot {
-    background: CanvasText;
-  }
-}
-
-.dh-day-row--meeting .dh-day-row__meta {
-  flex: none;
-  max-inline-size: none;
-  white-space: normal;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Rail rows                                                                   */
-/* -------------------------------------------------------------------------- */
-
-/* An attention row's supporting fact goes UNDER the subject on a narrow rail,
-   rather than competing with it for the same line. */
-.dh-day-row--attention {
-  flex-wrap: wrap;
-}
-
-.dh-day-row--attention .dh-day-row__meta {
-  flex: 1 0 100%;
-  max-inline-size: none;
-  padding-inline-start: calc(1.125rem + var(--app-space-3));
-  white-space: normal;
-}
-
-/*
- * V2.7 RECALL-03 — a meta line carrying TWO facts.
- *
- * The waiting row states what is outstanding AND how much of it the owner said
- * they would chase today. Two facts do not fit the single-line, ellipsised meta
- * the rail draws on a wide container, and an ellipsised fact is a fact the
- * surface has quietly stopped stating — the same class of untruth as the
- * truncated waiting count this item repairs. So the row that carries a second
- * fact wraps instead of truncating. It is the only row that ever does.
- */
-.dh-day-row--attention .dh-day-row__meta--split {
-  white-space: normal;
-  overflow: visible;
-}
-
-/*
- * The second fact's own destination, inside the meta line.
- *
- * The count names a FILTERED population, so it opens the filtered list rather
- * than the whole one. It keeps the muted meta colour (it is still supporting
- * text) and earns its underline, and it carries the same WCAG 2.2 AA target
- * floor `.dh-day-row__title` carries — an inline link in a 16px meta line would
- * otherwise fail `target-size` on exactly the phone this rail is read on.
- */
-.dh-day-row__meta-link {
-  color: inherit;
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
-  display: inline-block;
-  min-block-size: var(--app-pointer-target-min);
-  align-content: center;
-}
-
-.dh-day-row__meta-link:hover {
-  color: var(--dh-color-text);
-}
-
-/*
- * TODAY-TASK-01 §B5 — on a wide rail the attention row is ONE line.
- *
- * "Needs attention" answers "what has gone wrong?", and the answer should read
- * as a short DECISION LIST rather than as another dashboard widget. Five
- * two-line rows in an eight-column cell is 178px of panel with half of it empty
- * on the right; the same five facts on one line each are 220px shorter and are
- * scanned in the order they are ranked.
- *
- * The subject leads and the fact follows at the end of the line, muted — the
- * same relationship the plan's rows have. Nothing is dropped and nothing is
- * abbreviated: below the step the fact still takes its own line, which is what a
- * phone needs.
- */
-@container today (min-width: 52rem) {
-  .dh-day-row--attention {
-    flex-wrap: nowrap;
-  }
-
-  /*
-   * ONE line where both halves fit, TWO where they do not — never a cut fact.
-   *
-   * The 55% cap this replaces was written for an eight-column cell. "Needs
-   * attention" is the MINOR cell of its row — 368px at 1440, 315px at 1280 — so
-   * 55% of the row's stack is ~163px, and MEASURED there every long fact was
-   * cut: "7 waiting items · oldest…", "2 obligations need atte…". The facts are
-   * the entire point of the panel: a truncated one is a row that says something
-   * has gone wrong and then declines to say what.
-   *
-   * Sizing the fact to itself is most of the fix, but a percentage swapped for
-   * a pixel floor is still a guess about how long a fact can get — and this one
-   * is data, so it will eventually be longer. So the fact does not SHRINK at
-   * all; when it and the subject cannot share a line, it takes the next one,
-   * which is exactly what the row does below this step anyway. The subject
-   * keeps the ellipsis, because a long subject with a short fact is the case
-   * where truncating the subject IS the right answer.
-   */
-  .dh-day-row--attention .dh-day-row__stack {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: var(--dh-space-3);
-  }
-
-  .dh-day-row--attention .dh-day-row__meta {
-    flex: 0 0 auto;
-    margin-inline-start: auto;
-    padding-inline-start: 0;
-    max-inline-size: 100%;
-    white-space: nowrap;
-  }
-
-  .dh-day-row--attention .dh-day-row__title {
-    flex: 1 1 auto;
-    min-inline-size: 4rem;
-  }
-
-  /* The two-fact row keeps its whole answer at every width: it may take a
-     second line rather than lose the follow-up count to an ellipsis. */
-  .dh-day-row--attention .dh-day-row__meta--split {
-    max-inline-size: 60%;
-    white-space: normal;
-    text-align: end;
-  }
-}
-
-.dh-day-row--project {
-  align-items: start;
-}
-
-.dh-day-row__stack {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-1);
-  flex: 1 1 auto;
-  min-inline-size: 0;
-}
-
-.dh-day-row--project .dh-day-row__meta {
-  flex: none;
-  max-inline-size: none;
-  white-space: normal;
-}
-
-/* The project's identity chip: a tinted container holding its initial. It is an
- * identity cue, never a status — status is the word beside it. */
-.dh-day-row__avatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-  inline-size: 2rem;
-  block-size: 2rem;
-  border-radius: var(--dh-radius-pill);
-  background: var(--dh-color-surface-selected);
-  color: var(--dh-color-text);
-  font-size: var(--dh-text-label-size);
-  font-weight: var(--dh-text-label-weight);
-}
-
-.dh-day-row__progress {
-  margin-block-start: var(--app-space-1);
-}
-
-/* -------------------------------------------------------------------------- */
-/* Quiet states                                                                */
-/* -------------------------------------------------------------------------- */
-
-/*
- * One line, not a card.
- *
- * An empty day is a good day. It does not need an illustration, a headline, a
- * paragraph and a button to say so — that treatment turns "nothing is due" into
- * the largest object on the screen, which is exactly backwards. The same rule
- * gives the rail its "All clear": one row, never a green panel, and never
- * alongside real items.
- */
-.dh-today__quiet {
-  display: flex;
-  align-items: center;
-  gap: var(--app-space-2);
-  margin: 0;
-  min-block-size: var(--app-touch-target-min);
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-row-size);
-  line-height: var(--dh-text-row-line-height);
-}
-
-/*
- * Deep zoom: the quiet line may take a second row rather than push the page.
- *
- * `.dh-today__quiet` is a flex container, which is right for its two glyph
- * variants ("All clear" beside a tick). The third use is PROSE with an inline
- * link — "No measurable Goals yet. Add a target to a <Goal> and your progress
- * shows up here." — and flex turns that sentence into three items (two
- * anonymous text runs either side of the link) on one `nowrap` line. Each item
- * carries the automatic minimum of a flex item, so the line's floor is the SUM
- * of their min-contents: measured at 209px against a 195px viewport, which is
- * the whole of the remaining horizontal overflow at 200% zoom on a phone.
- *
- * Allowing the line to wrap lets those items stack instead of forcing the
- * document wider. Scoped to the width where it matters, so the single-line
- * composition every ordinary phone gets is untouched.
- */
-@media (max-width: 15rem) {
-  .dh-today__quiet {
-    flex-wrap: wrap;
-  }
-}
-
-/*
- * MOBILE-01 (iPhone daily driver) — and PROSE stops being a flex line at all.
- *
- * The zoom rule above treats the symptom at 240px; the cause is that a sentence
- * with an inline link inside a flex container is not a sentence, it is three
- * flex items. MEASURED at 390px on Today: "No measurable Goals yet. Add a
- * target to a / Goal / and your progress shows up here." rendered as three
- * side-by-side columns, each wrapping internally, so the visible reading order
- * was "No measurable Goals yet. Add a target to a" · "Goal" · "and your
- * progress" / "shows up here." — a broken sentence on the phone home screen.
- *
- * The two GLYPH uses of this class ("All clear" beside a tick) genuinely are a
- * flex line and keep it. The two PROSE uses say so, and get normal inline
- * layout: the link flows in the sentence, the sentence wraps where the words
- * run out, and `min-block-size` still holds the touch floor for the link.
- */
-.dh-today__quiet--prose {
-  display: block;
-}
-
-.dh-today__quiet-glyph {
-  display: inline-flex;
-  flex: none;
-  font-size: 1.125rem;
-  line-height: 0;
-  color: var(--dh-color-success);
-}
-
-/* The global capture control, named in the empty state's own words so the
- * sentence points at a real control rather than describing an abstraction. */
-.dh-today__plus {
-  font-weight: 600;
-  color: var(--dh-color-text);
-}
-
-/* -------------------------------------------------------------------------- */
-/* Phone                                                                       */
-/* -------------------------------------------------------------------------- */
-
-@media (max-width: 48rem) {
+@layer components {
   .dh-today {
-    gap: var(--app-space-4);
-    padding-block-start: var(--app-space-4);
-  }
-
-  .dh-today__panel {
-    padding: var(--dh-space-4);
-  }
-
-  .dh-today__schedule,
-  .dh-today__habits-panel,
-  .dh-today__goals,
-  .dh-today__attention,
-  .dh-today__continue,
-  .dh-today__reflection,
-  .dh-today__review-door {
-    padding-inline: 0;
+    @apply mx-auto flex w-full max-w-[var(--dh-shell-content-max-width)] flex-col gap-6 px-4 pb-8 sm:px-6 lg:px-8;
   }
 
   .dh-today__head {
-    align-items: flex-start;
+    @apply max-w-none px-0 pb-1 pt-6;
   }
 
-  .dh-today__head .dh-schedule__nav {
-    inline-size: 100%;
+  .dh-today__identity {
+    @apply min-w-0;
   }
-
-  .dh-today__summary {
-    padding: 0;
+  .dh-today__date,
+  .dh-today__status,
+  .dh-today__panel-note,
+  .dh-today__goals-note,
+  .dh-today__quiet,
+  .dh-today__schedule-date,
+  .dh-today__goal-area {
+    @apply text-sm text-tertiary;
   }
-
-  /* The greeting steps down one rung so it does not take a third of a phone
-   * viewport before the first task. */
   .dh-today__greeting {
-    font-size: var(--dh-text-record-title-size);
-    line-height: var(--dh-text-record-title-line-height);
+    @apply mt-1 text-xl font-semibold text-primary sm:text-2xl;
+  }
+  .dh-today__date,
+  .dh-today__status {
+    @apply m-0;
   }
 
-  /*
-   * The RAIL rows (attention, continue, schedule) keep their one-line rhythm.
-   * The plan's rows are the shared task row now, and its own phone composition
-   * — a title on line one, `date · project … P1` on line two — is declared once
-   * in `task-list.css` and reached here by the LIST's width rather than by the
-   * window's, which is the same ladder `/tasks` runs.
-   */
-  .dh-day-row__meta {
-    max-inline-size: 33%;
+  .dh-today__grid {
+    @apply grid grid-cols-1 min-w-0 gap-4;
   }
-}
-
-/* -------------------------------------------------------------------------- */
-/* GOAL-02 — Goal progress                                                     */
-/* -------------------------------------------------------------------------- */
-
-/*
- * REDESIGN-03 — Goal progress is a RAIL section now, not a full-width band.
- *
- * It spent three design generations moving: inside the day's column, then a
- * full-width row beneath it, then (via the convergence merge) stranded in the
- * middle track of a three-region grid while its own comment still described the
- * full-width row. Each move was chasing the same symptom — a band under a
- * two-column body starts below the TALLER column, so a short day left a screen
- * of dead canvas above it.
- *
- * In the rail the symptom cannot occur: the section follows Schedule in normal
- * flow. It also puts the answer to "am I progressing?" beside the day's work
- * rather than a scroll below it, which is what the brief asks for, and the tile
- * grid below already collapses to one column in a narrow track — so the same
- * markup reads as a glance in the rail and as a row on a phone.
- *
- * The workload trend that shared this region is gone; see `TodayScreen.tsx`.
- */
-
-/*
- * DS-06 — an EVEN grid, because the section holds at most four tiles.
- *
- * `auto-fit` with a 14rem minimum is the right tool for a list of unknown
- * length, and the wrong one for a list capped at four (`TODAY_GOAL_LIMIT`): in
- * the two-thirds-width track the section now occupies it fits exactly three, so
- * four Goals drew a row of three and one lonely tile beside a hole two tiles
- * wide. A fixed count per rung is the honest answer for a bounded set — two
- * abreast in a narrow track, four in a wide one, and never a ragged last row.
- *
- * The queries are on the PANEL rather than the viewport, because the panel's
- * width now depends on where the body grid put it.
- */
-.dh-today__goals {
-  container-type: inline-size;
-  container-name: today-goals;
-}
-
-.dh-today__goal-list {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--dh-space-3);
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  min-inline-size: 0;
-}
-
-/*
- * CONVERGE-01 §1 A8 — a TWO-UP rail, and it stops at two.
- *
- * The rail used to step to four columns at 62rem. Inside the new seven-column
- * cell that step lands at ~1000px on an ultra-wide, which is 250px per Goal —
- * and a Goal tile carries a mark, a name, its Area, a current reading, a target,
- * a percentage, a change figure, a status word and a meter. At 250px the
- * reading line ("8.1 km  Target 10 km") and the status line ("76% · ↑ 3.3 km
- * this month · Ahead") both wrap, so four columns bought density in width and
- * spent it in height while making every tile harder to read.
- *
- * Two is the audit's number and it is the right one for this content: ~500px per
- * Goal at 3440 and ~327px at 1440, which is one line for the reading and one for
- * the status at both. The alternative failure the audit names — "sparse 900px
- * tall Goal columns" — is a ONE-up rail, and the 28rem step below is what stops
- * that.
- */
-@container today-goals (min-width: 28rem) {
-  .dh-today__goal-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .dh-today__panel {
+    @apply min-w-0 overflow-hidden rounded-xl bg-primary ring-1 ring-secondary;
   }
-}
-
-/*
- * DS-06 — one Goal, as a hairline-separated tile. The fill is gone.
- *
- * UIX-01 tinted these because "the reference's Goal row is where Today spends
- * most of its colour, and four identically grey tiles is what made ours the
- * flattest thing on the page", and UIX-03 made the tint mean something by taking
- * it from the Goal's Area. Both arguments were about the tiles being FLAT, and
- * both answered it with a FIELD of colour.
- *
- * The whole-app baseline is what retires it. Four filled pastel slabs — pale
- * blue, mint, peach — are the loudest object on the dashboard and the most
- * Material-looking thing left in the product, sitting directly under a Focus
- * panel and a Schedule panel that are white. DS-05 removed exactly this fill
- * from the Goal gallery card for exactly this reason; leaving it here would mean
- * a Goal is a tinted slab on Today and a white card two clicks away.
- *
- * The flatness the tint was buying is bought instead by a hairline and the
- * accent where an accent is legible: the mark at the top of the tile and the
- * progress fill under the reading, which is where DS-05 left it too. Identity is
- * still drawn twice per Goal, in both places, and the reading is now the
- * loudest thing on the tile — which is what the section is for.
- */
-/*
- * FINAL-UI — and the tile loses its own boundary too, because the section around
- * it lost one first.
- *
- * §34: "avoid huge Goal cards on Today; use compact horizontal progress rows".
- * Four bordered tiles inside a bordered panel was a card inside a card — the
- * panel-in-panel `visual-system.spec.ts` refuses everywhere else in this screen
- * and the loudest remaining structure on the page. With the section plain, the
- * tiles are what the concept draws: a mark, a reading, a bar and a figure,
- * separated by space rather than by twelve more pixels of hairline each.
- *
- * The full Goal card, with its edge, is two clicks away on `/goals`, which is
- * where a Goal is the subject rather than a glance.
- */
-.dh-today__goal {
-  display: grid;
-  align-content: start;
-  gap: var(--dh-space-2);
-  padding-inline-end: var(--dh-space-4);
-  min-inline-size: 0;
-}
-
-/* The mark leads the tile, above the title, as the reference draws it. */
-.dh-today__goal .dh-accent-icon {
-  margin-block-end: var(--app-space-1);
-}
-
-.dh-today__goal-title {
-  font-size: var(--dh-text-row-size);
-  line-height: var(--dh-text-row-line-height);
-  font-weight: 500;
-  color: var(--dh-color-text);
-  text-decoration: none;
-  overflow-wrap: anywhere;
-}
-
-.dh-today__goal-title:hover {
-  text-decoration: underline;
-}
-
-/*
- * The Goal's one action. Left-aligned and 44px, so it is a comfortable phone
- * target without becoming the tile's visual centre — and pulled back into the
- * tile's own padding, because a text button's inline padding is chrome the tile
- * has already paid for.
- *
- * REDESIGN-03 made the 44px true. The comment above has claimed it since the
- * tile was written and the rule never set a height, so the control inherited
- * `.dh-btn--sm`'s 32px `min-block-size` and measured 32×n on the surface a
- * phone opens first — `goal-measurement.spec.ts` has been failing on it. The
- * VISUAL size is unchanged: the extra height is hit area on a text button that
- * draws no box, which is exactly the case `--button-height-touch` exists for.
- */
-.dh-today__goal .dh-btn {
-  justify-self: start;
-  margin-inline-start: calc(-1 * var(--app-space-3));
-  min-block-size: var(--button-height-touch);
-}
-
-/* -------------------------------------------------------------------------- */
-/* TODAY-11 — the command centre                                              */
-/* -------------------------------------------------------------------------- */
-
-/*
- * Everything MOCKUP 5 added to this screen, in one place: the header's action,
- * the stat cards' charts, the Schedule panel's week strip, the Insights ring,
- * the Quick capture card and the Daily reflection card.
- *
- * Layout and rhythm only. Every value is a DalyHub token, every control is a
- * shared component or the product's own `.dh-btn` family, and every chart is a
- * `~/shared/charts` primitive painting with the generated scheme — so all of it
- * is correct in both appearances and all five schemes by construction rather
- * than by a dark-mode override.
- */
-
-/* -------------------------------------------------------------------------- */
-/* The measure's plot                                                          */
-/* -------------------------------------------------------------------------- */
-
-/*
- * TODAY-TASK-01 §B2 — the plot moved BESIDE the figure.
- *
- * It used to sit under the figure and its note, inside the card's padding, in a
- * region tall enough to reserve a 32px sparkline plus 24px of inset — about 60px
- * of every measure. With the cards gone there is no padding to sit inside and no
- * card height to equalise, and the honest place for a 7-point series that is
- * EVIDENCE for a number is on the same line as the number.
- *
- * ── The inset stays PADDING on this wrapper, and that still matters ──────────
- * Both plots are `inline-size: 100%` primitives (`.dh-spark` and
- * `.dh-progress__track` each set it, because an SVG with a viewBox and a bare
- * `<div>` bar have no intrinsic width to stretch from). A percentage width
- * resolves against the containing block while margins are added OUTSIDE it, so
- * an inset expressed as `margin-inline` put the plot's right edge exactly that
- * far past its container — measured at 18.3px on `/today` before CONVERGE-01 §1
- * fixed it, identically at every width because it is a constant. There is no
- * margin here for a percentage to be added to.
- *
- * `overflow: clip` bounds the GRAPH REGION rather than the measure, which is what
- * keeps a focus ring and any future popover unclipped; the clip is on the padding
- * box, so the sparkline's 4.5px end-marker radius still has its room.
- */
-.dh-today__measure-plot {
-  /* Pushed to the trailing edge of its own measure, so the three figures stay
-     on one axis and the evidence lines up on another. */
-  flex: 0 1 auto;
-  margin-inline-start: auto;
-  inline-size: 5rem;
-  /* A ceiling, not a stretch: a 24px plot run across 200px of a wide track is a
-     chart, and this is a footnote. */
-  max-inline-size: 40%;
-  min-inline-size: 0;
-  overflow: clip;
-  overflow-clip-margin: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  min-block-size: 24px;
-}
-
-/*
- * On a phone a measure is a label and a figure and nothing else, and a plot
- * beside a 22px figure in a 112px column is four pixels of ink. The figures and
- * their labels carry every fact; the plots are supporting evidence, and evidence
- * is what a narrow screen drops first.
- */
-@container today (max-width: 34rem) {
-  .dh-today__measure-plot {
-    display: none;
+  .dh-today__panel-head {
+    @apply flex min-w-0 flex-wrap items-center justify-between gap-3 border-b border-secondary px-4 py-4 sm:px-5;
   }
-}
-
-/*
- * At the narrowest widths the four chips are 2 x 2, not 3 + 1.
- *
- * `auto-fit` fits three 64px chips into a 232px card at 320 and drops the fourth
- * onto a line of its own, which reads as a wrapping accident rather than as a
- * set. Two even rows are the same four controls, larger, and obviously one
- * group. Above this the row of four fits and stays a row of four.
- */
-@container today (max-width: 22rem) {
-  .dh-today__capture-chips {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .dh-today__panel-heading {
+    @apply flex min-w-0 flex-wrap items-center gap-2;
   }
-}
-
-/* -------------------------------------------------------------------------- */
-/* The week strip                                                              */
-/* -------------------------------------------------------------------------- */
-
-.dh-weekstrip {
-  display: flex;
-  flex-direction: column;
-  gap: var(--dh-space-2);
-  min-inline-size: 0;
-}
-
-/* "August 2026" — the strip's own heading, quiet, above the days. */
-.dh-weekstrip__month {
-  margin: 0;
-  color: var(--dh-color-text);
-  font-size: var(--dh-text-row-size);
-  line-height: var(--dh-text-row-line-height);
-  font-weight: 600;
-}
-
-/*
- * Seven equal columns, always. `1fr` each rather than `auto-fit`, because a week
- * has seven days at every width and a strip whose columns changed count would
- * stop being a week.
- */
-.dh-weekstrip__days {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: var(--dh-space-1);
-  min-inline-size: 0;
-}
-
-/*
- * One day: the weekday, the date, and a mark for "something is on".
- *
- * No border and no fill in the resting state — a row of seven bordered boxes is
- * a control panel, and this is a set of dates. Selection is a filled circle
- * behind the DATE alone, which is what the mockup draws and what keeps the
- * selected day legible without the strip growing.
- */
-.dh-weekstrip__day {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--dh-space-1);
-  min-inline-size: 0;
-  /* The whole column is the target, and it clears the WCAG 2.2 minimum at every
-   * width the strip is drawn at — including 320, where a seventh of the panel is
-   * ~34px wide and the height carries the rest. */
-  min-block-size: var(--app-touch-target-min);
-  padding-block: var(--dh-space-1);
-  border: 0;
-  border-radius: var(--dh-radius-sm);
-  background: none;
-  color: var(--dh-color-text-muted);
-  cursor: pointer;
-}
-
-.dh-weekstrip__weekday {
-  font-size: var(--dh-text-meta-size);
-  line-height: 1.2;
-  /* The mockup sets the weekday in caps. It is a two- or three-letter
-   * abbreviation of a word the date beneath it repeats in full to a screen
-   * reader, so the transform costs nothing and is not carrying meaning. */
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.dh-weekstrip__date {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  inline-size: 1.75rem;
-  block-size: 1.75rem;
-  border-radius: var(--dh-radius-pill);
-  color: var(--dh-color-text);
-  font-size: var(--dh-text-row-size);
-  line-height: 1;
-  font-weight: 500;
-  font-variant-numeric: var(--dh-font-numeric);
-}
-
-/*
- * TODAY, when it is not the selected day: an outline, never a fill. The filled
- * disc is reserved for SELECTION, so the two states are never confused — and on
- * the ordinary visit, when today is selected, only one mark is drawn.
- */
-.dh-weekstrip__day[data-today="true"] .dh-weekstrip__date {
-  box-shadow: inset 0 0 0 var(--app-border-width-thin)
-    var(--dh-color-border-strong);
-}
-
-.dh-weekstrip__day[aria-selected="true"] {
-  color: var(--dh-color-text);
-}
-
-.dh-weekstrip__day[aria-selected="true"] .dh-weekstrip__date {
-  background: var(--dh-color-accent);
-  color: var(--dh-color-text-on-accent);
-  box-shadow: none;
-}
-
-/*
- * The "something is on" mark. A 4px dot, reserved in EVERY column so a day with
- * items and a day without are the same height and the strip does not jitter as
- * the selection moves. It is decorative: the button's accessible name states the
- * count in words.
- */
-.dh-weekstrip__mark {
-  inline-size: 0.25rem;
-  block-size: 0.25rem;
-  border-radius: var(--dh-radius-pill);
-  background: none;
-}
-
-.dh-weekstrip__mark[data-has-items="true"] {
-  background: var(--dh-color-accent);
-}
-
-@media (forced-colors: active) {
-  .dh-weekstrip__mark[data-has-items="true"] {
-    background: CanvasText;
+  .dh-today__panel-title {
+    @apply m-0 text-md font-semibold text-primary;
+  }
+  .dh-today__panel-note {
+    @apply tabular-nums;
   }
 
-  .dh-weekstrip__day[aria-selected="true"] .dh-weekstrip__date {
-    box-shadow: inset 0 0 0 var(--app-border-width-thick) CanvasText;
+  .dh-today__panel-action,
+  .dh-today__measure-link,
+  .dh-today__goal-title,
+  .dh-day-row__title,
+  .dh-day-row__meta-link,
+  .dh-today__next-link,
+  .dh-today__reflection-title a {
+    @apply text-sm font-semibold text-brand-secondary underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring;
   }
-}
-
-/* -------------------------------------------------------------------------- */
-/* The Schedule panel                                                          */
-/* -------------------------------------------------------------------------- */
-
-.dh-today__schedule-day {
-  display: flex;
-  flex-direction: column;
-  gap: var(--dh-space-2);
-  min-inline-size: 0;
-}
-
-/* The panel's tabpanel takes focus programmatically when the strip is driven
- * from the keyboard, so it needs a visible ring like anything else that can be
- * focused — and none of the default outline suppression that hides one. */
-.dh-today__schedule-day:focus-visible {
-  outline: var(--app-border-width-thick) solid var(--dh-color-focus);
-  outline-offset: var(--app-space-1);
-  border-radius: var(--dh-radius-sm);
-}
-
-/*
- * Which day is being shown, in words, above its rows. "Today · Saturday 16
- * August" on the owner's own day and the date alone on any other — the strip's
- * filled disc says the same thing visually, and a visual-only answer to "which
- * day am I looking at?" is not an answer.
- */
-.dh-today__schedule-date {
-  margin: 0;
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-}
-
-/* -------------------------------------------------------------------------- */
-/* Quick capture                                                               */
-/* -------------------------------------------------------------------------- */
-
-/*
- * A control that LOOKS like a field, and is a button.
- *
- * The same object `DesktopTopBar` draws for search, for the same recorded
- * reason: a real input here would be a second capture implementation beside the
- * shared sheet that already owns parsing, validation and error recovery. Its
- * label is real text and is its accessible name — never a placeholder, and never
- * a visually-hidden name on a glyph.
- */
-.dh-today__capture-field {
-  display: flex;
-  align-items: center;
-  gap: var(--app-space-2);
-  inline-size: 100%;
-  min-block-size: var(--app-touch-target-min);
-  padding-inline: var(--dh-space-3);
-  border: var(--dh-border-width) solid var(--dh-color-border-strong);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface);
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-row-size);
-  line-height: var(--dh-text-row-line-height);
-  text-align: start;
-  cursor: pointer;
-}
-
-.dh-today__capture-field-icon {
-  display: inline-flex;
-  flex: none;
-  line-height: 0;
-  font-size: 1.125rem;
-  color: var(--dh-color-accent);
-}
-
-/*
- * The four capture kinds. `auto-fit` with a floor, so they are one row of four
- * in the mockup's cell, two by two in a narrow one, and never four 40px stubs.
- */
-.dh-today__capture-chips {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(4rem, 1fr));
-  gap: var(--dh-space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  min-inline-size: 0;
-}
-
-.dh-today__capture-chip {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--dh-space-1);
-  inline-size: 100%;
-  min-block-size: var(--app-touch-target-min);
-  padding: var(--dh-space-2);
-  border: var(--dh-border-width) solid var(--dh-color-divider);
-  border-radius: var(--dh-radius-md);
-  background: none;
-  color: var(--dh-color-text);
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-  cursor: pointer;
-}
-
-.dh-today__capture-chip svg {
-  font-size: 1.125rem;
-  color: var(--dh-color-text-muted);
-}
-
-/* -------------------------------------------------------------------------- */
-/* Daily reflection                                                            */
-/* -------------------------------------------------------------------------- */
-
-/* The prompt, or the kind of entry today already holds. Quiet either way: the
- * card's subject is the owner's own words, not the label above them. */
-/*
- * WCAG 1.4.10 (Reflow) — the one control on Today that could not reflow.
- *
- * The shared button is `white-space: nowrap`, which is right for a control in a
- * row of controls and wrong for a sentence-length call to action in a panel: at
- * 195px — a 390px phone at 200% zoom — "Write today’s entry" plus its glyph has
- * an intrinsic width of 172px, and the panel's inset starts it at x=32, so the
- * document needed 204px and Today scrolled sideways. MEASURED before the fix:
- * `scrollWidth` 204 against a `clientWidth` of 195.
- *
- * Wrapping is conditional by construction — `normal` wraps only when the line
- * does not fit — so every width that fitted before is unchanged, and the label
- * is left-aligned once it occupies more than one line, because centred wrapped
- * text in a button reads as two captions rather than one label.
- */
-.dh-today__reflection-write {
-  max-inline-size: 100%;
-  white-space: normal;
-  text-align: start;
-}
-
-.dh-today__reflection-prompt {
-  margin: 0;
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-}
-
-.dh-today__reflection-title {
-  margin: 0;
-  font-size: var(--dh-text-row-size);
-  line-height: var(--dh-text-row-line-height);
-  font-weight: 500;
-}
-
-.dh-today__reflection-title a {
-  color: var(--dh-color-text);
-  text-decoration: none;
-}
-
-.dh-today__reflection-title a:hover {
-  text-decoration: underline;
-}
-
-/*
- * Two lines of the entry, and then it stops.
- *
- * The clamp is a SECOND bound over the excerpt's own 180 characters, because
- * character count is not line count: 180 short words in a narrow cell is four
- * lines. Nothing is hidden that is not one tap away on the entry itself.
- */
-.dh-today__reflection-excerpt {
-  margin: 0;
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-row-size);
-  line-height: var(--dh-text-row-line-height);
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-/* -------------------------------------------------------------------------- */
-/* This week's Review — the week's door (STEER-05)                             */
-/* -------------------------------------------------------------------------- */
-
-/*
- * The period, in the head's own note slot.
- *
- * It inherits `.dh-today__panel-note` entirely — the same muted meta size, the
- * same numeric treatment and the same no-wrap rule the plan's "8 tasks" uses —
- * and adds one thing: a date RANGE is longer than a count, so it is allowed to
- * wrap onto its own line rather than squeezing the heading beside it at a
- * narrow width.
- *
- * There is no state colour anywhere in this section. "Not started", "underway"
- * and "done" differ in their WORDS and in the control they offer, never in a
- * tone that would read as urgency on the one screen the owner opens every
- * morning.
- */
-.dh-today__review-door-period {
-  white-space: normal;
-}
-
-.dh-today__review-door-prompt {
-  margin: 0;
-  min-inline-size: 0;
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-}
-
-/*
- * The band's one row: the sentence, and the way in.
- *
- * A band is only calm if it does not spend a full-width rectangle on three
- * stacked lines, so the prompt and the control share a line and the control
- * settles at the end. It WRAPS rather than shrinking — on a phone this becomes
- * the ordinary two-line card it would have been anyway, and the control keeps
- * its full size at every width.
- */
-.dh-today__review-door-body {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--dh-space-2) var(--dh-space-4);
-}
-
-/* The `panel-foot` inside the band is a cell of that row, not a block after
-   it — so it keeps the shared foot's typography and loses its own top rule.
-   It may SHRINK once it has wrapped onto its own line (`min-inline-size: 0`
-   lifts the flex item's intrinsic floor), which is what lets the door below
-   reflow instead of widening the document. */
-.dh-today__review-door-body .dh-today__panel-foot {
-  flex: 0 1 auto;
-  min-inline-size: 0;
-  margin: 0;
-}
-
-/*
- * WCAG 1.4.10 (Reflow) — the door's label wraps (DEBT-221, CONV-00-F).
- *
- * The shared button is `white-space: nowrap`, which is right for a control in a
- * row of controls and wrong for a sentence-length call to action: at 195px — a
- * 390px phone at 200% zoom — "Start this week’s Review" plus its glyph is laid
- * out 206px wide inside the panel's inset, and the document scrolled sideways.
- * MEASURED before the fix, 195 × 422 on a fresh seed: `scrollWidth` 239 against
- * a `clientWidth` of 195, and the door was the one element past the edge that
- * is not the deliberately scrollable tab strip.
- *
- * The same treatment as `.dh-today__reflection-write` above, for the same
- * reason: wrapping is conditional by construction — `normal` wraps only when
- * the line does not fit — so every width that fitted before is unchanged (the
- * 393px phone still draws one line), the outlined geometry, the glyph and the
- * accessible name (label, then the visually hidden period) are untouched, and
- * the label is start-aligned once it takes more than one line. Nothing about
- * the shared button changes; this is one label on one panel.
- */
-.dh-today__review-door-open {
-  min-inline-size: 0;
-  max-inline-size: 100%;
-  white-space: normal;
-  text-align: start;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Goal progress — the mockup's additions                                      */
-/* -------------------------------------------------------------------------- */
-
-/* "3 of 5 on track" — the set's own one-line statement, from the SAME predicate
- * the stat card counts with. The separator is not decoration: "3 5" reads as
- * thirty-five, which is the defect DS-06 paid for once with "4 0". */
-.dh-today__goals-note {
-  margin: 0;
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-  font-variant-numeric: var(--dh-font-numeric);
-}
-
-/*
- * FOLLOW-02 — the movement statement inside a Today Goal tile.
- *
- * The tile is a GRID column that can be as narrow as a phone allows, so the
- * sentence wraps rather than truncating: a Goal's NAME is what must survive
- * intact, and the movement line is the one thing on the tile that can afford
- * two lines. Nothing here sets a colour — the shared component does, and it
- * does it without hue carrying meaning.
- */
-.dh-today__goal-movement {
-  min-inline-size: 0;
-}
-
-/* The Goal's Area, under its title, as the mockup's tile draws it. */
-.dh-today__goal-area {
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Phone                                                                       */
-/* -------------------------------------------------------------------------- */
-
-@media (max-width: 48rem) {
-  /*
-   * MOBILE-02 §5 — the greeting block IS the header.
-   *
-   * The "+ Add task" this rule used to hide on a phone is now gone from the DOM
-   * on every device (CONVERGE-01 §1 A9 — see `TodayScreen`), so the header has
-   * exactly one child and stops being a two-column row waiting for a second
-   * column. Nothing became unreachable: the phone shell's bottom bar carries the
-   * create action under the thumb, and it opens the same capture sheet on the
-   * same Task panel this button did.
-   */
-  .dh-today__head {
-    display: block;
+  .dh-today__panel-action {
+    @apply shrink-0;
   }
 
-  /* The strip keeps its seven columns — a week is a week — and gives up the
-   * date disc's diameter instead, which is the only value in it that can go. */
-  .dh-weekstrip__date {
-    inline-size: 1.5rem;
-    block-size: 1.5rem;
+  .dh-today__grid > .dh-today__now,
+  .dh-today__grid > .dh-today__next {
+    @apply rounded-xl bg-brand-primary ring-1 ring-brand;
+  }
+  .dh-today__now .dh-today__panel-head,
+  .dh-today__next .dh-today__panel-head {
+    @apply border-secondary;
+  }
+  .dh-today__now-label {
+    @apply m-0 text-md font-semibold text-brand-secondary;
+  }
+  .dh-today__next-link {
+    @apply flex min-w-0 flex-1 flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-4 text-primary no-underline hover:no-underline sm:px-5;
+  }
+  .dh-today__next-time {
+    @apply shrink-0 text-sm font-semibold tabular-nums text-brand-secondary;
+  }
+  .dh-today__next-copy {
+    @apply min-w-0 truncate text-sm text-primary;
+  }
+  .dh-today__next-arrow {
+    @apply ml-auto text-tertiary;
   }
 
+  .dh-today__sections,
+  .dh-day-list,
+  .dh-today__goal-list,
+  .dh-habit-list {
+    @apply m-0 list-none p-0;
+  }
+  .dh-day-section {
+    @apply px-4 pt-4 sm:px-5;
+  }
+  .dh-day-section:last-child {
+    @apply pb-4 sm:pb-5;
+  }
+  .dh-day-section__label {
+    @apply mb-2 text-xs font-semibold uppercase tracking-normal text-tertiary;
+  }
+  .dh-day-list,
+  .dh-today__goal-list,
+  .dh-habit-list {
+    @apply divide-y divide-secondary;
+  }
+  .dh-day-row,
+  .dh-today__goal,
+  .dh-habit-list > li {
+    @apply min-w-0 px-4 py-3 sm:px-5;
+  }
+  .dh-day-row {
+    @apply flex min-w-0 items-start gap-3;
+  }
+  .dh-day-row__stack,
+  .dh-today__goal {
+    @apply min-w-0;
+  }
+  .dh-day-row__title,
+  .dh-today__goal-title {
+    @apply block min-w-0 break-words no-underline hover:no-underline;
+  }
+  .dh-day-row__meta,
+  .dh-day-row__next,
+  .dh-today__goal-area {
+    @apply block min-w-0 truncate text-sm text-tertiary;
+  }
+  .dh-today__quiet {
+    @apply px-4 py-5 leading-6 sm:px-5;
+  }
+
+  .dh-today__schedule-day,
+  .dh-today__reflection,
+  .dh-today__review-door-body {
+    @apply min-w-0;
+  }
+  .dh-today__schedule-date,
+  .dh-today__goals-note,
+  .dh-today__review-door-prompt,
+  .dh-today__reflection-prompt,
+  .dh-today__reflection-title,
+  .dh-today__reflection-excerpt {
+    @apply m-0 px-4 pt-4 sm:px-5;
+  }
+  .dh-today__goals-note,
+  .dh-today__review-door-prompt,
+  .dh-today__reflection-prompt {
+    @apply pb-1;
+  }
+
+  .dh-today__goal {
+    @apply grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 gap-y-1;
+  }
+  .dh-today__goal-title,
+  .dh-today__goal-area {
+    @apply col-start-2;
+  }
+  .dh-today__goal-area {
+    @apply row-start-2;
+  }
+  .dh-today__goal > .dh-goalprogress {
+    @apply col-start-2 row-start-3;
+  }
+  .dh-today__goal-movement {
+    @apply col-start-2 row-start-4 text-sm text-tertiary;
+  }
+  .dh-today__goal > button {
+    @apply col-start-2 row-start-5 justify-self-start;
+  }
+
+  .dh-weekstrip {
+    @apply border-b border-secondary px-4 py-4 sm:px-5;
+  }
+  .dh-weekstrip__month {
+    @apply mb-3 text-sm font-semibold text-primary;
+  }
+  .dh-weekstrip__days {
+    @apply grid grid-cols-7 gap-1;
+  }
+  .dh-weekstrip__day {
+    @apply flex min-w-0 min-h-10 flex-col items-center justify-center gap-1 rounded-lg px-1 py-1 text-xs text-tertiary outline-none transition hover:bg-primary_hover hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring;
+  }
+  .dh-weekstrip__day[data-today="true"] {
+    @apply font-semibold text-brand-secondary;
+  }
+  .dh-weekstrip__day[aria-selected="true"] {
+    @apply bg-brand-primary text-brand-secondary ring-1 ring-brand;
+  }
   .dh-weekstrip__weekday {
-    letter-spacing: 0;
+    @apply uppercase tracking-normal;
   }
-}
+  .dh-weekstrip__date {
+    @apply text-sm font-semibold tabular-nums text-primary;
+  }
+  .dh-weekstrip__mark {
+    @apply size-1 rounded-full bg-transparent;
+  }
+  .dh-weekstrip__mark[data-has-items="true"] {
+    @apply bg-brand-solid;
+  }
+  .dh-today__summary {
+    @apply self-start rounded-xl bg-primary ring-1 ring-secondary;
+  }
+  .dh-today__weekly > summary {
+    @apply cursor-pointer list-none px-4 py-3 text-sm font-semibold text-primary marker:hidden sm:px-5;
+  }
+  .dh-today__weekly-list {
+    @apply m-0 grid list-none grid-cols-1 divide-y divide-secondary p-0 sm:grid-cols-3 sm:divide-x sm:divide-y-0;
+  }
+  .dh-today__measure {
+    @apply min-w-0 px-4 py-4 sm:px-5;
+  }
+  .dh-today__measure-label,
+  .dh-today__measure-note {
+    @apply block text-sm text-tertiary;
+  }
+  .dh-today__measure-value {
+    @apply text-xl font-semibold tabular-nums text-primary;
+  }
+  .dh-today__measure-figure {
+    @apply mt-1 block;
+  }
+  .dh-today__measure-body,
+  .dh-today__measure-plot {
+    @apply mt-2 block;
+  }
+  .dh-today__measure-note {
+    @apply mt-1;
+  }
+  .dh-today__panel-foot {
+    @apply m-0 border-t border-secondary px-4 py-3 sm:px-5;
+  }
+  .dh-today__reflection-title,
+  .dh-today__reflection-excerpt {
+    @apply pb-1;
+  }
+  .dh-today__reflection-excerpt {
+    @apply text-sm leading-6 text-tertiary;
+  }
 
-/*
- * STEER-04 (DEBT-77) — the next-action line on a "Continue working" card, and
- * on a Goal's record.
- *
- * It is a quiet line beneath the record's own signals: the WORD "Next" leads it
- * (never a tint — `AGENTS.md` §15), the Task's title is the link, and the whole
- * row is smaller and lighter than the title above it so the Project or Goal
- * stays the card's subject. The link keeps a full touch target on a coarse
- * pointer even though the text is small — the density rule the design system
- * applies unconditionally.
- *
- * It wraps rather than truncating: a Task title the owner cannot read is not a
- * next action, and a card is allowed to be two lines taller than it was.
- */
-.dh-next-action {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--dh-space-1) var(--dh-space-2);
-  margin: var(--dh-space-1) 0 0;
-  min-inline-size: 0;
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-  color: var(--dh-color-text-muted);
-}
-
-.dh-next-action__label {
-  flex: none;
-  font-weight: var(--dh-text-label-weight);
-  color: var(--dh-color-text-muted);
-}
-
-/*
- * STEER-05 — the link occupies a REAL target on every pointer, not only a
- * coarse one.
- *
- * STEER-04 shipped this floor inside `@media (pointer: coarse)`, and that is
- * one pointer short of what WCAG 2.2 AA asks for: SC 2.5.8's 24×24 minimum is
- * not conditional on the input device, and axe measures it on a fine pointer
- * too. MEASURED on `/today` at 1280 with the seeded workspace, BEFORE this
- * rule: the link is 75.7 × **16.9** px with 18.8px of safe clickable space
- * around it, and axe reports a SERIOUS `target-size` violation on every
- * "Continue working" card that names a next action — which is what
- * `today-focus.spec.ts`'s own "passes axe" scan was failing on.
- *
- * The floor is the standard's 24px rather than the product's 45px touch
- * target: this is a small supporting line under a card's title, and 45px would
- * make the supporting line taller than the thing it supports. The coarse-pointer
- * rule below still lifts it the rest of the way on touch.
- */
-.dh-next-action__open {
-  display: inline-flex;
-  align-items: center;
-  min-block-size: var(--app-pointer-target-min);
-  color: var(--dh-color-text);
-  min-inline-size: 0;
-  overflow-wrap: anywhere;
-}
-
-.dh-next-action__parent {
-  flex: none;
-  color: var(--dh-color-text-muted);
-}
-
-@media (pointer: coarse) {
-  .dh-next-action__open {
-    display: inline-flex;
-    align-items: center;
-    min-block-size: var(--app-touch-target-min);
+  @media (min-width: 48rem) {
+    .dh-today__grid {
+      @apply grid-cols-12;
+    }
+    .dh-today__grid > .dh-today__now,
+    .dh-today__grid > .dh-today__next {
+      grid-column: span 6 / span 6;
+    }
+    .dh-today__grid > .dh-today__timeline,
+    .dh-today__grid > .dh-today__attention,
+    .dh-today__grid > .dh-today__goals,
+    .dh-today__grid > .dh-today__reflection,
+    .dh-today__grid > .dh-today__review-door {
+      grid-column: span 7 / span 7;
+    }
+    .dh-today__grid > .dh-today__schedule,
+    .dh-today__grid > .dh-today__continue,
+    .dh-today__grid > .dh-today__habits-panel {
+      grid-column: span 5 / span 5;
+    }
+    .dh-today__grid > .dh-today__habits-panel {
+      grid-column: span 12 / span 12;
+    }
+    .dh-today__grid > .dh-today__summary {
+      grid-column: span 7 / span 7;
+    }
+  }
+  @media (min-width: 64rem) {
+    .dh-today__grid {
+      @apply gap-5;
+    }
   }
 }

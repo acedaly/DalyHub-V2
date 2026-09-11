@@ -287,3 +287,57 @@ Current valid exceptions include:
 
 These exceptions live above Untitled primitives where possible. They do not
 authorise another generic design system.
+
+## Today Phase 2 implementation baseline
+
+Today is the first feature surface rebuilt on the shared Untitled shell. Its
+composition follows the Untitled Application UI dashboard/page grammar without
+copying a generic analytics dashboard: the page header is the shared
+`PaneHeader`, the daily work is a dominant task-list section, and schedule,
+attention, goals, habits, reflection and review remain secondary sections whose
+presence is driven by real DalyHub data.
+
+References selected and verified:
+
+- Official Application UI catalogue topics: `Dashboards 01`, `Dashboards 02`,
+  `Metrics`, `Progress indicators`, `Activity feeds`, `Card headers`, `Section
+  headers`, `Page headers`, `Calendars` and `Empty states`.
+- Genuine source already vendored in this repository:
+  `application/command-menus`, `application/empty-state`,
+  `application/loading-indicator`, `application/date-picker`,
+  `application/section-headers`, `base/buttons`, `base/badges`,
+  `base/progress-indicators`, `base/checkbox` and `application/app-navigation`.
+- MCP searches for Today dashboard/application examples and components were
+  attempted after CLI Pro authentication, but the configured endpoint returned
+  HTTP 429 / Cloudflare 1015. No catalogue result or screenshot was treated as
+  authority; the implementation uses only verified local Untitled source and
+  official documentation.
+
+Today-specific composition is limited to mapping existing task, schedule,
+goal, habit, reflection and review facts into the shared page grammar. The
+Today screen owns no generic primitive, no new data read and no new mutation
+path. The local `today.css` file now contains only Tailwind v4 `@apply`
+composition rules for its responsive grid, section spacing and DalyHub-specific
+semantic rows; generic control styling comes from Untitled-backed shared
+components.
+
+The source and documentation workflow used for this phase was:
+
+1. Authenticate the Pro CLI with `npx untitledui@latest login`.
+2. Attempt the Untitled MCP/catalogue searches.
+3. Inspect the genuine local source and its provenance headers.
+4. Consult the official [Introduction](https://www.untitledui.com/react/docs/introduction),
+   [Theming](https://www.untitledui.com/react/docs/theming),
+   [Dark mode](https://www.untitledui.com/react/docs/dark-mode),
+   [Components](https://www.untitledui.com/react/docs/introduction#components),
+   [Page headers](https://www.untitledui.com/react/docs/introduction#page-headers),
+   [Progress indicators](https://www.untitledui.com/react/docs/introduction#progress-indicators),
+   [Activity feeds](https://www.untitledui.com/react/docs/introduction#activity-feeds),
+   [Calendars](https://www.untitledui.com/react/docs/introduction#calendars) and
+   [Empty states](https://www.untitledui.com/react/docs/introduction#empty-states)
+   documentation topics.
+5. Compose DalyHub behavior above those primitives and verify the real route.
+
+No screenshot is a design authority for Today. Temporary review screenshots,
+if captured by a future agent, must remain outside the repository's design
+assets and must never be referenced as implementation guidance.
