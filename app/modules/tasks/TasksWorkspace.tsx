@@ -1701,10 +1701,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
           data-testid="tasks-untitled-toolbar"
           data-untitled-source="dashboards-01/02:filter-bar"
         >
-          {/* UNTITLED-04 — no second scroller; the rail draws its own. A scroll
-           * container inside a scroll container cancels React Aria's press when
-           * focusing a tab scrolls the outer one. See `ProjectsCollection`. */}
-          <div className="min-w-0 flex-1 py-1 max-lg:w-full max-lg:max-w-full">
+          <div className="min-w-0 max-w-full flex-1 overflow-x-auto py-1 max-lg:w-full">
             <TasksViewSwitcher
               views={data.views}
               activeViewId={data.activeViewId}

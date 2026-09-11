@@ -56,6 +56,7 @@ import { useRecordLifecycle } from "~/shared/record-lifecycle";
 
 import { UntitledStatusBadge } from "~/shared/pill";
 import { LabelledProgressBar } from "~/shared/ui/untitled/overrides/labelled-progress-bar";
+import { LabelledTableHead } from "~/shared/ui/untitled/overrides/table-head";
 import { Table, TableCard } from "~/shared/ui/untitled/application/table/table";
 
 import type { ProjectCardData } from "./project-view";
@@ -92,7 +93,7 @@ export function ProjectsTable({
         data-testid="projects-table"
       >
         <Table.Header className="bg-secondary [&_th]:px-5 max-md:hidden">
-          <Table.Head
+          <LabelledTableHead
             id="project"
             label="Project"
             isRowHeader
@@ -106,32 +107,41 @@ export function ProjectsTable({
              */
             className="w-[28%]"
           />
-          <Table.Head id="status" label="Status" className="w-[12%]" />
-          <Table.Head id="progress" label="Progress" className="w-[16%]" />
-          <Table.Head id="parent" label="Area or Goal" className="w-[16%]" />
-          <Table.Head
+          <LabelledTableHead id="status" label="Status" className="w-[12%]" />
+          <LabelledTableHead
+            id="progress"
+            label="Progress"
+            className="w-[16%]"
+          />
+          <LabelledTableHead
+            id="parent"
+            label="Area or Goal"
+            className="w-[16%]"
+          />
+          <LabelledTableHead
             id="tasks"
             label="Tasks"
             className="w-[14%] whitespace-nowrap"
           />
-          <Table.Head
+          <LabelledTableHead
             id="updated"
             label="Updated"
             className="w-[10%] whitespace-nowrap"
           />
           {/*
-           * The overflow column's header is NAMED, and hidden.
+           * The overflow column's header is NAMED, and invisible.
            *
            * An empty column header is `empty-table-header` — a real axe finding
            * on the Projects collection, and a real one for a screen reader: a
            * grid cell announces its column, so the row's actions were announced
-           * under nothing at all. Untitled's `label` renders visibly, so the
-           * name goes on the element instead and the header stays blank to the
-           * eye, which is what the column wants.
+           * under nothing at all. This column wants no visible heading, so the
+           * name is drawn `sr-only`.
            */}
-          <Table.Head id="actions" className="w-[4%]">
-            <span className="sr-only">Actions</span>
-          </Table.Head>
+          <LabelledTableHead
+            id="actions"
+            label="Actions"
+            className="w-[4%] [&>span]:sr-only"
+          />
         </Table.Header>
         <Table.Body>
           {cards.map((card) => (

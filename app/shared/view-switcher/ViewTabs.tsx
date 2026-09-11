@@ -146,7 +146,9 @@ export function ViewTabs({
              * like the rule it replaces, because a 320px viewport is the case
              * that matters whether or not the pointer reports as coarse.
              */
-            className={"max-md:min-h-[var(--app-touch-target-min)] max-md:px-4"}
+            className={
+              "max-md:min-w-[var(--app-touch-target-min)] max-md:min-h-[var(--app-touch-target-min)] max-md:justify-center"
+            }
           >
             {option.label}
           </Tab>

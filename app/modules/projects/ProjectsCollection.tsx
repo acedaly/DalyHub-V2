@@ -649,22 +649,24 @@ function ProjectsCollection({
          * two busiest collections in the product now carry one toolbar grammar.
          */
         <div
-          className="flex w-full flex-wrap items-center gap-3 max-md:flex-col max-md:items-stretch"
+          /*
+           * `min-w-0` is load-bearing: a flex ITEM's automatic minimum size is
+           * its min-content, which overrides `w-full`, so without it this band
+           * grew to fit the widest tab strip and put the whole document into
+           * horizontal scroll at 320px. With it the strip scrolls inside its
+           * own track, which is what it is built to do.
+           */
+          className="flex w-full min-w-0 flex-wrap items-center gap-3 max-md:flex-col max-md:items-stretch"
           data-untitled-source="dashboards-01/02:filter-bar"
         >
           {/*
-           * UNTITLED-04 — `min-w-0 flex-1`, and NO second scroller.
-           *
-           * `overflow-x-auto` here was a bug with a functional symptom rather
-           * than a visual one: the rail draws its own scroller, so this made a
-           * scroll container inside a scroll container, and focusing a tab on
-           * pointer-down scrolled the OUTER one. React Aria's `usePress`
-           * cancels a press when an ancestor scrolls during it — correctly, it
-           * is how it tells a tap from a flick — so every lifecycle tab on this
-           * collection silently did nothing when clicked with a mouse. Keyboard
-           * and middle-click were unaffected, which is why it survived review.
+           * The scroller stays. The rail draws one of its own, but at 320px the
+           * band is a column and the strip is wider than the viewport, so
+           * removing this one put 100px of horizontal scroll on the DOCUMENT —
+           * measured, and the thing `expectNoHorizontalOverflow` exists to
+           * catch. A contained overflow is the intended behaviour here.
            */}
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 max-w-full flex-1 overflow-x-auto">
             <ViewTabs
               param="state"
               options={STATE_OPTIONS}

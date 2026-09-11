@@ -216,7 +216,18 @@ export function EntityCard({
          * without reaching for a styling class. */}
         {status ? (
           <div
-            className="dh-ecard__status relative z-10 shrink-0 max-md:col-start-3 max-md:row-start-1"
+            /*
+             * `pointer-events-none` beside the `z-10`.
+             *
+             * The lift is for PAINT — the status has to sit above the card's
+             * stretched-link overlay to be legible — and the pointer is a
+             * separate question: a status is a reading, never a control, and
+             * the card's contract (asserted on `/design/card-family`) is that
+             * every static part of its face opens the record. Lifting it
+             * without giving the pointer back made the one badge on the card a
+             * dead patch.
+             */
+            className="dh-ecard__status pointer-events-none relative z-10 shrink-0 max-md:col-start-3 max-md:row-start-1"
             data-testid="entity-card-status"
           >
             {status}

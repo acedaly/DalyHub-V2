@@ -156,12 +156,18 @@ export function EmptyState({
        * (`landmark-no-duplicate-main` and `landmark-main-is-top-level`), on
        * every record with an empty tab.
        *
-       * `role="presentation"` takes the element out of the accessibility tree as
-       * a landmark and changes nothing else: it is a layout box, its contents
-       * are announced exactly as before, and the vendored file — which
-       * `scripts/vendor-untitled.mjs` regenerates — stays untouched.
+       * `role="presentation"` is not the way out: it is not an allowed role for
+       * `<main>` (`aria-allowed-role`), so it trades two findings for one. The
+       * element is a layout box with upstream's own class recipe instead, which
+       * is exactly what it draws — and the vendored file, which
+       * `scripts/vendor-untitled.mjs` regenerates, stays untouched.
        */}
-      <UntitledEmptyState.Content role="presentation">
+      <div
+        className={cx(
+          "z-10 flex w-full max-w-88 flex-col items-center justify-center",
+          size === "compact" ? "mb-6 gap-1" : "mb-8 gap-2",
+        )}
+      >
         {/*
          * Upstream's `Title` is an `<h1>`, which is correct for the standalone
          * page it was drawn for and wrong for an empty state inside a record
@@ -192,7 +198,7 @@ export function EmptyState({
             {description}
           </UntitledEmptyState.Description>
         ) : null}
-      </UntitledEmptyState.Content>
+      </div>
       {primaryAction || secondaryAction ? (
         <UntitledEmptyState.Footer className="dh-empty-state__actions flex-wrap justify-center">
           {primaryAction}
