@@ -8,7 +8,8 @@
  * It renders in two places and they are the same shape: the bottom of the
  * DESKTOP RAIL and the bottom of the MOBILE navigation sheet. In both the
  * trigger is pinned to the end of a column and the panel opens upward from it,
- * so there is one implementation and no variant.
+ * so there is one implementation. A narrow surface prop changes only the
+ * trigger's on-brand paint; the opened account panel stays neutral.
  *
  * DS-03 removed the `compact` variant and the downward `placement`. They existed
  * for the desktop top app bar, where the account was an avatar and a chevron in a
@@ -109,6 +110,8 @@ export type UserMenuProps = {
    * full-width at every viewport it exists at.
    */
   readonly collapsible?: boolean;
+  /** Whether the trigger is painted on the deep Branded Plum shell surface. */
+  readonly surface?: "neutral" | "brand";
 };
 
 export function UserMenu({
@@ -117,6 +120,7 @@ export function UserMenu({
   appearance = "system",
   settingsHref,
   collapsible = false,
+  surface = "neutral",
 }: UserMenuProps) {
   const [open, setOpen] = useState(false);
   const signOut = useSignOut();
@@ -279,7 +283,10 @@ export function UserMenu({
         <button
           type="button"
           className={cx(
-            "group/account flex w-full cursor-pointer items-center gap-2.5 rounded-md p-2 outline-focus-ring transition duration-100 ease-linear hover:bg-primary_hover focus-visible:outline-2 focus-visible:outline-offset-2",
+            "group/account flex w-full cursor-pointer items-center gap-2.5 rounded-md p-2 outline-focus-ring transition duration-100 ease-linear focus-visible:outline-2 focus-visible:outline-offset-2",
+            surface === "brand"
+              ? "hover:bg-white/10"
+              : "hover:bg-primary_hover",
             collapsed && "justify-center",
           )}
           ref={composeRefs(triggerRef, tip.ref)}
@@ -300,7 +307,10 @@ export function UserMenu({
           />
           <span
             className={cx(
-              "flex-1 truncate text-left text-sm font-semibold text-secondary transition-inherit-all group-hover/account:text-secondary_hover",
+              "flex-1 truncate text-left text-sm font-semibold transition-inherit-all",
+              surface === "brand"
+                ? "text-secondary_on-brand group-hover/account:text-primary_on-brand"
+                : "text-secondary group-hover/account:text-secondary_hover",
               collapsed && "sr-only",
             )}
           >
@@ -310,7 +320,8 @@ export function UserMenu({
             <span
               aria-hidden="true"
               className={cx(
-                "flex size-4 shrink-0 items-center justify-center text-fg-quaternary transition duration-100 ease-linear *:size-full",
+                "flex size-4 shrink-0 items-center justify-center transition duration-100 ease-linear *:size-full",
+                surface === "brand" ? "text-fg-white/70" : "text-fg-quaternary",
                 open && "-scale-y-100",
               )}
             >

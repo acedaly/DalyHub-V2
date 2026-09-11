@@ -143,9 +143,49 @@ Current Phase 1.5 shell primitive boundary:
 
 ## Theme and tokens
 
-DalyHub uses a purple-led brand theme based on Untitled UI's brand-token
+DalyHub uses the **Branded Plum** direction through Untitled UI's brand-token
 architecture. Purple is for primary, selected and brand interactions; it is not
 paint for every surface.
+
+### Branded Plum
+
+Branded Plum is DalyHub's default visual identity: deep aubergine/plum
+application navigation around a neutral working canvas, with restrained purple
+accents inside the content. It should read as mature, calm and personal, not
+bright magenta, candy purple, a gaming palette or a purple wash over every
+surface.
+
+- The persistent desktop sidebar is the primary brand field. It uses the dark
+  end of the generated Untitled `brand-*` ramp, Untitled on-brand foreground
+  roles, subtle translucent separators and quiet selected/hover overlays.
+- Mobile navigation uses the same Branded Plum relationship through Untitled's
+  slideout/navigation primitives. The compact mobile top bar and bottom
+  navigation may remain neutral; their primary and selected controls use the
+  same generated brand roles.
+- Main canvases, page headers, cards, panels, tables, dropdowns, search and
+  command surfaces remain predominantly Untitled neutrals. Page titles and body
+  text are not purple by default.
+- Light appearance pairs the deep plum navigation with a white or near-white
+  neutral canvas. Dark appearance pairs an even quieter near-black plum
+  navigation with Untitled's charcoal/neutral dark surfaces; it is designed
+  through semantic dark-mode variables, not colour inversion.
+- Purple is reserved for primary actions, links, focus, selected controls and
+  brand-appropriate progress. Green remains success/completed, red remains
+  destructive/error/critical, amber remains warning/attention, and neutrals
+  remain structure.
+- The complete ramp is generated in `app/styles/untitled/theme.css` from the
+  central Branded Plum anchor in `scripts/generate-untitled-theme.mjs`, while
+  preserving Untitled's ramp shape. Components consume Untitled semantic roles
+  and Tailwind utilities; do not scatter plum hex values or add page palettes.
+- Branded Plum is an adaptation of Untitled UI, not a separate DalyHub design
+  system. No historical screenshot, temporary review capture or mock-up defines
+  its implementation.
+
+The shell treatment was selected from Untitled UI React Pro Application UI
+`dashboards-01/03` and `sidebar-sections-subheadings`, plus the public
+`mobile-header`, `nav-item` and `nav-account-card` source. Future changes must
+search the current Pro catalogue and documentation again rather than treating
+those identifiers as an image to reproduce.
 
 Colour roles:
 
@@ -159,6 +199,12 @@ Colour roles:
 Light and dark modes are both first-class. Use semantic theme roles so
 appearance changes are resolved by the theme, not by page-specific selectors.
 Do not hard-code visual values where Untitled/Tailwind semantic roles exist.
+
+Relevant official sources for the current theme implementation are
+[Theming](https://www.untitledui.com/react/docs/theming),
+[Dark mode](https://www.untitledui.com/react/docs/dark-mode),
+[Sidebar navigations](https://www.untitledui.com/react/components/sidebar-navigations)
+and the [appearance settings example](https://www.untitledui.com/react/components/settings-pages/settings-06).
 
 Existing `--dh-*`, `--app-*` and `--md-*` compatibility layers are migration
 machinery. They may remain while old consumers exist, but new generic UI should

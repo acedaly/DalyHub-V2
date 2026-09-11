@@ -41,30 +41,23 @@ import { cx } from "~/shared/ui/untitled/utils/cx";
  *
  * ── Why the selected treatment depends on the SURFACE ───────────────────────
  *
- * Untitled's nav item assumes it sits on `bg-primary` and marks the current row
- * with `bg-secondary`. DalyHub's rail is itself `bg-secondary` — it is RECESSED
- * under the page canvas (AGENTS.md §6 D35) — so taking that pairing unchanged
- * paints the selected row in the exact colour it is sitting on, and the "you are
- * here" anchor disappears. Caught in the first render of this shell: every row
- * on `/today` looked identical.
- *
- * So the relationship is inverted where the surface is: on the recessed rail the
- * current row RISES to `bg-primary` with a hairline, which is the same idea one
- * tone up, and on the phone sheet — which is `bg-primary` — Untitled's original
- * pairing is correct and is used as-is.
+ * Branded Plum puts both desktop and mobile navigation on the same deep brand
+ * surface. Untitled's own mobile-header treatment uses translucent white hover
+ * states over brand imagery; these rows use the same quiet relationship, with a
+ * stronger overlay and foreground for the current destination.
  */
 const surfaces = {
-  /** The recessed desktop rail. The current row rises out of it. */
+  /** The desktop Branded Plum rail. */
   rail: {
-    hover: "hover:bg-primary/60",
-    selected: "bg-primary shadow-xs ring-1 ring-secondary ring-inset",
-    pending: "bg-primary/70",
+    hover: "hover:bg-white/10",
+    selected: "bg-white/10 ring-1 ring-white/10 ring-inset",
+    pending: "bg-white/10",
   },
-  /** The phone navigation sheet, drawn on the primary surface. */
+  /** The phone navigation sheet uses the same brand grammar. */
   sheet: {
-    hover: "hover:bg-primary_hover",
-    selected: "bg-secondary",
-    pending: "bg-secondary/70",
+    hover: "hover:bg-white/10",
+    selected: "bg-white/10 ring-1 ring-white/10 ring-inset",
+    pending: "bg-white/10",
   },
 } as const;
 
@@ -98,8 +91,8 @@ export type RailNavItemProps = {
   readonly describedBy?: string;
   /**
    * Which surface this row is drawn on. It decides the selected and hover
-   * treatments, because "one tone up from here" is a different colour on the
-   * recessed rail than it is on the phone sheet. See `surfaces`.
+   * treatments and keeps room for desktop/touch tuning without forking the
+   * navigation component. See `surfaces`.
    */
   readonly surface?: keyof typeof surfaces;
 };
@@ -146,8 +139,8 @@ export function RailNavItem({
           // set. The box is Untitled's 20px either way.
           "flex size-5 shrink-0 items-center justify-center transition-inherit-all *:size-full",
           current
-            ? "text-fg-brand-primary"
-            : "text-fg-quaternary group-hover/item:text-fg-quaternary_hover",
+            ? "text-fg-white"
+            : "text-fg-white/70 group-hover/item:text-fg-white",
           collapsed ? "" : "mr-2",
         )}
       >
@@ -157,8 +150,8 @@ export function RailNavItem({
         className={cx(
           "flex-1 truncate text-sm font-semibold transition-inherit-all",
           current
-            ? "text-secondary_hover"
-            : "text-secondary group-hover/item:text-secondary_hover",
+            ? "text-primary_on-brand"
+            : "text-secondary_on-brand group-hover/item:text-primary_on-brand",
           collapsed && "sr-only",
         )}
       >

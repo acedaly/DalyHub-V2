@@ -28,6 +28,11 @@ create another design system. Preserve DalyHub product behaviour during
 migration. The Untitled UI guidance below explains how to use the library; it
 does not override DalyHub's product design or architecture.
 
+Branded Plum is the active shell identity: use the generated Untitled brand
+ramp for deep plum navigation and restrained primary/selected/focus accents,
+while keeping page canvases and overlays neutral in both appearances. Do not
+derive the theme from screenshots or create a parallel DalyHub palette.
+
 ---
 
 <!-- @embed:start file="public-components/CLAUDE.md" -->

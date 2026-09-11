@@ -75,14 +75,14 @@ export function SidebarBrand({
       <span className={cx("min-w-0 flex-1", collapsed && "sr-only")}>
         <span
           data-testid="sidebar-product-name"
-          className="block truncate text-md font-semibold text-primary"
+          className="block truncate text-md font-semibold text-primary_on-brand"
         >
           {PRODUCT_NAME}
         </span>
         {workspaceIsDistinct ? (
           <span
             data-testid="sidebar-workspace"
-            className="block truncate text-xs text-tertiary"
+            className="block truncate text-xs text-tertiary_on-brand"
           >
             {workspaceName}
           </span>
