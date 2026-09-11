@@ -294,13 +294,16 @@ describe("RecordLayout — entity-agnostic", () => {
   it("renders the active tab’s panel as the content region when tabs are given", () => {
     render(<RecordLayout title="Record" tabs={tabs} />);
     expect(screen.getByText("Overview body")).toBeVisible();
-    // Inactive panel content is hidden.
-    const activityPanel = screen
-      .getAllByRole("tabpanel", { hidden: true })
-      .find((panel) =>
-        panel.getAttribute("aria-labelledby")?.includes("activity"),
-      );
-    expect(activityPanel).toHaveAttribute("hidden");
+    /*
+     * UNTITLED-04 — exactly the SELECTED panel is mounted.
+     *
+     * The strip is React Aria's now, and a record's Activity, Knowledge and
+     * Evidence tabs each read on mount, so the inactive panel is absent rather
+     * than present-and-hidden. The user-facing requirement is the same one, and
+     * stated more strongly: an inactive tab's content is not on the page.
+     */
+    expect(screen.getAllByRole("tabpanel")).toHaveLength(1);
+    expect(screen.queryByText("Activity body")).not.toBeInTheDocument();
   });
 });
 

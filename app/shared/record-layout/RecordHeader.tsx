@@ -28,10 +28,14 @@
  * addresses it.
  */
 
+import { ChevronRight } from "@untitledui/icons";
+
 import { OverflowMenu, type OverflowMenuItem } from "~/shared/overflow-menu";
+import { UntitledStatusBadge } from "~/shared/pill";
+import type { BadgeTone } from "~/shared/ui/Badge";
 
 import { RecordActionButton } from "./RecordAction";
-import type { RecordAction, RecordHeaderProps } from "./types";
+import type { RecordAction, RecordHeaderProps, RecordTone } from "./types";
 
 /**
  * M3-INT — how many SECONDARY actions a record header shows before it starts
@@ -64,19 +68,49 @@ function toOverflowItem(action: RecordAction): OverflowMenuItem {
   };
 }
 
+/**
+ * The record's three LIFECYCLE tones, in the shared badge vocabulary.
+ *
+ * `completed`, `waiting` and `on-hold` exist because a task waiting on someone
+ * else is not a warning and a paused record is not a failure. Untitled's badge
+ * palette has no lifecycle row, so each folds onto the semantic tone that says
+ * the same thing without over-claiming: finished is positive, and both forms of
+ * "paused, and that is fine" are the absence state.
+ */
+const LIFECYCLE_TONES: Record<RecordTone, BadgeTone> = {
+  neutral: "neutral",
+  accent: "accent",
+  success: "success",
+  warning: "warning",
+  danger: "danger",
+  info: "info",
+  completed: "success",
+  waiting: "neutral",
+  "on-hold": "neutral",
+};
+
 function StatusPill({
   label,
   tone = "neutral",
 }: {
   label: string;
-  tone?: string;
+  tone?: RecordTone;
 }) {
+  /*
+   * `record-status` survives as the hook journeys address ("what state is this
+   * record in?"); its presentation is deleted from `record-layout.css` and the
+   * chip is the genuine Untitled badge. The dot is decorative and the label
+   * carries the meaning — never colour alone.
+   */
   return (
-    <span className="record-status" data-tone={tone}>
-      {/* The dot is decorative; the label carries the meaning (never colour-only). */}
-      <span className="record-status__dot" aria-hidden="true" />
+    <UntitledStatusBadge
+      tone={LIFECYCLE_TONES[tone] ?? "neutral"}
+      dot
+      size="sm"
+      className="record-status"
+    >
       {label}
-    </span>
+    </UntitledStatusBadge>
   );
 }
 
@@ -127,18 +161,47 @@ export function RecordHeader({
     overflow.length > 0;
 
   return (
-    <header className="record-header">
+    /*
+     * UNTITLED-04 — the Untitled Application UI page-header anatomy: a
+     * breadcrumb line, then a row whose leading edge is identity (mark, name,
+     * state) and whose trailing edge is the action cluster, then the context
+     * line. Same regions, same order and same accessible names as the DS-02
+     * header this replaces; the drawing is Untitled's tokens and utilities
+     * rather than `record-layout.css`, whose rules for this region are deleted.
+     *
+     * Every `record-*` class name here is a HOOK, not a style: product tests and
+     * responsive journeys address them.
+     */
+    <header className="record-header flex flex-col gap-3">
       {breadcrumb !== undefined && breadcrumb.length > 0 && (
         <nav className="record-breadcrumb" aria-label="Breadcrumb">
-          <ol>
+          <ol className="flex flex-wrap items-center gap-1 text-sm text-tertiary">
             {breadcrumb.map((item, index) => {
               const isLast = index === breadcrumb.length - 1;
               return (
-                <li key={item.id}>
+                <li key={item.id} className="flex items-center gap-1">
+                  {index > 0 ? (
+                    <ChevronRight
+                      className="size-4 shrink-0 text-fg-quaternary"
+                      aria-hidden="true"
+                    />
+                  ) : null}
                   {item.href !== undefined && !isLast ? (
-                    <a href={item.href}>{item.label}</a>
+                    // Deliberately a plain anchor, not a router `Link`: the
+                    // shared header is rendered outside a router in unit tests
+                    // and in the design-states route, and the breadcrumb's
+                    // navigation semantics are unchanged by this migration.
+                    <a
+                      className="rounded-sm font-medium text-tertiary outline-focus-ring hover:text-tertiary_hover focus-visible:outline-2 focus-visible:outline-offset-2"
+                      href={item.href}
+                    >
+                      {item.label}
+                    </a>
                   ) : (
-                    <span aria-current={isLast ? "page" : undefined}>
+                    <span
+                      className="font-semibold text-secondary"
+                      aria-current={isLast ? "page" : undefined}
+                    >
                       {item.label}
                     </span>
                   )}
@@ -149,15 +212,18 @@ export function RecordHeader({
         </nav>
       )}
 
-      <div className="record-header__bar">
-        <div className="record-header__identity">
-          <div className="record-header__titlerow">
+      <div className="record-header__bar flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+        <div className="record-header__identity min-w-0 flex-1">
+          <div className="record-header__titlerow flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
             {icon !== undefined && (
-              <span className="record-type__icon" aria-hidden="true">
+              <span className="record-type__icon shrink-0" aria-hidden="true">
                 {icon}
               </span>
             )}
-            <Heading id={titleId} className="record-title">
+            <Heading
+              id={titleId}
+              className="record-title m-0 min-w-0 text-display-xs font-semibold text-primary max-md:text-xl"
+            >
               {titleSlot ?? title}
             </Heading>
             {status !== undefined && (
@@ -167,7 +233,7 @@ export function RecordHeader({
         </div>
 
         {hasActions && (
-          <div className="record-header__actions">
+          <div className="record-header__actions flex shrink-0 items-center gap-2">
             {visibleSecondary.map((action) => (
               <RecordActionButton
                 key={action.id}
@@ -210,26 +276,40 @@ export function RecordHeader({
          * line of plain facts and links is byte-identical with it.
          */
         <ul
-          className="record-header__context"
+          className="record-header__context flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-tertiary"
           aria-label="Record context"
           data-dh-action-context="true"
         >
           {typeLabel !== undefined && (
-            <li className="record-context-item record-context-item--type">
-              <span className="record-type__label">{typeLabel}</span>
+            <li className="record-context-item record-context-item--type flex items-center gap-1.5">
+              <span className="record-type__label font-medium text-secondary">
+                {typeLabel}
+              </span>
             </li>
           )}
-          {(metadata ?? []).map((item) => (
-            <li key={item.id} className="record-context-item">
+          {(metadata ?? []).map((item, index) => (
+            <li
+              key={item.id}
+              className="record-context-item flex min-w-0 items-center gap-1.5"
+            >
+              {index > 0 || typeLabel !== undefined ? (
+                <span className="text-quaternary" aria-hidden="true">
+                  ·
+                </span>
+              ) : null}
               {/* An EMPTY label is a deliberate caller choice, not missing data:
                * some context reads as a phrase rather than a field ("Site
                * foreman · Whitfield Building Co."), and "Role and organisation:"
                * in front of it would be the label saying less than the value.
                * The empty span is skipped so it cannot leave a stray gap. */}
               {item.label !== "" && (
-                <span className="record-context-item__label">{item.label}</span>
+                <span className="record-context-item__label text-tertiary">
+                  {item.label}
+                </span>
               )}
-              <span className="record-context-item__value">{item.value}</span>
+              <span className="record-context-item__value min-w-0 font-medium text-secondary">
+                {item.value}
+              </span>
             </li>
           ))}
         </ul>

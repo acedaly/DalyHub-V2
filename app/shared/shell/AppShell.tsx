@@ -418,7 +418,18 @@ export function AppShell({
                    * no state, and cannot disagree with itself between the server
                    * and the browser.
                    */
-                  className="grid min-h-dvh grid-cols-1 bg-primary md:grid-cols-[var(--dh-shell-rail-width-collapsed)_1fr] lg:grid-cols-[var(--dh-shell-rail-width)_1fr]"
+                  /*
+                   * UNTITLED-04 — the shell paints Untitled's primary surface,
+                   * and it says so in the legacy vocabulary too.
+                   *
+                   * `--app-surface-current` is the product's "what am I painted
+                   * on" property; the shared scroll cue, cards and drawers all
+                   * read it. It was still resolving to the BODY tone while the
+                   * migrated shell painted `bg-primary` over it, so a scroll
+                   * strip on a record drew its cover in page grey against a
+                   * white canvas — a visible block at the end of the tab rail.
+                   */
+                  className="grid min-h-dvh grid-cols-1 bg-primary [--app-surface-current:var(--color-bg-primary)] md:grid-cols-[var(--dh-shell-rail-width-collapsed)_1fr] lg:grid-cols-[var(--dh-shell-rail-width)_1fr]"
                 >
                   <a className="skip-link" href="#main-content">
                     Skip to main content
