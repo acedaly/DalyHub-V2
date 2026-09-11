@@ -104,7 +104,19 @@ export function EntityRow({
 
   return (
     <article
-      className={["dh-erow", muted ? "dh-erow--muted" : null]
+      /*
+       * UNTITLED-04 — the row is drawn with Untitled tokens and utilities; the
+       * list around it supplies the bounded surface and the hairlines. A phone
+       * gets the same row with the trailing figure under the facts rather than
+       * competing with the name for the width (`grid-areas` below, in the DOM
+       * order, so the reading order is the visual one).
+       */
+      className={[
+        "dh-erow relative grid min-w-0 items-center gap-x-3 px-5 py-3",
+        "[grid-template-areas:'mark_body_figure_overflow'] grid-cols-[auto_minmax(0,1fr)_auto_auto]",
+        "max-md:px-4 max-md:[grid-template-areas:'mark_body_overflow'_'mark_figure_overflow'] max-md:grid-cols-[auto_minmax(0,1fr)_auto]",
+        muted ? "dh-erow--muted opacity-70" : null,
+      ]
         .filter(Boolean)
         .join(" ")}
       aria-label={title}
@@ -124,28 +136,41 @@ export function EntityRow({
       data-testid={testId}
     >
       {icon ? (
-        <span className="dh-erow__mark" aria-hidden="true">
+        <span
+          className="dh-erow__mark shrink-0 [grid-area:mark]"
+          aria-hidden="true"
+        >
           {icon}
         </span>
       ) : null}
 
-      <div className="dh-erow__body">
-        <Heading className="dh-erow__title">
+      <div className="dh-erow__body flex min-w-0 flex-col gap-0.5 [grid-area:body]">
+        <Heading className="dh-erow__title text-sm font-semibold text-primary">
           <Link
-            className="dh-erow__open"
+            className="dh-erow__open truncate rounded-sm text-primary outline-focus-ring after:absolute after:inset-0 after:content-[''] focus-visible:outline-2 focus-visible:outline-offset-2"
             to={href}
             aria-label={openAriaLabel ?? title}
           >
             {title}
           </Link>
         </Heading>
-        {facts ? <p className="dh-erow__facts">{facts}</p> : null}
+        {facts ? (
+          <p className="dh-erow__facts m-0 truncate text-sm text-tertiary">
+            {facts}
+          </p>
+        ) : null}
       </div>
 
-      {figure ? <p className="dh-erow__figure">{figure}</p> : null}
+      {figure ? (
+        <p className="dh-erow__figure m-0 shrink-0 text-sm whitespace-nowrap text-tertiary tabular-nums [grid-area:figure] max-md:text-xs">
+          {figure}
+        </p>
+      ) : null}
 
       {overflow ? (
-        <div className="dh-erow__overflow dh-action-reveal">{overflow}</div>
+        <div className="dh-erow__overflow dh-action-reveal relative z-10 shrink-0 [grid-area:overflow]">
+          {overflow}
+        </div>
       ) : null}
     </article>
   );
@@ -172,13 +197,25 @@ export function EntityRowList({
 }) {
   return (
     <ul
-      className={["dh-erow-list", className].filter(Boolean).join(" ")}
+      /*
+       * UNTITLED-04 — the list is the bounded surface, in the same Untitled card
+       * grammar the collection tables use, and it draws the hairlines so no row
+       * has to know where it sits.
+       */
+      className={[
+        "dh-erow-list m-0 list-none overflow-hidden rounded-xl bg-primary p-0 shadow-xs ring-1 ring-secondary",
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
       aria-label={label}
       data-testid={testId}
     >
       {Children.map(children, (child) =>
         child === null || child === undefined || child === false ? null : (
-          <li className="dh-erow-list__item">{child}</li>
+          <li className="dh-erow-list__item border-b border-secondary last:border-b-0 hover:bg-secondary">
+            {child}
+          </li>
         ),
       )}
     </ul>

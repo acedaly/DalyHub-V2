@@ -56,13 +56,14 @@
  */
 
 import type { ReactNode } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 
 import { Tooltip } from "~/shared/tooltip";
 import {
   ButtonGroup,
   ButtonGroupItem,
 } from "~/shared/ui/untitled/base/button-group/button-group";
+import { Tab, TabList, Tabs } from "~/shared/ui/untitled/application/tabs/tabs";
 
 export interface ViewSwitcherOption {
   readonly value: string;
@@ -133,16 +134,17 @@ export interface ViewSwitcherProps {
    */
   readonly alwaysWriteValue?: boolean;
   /**
-   * UNTITLED-04 — draw the control with the genuine Untitled
-   * `base/button-group` anatomy instead of the legacy `dh-segmented` capsule.
+   * UNTITLED-04 — draw the control with genuine Untitled source instead of the
+   * legacy `dh-segmented` capsule.
    *
-   * The Untitled structure is a React Aria `ToggleButtonGroup`, so the segments
-   * are BUTTONS rather than links even in `param` mode; the URL contract is
-   * preserved by navigating on selection with the same `replace` semantics the
-   * link mode uses. That trade is deliberate and bounded to presentation
-   * toggles (Grid / Table), which are a reading of the same collection rather
-   * than a destination — a rail whose tabs are destinations uses `ViewTabs`,
-   * whose Untitled structure keeps real links.
+   * Which source depends on what the switcher IS. A URL-backed switcher stays
+   * made of real links, because that is a capability rather than a style: a
+   * presentation choice has to be deep-linkable, middle-clickable and correct
+   * with no JavaScript. Untitled's `application/tabs` with `type="button-border"`
+   * is the segmented control in that library AND takes an `href` per item
+   * (React Aria routes it through the app's `RouterProvider`), so nothing is
+   * given up. A client-state switcher (`onSelect`) has no URL to link to and
+   * takes Untitled's `base/button-group` toggle group.
    */
   readonly structure?: "legacy" | "untitled";
   readonly className?: string;
@@ -162,7 +164,6 @@ export function ViewSwitcher({
   className,
 }: ViewSwitcherProps) {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const defaultValue = options[0]?.value;
 
   const hrefFor = (option: ViewSwitcherOption): string => {
@@ -188,10 +189,37 @@ export function ViewSwitcher({
     return query.length > 0 ? `?${query}` : "?";
   };
 
+  if (structure === "untitled" && !onSelect) {
+    // Adapted from Untitled UI React `application/tabs` (`type="button-border"`),
+    // the segmented control Untitled's Application UI draws for a presentation
+    // toggle. Changes: DalyHub URL-backed presentation values, so each segment
+    // is a real link to the URL that IS that presentation.
+    return (
+      <Tabs
+        selectedKey={value}
+        className={["w-auto min-w-max", className].filter(Boolean).join(" ")}
+        data-untitled-source="application/tabs:button-border"
+      >
+        <TabList type="button-border" size="sm" aria-label={label}>
+          {options.map((option) => (
+            <Tab
+              key={option.value}
+              id={option.value}
+              href={hrefFor(option)}
+              {...(option.icon ? { icon: option.icon } : {})}
+              {...(iconOnly ? { "aria-label": option.label } : {})}
+            >
+              {iconOnly ? undefined : option.label}
+            </Tab>
+          ))}
+        </TabList>
+      </Tabs>
+    );
+  }
+
   if (structure === "untitled") {
-    // Adapted from Untitled UI React `base/button-group`, the segmented control
-    // Untitled's Application UI uses for a presentation toggle.
-    // Changes: DalyHub URL-backed presentation values and icon-only labelling.
+    // The client-state switcher: no URL to link to, so Untitled's
+    // `base/button-group` toggle group, with selection on `aria-pressed`.
     return (
       <ButtonGroup
         size="md"
@@ -200,17 +228,7 @@ export function ViewSwitcher({
         disallowEmptySelection
         onSelectionChange={(keys) => {
           const next = [...keys].map(String).find((key) => key !== value);
-          if (next === undefined) return;
-          if (onSelect) {
-            onSelect(next);
-            return;
-          }
-          const option = options.find((candidate) => candidate.value === next);
-          if (!option) return;
-          void navigate(hrefFor(option), {
-            replace: replace ?? option.href === undefined,
-            preventScrollReset: true,
-          });
+          if (next !== undefined) onSelect?.(next);
         }}
         className={className}
         data-untitled-source="base/button-group"

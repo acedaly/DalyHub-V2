@@ -18,10 +18,6 @@ a.dh-btn {
  * The shared cards remain the canonical object; this module tightens only the
  * collection's density so more active work stays visible without shrinking
  * touch targets or truncating the progress facts. */
-.dh-collection--projects .dh-ecard-grid {
-  gap: var(--dh-space-3);
-}
-
 .dh-collection--projects .dh-collection__content {
   padding-block-start: var(--dh-space-4);
 }

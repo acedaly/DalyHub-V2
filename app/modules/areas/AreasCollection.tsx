@@ -66,7 +66,6 @@ import {
   EntityRowList,
 } from "~/shared/card";
 import {
-  CollectionControlRow,
   CollectionLayout,
   collectionCountLabel,
   CreateActionLabel,
@@ -74,8 +73,8 @@ import {
   type CollectionPresentation,
 } from "~/shared/collection-layout";
 import {
+  DrawerButton,
   DrawerProvider,
-  DrawerTrigger,
   useDrawer,
   type DrawerEntry,
   type DrawerRenderResult,
@@ -463,12 +462,9 @@ function AreasCollection({
       // table shape), so the mapping is explicit rather than a cast.
       presentation={presentation === "list" ? "list" : "grid"}
       primaryAction={
-        <DrawerTrigger
-          drawerKey={NEW_AREA_KEY}
-          className="dh-btn dh-btn--primary"
-        >
+        <DrawerButton drawerKey={NEW_AREA_KEY} variant="primary">
           <CreateActionLabel>New area</CreateActionLabel>
-        </DrawerTrigger>
+        </DrawerButton>
       }
       /*
        * The toggle sits on the control row rather than in the header's
@@ -478,20 +474,28 @@ function AreasCollection({
        * the same position, on a lighter row.
        */
       filterBar={
-        <CollectionControlRow
-          trailing={
-            <ViewSwitcher
-              param="present"
-              options={PRESENTATION_OPTIONS}
-              value={presentation}
-              label="Area layout"
-            />
-          }
-        />
+        /*
+         * UNTITLED-04 — the Untitled Application UI filter-bar band, the same
+         * structure Tasks and Projects carry. Areas has no state tabs to lead
+         * the row, so the switcher takes the trailing edge alone.
+         */
+        <div
+          className="flex w-full flex-wrap items-center justify-end gap-3"
+          data-untitled-source="dashboards-01/02:filter-bar"
+        >
+          <ViewSwitcher
+            structure="untitled"
+            param="present"
+            options={PRESENTATION_OPTIONS}
+            value={presentation}
+            label="Area layout"
+          />
+        </div>
       }
       error={
         failed ? (
           <EmptyState
+            structure="untitled"
             title="We couldn’t load your Areas"
             description="Something went wrong. Please try again."
           />
@@ -500,16 +504,14 @@ function AreasCollection({
       isEmpty={!failed && count === 0}
       emptySlot={
         <EmptyState
+          structure="untitled"
           icon={<EntityIcon type="area" />}
           title="No Areas yet"
           description="Areas are the permanent domains of life. Create one before adding Projects."
           primaryAction={
-            <DrawerTrigger
-              drawerKey={NEW_AREA_KEY}
-              className="dh-btn dh-btn--primary"
-            >
+            <DrawerButton drawerKey={NEW_AREA_KEY} variant="primary">
               <CreateActionLabel>New area</CreateActionLabel>
-            </DrawerTrigger>
+            </DrawerButton>
           }
         />
       }
@@ -543,6 +545,7 @@ function AreasCollection({
           loadFailed={loadFailed}
           onLoadMore={loadMore}
           label="Load more Areas"
+          structure="untitled-pagination"
         />
       ) : null}
     </CollectionLayout>

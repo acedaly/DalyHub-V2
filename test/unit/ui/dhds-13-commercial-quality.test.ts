@@ -181,7 +181,7 @@ describe("DHDS-13 — one row grammar across the collections", () => {
     expect(entityRow).toMatch(
       /data-dh-action-context=\{overflow \? "true" : undefined\}/,
     );
-    expect(entityRow).toMatch(/className="dh-erow__overflow dh-action-reveal"/);
+    expect(entityRow).toMatch(/dh-erow__overflow dh-action-reveal/);
   });
 
   it("drops the bespoke tray around the Assets filter band", () => {

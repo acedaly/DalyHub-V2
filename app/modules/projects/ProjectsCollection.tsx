@@ -650,7 +650,7 @@ function ProjectsCollection({
          * two busiest collections in the product now carry one toolbar grammar.
          */
         <div
-          className="flex flex-wrap items-center gap-3 border-b border-secondary bg-primary px-4 py-2.5 max-md:flex-col max-md:items-stretch lg:px-6"
+          className="flex w-full flex-wrap items-center gap-3 max-md:flex-col max-md:items-stretch"
           data-untitled-source="dashboards-01/02:filter-bar"
         >
           <div className="-mx-1 min-w-0 flex-1 overflow-x-auto px-1">

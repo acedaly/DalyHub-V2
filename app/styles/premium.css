@@ -75,7 +75,6 @@
 /* -------------------------------------------------------------------------- */
 
 .dh-card,
-.dh-ecard,
 .dh-acard,
 .dh-rcard {
   border: var(--dh-border-width) solid var(--dh-color-border);
@@ -85,30 +84,22 @@
 }
 
 .dh-card:hover:has(a, button),
-.dh-ecard--interactive:hover,
 .dh-acard:hover,
 .dh-rcard:hover {
   border-color: var(--dh-color-border-strong);
   box-shadow: var(--dh-elevation-raised);
 }
 
-.dh-ecard-grid {
-  gap: var(--dh-space-4);
-}
-
-.dh-ecard,
 .dh-acard,
 .dh-rcard {
   padding: var(--dh-space-5);
 }
 
-.dh-ecard__title,
 .dh-acard__title,
 .dh-rcard__title {
   letter-spacing: -0.01em;
 }
 
-.dh-ecard__status,
 .dh-card__status {
   border-radius: var(--dh-radius-sm);
 }
@@ -194,11 +185,6 @@
     padding: var(--dh-space-3);
   }
 
-  .dh-ecard-grid {
-    gap: var(--dh-space-3);
-  }
-
-  .dh-ecard,
   .dh-acard,
   .dh-rcard {
     padding: var(--dh-space-4);
@@ -207,7 +193,6 @@
 
 @media (prefers-reduced-motion: no-preference) {
   .dh-card,
-  .dh-ecard,
   .dh-acard,
   .dh-rcard {
     transition:

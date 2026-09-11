@@ -46,7 +46,8 @@ import {
   resolveIdentity,
 } from "~/shared/entity/identity-resolution";
 
-import { meterStatusAttribute } from "~/shared/progress";
+import type { MeterStatus } from "~/shared/progress";
+import { LabelledProgressBar } from "~/shared/ui/untitled/overrides/labelled-progress-bar";
 
 import { normaliseProgress, type CardProgress } from "./types";
 
@@ -124,11 +125,31 @@ export function EntityCard({
 }: EntityCardProps) {
   const Heading = `h${headingLevel}` as const;
   const resolved = progress ? normaliseProgress(progress) : null;
+  /*
+   * UNTITLED-04 — the surface is Untitled's card grammar.
+   *
+   * `rounded-xl bg-primary shadow-xs ring-1 ring-secondary` is the boundary
+   * `application/table`'s `TableCard.Root` declares and that Untitled's
+   * Application UI uses for every bounded panel, so an entity card, a record
+   * panel and a collection table are visibly one object family. The `dh-ecard*`
+   * class names survive as HOOKS; their presentation rules are deleted.
+   */
   const classes = [
     "dh-ecard",
-    href ? "dh-ecard--interactive" : null,
-    muted ? "dh-ecard--muted" : null,
-    selected ? "dh-ecard--selected" : null,
+    "relative flex h-full min-w-0 flex-col gap-3 rounded-xl bg-primary p-5 shadow-xs ring-1 ring-secondary",
+    /*
+     * The PHONE composition: a compact ROW, from the same DOM. The header
+     * dissolves into the card's own grid (`contents`), so the mark takes a
+     * column and everything else indents against it — which is what makes a
+     * list of these scannable by mark and by title rather than by counting
+     * boxes. Nothing is hidden and nothing is reordered.
+     */
+    "max-md:grid max-md:h-auto max-md:grid-cols-[auto_minmax(0,1fr)_auto] max-md:content-start max-md:gap-x-3 max-md:gap-y-2 max-md:p-4",
+    href
+      ? "dh-ecard--interactive transition duration-100 ease-linear hover:shadow-md hover:ring-primary"
+      : null,
+    muted ? "dh-ecard--muted opacity-70" : null,
+    selected ? "dh-ecard--selected ring-2 ring-brand" : null,
     className,
   ]
     .filter(Boolean)
@@ -156,17 +177,25 @@ export function EntityCard({
       {...identityAttribute(identity.slot)}
       data-testid={testId}
     >
-      <div className="dh-ecard__header">
+      <div className="dh-ecard__header flex min-w-0 items-start gap-3 max-md:contents">
         {icon ? (
-          <span className="dh-ecard__icon" aria-hidden="true">
+          <span
+            /*
+             * On a phone the mark spans the title and its subtitle, and steps
+             * down to the compact rung by re-pointing the identity-icon size
+             * tokens the shared `AccentIcon` reads.
+             */
+            className="dh-ecard__icon shrink-0 max-md:col-start-1 max-md:row-span-2 max-md:self-start max-md:[--app-entity-icon-container-size-lg:var(--app-entity-icon-container-size-sm)] max-md:[--app-entity-icon-size-lg:var(--app-entity-icon-size-sm)]"
+            aria-hidden="true"
+          >
             {icon}
           </span>
         ) : null}
-        <div className="dh-ecard__titles">
-          <Heading className="dh-ecard__title">
+        <div className="dh-ecard__titles flex min-w-0 flex-1 flex-col gap-0.5 max-md:col-start-2 max-md:row-start-1">
+          <Heading className="dh-ecard__title text-md font-semibold text-primary">
             {href ? (
               <Link
-                className="dh-ecard__open"
+                className="dh-ecard__open line-clamp-2 rounded-sm text-primary outline-focus-ring after:absolute after:inset-0 after:content-[''] focus-visible:outline-2 focus-visible:outline-offset-2"
                 to={href}
                 aria-label={openAriaLabel ?? title}
               >
@@ -176,13 +205,20 @@ export function EntityCard({
               title
             )}
           </Heading>
-          {subtitle ? <p className="dh-ecard__subtitle">{subtitle}</p> : null}
+          {subtitle ? (
+            <p className="dh-ecard__subtitle truncate text-sm text-tertiary">
+              {subtitle}
+            </p>
+          ) : null}
         </div>
         {/* `data-testid` so a test can aim at the status REGION — the one
          * place a raised, non-interactive chip previously swallowed clicks —
          * without reaching for a styling class. */}
         {status ? (
-          <div className="dh-ecard__status" data-testid="entity-card-status">
+          <div
+            className="dh-ecard__status relative z-10 shrink-0 max-md:col-start-3 max-md:row-start-1"
+            data-testid="entity-card-status"
+          >
             {status}
           </div>
         ) : null}
@@ -195,18 +231,22 @@ export function EntityCard({
          * content it belongs with.
          */}
         {overflow && !footer ? (
-          <div className="dh-ecard__overflow dh-ecard__overflow--header">
+          <div className="dh-ecard__overflow dh-ecard__overflow--header relative z-10 -mt-1 -mr-1 shrink-0 max-md:col-start-3 max-md:row-start-1 max-md:m-0">
             {overflow}
           </div>
         ) : null}
       </div>
 
       {metric || resolved || meta ? (
-        <div className="dh-ecard__body">
+        <div className="dh-ecard__body mt-auto flex min-w-0 flex-col gap-2 max-md:col-start-2 max-md:mt-0">
           {metric ? (
-            <p className="dh-ecard__metric">
-              <span className="dh-ecard__metric-value">{metric.value}</span>
-              <span className="dh-ecard__metric-label">{metric.label}</span>
+            <p className="dh-ecard__metric m-0 flex items-baseline gap-1.5">
+              <span className="dh-ecard__metric-value text-display-xs font-semibold text-primary tabular-nums">
+                {metric.value}
+              </span>
+              <span className="dh-ecard__metric-label text-sm text-tertiary">
+                {metric.label}
+              </span>
             </p>
           ) : null}
 
@@ -221,28 +261,24 @@ export function EntityCard({
              * above a bar running the card's full width, which is what makes a
              * grid of records comparable at a glance.
              */
-            <div className="dh-ecard__progress">
-              <span className="dh-ecard__progress-text">{resolved.text}</span>
-              <span
-                className="dh-ecard__progress-track"
-                {...meterStatusAttribute(resolved.status)}
-                role="progressbar"
-                aria-valuenow={resolved.percent}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuetext={resolved.valueText}
-                aria-label={`${title} progress`}
-              >
-                <span
-                  className="dh-ecard__progress-fill"
-                  style={{ inlineSize: `${resolved.percent}%` }}
-                />
+            <div className="dh-ecard__progress flex min-w-0 flex-col gap-1.5">
+              <span className="dh-ecard__progress-text text-sm font-medium text-secondary">
+                {resolved.text}
               </span>
+              <LabelledProgressBar
+                label={`${title} progress`}
+                value={resolved.percent}
+                valueText={resolved.valueText.replace(/^\d+% — /, "")}
+                tone={METER_TONE[resolved.status ?? "neutral"]}
+              />
             </div>
           ) : null}
 
           {meta ? (
-            <div className="dh-ecard__meta" data-testid="entity-card-meta">
+            <div
+              className="dh-ecard__meta min-w-0 text-sm text-tertiary"
+              data-testid="entity-card-meta"
+            >
               {meta}
             </div>
           ) : null}
@@ -250,10 +286,12 @@ export function EntityCard({
       ) : null}
 
       {footer ? (
-        <div className="dh-ecard__footer">
-          <div className="dh-ecard__footer-content">{footer}</div>
+        <div className="dh-ecard__footer mt-auto flex items-center justify-between gap-3 border-t border-secondary pt-3 max-md:col-span-full max-md:mt-0">
+          <div className="dh-ecard__footer-content min-w-0">{footer}</div>
           {overflow ? (
-            <div className="dh-ecard__overflow">{overflow}</div>
+            <div className="dh-ecard__overflow relative z-10 shrink-0">
+              {overflow}
+            </div>
           ) : null}
         </div>
       ) : null}
@@ -288,15 +326,37 @@ export function EntityCardGrid({
 }) {
   return (
     <ul
-      className={["dh-ecard-grid", className].filter(Boolean).join(" ")}
+      className={[
+        "dh-ecard-grid m-0 grid list-none grid-cols-[repeat(auto-fit,minmax(18rem,1fr))] gap-4 p-0 max-md:grid-cols-1 max-md:gap-3",
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
       aria-label={label}
       data-testid={testId}
     >
       {Children.map(children, (child) =>
         child === null || child === undefined || child === false ? null : (
-          <li className="dh-ecard-grid__item">{child}</li>
+          // Every card family the grid carries fills its track: without a flex
+          // factor a card is sized to its own content inside the flex item, so a
+          // row comes out with three different widths and a ragged right edge.
+          <li className="dh-ecard-grid__item flex min-w-0 [&>*]:min-w-0 [&>*]:flex-1">
+            {child}
+          </li>
         ),
       )}
     </ul>
   );
 }
+
+/** A meter's status, in the shared Untitled bar's tone vocabulary. */
+const METER_TONE: Record<
+  MeterStatus,
+  "neutral" | "positive" | "caution" | "critical"
+> = {
+  neutral: "neutral",
+  info: "neutral",
+  success: "positive",
+  warning: "caution",
+  danger: "critical",
+};
