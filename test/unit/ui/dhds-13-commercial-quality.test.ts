@@ -35,7 +35,9 @@ describe("DHDS-13 — floating surfaces read as floating", () => {
       "drawer.css",
       "forms.css",
       "inspector.css",
-      "search.css",
+      // `search.css` was deleted in #282 when the Search surface moved to
+      // Untitled's command-menu components; it is drawn by Tailwind utilities
+      // now and has no stylesheet to re-mix anything in.
       "settings.css",
       "sheet.css",
       "shell.css",
