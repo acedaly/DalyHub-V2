@@ -33,7 +33,7 @@
 import { Link } from "react-router";
 
 import { formatCalendarDate } from "~/shared/task-record/task-view";
-import { TagChipList } from "~/shared/ui";
+import { Button, TagChipList } from "~/shared/ui";
 
 import type { SerializedNoteListItem } from "./note-view";
 
@@ -58,7 +58,19 @@ export function NotesList({
   const deleted = onRestore !== undefined;
 
   return (
-    <ul className="dh-notes-list" aria-label={ariaLabel}>
+    /*
+     * UNTITLED-04 — the list is a bounded Untitled surface, in the same card
+     * grammar the migrated collection tables and entity lists carry, and it
+     * draws the hairlines so no row has to know where it sits.
+     *
+     * The row's own composition is unchanged and is what makes Notes Notes: the
+     * title leads, the excerpt takes the width, and the metadata forms a
+     * right-hand column the eye can run down.
+     */
+    <ul
+      className="dh-notes-list m-0 list-none overflow-hidden rounded-xl bg-primary p-0 shadow-xs ring-1 ring-secondary"
+      aria-label={ariaLabel}
+    >
       {notes.map((note) => {
         /*
          * The DATE comes last so it forms a right-hand column the eye can run
@@ -78,9 +90,11 @@ export function NotesList({
              * content inside it is correct — only these two wrappers had to change,
              * and no layout rule did.
              */
-            <div className="dh-notes-list__meta">
+            <div className="dh-notes-list__meta flex shrink-0 flex-wrap items-center justify-end gap-x-2 gap-y-1 max-md:justify-start">
               {note.archived ? (
-                <span className="dh-notes-list__state">Archived</span>
+                <span className="dh-notes-list__state rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-tertiary">
+                  Archived
+                </span>
               ) : null}
               {/*
                * CONVERGE-01 §6 — tags are CHIPS, through the one shared
@@ -104,7 +118,7 @@ export function NotesList({
                 max={3}
                 className="dh-notes-list__tags"
               />
-              <span className="dh-notes-list__date">
+              <span className="dh-notes-list__date shrink-0 text-sm whitespace-nowrap text-tertiary tabular-nums">
                 {deleted
                   ? (formatCalendarDate(note.updatedAt.slice(0, 10)) ?? "")
                   : updatedLabel(note)}
@@ -114,12 +128,16 @@ export function NotesList({
 
         const body = (
           <>
-            <span className="dh-notes-list__title">{note.title}</span>
-            <div className="dh-notes-list__line">
+            <span className="dh-notes-list__title text-md font-semibold text-primary">
+              {note.title}
+            </span>
+            <div className="dh-notes-list__line flex min-w-0 items-baseline justify-between gap-4 max-md:flex-col max-md:items-start max-md:gap-1">
               {note.excerpt ? (
-                <span className="dh-notes-list__excerpt">{note.excerpt}</span>
+                <span className="dh-notes-list__excerpt line-clamp-2 min-w-0 text-sm text-tertiary">
+                  {note.excerpt}
+                </span>
               ) : (
-                <span className="dh-notes-list__excerpt dh-notes-list__excerpt--empty">
+                <span className="dh-notes-list__excerpt dh-notes-list__excerpt--empty min-w-0 text-sm text-quaternary italic">
                   No additional text
                 </span>
               )}
@@ -129,25 +147,29 @@ export function NotesList({
         );
 
         return (
-          <li key={note.id} className="dh-notes-list__row">
+          <li
+            key={note.id}
+            className="dh-notes-list__row relative flex items-center gap-3 border-b border-secondary px-5 last:border-b-0 hover:bg-secondary max-md:px-4"
+          >
             {deleted ? (
               <>
-                <div className="dh-notes-list__item dh-notes-list__item--static">
+                <div className="dh-notes-list__item dh-notes-list__item--static flex min-w-0 flex-1 flex-col gap-1 py-3">
                   {body}
                 </div>
-                <button
-                  type="button"
-                  className="dh-btn dh-btn--secondary dh-notes-list__restore"
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="dh-notes-list__restore relative z-10 shrink-0"
                   disabled={pendingIds?.has(note.id)}
                   onClick={() => onRestore(note.id, note.title)}
                 >
                   {pendingIds?.has(note.id) ? "Restoring…" : "Restore"}
-                </button>
+                </Button>
               </>
             ) : (
               <Link
                 to={`/notes/${encodeURIComponent(note.id)}`}
-                className="dh-notes-list__item"
+                className="dh-notes-list__item flex min-w-0 flex-1 flex-col gap-1 py-3 outline-focus-ring after:absolute after:inset-0 after:content-[''] focus-visible:outline-2 focus-visible:-outline-offset-2"
                 prefetch="intent"
                 /*
                  * Without this the link's accessible name is everything inside
