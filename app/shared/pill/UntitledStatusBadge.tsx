@@ -76,12 +76,27 @@ export function UntitledStatusBadge({
   "data-testid": testId,
 }: UntitledStatusBadgeProps) {
   const color = TONE_COLOR[tone];
+  /*
+   * `className` goes on the BADGE, not on the wrapper.
+   *
+   * The wrapper is `display: contents` — it has no box, so a caller's class on
+   * it can be neither measured nor positioned. `.record-status` on the record
+   * header is exactly that case: `record-anatomy.spec.ts` asks whether the
+   * status sits beside the title, and a zero-sized rect answers "no" whatever
+   * the screen shows. Untitled's `Badge` takes `className`, so the class lands
+   * on the drawn object where a caller means it to be.
+   */
   const badge = dot ? (
-    <UntitledBadgeWithDot type={type} size={size} color={color}>
+    <UntitledBadgeWithDot
+      type={type}
+      size={size}
+      color={color}
+      className={className}
+    >
       {children}
     </UntitledBadgeWithDot>
   ) : (
-    <UntitledBadge type={type} size={size} color={color}>
+    <UntitledBadge type={type} size={size} color={color} className={className}>
       {children}
     </UntitledBadge>
   );
@@ -102,7 +117,7 @@ export function UntitledStatusBadge({
    */
   return (
     <span
-      className={["contents", className].filter(Boolean).join(" ")}
+      className="contents"
       data-dh-badge="true"
       data-tone={tone}
       data-untitled-source="base/badges"

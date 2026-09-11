@@ -332,11 +332,12 @@ test.describe("filters are subordinate to tabs", () => {
     page,
   }) => {
     await gotoFixture(page, "/projects/pr-rc-kitchen");
-    // UIX-02 — the task-state filter is the shared TAB RAIL (`ViewTabs`), so it
-    // announces as a `navigation`. The point of this test is unchanged and if
+    // UIX-02 — the task-state filter is the shared TAB RAIL (`ViewTabs`), and
+    // UNTITLED-04 made that rail a `tablist` of real links rather than a
+    // `navigation` landmark. The point of this test is unchanged and if
     // anything better served: the rail is quieter than the segmented track it
     // replaced, which is exactly what "subordinate to the tabs above it" means.
-    const filter = page.getByRole("navigation", {
+    const filter = page.getByRole("tablist", {
       name: "Filter tasks by state",
     });
     await expect(filter).toBeVisible();

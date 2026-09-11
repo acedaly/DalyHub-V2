@@ -697,7 +697,9 @@
 .dh-calendar__month {
   display: inline-flex;
   justify-content: center;
-  gap: var(--dh-space-1);
+  /* No `gap`: the month and the year are separated by a real SPACE in the
+   * markup now, so that the heading's accessible name is "September 2028"
+   * rather than one token. A gap on top of it would double the separation. */
   margin: 0;
   flex: 1 1 auto;
   text-align: center;
