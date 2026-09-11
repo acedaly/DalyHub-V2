@@ -204,7 +204,15 @@ export function ViewSwitcher({
     return (
       <Tabs
         selectedKey={value}
-        className={["w-auto min-w-max", className].filter(Boolean).join(" ")}
+        /*
+         * `max-w-full` with the overflow on the root, never `min-w-max`: a
+         * five-scope switcher (People's circles, Assets' views) is wider than a
+         * 390px header, and a control that forces its own width pushes the
+         * DOCUMENT sideways instead of scrolling inside itself.
+         */
+        className={["w-auto max-w-full overflow-x-auto", className]
+          .filter(Boolean)
+          .join(" ")}
         data-untitled-source="application/tabs:button-border"
       >
         <TabList

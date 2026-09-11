@@ -121,7 +121,11 @@ export function ViewTabs({
   return (
     <Tabs
       selectedKey={value}
-      className={["w-auto min-w-max", className].filter(Boolean).join(" ")}
+      // The rail scrolls INSIDE itself rather than widening the document; see
+      // `ViewSwitcher` for the same reasoning.
+      className={["w-auto max-w-full overflow-x-auto", className]
+        .filter(Boolean)
+        .join(" ")}
       data-testid={testId}
       data-untitled-source="application/tabs:underline"
     >

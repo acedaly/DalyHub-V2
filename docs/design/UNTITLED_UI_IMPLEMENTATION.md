@@ -525,3 +525,78 @@ The main list and drawer are DalyHub compositions above genuine Untitled
 primitives, not a second generic UI library. Forcing generic table or slideout
 markup into the record would remove task semantics rather than migrate
 presentation. No new generic primitive or visual token layer was introduced.
+
+## Phase 4 completion record — collections, the Record Layout and the shared primitives
+
+The authenticated Pro catalogue was available for this pass (the MCP connector
+reported `has_pro_access: true`). **The Untitled CLI could not be authenticated
+in this environment**: `npx untitledui@latest login` starts a local callback
+server and opens a browser at
+`https://www.untitledui.com/react/api/cli-auth?port=<localhost port>`, which a
+headless remote container cannot complete, and the MCP connector returns
+metadata plus the CLI command rather than source. Free-tier component source was
+still retrievable directly from `https://www.untitledui.com/react/api/components`,
+and the genuine Pro source vendored into `app/shared/ui/untitled/` by the earlier
+phases was the material this phase built from. Nothing was recreated from memory
+and no unavailable example name, snippet or screenshot was invented.
+
+Catalogue references inspected for this phase: page templates
+`informational-01/13` (a project detail: breadcrumb, page header, tab rail,
+split content with an activity column), `informational-02/06` (a filterable
+collection table with status badges and progress bars), `dashboards-02/02` and
+`dashboards-01/02` (the filter-bar-plus-table grammar the Tasks phase adopted),
+and components `table`, `filter-bar`, `application/tabs`, `application/pagination`,
+`application/empty-state`, `base/badges`, `base/button-group`, `base/input`,
+`base/progress-indicators` and `foundations/featured-icon`.
+
+| Surface | Untitled source | Structural change | Legacy remaining |
+|---|---|---|---|
+| Projects table | `application/table` (`TableCard.Root` + React Aria `Table`), `dashboards-01/02` filter bar | Hand-written `<table class="dh-ptable">` replaced; Status column added; fixed layout so the table fits its card at every width | Inline Area picker and DS-12 overflow (product controls) |
+| Projects card | Untitled card boundary, `LabelledProgressBar` | `dh-pcard` presentation deleted; phone row composition moved into the component | `dh-pcard*` class names as test hooks |
+| Projects toolbar | `application/tabs` (underline), `application/tabs` (button-border), `base/input` | Lifecycle rail, presentation toggle and search all Untitled | — |
+| Record header | Untitled page-header anatomy, `base/badges`, Untitled `Button` | `record-header*`, `record-title`, `record-status`, `record-action`, `record-context-item` presentation deleted | Two intrinsic-sizing rules for the inline title editor |
+| Record tabs | `application/tabs` (underline) over React Aria | Hand-rolled WAI-ARIA tabs (roving tabindex, arrow keys, Home/End, wrapping, disabled skipping) replaced by the library's | Phone "More sections" accelerator, lazy panel, `surface="plain"` |
+| Record summary band | Untitled card grammar, `LabelledProgressBar` | `dh-record-summary-bar*` presentation deleted | `data-density` as the caller's prose/derived-state declaration |
+| Entity card / row list | Untitled card boundary, `LabelledProgressBar` | `dh-ecard*`, `dh-erow*` and both phone blocks deleted | `dh-ecard*` / `dh-erow*` class names as hooks |
+| Areas | The above, plus Untitled empty state and toolbar | Gallery and row list both Untitled surfaces | — |
+| Goals | `application/tabs` for the lens rail and the pane rail; Untitled card grammar for both halves of the master–detail | `goals.css` keeps layout only | Measurement panel and chips (domain compositions) |
+| Empty states | `application/empty-state` + `foundations/featured-icon` | `empty-state.css` deleted product-wide | `size="inline"`, the record-level absence |
+| View switcher | `application/tabs` (button-border / button-minimal), `base/button-group` | `segmented-filter.css` and `view-tabs.css` deleted | — |
+| Collection search | `base/input` | Legacy control chrome deleted | Phone reveal, Escape contract, Clear affordance |
+| Load more | `application/pagination` card footer | `load-more.css` deleted; keyset cursor unchanged | — |
+
+### Deliberate deviations from upstream, and why
+
+- **`EmptyState.Title` is an `<h1>` upstream.** DalyHub renders empty states
+  inside record tabs, collections and drawers, three of which can be on screen
+  at once. The caller's `headingLevel` is carried as `aria-level`, which is what
+  assistive technology reports, so the genuine component still draws the title.
+- **`ProgressBarBase` has no accessible name.** `overrides/labelled-progress-bar.tsx`
+  keeps upstream's geometry, token classes and transform-not-width technique and
+  adds `aria-label` / `aria-valuetext`, because a DalyHub measure always
+  announces the same sentence the surface states in words.
+- **`Badge` spreads no arbitrary props.** `UntitledStatusBadge` wraps it in a
+  `display: contents` span carrying `data-dh-badge` and the tone, rather than
+  editing a file `scripts/vendor-untitled.mjs` regenerates.
+- **The record tab strip activates on focus.** Untitled's default is manual
+  activation; DalyHub's record tabs have always activated on focus, and changing
+  that for every record is not a migration decision.
+- **The presentation switcher is tabs, not a button group.** A URL-backed
+  switcher has to stay made of real links — deep-linkable, middle-clickable and
+  correct with no JavaScript — and only `application/tabs` takes an `href`.
+
+### The cascade, and the one thing that had to move
+
+Unlayered CSS beats layered CSS unconditionally, and `untitled.css` deliberately
+puts all of Tailwind inside layers so legacy screens are untouched. That is
+correct for a legacy screen and wrong for a zero-specificity FLOOR: `base.css`'s
+`:where(a)` and its native-control rules were outranking `text-primary` and
+Untitled's control chrome on migrated components. Those rules now live in a
+`dh-floor` layer declared between Tailwind's `base` and `components`, which is
+exactly what their own notes always claimed they were. Legacy unlayered
+stylesheets still outrank everything in it.
+
+The corollary is a rule for the rest of the migration: **a migrated component
+never borrows a legacy class that still has rules attached to it.** Where a
+class name survives as a test hook, its presentation is deleted in the same
+change.
