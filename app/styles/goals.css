@@ -875,12 +875,11 @@
   flex-direction: column;
 }
 
+/* UNTITLED-04 — the surface is the component's (Untitled's bounded card
+ * grammar); this keeps only what is layout. */
 .dh-goalspace__list,
 .dh-goalspace__detail {
   min-inline-size: 0;
-  border: var(--dh-border-width) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface);
   overflow: hidden;
 }
 
@@ -969,9 +968,10 @@
   min-inline-size: 0;
 }
 
+/* UNTITLED-04 — the rail draws its own bottom rule (Untitled's `underline`
+ * tab list), so the wrapper no longer adds a second one. */
 .dh-goalpane__tabs {
   margin-block-end: calc(-1 * var(--dh-space-2));
-  border-block-end: var(--dh-border-width) solid var(--dh-color-border);
 }
 
 /*

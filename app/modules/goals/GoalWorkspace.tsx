@@ -41,7 +41,7 @@ import { useId } from "react";
 import type { ReactNode } from "react";
 
 import { ProgressRowList } from "~/shared/card";
-import { DrawerTrigger } from "~/shared/drawer";
+import { DrawerButton, DrawerTrigger } from "~/shared/drawer";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 import { LoadMore } from "~/shared/load-more";
@@ -87,8 +87,17 @@ export function GoalWorkspaceLayout({
       data-selection={selectionExplicit ? "explicit" : undefined}
       data-testid="goals-workspace"
     >
-      <div className="dh-goalspace__list">{list}</div>
-      <div className="dh-goalspace__detail">{detail}</div>
+      {/*
+       * UNTITLED-04 — both halves of the master–detail take Untitled's bounded
+       * card grammar, the same boundary the migrated collection tables, entity
+       * cards and record panels carry.
+       */}
+      <div className="dh-goalspace__list rounded-xl bg-primary shadow-xs ring-1 ring-secondary">
+        {list}
+      </div>
+      <div className="dh-goalspace__detail rounded-xl bg-primary shadow-xs ring-1 ring-secondary">
+        {detail}
+      </div>
     </div>
   );
 }
@@ -218,6 +227,7 @@ export function GoalWorkspaceTabs({ goalId }: { readonly goalId: string }) {
   const record = `/goals/${encodeURIComponent(goalId)}`;
   return (
     <ViewTabs
+      structure="untitled"
       className="dh-goalpane__rail"
       data-testid="goal-workspace-tabs"
       param="pane"
@@ -241,13 +251,14 @@ export function GoalWorkspaceTabs({ goalId }: { readonly goalId: string }) {
 export function GoalWorkspaceEmpty() {
   return (
     <EmptyState
+      structure="untitled"
       icon={<EntityIcon type="goal" />}
       title="No Goals yet"
       description="Goals are the aspirational outcomes you pursue under an Area. Every Goal lives in one, so creating a Goal starts by choosing its Area."
       primaryAction={
-        <DrawerTrigger drawerKey="new-goal" className="dh-btn dh-btn--primary">
+        <DrawerButton drawerKey="new-goal" variant="primary">
           Add goal
-        </DrawerTrigger>
+        </DrawerButton>
       }
     />
   );

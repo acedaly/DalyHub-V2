@@ -65,7 +65,10 @@ export function NextActionLine({
     if (absence === "hide") return null;
     return (
       <p
-        className={["dh-next-action", "dh-next-action--absent", className]
+        className={[
+          "dh-next-action dh-next-action--absent m-0 text-sm text-tertiary",
+          className,
+        ]
           .filter(Boolean)
           .join(" ")}
         data-testid={`${testId}-absent`}
@@ -75,15 +78,32 @@ export function NextActionLine({
     );
   }
   return (
+    /*
+     * UNTITLED-04 — the line states its own layout.
+     *
+     * It never had any: `dh-next-action` has no stylesheet anywhere in the
+     * product, so the three inline spans ran together and every surface that
+     * used it rendered "Next stepFinish unit 1Spanish course" (measured on the
+     * Goal record and the Goals pane). A shared component that depends on its
+     * host for the gap between its own words is a shared component waiting to be
+     * drawn wrong; it is stated here, once, in Untitled tokens.
+     */
     <p
-      className={["dh-next-action", className].filter(Boolean).join(" ")}
+      className={[
+        "dh-next-action m-0 flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 text-sm",
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
       data-testid={testId}
       data-next-action-id={task.id}
     >
-      <span className="dh-next-action__label">{label}</span>
+      <span className="dh-next-action__label shrink-0 text-tertiary">
+        {label}
+      </span>
       <DrawerTrigger
         drawerKey={`task:${task.id}`}
-        className="dh-next-action__open"
+        className="dh-next-action__open min-w-0 rounded-sm font-medium text-brand-secondary outline-focus-ring hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
         /*
          * The accessible name says what opening it DOES and which Task it is —
          * "Next" alone would be four identical links on one screen. The
@@ -99,7 +119,9 @@ export function NextActionLine({
         {task.title}
       </DrawerTrigger>
       {task.projectTitle ? (
-        <span className="dh-next-action__parent">{task.projectTitle}</span>
+        <span className="dh-next-action__parent min-w-0 truncate text-tertiary">
+          {task.projectTitle}
+        </span>
       ) : null}
     </p>
   );

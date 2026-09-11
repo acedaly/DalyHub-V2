@@ -64,6 +64,7 @@ import { HistoryIcon } from "~/shared/icons";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
 import type { InlineSaveOutcome } from "~/shared/inline-edit";
 import { useCollectionRestore } from "~/shared/record-lifecycle";
+import { ButtonLink } from "~/shared/ui";
 import { ViewTabs, type ViewTabOption } from "~/shared/view-switcher";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 import type { GoalAlignment, GoalMovement } from "~/shared/alignment";
@@ -366,6 +367,7 @@ function NewGoalFormHost({
   if (areaOptionsFailed) {
     return (
       <EmptyState
+        structure="untitled"
         title="We couldn’t load your Areas"
         description="A Goal lives in an Area, so creating one needs the list. Please try again."
       />
@@ -378,12 +380,13 @@ function NewGoalFormHost({
      */
     return (
       <EmptyState
+        structure="untitled"
         title="Create an Area first"
         description="Every Goal lives in an Area of your life, and this workspace has none yet."
         primaryAction={
-          <a className="dh-btn dh-btn--primary" href="/areas">
+          <ButtonLink variant="primary" href="/areas">
             Go to Areas
-          </a>
+          </ButtonLink>
         }
       />
     );
@@ -762,6 +765,7 @@ function GoalsCollection({
          */
         filterBar={
           <ViewTabs
+            structure="untitled"
             className="dh-goals-views"
             data-testid="goals-views"
             param="view"
@@ -774,6 +778,7 @@ function GoalsCollection({
         error={
           failed ? (
             <EmptyState
+              structure="untitled"
               title="We couldn’t load your deleted Goals"
               description="Something went wrong. Please try again."
             />
@@ -784,6 +789,7 @@ function GoalsCollection({
         }
         filteredEmptySlot={
           <EmptyState
+            structure="untitled"
             icon={<EntityIcon type="goal" />}
             title="No deleted Goals"
             description="Goals you delete appear here, and can be restored at any time."
@@ -806,6 +812,7 @@ function GoalsCollection({
             loadFailed={deletedPages.loadFailed}
             onLoadMore={deletedPages.loadMore}
             label="Load more deleted Goals"
+            structure="untitled-pagination"
           />
         ) : null}
       </CollectionLayout>
@@ -891,6 +898,7 @@ function GoalsCollection({
        */
       filterBar={
         <ViewTabs
+          structure="untitled"
           className="dh-goals-views"
           data-testid="goals-views"
           param="view"
@@ -903,6 +911,7 @@ function GoalsCollection({
       error={
         failed ? (
           <EmptyState
+            structure="untitled"
             title="We couldn’t load your Goals"
             description="Something went wrong. Please try again."
           />
@@ -929,6 +938,7 @@ function GoalsCollection({
          * choosing an Area, so nothing about the model changed.
          */
         <EmptyState
+          structure="untitled"
           icon={<EntityIcon type="goal" />}
           title={emptyCollectionTitle("goal")}
           description="Goals are the aspirational outcomes you pursue under an Area. Every Goal lives in one, so creating a Goal starts by choosing its Area."
@@ -972,6 +982,7 @@ function GoalsCollection({
        */}
       {count === 0 && (lensCounts?.total ?? 0) > 0 ? (
         <EmptyState
+          structure="untitled"
           icon={<EntityIcon type="goal" />}
           title={`No Goals are ${GOAL_COLLECTION_VIEW_LABELS[view].toLowerCase()}`}
           description={`This workspace has ${lensCounts!.total === 1 ? "1 Goal" : `${lensCounts!.total} Goals`}, and none of them is in this view.`}
@@ -1052,6 +1063,7 @@ function GoalsCollection({
                * still works, and the sentence says what to do.
                */
               <EmptyState
+                structure="untitled"
                 icon={<EntityIcon type="goal" />}
                 title="Select a Goal"
                 description="Choose a Goal from the list to see its progress, its measurements and the Projects advancing it."
