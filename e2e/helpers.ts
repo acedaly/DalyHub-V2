@@ -336,78 +336,6 @@ export async function gotoFixture(page: Page, path: string): Promise<void> {
  * is there, the click "succeeds", and nothing happens. Gating on readiness makes
  * the journey assert the behaviour it means to.
  */
-/**
- * UNTITLED-04 — wait for React Aria's COLLECTIONS to swap in their real DOM.
- *
- * A React Aria collection (`Tabs`, `Table`, `ListBox`) builds itself in a pass
- * that produces no DOM, then replaces every child of its rendered container in
- * one go. On a hydrated page that swap lands well AFTER `networkidle` — measured
- * at ~1.6s on a cold load of `/projects`, where both view rails and the projects
- * table re-child within the same millisecond.
- *
- * A click dispatched across that boundary is lost, and lost in the way that is
- * hardest to read: `pointerdown` lands on the old node, the replacement receives
- * `pointerup`, the browser dispatches no `click` at all, and the test sees a
- * control that "was clicked" and did nothing. Before the Untitled migration
- * these rails were plain anchors, where a replaced node still navigates, so
- * nothing needed this gate.
- *
- * It cannot be a stability check on the rendered SHAPE: the pre-swap DOM has the
- * same containers with the same child counts and sits unchanged for a second or
- * more, so "two identical frames" returns long before the swap. The gate is
- * therefore QUIET: watch every collection container for child mutations and wait
- * until none has moved for 400ms. A page with no collections returns at once.
- */
-async function waitForAriaCollections(page: Page): Promise<void> {
-  try {
-    await page.evaluate(() => {
-      const scope = window as unknown as {
-        __ariaStart?: number;
-        __ariaLastMutation?: number;
-        __ariaSawMutation?: boolean;
-        __ariaObserver?: MutationObserver;
-      };
-      scope.__ariaObserver?.disconnect();
-      scope.__ariaStart = performance.now();
-      scope.__ariaLastMutation = performance.now();
-      scope.__ariaSawMutation = false;
-      scope.__ariaObserver = new MutationObserver(() => {
-        scope.__ariaLastMutation = performance.now();
-        scope.__ariaSawMutation = true;
-      });
-      for (const container of document.querySelectorAll(
-        '[role="tablist"], [role="grid"], [role="listbox"]',
-      )) {
-        scope.__ariaObserver.observe(container, { childList: true });
-      }
-    });
-    await page.waitForFunction(
-      () => {
-        const scope = window as unknown as {
-          __ariaStart?: number;
-          __ariaLastMutation?: number;
-          __ariaSawMutation?: boolean;
-        };
-        const now = performance.now();
-        const quiet = now - (scope.__ariaLastMutation ?? 0) > 400;
-        // The swap has either happened (and gone quiet), or enough time has
-        // passed that this page was never going to have one. Quiet ALONE is not
-        // enough: the pre-swap DOM holds perfectly still, so a quiet-only gate
-        // returns before the swap rather than after it.
-        const settled =
-          scope.__ariaSawMutation === true ||
-          now - (scope.__ariaStart ?? 0) > 1200;
-        return quiet && settled;
-      },
-      undefined,
-      { polling: "raf", timeout: 10_000 },
-    );
-  } catch {
-    // A page whose collections never settle is a real failure, but it is the
-    // assertion that follows which should report it, not this gate.
-  }
-}
-
 export async function waitForInteractive(page: Page): Promise<void> {
   // Settle the document FIRST. This function is called precisely when a journey
   // has arrived through the product, which means a client-side navigation may
@@ -419,8 +347,6 @@ export async function waitForInteractive(page: Page): Promise<void> {
   // matched, Today's marker was still counted, and `.first()` resolved to
   // nothing.) Settling first makes the count describe the document we landed on.
   await page.waitForLoadState("networkidle");
-
-  await waitForAriaCollections(page);
 
   // `[data-hydrated]` is published only by the surfaces that have a meaningful
   // hydration boundary — Today and the design routes. A product navigation can

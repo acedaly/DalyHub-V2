@@ -237,14 +237,6 @@ test.describe("REDESIGN-04 — the Projects collection", () => {
   test("holds the accessibility and overflow baseline at 390 and 320", async ({
     page,
   }) => {
-    /*
-     * A real budget. Four navigations, each waiting for the network to settle
-     * and (UNTITLED-04) for React Aria's collections to swap in their real DOM,
-     * plus two full axe scans of a collection that renders sixty rows. That is
-     * more than the default 30s allows, deterministically. Nothing is retried
-     * and no assertion is relaxed.
-     */
-    test.setTimeout(120_000);
     for (const width of [390, 320]) {
       await page.setViewportSize({ width, height: 844 });
       await gotoFixture(page, "/projects");
