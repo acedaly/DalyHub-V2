@@ -398,6 +398,14 @@ test.describe("UIX-03 — the responsive matrix", () => {
   test("the Goals workspace never scrolls sideways at any supported width", async ({
     page,
   }) => {
+    /*
+     * A real budget, for the same reason the sibling test below states: this
+     * loads the collection at ELEVEN widths, each `gotoFixture` waiting for the
+     * network to settle and (UNTITLED-04) for React Aria's collections to swap
+     * in their real DOM. Eleven of those does not fit in the default 30s.
+     * Nothing is retried and no assertion is relaxed.
+     */
+    test.setTimeout(120_000);
     for (const viewport of GOAL_VIEWPORTS) {
       await page.setViewportSize({
         width: viewport.width,
