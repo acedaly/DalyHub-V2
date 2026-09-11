@@ -84,12 +84,14 @@ test.describe("UIQ-013 — one view switcher, at laptop width", () => {
     test.slow();
     for (const surface of SWITCHER_SURFACES) {
       await gotoFixture(page, surface.path);
-      const group = page.getByRole("tablist", { name: surface.group });
+      const group = page.getByRole("navigation", { name: surface.group });
       await expect(group, `${surface.name} switcher`).toBeVisible();
       /*
-       * UNTITLED-04 — one implementation means one SOURCE, on every collection:
-       * Untitled's `application/tabs` in its segmented (`button-border`) type,
-       * whose options are still real anchors carrying the view's URL.
+       * UNTITLED-04/05 — one implementation means one SOURCE, on every
+       * collection: Untitled's `application/tabs` in its segmented
+       * (`button-border`) treatment, drawn for real anchors carrying the view's
+       * URL (`overrides/link-tab-rail`) rather than for the tab pattern, which
+       * these options are not.
        */
       await expect(
         page
@@ -137,15 +139,15 @@ test.describe("UIQ-013 — one view switcher, at laptop width", () => {
      */
     expect(before!.height).toBeGreaterThanOrEqual(24);
 
-    const optionsBefore = await group.getByRole("tab").all();
+    const optionsBefore = await group.getByRole("link").all();
     const widthsBefore = await Promise.all(
       optionsBefore.map(async (option) => (await option.boundingBox())!.width),
     );
 
-    await group.getByRole("tab", { name: "Service due" }).click();
+    await group.getByRole("link", { name: "Service due" }).click();
     await expect(
-      group.getByRole("tab", { name: "Service due" }),
-    ).toHaveAttribute("aria-selected", "true");
+      group.getByRole("link", { name: "Service due" }),
+    ).toHaveAttribute("aria-current", "page");
 
     // UIQ-013's "no layout movement when state changes": the check's box is
     // reserved in every segment, so selecting a different view leaves every
@@ -153,7 +155,7 @@ test.describe("UIQ-013 — one view switcher, at laptop width", () => {
     const after = await group.boundingBox();
     expect(after!.width).toBeCloseTo(before!.width, 0);
     expect(after!.x).toBeCloseTo(before!.x, 0);
-    const optionsAfter = await group.getByRole("tab").all();
+    const optionsAfter = await group.getByRole("link").all();
     const widthsAfter = await Promise.all(
       optionsAfter.map(async (option) => (await option.boundingBox())!.width),
     );
@@ -180,12 +182,12 @@ test.describe("UIQ-013 — one view switcher, at laptop width", () => {
       page,
     }) => {
       await gotoFixture(page, surface.path);
-      const group = page.getByRole("tablist", { name: surface.group });
+      const group = page.getByRole("navigation", { name: surface.group });
       await expect(group).toBeVisible();
 
       const measured = await group.evaluate((node) => {
         const selected = node.querySelector(
-          '[aria-selected="true"], [aria-current="true"], [aria-pressed="true"]',
+          '[aria-current="page"], [aria-selected="true"], [aria-current="true"], [aria-pressed="true"]',
         ) as HTMLElement | null;
         const title = document.querySelector(
           ".dh-pane-header__title",
@@ -398,11 +400,11 @@ test.describe("UIQ-013 — the narrow composition is intentional", () => {
     for (const path of ["/reviews"]) {
       await gotoFixture(page, path);
       const switcher = page.locator(
-        '.dh-pane-header__views [data-untitled-source="application/tabs:button-border"] [role="tablist"]',
+        '.dh-pane-header__views [data-untitled-source="application/tabs:button-border"]',
       );
       await expect(switcher.first()).toBeVisible();
       const shape = await switcher.first().evaluate((node) => {
-        const option = node.querySelector('[role="tab"]')!;
+        const option = node.querySelector("a")!;
         return {
           height: node.getBoundingClientRect().height,
           optionHeight: option.getBoundingClientRect().height,
