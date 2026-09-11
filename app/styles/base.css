@@ -170,6 +170,16 @@ body {
  * inherits. A host that must clip the layer (a fully-rounded pill) sets its own
  * `overflow: hidden`.
  *
+ * ── UNTITLED-04 — `.dh-btn:not(.dh-button)`, not `.dh-btn` ──────────────────
+ * The shared `<Button>` emits BOTH names (see `ui.css`): `.dh-button` because it
+ * is the component, `.dh-btn` because thirteen module stylesheets carry layout
+ * rules that name the legacy class. Now that the component paints through
+ * Untitled — which draws hover and pressed as real container changes and focus
+ * as its own ring — a `currentColor` wash on top of those is a SECOND hover
+ * state rather than the one shared one. The host is therefore the legacy
+ * literal alone. `.dh-icon-button` is still a full host, because it has not been
+ * rebuilt on Untitled yet.
+ *
  * The host list is spelled out on every rule rather than routed through a shared
  * custom property. A property would read better and would be a lie: DalyHub's
  * token-discipline test requires every `var(--md-*)`/`var(--app-*)` in `app/` to
@@ -179,9 +189,8 @@ body {
  */
 :is(
   .md-state-layer,
-  .dh-button,
   .dh-icon-button,
-  .dh-btn,
+  .dh-btn:not(.dh-button),
   .record-action,
   .dh-card__action,
   .dh-overflow-menu__trigger,
@@ -197,9 +206,8 @@ body {
 
 :is(
   .md-state-layer,
-  .dh-button,
   .dh-icon-button,
-  .dh-btn,
+  .dh-btn:not(.dh-button),
   .record-action,
   .dh-card__action,
   .dh-overflow-menu__trigger,
@@ -242,9 +250,8 @@ body {
 
 :is(
     .md-state-layer,
-    .dh-button,
     .dh-icon-button,
-    .dh-btn,
+    .dh-btn:not(.dh-button),
     .record-action,
     .dh-card__action,
     .dh-overflow-menu__trigger,
@@ -269,9 +276,8 @@ body {
  */
 :is(
     .md-state-layer,
-    .dh-button,
     .dh-icon-button,
-    .dh-btn,
+    .dh-btn:not(.dh-button),
     .record-action,
     .dh-card__action,
     .dh-overflow-menu__trigger,
@@ -290,9 +296,8 @@ body {
  * copied `:hover` rule rarely grows an `:active` sibling. */
 :is(
     .md-state-layer,
-    .dh-button,
     .dh-icon-button,
-    .dh-btn,
+    .dh-btn:not(.dh-button),
     .record-action,
     .dh-card__action,
     .dh-overflow-menu__trigger,
@@ -311,9 +316,8 @@ body {
  * whatever the pointer does. */
 :is(
     .md-state-layer,
-    .dh-button,
     .dh-icon-button,
-    .dh-btn,
+    .dh-btn:not(.dh-button),
     .record-action,
     .dh-card__action,
     .dh-overflow-menu__trigger,

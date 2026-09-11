@@ -130,7 +130,19 @@ export function CollectionSearchField({
       />
       <div
         className={[
-          "relative min-w-0 flex-1 md:w-64 md:flex-none lg:w-72",
+          /*
+           * A CAP, not a width.
+           *
+           * This was `md:w-64 md:flex-none lg:w-72`, which is a field that
+           * refuses to shrink. On a collection that keeps its view switcher
+           * INLINE with the header (Habits, Reviews), the header then carries a
+           * title, a 288px field, a tab strip and a primary action on one row —
+           * and at 1440px the field overflowed its own track and was drawn
+           * underneath the switcher. Capping instead keeps the identical width
+           * wherever there is room, and gives the row somewhere to take it from
+           * where there is not.
+           */
+          "relative min-w-0 flex-1 md:max-w-64 lg:max-w-72",
           open ? "" : "max-md:hidden",
         ].join(" ")}
       >
