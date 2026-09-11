@@ -818,28 +818,19 @@ a.dh-habit-row__title:hover {
 }
 
 /*
- * The table gets a PANEL, and it is a departure worth stating.
+ * UNTITLED-04 — the table's PANEL and the rail's CARDS moved to `HabitsCollection`.
  *
- * DS-04's rule is that a list has no surface of its own and sits directly on the
- * page canvas, and that rule still governs `/tasks`. Mockup 8 draws the Habits
- * table inside a bordered panel, and here it is right for a reason the rule did
- * not anticipate: this screen is a table BESIDE A RAIL OF CARDS. A flat list
- * against three bordered cards reads as an unfinished region rather than as a
- * calmer one — measured by looking at it — so the two sides of the body take the
- * same surface and the composition balances.
+ * Both are drawn on Untitled's bounded card grammar now
+ * (`rounded-xl bg-primary shadow-xs ring-1 ring-secondary`), the same boundary
+ * the migrated collection tables, entity cards and record panels carry.
+ * Restating the legacy family's border, radius and background here would have
+ * painted straight over it, because this stylesheet is unlayered.
  *
- * The ROWS inside are unchanged: still hairline-separated, still no card each,
- * still no radius or shadow of their own.
+ * The composition reason the panel existed for is unchanged and is recorded at
+ * its new home: this screen is a table BESIDE a rail of cards, and a flat list
+ * against three bounded cards reads as an unfinished region rather than as a
+ * calmer one. The ROWS inside are still hairline-separated with no card each.
  */
-.dh-habits__main {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-4);
-  padding: var(--app-space-4);
-  border: var(--app-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface);
-}
 
 .dh-habits__rail {
   display: flex;
@@ -859,42 +850,9 @@ a.dh-habit-row__title:hover {
   }
 }
 
-.dh-habits__footer {
-  margin: 0;
-  padding-block-start: var(--app-space-2);
-  border-block-start: var(--app-border-width-thin) solid var(--dh-color-divider);
-  text-align: center;
-}
-
-.dh-habits__footer-link {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--app-space-2);
-  min-block-size: var(--app-touch-target-min);
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-meta-size);
-  text-decoration: none;
-}
-
-.dh-habits__footer-link:hover {
-  color: var(--dh-color-text);
-  text-decoration: underline;
-}
-
 /* -------------------------------------------------------------------------- */
 /* The rail's cards                                                           */
 /* -------------------------------------------------------------------------- */
-
-.dh-habits-card {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-3);
-  padding: var(--app-space-4);
-  border: var(--app-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-lg);
-  background: var(--dh-color-surface);
-  min-inline-size: 0;
-}
 
 .dh-habits-card__head {
   display: flex;

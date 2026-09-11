@@ -1267,20 +1267,12 @@
   gap: var(--app-space-1) var(--app-space-3);
   min-inline-size: 0;
   padding: var(--dh-space-3) var(--dh-space-4);
-  /* DS-05 — the one card boundary (`.dh-pcard`). A glance tile sits on the grey
-   * canvas beside white panels, and a surface step alone is not an edge at the
-   * count a dashboard renders. VIS-01's shape decision stands: the FIGURE rung,
-   * one under an ordinary card, because at a card's own radius a small tile is
-   * more corner than face. */
-  border: var(--dh-border-width) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface);
-  box-shadow: none;
+  /* UNTITLED-04 — the BOUNDARY is drawn by the component, on Untitled's card
+   * grammar. Restating a border, radius or background here would paint straight
+   * over it, because this stylesheet is unlayered. What stays is the GRID, which
+   * is the anatomy note above and is nothing Untitled has an opinion about. */
   color: var(--dh-color-text);
   text-decoration: none;
-  transition:
-    background var(--dh-motion-fast) var(--dh-ease-standard),
-    border-color var(--dh-motion-fast) var(--dh-ease-standard);
 }
 
 /*
@@ -1305,10 +1297,10 @@
  * mark, so the row still reads as four distinct things at a glance, and the
  * card is the same surface every other card in the product is.
  */
-.dh-stat--washed {
-  background: var(--dh-color-surface);
-  box-shadow: none;
-}
+/* UNTITLED-04 — `.dh-stat--washed` no longer paints. UIX-06 had already reduced
+ * it to "the same surface as every other card"; now that the component draws
+ * that surface, the modifier has nothing left to say and survives only as the
+ * marker that a tone was requested. */
 
 .dh-stat__head {
   display: flex;
@@ -1342,10 +1334,10 @@
   grid-column: 3;
 }
 
-.dh-stat--interactive:hover {
-  box-shadow: var(--app-elevation-raised);
-  transform: translateY(-1px);
-}
+/* UNTITLED-04 — the lift moved to the component with the boundary
+ * (`hover:shadow-md hover:ring-primary`), so the raised shadow is Untitled's and
+ * matches every other card that lifts. The 1px translate went with it: a row of
+ * four tiles that each jump on hover is motion the reference does not draw. */
 
 /*
  * UIX-06 — the exception is gone with the wash it existed for.
