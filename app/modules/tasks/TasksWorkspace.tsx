@@ -1724,7 +1724,6 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       error={
         data.failed ? (
           <EmptyState
-            structure="untitled"
             title="We couldn’t load your tasks"
             description="Something went wrong. Please try again."
           />
@@ -1734,7 +1733,6 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       isFilteredEmpty={!data.failed && count === 0 && filterCount > 0}
       filteredEmptySlot={
         <EmptyState
-          structure="untitled"
           icon={<EntityIcon type="task" />}
           title="No tasks match these filters"
           description="Nothing is hidden permanently — remove a filter above, or reset them all, to see your tasks again."
@@ -1742,7 +1740,6 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       }
       emptySlot={
         <EmptyState
-          structure="untitled"
           icon={<EntityIcon type="task" />}
           title="No tasks yet"
           description="Capture a task, or choose a different view."
@@ -1844,7 +1841,6 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
           loadFailed={loadFailed}
           onLoadMore={loadMore}
           label="Load more tasks"
-          structure="untitled-pagination"
         />
       ) : null}
 

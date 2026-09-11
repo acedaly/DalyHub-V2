@@ -113,12 +113,12 @@ describe("People collection", () => {
   // UIX-05 — the circle rail is the collection's ONE view switcher.
   it("offers the circle rail, with All active by default", () => {
     renderCollection([personItem()]);
-    const group = screen.getByRole("group", { name: "People circles" });
-    expect(within(group).getByRole("link", { name: /All/ })).toHaveAttribute(
-      "aria-current",
+    const group = screen.getByRole("tablist", { name: "People circles" });
+    expect(within(group).getByRole("tab", { name: /All/ })).toHaveAttribute(
+      "aria-selected",
       "true",
     );
-    expect(within(group).getByRole("link", { name: /Work/ })).toHaveAttribute(
+    expect(within(group).getByRole("tab", { name: /Work/ })).toHaveAttribute(
       "href",
       "/people?circle=work",
     );

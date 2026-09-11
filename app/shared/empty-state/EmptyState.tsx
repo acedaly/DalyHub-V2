@@ -15,7 +15,9 @@
  */
 
 import type { ReactNode } from "react";
+
 import { EmptyState as UntitledEmptyState } from "~/shared/ui/untitled/application/empty-state/empty-state";
+import { FeaturedIcon } from "~/shared/ui/untitled/foundations/featured-icon/featured-icon";
 
 export type EmptyStateProps = {
   /** A decorative glyph (commonly an entity-identity icon). */
@@ -56,8 +58,6 @@ export type EmptyStateProps = {
    */
   readonly size?: "default" | "compact" | "inline";
   readonly className?: string;
-  /** Render with the genuine Untitled Application UI empty-state anatomy. */
-  readonly structure?: "legacy" | "untitled";
 };
 
 export function EmptyState({
@@ -70,62 +70,109 @@ export function EmptyState({
   secondaryAction,
   size = "default",
   className,
-  structure = "legacy",
 }: EmptyStateProps) {
-  const Heading = `h${headingLevel}` as const;
-  const classes = ["dh-empty-state", className].filter(Boolean).join(" ");
-
-  if (structure === "untitled") {
+  /*
+   * RECORD-01 — `inline` is the RECORD-level absence and is deliberately NOT
+   * Untitled's empty state.
+   *
+   * Untitled's is always a centred block with a featured icon, which is right
+   * for a collection and wrong inside a record tab: there the same treatment
+   * restates a next action that is already visible a few pixels above, in a
+   * block tall enough to be the loudest thing in the panel. This keeps the
+   * heading — the outline stays correct and assistive tech still hears the
+   * region's state — and drops the theatre.
+   */
+  if (size === "inline") {
+    const Heading = `h${headingLevel}` as const;
     return (
-      <UntitledEmptyState
-        size={size === "compact" || size === "inline" ? "sm" : "md"}
-        className={className}
-        data-untitled-source="application/empty-state"
+      <div
+        className={["dh-empty-state flex min-w-0 flex-col gap-1", className]
+          .filter(Boolean)
+          .join(" ")}
+        data-size="inline"
       >
-        {illustration || icon ? (
-          <UntitledEmptyState.Header pattern="none">
-            <div className="flex size-12 items-center justify-center rounded-lg bg-brand-primary text-fg-brand-secondary ring-1 ring-brand-secondary">
-              {illustration ?? icon}
-            </div>
-          </UntitledEmptyState.Header>
+        <Heading className="dh-empty-state__title text-sm font-semibold text-secondary">
+          {title}
+        </Heading>
+        {description ? (
+          <p className="dh-empty-state__body m-0 text-sm text-tertiary">
+            {description}
+          </p>
         ) : null}
-        <UntitledEmptyState.Content>
-          <UntitledEmptyState.Title>{title}</UntitledEmptyState.Title>
-          {description ? (
-            <UntitledEmptyState.Description>
-              {description}
-            </UntitledEmptyState.Description>
-          ) : null}
-        </UntitledEmptyState.Content>
         {primaryAction || secondaryAction ? (
-          <UntitledEmptyState.Footer>
+          <div className="dh-empty-state__actions mt-2 flex flex-wrap gap-2">
             {primaryAction}
             {secondaryAction}
-          </UntitledEmptyState.Footer>
+          </div>
         ) : null}
-      </UntitledEmptyState>
+      </div>
     );
   }
 
   return (
-    <div className={classes} data-size={size}>
-      {illustration ? (
-        <div className="dh-empty-state__illustration">{illustration}</div>
-      ) : icon ? (
-        <div className="dh-empty-state__icon" aria-hidden="true">
-          {icon}
-        </div>
+    <UntitledEmptyState
+      size={size === "compact" ? "sm" : "md"}
+      className={["dh-empty-state", className].filter(Boolean).join(" ")}
+      data-size={size}
+      data-untitled-source="application/empty-state"
+    >
+      {illustration || icon ? (
+        <UntitledEmptyState.Header pattern="none">
+          {illustration ? (
+            /*
+             * An ILLUSTRATION is already a picture and brings its own size and
+             * frame; upstream's `Illustration` slot only takes one of its own
+             * named artworks, so a DalyHub illustration renders directly here.
+             */
+            <div className="dh-empty-state__illustration z-1">
+              {illustration}
+            </div>
+          ) : (
+            /*
+             * Untitled's `FeaturedIcon`, given DalyHub's own entity glyph. The
+             * upstream component takes an icon COMPONENT or a rendered element,
+             * and DalyHub's callers pass the latter
+             * (`<EntityIcon type="goal" />`) because the glyph is chosen from
+             * the entity's identity, not from an icon import.
+             */
+            <FeaturedIcon
+              size="lg"
+              theme="modern"
+              color="gray"
+              icon={icon}
+              className="dh-empty-state__icon"
+              aria-hidden="true"
+            />
+          )}
+        </UntitledEmptyState.Header>
       ) : null}
-      <Heading className="dh-empty-state__title">{title}</Heading>
-      {description ? (
-        <p className="dh-empty-state__body">{description}</p>
-      ) : null}
+      <UntitledEmptyState.Content>
+        {/*
+         * Upstream's `Title` is an `<h1>`, which is correct for the standalone
+         * page it was drawn for and wrong for an empty state inside a record
+         * tab, a collection or a drawer — three of which can be on screen at
+         * once. `aria-level` is what assistive technology actually reports, so
+         * the announced outline follows the caller's `headingLevel` while the
+         * genuine component keeps drawing the title.
+         */}
+        <UntitledEmptyState.Title
+          aria-level={headingLevel}
+          className="dh-empty-state__title"
+        >
+          {title}
+        </UntitledEmptyState.Title>
+        {description ? (
+          <UntitledEmptyState.Description className="dh-empty-state__body">
+            {description}
+          </UntitledEmptyState.Description>
+        ) : null}
+      </UntitledEmptyState.Content>
       {primaryAction || secondaryAction ? (
-        <div className="dh-empty-state__actions">
+        <UntitledEmptyState.Footer className="dh-empty-state__actions flex-wrap justify-center">
           {primaryAction}
           {secondaryAction}
-        </div>
+        </UntitledEmptyState.Footer>
       ) : null}
-    </div>
+    </UntitledEmptyState>
   );
 }

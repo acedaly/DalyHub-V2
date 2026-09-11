@@ -65,11 +65,6 @@
   color: var(--dh-color-text-muted);
 }
 
-.dh-viewtabs,
-.dh-segmented {
-  border-radius: var(--dh-radius-sm);
-}
-
 /* -------------------------------------------------------------------------- */
 /* One premium card language across every record family                       */
 /* -------------------------------------------------------------------------- */

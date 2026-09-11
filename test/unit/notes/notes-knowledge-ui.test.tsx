@@ -142,15 +142,15 @@ describe("the Notes filter controls", () => {
         label="Note views"
       />,
     );
-    const group = screen.getByRole("group", { name: "Note views" });
+    const group = screen.getByRole("tablist", { name: "Note views" });
     expect(
       within(group)
-        .getAllByRole("link")
+        .getAllByRole("tab")
         .map((link) => link.textContent),
     ).toEqual(["Active", "Archived", "Deleted"]);
     expect(
-      within(group).getByRole("link", { name: "Archived" }),
-    ).toHaveAttribute("aria-current", "true");
+      within(group).getByRole("tab", { name: "Archived" }),
+    ).toHaveAttribute("aria-selected", "true");
   });
 });
 

@@ -227,7 +227,6 @@ export function GoalWorkspaceTabs({ goalId }: { readonly goalId: string }) {
   const record = `/goals/${encodeURIComponent(goalId)}`;
   return (
     <ViewTabs
-      structure="untitled"
       className="dh-goalpane__rail"
       data-testid="goal-workspace-tabs"
       param="pane"
@@ -251,7 +250,6 @@ export function GoalWorkspaceTabs({ goalId }: { readonly goalId: string }) {
 export function GoalWorkspaceEmpty() {
   return (
     <EmptyState
-      structure="untitled"
       icon={<EntityIcon type="goal" />}
       title="No Goals yet"
       description="Goals are the aspirational outcomes you pursue under an Area. Every Goal lives in one, so creating a Goal starts by choosing its Area."

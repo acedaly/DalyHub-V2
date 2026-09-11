@@ -484,7 +484,6 @@ function AreasCollection({
           data-untitled-source="dashboards-01/02:filter-bar"
         >
           <ViewSwitcher
-            structure="untitled"
             param="present"
             options={PRESENTATION_OPTIONS}
             value={presentation}
@@ -495,7 +494,6 @@ function AreasCollection({
       error={
         failed ? (
           <EmptyState
-            structure="untitled"
             title="We couldn’t load your Areas"
             description="Something went wrong. Please try again."
           />
@@ -504,7 +502,6 @@ function AreasCollection({
       isEmpty={!failed && count === 0}
       emptySlot={
         <EmptyState
-          structure="untitled"
           icon={<EntityIcon type="area" />}
           title="No Areas yet"
           description="Areas are the permanent domains of life. Create one before adding Projects."
@@ -545,7 +542,6 @@ function AreasCollection({
           loadFailed={loadFailed}
           onLoadMore={loadMore}
           label="Load more Areas"
-          structure="untitled-pagination"
         />
       ) : null}
     </CollectionLayout>

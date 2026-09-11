@@ -604,7 +604,6 @@ function ProjectsCollection({
        */
       search={
         <CollectionSearchField
-          structure="untitled"
           value={draft}
           onChange={setDraft}
           label="Search projects"
@@ -655,7 +654,6 @@ function ProjectsCollection({
         >
           <div className="-mx-1 min-w-0 flex-1 overflow-x-auto px-1">
             <ViewTabs
-              structure="untitled"
               param="state"
               options={STATE_OPTIONS}
               value={state}
@@ -665,7 +663,6 @@ function ProjectsCollection({
           </div>
           <div className="flex shrink-0 items-center gap-3 max-md:justify-end">
             <ViewSwitcher
-              structure="untitled"
               param="present"
               options={PRESENTATION_OPTIONS}
               value={presentation}
@@ -685,7 +682,6 @@ function ProjectsCollection({
       error={
         failed ? (
           <EmptyState
-            structure="untitled"
             title="We couldn’t load your projects"
             description="Something went wrong. Please try again."
           />
@@ -702,7 +698,6 @@ function ProjectsCollection({
       filteredEmptySlot={
         query.length > 0 ? (
           <EmptyState
-            structure="untitled"
             icon={<EntityIcon type="project" />}
             title={`No projects match “${query}”`}
             description="Try a shorter search, or a different lifecycle tab."
@@ -714,7 +709,6 @@ function ProjectsCollection({
           />
         ) : (
           <EmptyState
-            structure="untitled"
             icon={<EntityIcon type="project" />}
             title={
               state === "completed"
@@ -741,7 +735,6 @@ function ProjectsCollection({
       isEmpty={!failed && count === 0 && state === "all" && query.length === 0}
       emptySlot={
         <EmptyState
-          structure="untitled"
           icon={<EntityIcon type="project" />}
           title="No Projects yet"
           description="Projects are the finite bodies of work you run under an Area or a Goal. Create your first one to get started."
@@ -783,7 +776,6 @@ function ProjectsCollection({
           loadFailed={loadFailed}
           onLoadMore={loadMore}
           label="Load more projects"
-          structure="untitled-pagination"
         />
       ) : null}
 

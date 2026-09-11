@@ -110,8 +110,6 @@ export interface SavedViewSwitcherProps {
   readonly classPrefix: string;
   /** `data-testid` stem, so existing end-to-end selectors keep working. */
   readonly testIdPrefix: string;
-  /** Render pinned views with the genuine Untitled React Aria tabs source. */
-  readonly useUntitledTabs?: boolean;
 }
 
 export function SavedViewSwitcher({
@@ -130,7 +128,6 @@ export function SavedViewSwitcher({
   pinnedViewIds,
   classPrefix,
   testIdPrefix,
-  useUntitledTabs = false,
 }: SavedViewSwitcherProps) {
   const revalidator = useRevalidator();
   const navigate = useNavigate();
@@ -326,7 +323,7 @@ export function SavedViewSwitcher({
      * scroll containers and paint a cue on the one that never moves.
      */
     <div className={`${classPrefix} dh-scroll-strip`}>
-      {pinned.length > 0 && useUntitledTabs ? (
+      {pinned.length > 0 ? (
         <Tabs
           selectedKey={activeViewId ?? undefined}
           onSelectionChange={(key) => {
@@ -350,43 +347,6 @@ export function SavedViewSwitcher({
             </TabPanel>
           ))}
         </Tabs>
-      ) : pinned.length > 0 ? (
-        /*
-         * The rail is a `nav`, because that is what it is: each tab is an
-         * ordinary link to the URL that IS the view, so it is shareable,
-         * middle-clickable and Back/Forward-correct with no extra machinery.
-         * The current one carries `aria-current`, so selection is semantic and
-         * never rests on the violet underline the stylesheet draws.
-         */
-        <nav
-          /*
-           * UIX-02 — the rail carries the SHARED `dh-viewtabs` classes as well
-           * as its own prefixed ones.
-           *
-           * The prefixed pair stays because this module's stylesheet and its
-           * end-to-end tests address it; the shared pair is where the rail is
-           * now actually DRAWN. Until UIX-02 the treatment lived in
-           * `tasks.css`, scoped to `.dh-collection--tasks`, which meant the
-           * next collection that wanted the same tabs had to copy it — and
-           * "do not independently reinvent view tabs" is the brief's own rule.
-           * One definition, two consumers.
-           */
-          className={`${classPrefix}__rail dh-viewtabs`}
-          aria-label={collectionLabel}
-          data-testid={`${testIdPrefix}-rail`}
-        >
-          {pinned.map((view) => (
-            <Link
-              key={view.id}
-              to={`${basePath}?${view.query}`}
-              className={`${classPrefix}__tab dh-viewtabs__tab`}
-              aria-current={view.id === activeViewId ? "page" : undefined}
-              preventScrollReset
-            >
-              {view.name}
-            </Link>
-          ))}
-        </nav>
       ) : null}
 
       <button

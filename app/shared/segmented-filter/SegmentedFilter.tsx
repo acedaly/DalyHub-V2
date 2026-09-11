@@ -63,21 +63,13 @@ export function SegmentedFilter({
       label={label}
       alwaysWriteValue={alwaysWriteValue}
       /*
-       * RECORD-01 — a filter is SUBORDINATE to the tabs above it.
-       *
-       * A record's tab strip answers "where am I in this record"; a segmented
-       * filter answers "which subset of this tab". Rendered at the view
-       * switcher's full weight — a heavy outlined 44px container with a filled
-       * selected segment — the filter was the loudest thing in the panel, and
-       * on the Project record it read as a second, competing row of tabs
-       * directly under the real ones.
-       *
-       * The variant changes WEIGHT only: same anatomy, same one implementation,
-       * same 44px target, same check glyph, same keyboard behaviour. Applied
-       * here rather than per caller because it follows from what a filter IS,
-       * so no module can reintroduce a tab-weight filter by forgetting a prop.
+       * RECORD-01 — a filter is SUBORDINATE to the tabs above it, and the
+       * variant changes WEIGHT only: same anatomy, same one implementation,
+       * same target, same keyboard behaviour. Applied here rather than per
+       * caller because it follows from what a filter IS, so no module can
+       * reintroduce a tab-weight filter by forgetting a prop.
        */
-      className="dh-segmented--subtle"
+      weight="subtle"
     />
   );
 }

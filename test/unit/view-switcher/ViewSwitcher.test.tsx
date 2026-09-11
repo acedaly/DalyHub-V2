@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 
+import { AriaRouterProvider } from "~/shared/router/AriaRouterProvider";
 import { ViewSwitcher } from "~/shared/view-switcher";
 
 /**
@@ -12,12 +13,29 @@ import { ViewSwitcher } from "~/shared/view-switcher";
  * labelled group, exactly one option marked selected in a way assistive
  * technology can read, a URL that carries the choice, and geometry that does
  * not move when the choice changes.
+ *
+ * ── UNTITLED-04 ─────────────────────────────────────────────────────────────
+ * The control is drawn with genuine Untitled source now, and which source
+ * depends on what the switcher IS. A URL-backed switcher is Untitled's
+ * `application/tabs` (`type="button-border"`) whose items take an `href`, so it
+ * is a `tablist` of ANCHORS: deep-linkable, middle-clickable and correct with
+ * no JavaScript, exactly as before, with `aria-selected` in place of
+ * `aria-current`. A client-state switcher is Untitled's `base/button-group`, a
+ * React Aria toggle group, which keeps `aria-pressed`.
  */
 
+/**
+ * Rendered inside `AriaRouterProvider`, because that is how the app mounts it:
+ * React Aria resolves a `Tab`'s `href` through React Router's `useHref`, so the
+ * relative `?view=board` a switcher produces becomes the absolute path a browser
+ * and a screen reader read. Testing it without the provider would assert a
+ * different href from the one the product ships.
+ */
 function renderAt(ui: React.ReactElement, path = "/tasks") {
-  const router = createMemoryRouter([{ path: "*", element: ui }], {
-    initialEntries: [path],
-  });
+  const router = createMemoryRouter(
+    [{ path: "*", element: <AriaRouterProvider>{ui}</AriaRouterProvider> }],
+    { initialEntries: [path] },
+  );
   return render(<RouterProvider router={router} />);
 }
 
@@ -37,8 +55,8 @@ describe("ViewSwitcher", () => {
         label="Task layout"
       />,
     );
-    const group = screen.getByRole("group", { name: "Task layout" });
-    const links = within(group).getAllByRole("link");
+    const group = screen.getByRole("tablist", { name: "Task layout" });
+    const links = within(group).getAllByRole("tab");
     expect(links.map((link) => link.textContent)).toEqual([
       "List",
       "Board",
@@ -46,12 +64,14 @@ describe("ViewSwitcher", () => {
     ]);
     // Selected is exposed PROGRAMMATICALLY, not only painted.
     expect(
-      links.filter((link) => link.getAttribute("aria-current") === "true"),
+      links.filter((link) => link.getAttribute("aria-selected") === "true"),
     ).toHaveLength(1);
-    expect(within(group).getByRole("link", { name: "Board" })).toHaveAttribute(
-      "aria-current",
+    expect(within(group).getByRole("tab", { name: "Board" })).toHaveAttribute(
+      "aria-selected",
       "true",
     );
+    // …and every option is still a real anchor.
+    for (const link of links) expect(link.tagName).toBe("A");
   });
 
   it("carries the choice in the URL, defaulting the first option to no param", () => {
@@ -64,15 +84,15 @@ describe("ViewSwitcher", () => {
       />,
       "/tasks?status=open",
     );
-    const group = screen.getByRole("group", { name: "Task layout" });
+    const group = screen.getByRole("tablist", { name: "Task layout" });
     // An unrelated param survives every switch (the DS-03 `drawer` stack is the
     // case that matters most), and the default view is the ABSENCE of the param
     // rather than an explicit value.
-    expect(within(group).getByRole("link", { name: "List" })).toHaveAttribute(
+    expect(within(group).getByRole("tab", { name: "List" })).toHaveAttribute(
       "href",
       "/tasks?status=open",
     );
-    expect(within(group).getByRole("link", { name: "Board" })).toHaveAttribute(
+    expect(within(group).getByRole("tab", { name: "Board" })).toHaveAttribute(
       "href",
       "/tasks?status=open&view=board",
     );
@@ -90,7 +110,7 @@ describe("ViewSwitcher", () => {
       "/tasks?cursor=abc123",
     );
     expect(
-      screen.getByRole("link", { name: "Board" }).getAttribute("href"),
+      screen.getByRole("tab", { name: "Board" }).getAttribute("href"),
     ).toBe("/tasks?view=board");
   });
 
@@ -107,10 +127,10 @@ describe("ViewSwitcher", () => {
       "/people/recent",
     );
     expect(
-      screen.getByRole("link", { name: "All people" }).getAttribute("href"),
+      screen.getByRole("tab", { name: "All people" }).getAttribute("href"),
     ).toBe("/people");
-    expect(screen.getByRole("link", { name: "Recent" })).toHaveAttribute(
-      "aria-current",
+    expect(screen.getByRole("tab", { name: "Recent" })).toHaveAttribute(
+      "aria-selected",
       "true",
     );
   });
@@ -128,17 +148,23 @@ describe("ViewSwitcher", () => {
         onSelect={onSelect}
       />,
     );
-    const group = screen.getByRole("group", { name: "Card layout" });
-    const list = within(group).getByRole("button", { name: "List view" });
-    const gallery = within(group).getByRole("button", { name: "Gallery view" });
+    /*
+     * UNTITLED-04 — Untitled's `base/button-group` is a React Aria
+     * `ToggleButtonGroup` in single-selection mode, which announces as a
+     * `radiogroup` of `radio`s rather than a `group` of pressed buttons. Both
+     * are correct ARIA for "exactly one of these"; the radio group is the
+     * stronger statement, because it tells assistive technology the options are
+     * mutually exclusive rather than leaving that to be inferred from three
+     * independent toggles.
+     */
+    const group = screen.getByRole("radiogroup", { name: "Card layout" });
+    const list = within(group).getByRole("radio", { name: "List view" });
+    const gallery = within(group).getByRole("radio", { name: "Gallery view" });
 
-    // Client state is announced with `aria-pressed`, the correct semantic for a
-    // toggle that is not a navigation.
-    expect(list).toHaveAttribute("aria-pressed", "true");
-    expect(gallery).toHaveAttribute("aria-pressed", "false");
+    expect(list).toHaveAttribute("aria-checked", "true");
+    expect(gallery).toHaveAttribute("aria-checked", "false");
 
-    // Real buttons: Enter and Space activate natively, and both are ordinary
-    // tab stops, so nothing here needs an invented roving model.
+    // Real buttons underneath: Enter and Space activate natively.
     gallery.focus();
     expect(document.activeElement).toBe(gallery);
     fireEvent.click(gallery);
@@ -158,7 +184,7 @@ describe("ViewSwitcher", () => {
         onSelect={onSelect}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "List view" }));
+    fireEvent.click(screen.getByRole("radio", { name: "List view" }));
     expect(onSelect).not.toHaveBeenCalled();
   });
 
@@ -175,16 +201,15 @@ describe("ViewSwitcher", () => {
         onSelect={vi.fn()}
       />,
     );
-    // The label is visually hidden but still the accessible NAME — an icon-only
-    // control is never nameless (the tooltip beside it describes, never names).
+    // The accessible NAME survives on the option itself — an icon-only control
+    // is never nameless.
     expect(
-      screen.getByRole("button", { name: "Gallery view" }),
+      screen.getByRole("radio", { name: "Gallery view" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Gallery view")).toHaveClass("dh-visually-hidden");
   });
 
   it("renders nothing structural beyond one group, whatever the option count", () => {
-    const { container } = renderAt(
+    renderAt(
       <ViewSwitcher
         param="view"
         options={LAYOUTS}
@@ -192,12 +217,11 @@ describe("ViewSwitcher", () => {
         label="Task layout"
       />,
     );
-    // No nested containers: one `.dh-segmented` holding its options directly.
-    // "Avoid excessive borders and nested containers" is a visual rule that is
-    // only kept if the DOM keeps it.
-    const switcher = container.querySelector(".dh-segmented");
-    expect(switcher).not.toBeNull();
-    expect(switcher?.querySelectorAll(".dh-segmented")).toHaveLength(0);
-    expect(switcher?.children).toHaveLength(3);
+    // No nested containers: ONE tablist holding its options directly. "Avoid
+    // excessive borders and nested containers" is a visual rule that is only
+    // kept if the DOM keeps it.
+    const group = screen.getByRole("tablist", { name: "Task layout" });
+    expect(within(group).queryAllByRole("tablist")).toHaveLength(0);
+    expect(group.children).toHaveLength(3);
   });
 });

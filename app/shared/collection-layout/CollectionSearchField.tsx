@@ -41,12 +41,10 @@
  * owns no query state and knows nothing about entities.
  */
 
-import { useId, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import { SearchLg, XClose } from "@untitledui/icons";
 
-import { SearchIcon, CloseIcon } from "~/shared/icons";
-import { Input } from "~/shared/ui";
 import { ButtonUtility } from "~/shared/ui/untitled/base/buttons/button-utility";
 import { Input as UntitledInput } from "~/shared/ui/untitled/base/input/input";
 
@@ -64,18 +62,6 @@ export type CollectionSearchFieldProps = {
   readonly placeholder?: string;
   readonly className?: string;
   readonly "data-testid"?: string;
-  /**
-   * UNTITLED-04 — draw the control with the genuine Untitled `base/input`
-   * anatomy (leading icon inside the field, Untitled focus ring, Untitled
-   * sizing) instead of the legacy `ui.css` control baseline.
-   *
-   * The DalyHub behaviour above the control is unchanged and deliberately so:
-   * the phone reveal, the Escape contract, the focus return and the Clear
-   * affordance are product decisions Untitled has no opinion about. Only the
-   * control's chrome changes. `dh-csearch__input` and `dh-csearch__toggle`
-   * survive as the stable hooks the responsive journeys address.
-   */
-  readonly structure?: "legacy" | "untitled";
 };
 
 export function CollectionSearchField({
@@ -85,9 +71,7 @@ export function CollectionSearchField({
   placeholder,
   className,
   "data-testid": testId,
-  structure = "legacy",
 }: CollectionSearchFieldProps) {
-  const inputId = useId();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const toggleRef = useRef<HTMLButtonElement | null>(null);
   const [phoneOpen, setPhoneOpen] = useState(false);
@@ -115,140 +99,66 @@ export function CollectionSearchField({
     }
   };
 
-  if (structure === "untitled") {
-    return (
-      <div
-        className={[
-          "flex min-w-0 items-center gap-2",
-          open ? "max-md:w-full" : null,
-          className,
-        ]
-          .filter(Boolean)
-          .join(" ")}
-        data-open={open ? "true" : undefined}
-        data-testid={testId}
-        data-untitled-source="base/input"
-      >
-        <ButtonUtility
-          ref={toggleRef}
-          size="sm"
-          color="tertiary"
-          icon={SearchLg}
-          tooltip={label}
-          aria-label={label}
-          aria-expanded={open}
-          className={["dh-csearch__toggle", open ? "hidden" : "md:hidden"]
-            .filter(Boolean)
-            .join(" ")}
-          onClick={() => {
-            setPhoneOpen(true);
-            requestAnimationFrame(() => inputRef.current?.focus());
-          }}
-        />
-        <div
-          className={[
-            "relative min-w-0 flex-1 md:w-64 md:flex-none lg:w-72",
-            open ? "" : "max-md:hidden",
-          ].join(" ")}
-        >
-          <UntitledInput
-            ref={inputRef}
-            size="sm"
-            type="search"
-            icon={SearchLg}
-            aria-label={label}
-            value={value}
-            placeholder={placeholder ?? label}
-            onChange={onChange}
-            onKeyDown={clearOnEscape}
-            inputClassName={
-              hasQuery ? "dh-csearch__input pr-9" : "dh-csearch__input"
-            }
-          />
-          {hasQuery ? (
-            <button
-              type="button"
-              className="absolute inset-y-0 right-1.5 my-auto flex size-6 cursor-pointer items-center justify-center rounded-md text-fg-quaternary outline-focus-ring transition duration-100 ease-linear hover:bg-primary_hover hover:text-fg-quaternary_hover focus-visible:outline-2 focus-visible:outline-offset-2"
-              onClick={() => {
-                onChange("");
-                inputRef.current?.focus();
-              }}
-            >
-              <span className="sr-only">{`Clear ${label.toLowerCase()}`}</span>
-              <XClose className="size-4" aria-hidden="true" />
-            </button>
-          ) : null}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div
-      className={["dh-csearch", className].filter(Boolean).join(" ")}
+      className={[
+        "flex min-w-0 items-center gap-2",
+        open ? "max-md:w-full" : null,
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
       data-open={open ? "true" : undefined}
       data-testid={testId}
+      data-untitled-source="base/input"
     >
-      {/*
-       * The phone affordance. Hidden at every width the field is permanent at,
-       * so desktop assistive tech never meets a second control for one job.
-       */}
-      <button
-        type="button"
+      <ButtonUtility
         ref={toggleRef}
-        className="dh-csearch__toggle"
+        size="sm"
+        color="tertiary"
+        icon={SearchLg}
+        tooltip={label}
+        aria-label={label}
         aria-expanded={open}
+        className={["dh-csearch__toggle", open ? "hidden" : "md:hidden"]
+          .filter(Boolean)
+          .join(" ")}
         onClick={() => {
           setPhoneOpen(true);
-          // The field is revealed by the same state change, so focus has to wait
-          // for it to exist.
           requestAnimationFrame(() => inputRef.current?.focus());
         }}
+      />
+      <div
+        className={[
+          "relative min-w-0 flex-1 md:w-64 md:flex-none lg:w-72",
+          open ? "" : "max-md:hidden",
+        ].join(" ")}
       >
-        <span className="dh-visually-hidden">{label}</span>
-        <SearchIcon />
-      </button>
-      <div className="dh-csearch__field">
-        <label className="dh-visually-hidden" htmlFor={inputId}>
-          {label}
-        </label>
-        <Input
-          id={inputId}
+        <UntitledInput
           ref={inputRef}
-          className="dh-csearch__input"
+          size="sm"
           type="search"
-          leading={<SearchIcon />}
+          icon={SearchLg}
+          aria-label={label}
           value={value}
           placeholder={placeholder ?? label}
-          onChange={(event) => onChange(event.currentTarget.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Escape") {
-              if (hasQuery) {
-                // Stop the key here: an Escape that clears the field must not
-                // also close the drawer or sheet the collection may sit under.
-                event.stopPropagation();
-                onChange("");
-              } else if (phoneOpen) {
-                event.stopPropagation();
-                setPhoneOpen(false);
-                // Focus goes back to the control that opened the field, never
-                // to the top of the document.
-                toggleRef.current?.focus();
-              }
-            }
-          }}
+          onChange={onChange}
+          onKeyDown={clearOnEscape}
+          inputClassName={
+            hasQuery ? "dh-csearch__input pr-9" : "dh-csearch__input"
+          }
         />
         {hasQuery ? (
           <button
             type="button"
-            className="dh-csearch__clear"
+            className="absolute inset-y-0 right-1.5 my-auto flex size-6 cursor-pointer items-center justify-center rounded-md text-fg-quaternary outline-focus-ring transition duration-100 ease-linear hover:bg-primary_hover hover:text-fg-quaternary_hover focus-visible:outline-2 focus-visible:outline-offset-2"
             onClick={() => {
               onChange("");
               inputRef.current?.focus();
             }}
           >
-            <span className="dh-visually-hidden">{`Clear ${label.toLowerCase()}`}</span>
-            <CloseIcon />
+            <span className="sr-only">{`Clear ${label.toLowerCase()}`}</span>
+            <XClose className="size-4" aria-hidden="true" />
           </button>
         ) : null}
       </div>

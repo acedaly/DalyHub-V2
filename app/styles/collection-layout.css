@@ -950,28 +950,13 @@
   }
 
   /*
-   * The label is CLIPPED rather than removed: `display: none` would strip the
-   * option's accessible name and leave a glyph nobody can address by voice or
-   * hear announced. This is `.dh-visually-hidden`'s own technique, applied by
-   * the viewport instead of by a prop — the alternative is a breakpoint read in
-   * JavaScript, which would make the first server byte wrong.
+   * UNTITLED-04 — the phone icon-only treatment went with `.dh-segmented`.
+   *
+   * The switcher is Untitled's segmented tabs now, which size their own label
+   * and glyph; a collection that genuinely wants an icon-only control at every
+   * width passes `iconOnly`, which states the accessible name on the option
+   * rather than clipping a visible label at one breakpoint.
    */
-  .dh-controlrow__trail .dh-segmented__label {
-    position: absolute;
-    inline-size: 1px;
-    block-size: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-
-  .dh-controlrow__trail .dh-segmented__icon {
-    /* Without a label beside it the glyph is the whole control, so it takes the
-     * whole option's centre rather than sitting where a leading icon would. */
-    margin: 0;
-  }
 
   .dh-csearch {
     inline-size: auto;

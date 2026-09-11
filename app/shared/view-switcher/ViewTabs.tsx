@@ -24,18 +24,22 @@
  * segmented control for a bounded state toggle inside content. What is gone is
  * the third and fourth ways of drawing either.
  *
+ * ── UNTITLED-04 — the rail IS Untitled's `application/tabs` ──────────────────
+ *
+ * `type="underline"`, over React Aria, which is where the roving tabindex, the
+ * arrow keys and `aria-selected` now come from. Each tab keeps its `href`, so
+ * the URL contract is untouched: middle-click, "copy link address" and
+ * Back/Forward behave exactly as they did, and React Aria routes the click
+ * through the app's `RouterProvider`.
+ *
  * ── Behaviour ────────────────────────────────────────────────────────────────
  *
  * Targets are derived from ONE search param, preserving every unrelated param
  * — including the DS-03 `drawer` stack — so opening a record and changing the
- * view compose instead of clobbering each other. The current tab carries
- * `aria-current="page"`, so selection is semantic and never rests on the violet
- * underline alone. Keyboard is the native one: Tab reaches the rail, Tab moves
- * between tabs, Enter activates. No roving focus is invented, because these are
- * links and behave exactly as they announce themselves.
+ * view compose instead of clobbering each other.
  */
 
-import { Link, useSearchParams } from "react-router";
+import { useLocation, useSearchParams } from "react-router";
 
 import {
   Tab,
@@ -79,20 +83,6 @@ export type ViewTabsProps = {
   readonly defaultValue?: string;
   readonly className?: string;
   readonly "data-testid"?: string;
-  /**
-   * UNTITLED-04 — draw the rail with the genuine Untitled Application UI
-   * `tabs` anatomy (`type="underline"`) instead of the legacy `dh-viewtabs`
-   * markup.
-   *
-   * Opt-in, exactly as `EmptyState`, `LoadMore` and `TaskList` opt in, so a
-   * collection adopts the Untitled structure when its own migration lands
-   * rather than every rail in the product changing at once. The URL contract is
-   * identical in both structures: each tab is still a real link to the URL that
-   * IS that view, so middle-click, "copy link address" and Back/Forward behave
-   * the same — React Aria's `Tab` takes `href` and routes it through the app's
-   * `RouterProvider`.
-   */
-  readonly structure?: "legacy" | "untitled";
 };
 
 export function ViewTabs({
@@ -103,9 +93,10 @@ export function ViewTabs({
   defaultValue,
   className,
   "data-testid": testId,
-  structure = "legacy",
 }: ViewTabsProps) {
   const [searchParams] = useSearchParams();
+  // An ABSOLUTE target — see `ViewSwitcher` for why a rail states its own path.
+  const { pathname } = useLocation();
 
   const targets = options.map((option) => {
     const next = new URLSearchParams(searchParams);
@@ -120,72 +111,39 @@ export function ViewTabs({
     const query = next.toString();
     return {
       option,
-      to: option.to ?? (query.length > 0 ? `?${query}` : "?"),
+      to: option.to ?? (query.length > 0 ? `${pathname}?${query}` : pathname),
     };
   });
 
-  if (structure === "untitled") {
-    // Adapted from Untitled UI React `application/tabs` (`type="underline"`),
-    // the rail Untitled's Application UI dashboards draw above a collection.
-    // Changes: DalyHub URL-backed view values, so each tab stays a real link.
-    return (
-      <Tabs
-        selectedKey={value}
-        className={["w-auto min-w-max", className].filter(Boolean).join(" ")}
-        data-testid={testId}
-        data-untitled-source="application/tabs:underline"
-      >
-        <TabList type="underline" size="sm" aria-label={label}>
-          {targets.map(({ option, to }) => (
-            <Tab key={option.value} id={option.value} href={to}>
-              {option.label}
-            </Tab>
-          ))}
-        </TabList>
-        {/*
-         * The panel a tab CONTROLS is the collection below, which is a separate
-         * document at a separate URL — so each tab gets a visually hidden panel
-         * naming the view instead. ARIA's tab pattern wants a panel for every
-         * tab; without one the rail would be a tablist that controls nothing.
-         * Same treatment as the Tasks saved-view rail.
-         */}
-        {targets.map(({ option }) => (
-          <TabPanel key={option.value} id={option.value} className="sr-only">
-            {option.value === value ? `Viewing ${option.label}` : option.label}
-          </TabPanel>
-        ))}
-      </Tabs>
-    );
-  }
-
+  // Adapted from Untitled UI React `application/tabs` (`type="underline"`),
+  // the rail Untitled's Application UI dashboards draw above a collection.
+  // Changes: DalyHub URL-backed view values, so each tab stays a real link.
   return (
-    <nav
-      /*
-       * POLISH-01 — the rail is the SCROLL CONTAINER, and it says so.
-       *
-       * `dh-scroll-strip` brings the horizontal overflow, the hidden scrollbar
-       * and the shared "there is more this way" cue. A tab rail that silently
-       * cuts "Completed" mid-word reads as a shorter set of views rather than
-       * as a scrollable one — measured at 393px on `/projects`, where Completed
-       * and Archived were both effectively unreachable.
-       */
-      className={["dh-viewtabs", "dh-scroll-strip", className]
-        .filter(Boolean)
-        .join(" ")}
-      aria-label={label}
+    <Tabs
+      selectedKey={value}
+      className={["w-auto min-w-max", className].filter(Boolean).join(" ")}
       data-testid={testId}
+      data-untitled-source="application/tabs:underline"
     >
-      {targets.map(({ option, to }) => (
-        <Link
-          key={option.value}
-          to={to}
-          className="dh-viewtabs__tab"
-          aria-current={option.value === value ? "page" : undefined}
-          preventScrollReset
-        >
-          {option.label}
-        </Link>
+      <TabList type="underline" size="sm" aria-label={label}>
+        {targets.map(({ option, to }) => (
+          <Tab key={option.value} id={option.value} href={to}>
+            {option.label}
+          </Tab>
+        ))}
+      </TabList>
+      {/*
+       * The panel a tab CONTROLS is the collection below, which is a separate
+       * document at a separate URL — so each tab gets a visually hidden panel
+       * naming the view instead. ARIA's tab pattern wants a panel for every
+       * tab; without one the rail would be a tablist that controls nothing.
+       * Same treatment as the Tasks saved-view rail.
+       */}
+      {targets.map(({ option }) => (
+        <TabPanel key={option.value} id={option.value} className="sr-only">
+          {option.value === value ? `Viewing ${option.label}` : option.label}
+        </TabPanel>
       ))}
-    </nav>
+    </Tabs>
   );
 }
