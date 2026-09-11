@@ -240,7 +240,22 @@ export function RecordTabs({
               <Tab
                 key={tab.id}
                 id={tab.id}
-                className="record-tab shrink-0"
+                /*
+                 * UNTITLED-05 — the phone TOUCH FLOOR, on the WIDTH.
+                 *
+                 * Untitled's underline tab is 32px, which is the right
+                 * proportion on a fine pointer and three-quarters of a thumb on
+                 * a narrow screen. UNTITLED-04 stated the floor in
+                 * `record-layout.css` under `@media (hover: none)`, nested in a
+                 * container query — and `project-activity.spec.ts` resizes the
+                 * viewport WITHOUT emulating touch, so neither condition
+                 * matched and the Activity tab measured 32px against the
+                 * repository's 44px floor. A 320px viewport is the case that
+                 * matters whether or not the pointer reports as coarse, which
+                 * is how `ViewTabs` and `ViewSwitcher` already state it.
+                 * The desktop height is untouched.
+                 */
+                className="record-tab shrink-0 max-md:min-h-[var(--app-touch-target-min)]"
                 // A non-colour hook for the active tab, so "which section am I
                 // in?" is never answered by the underline's colour alone.
                 // Spread because upstream's `Tab` props do not declare an index

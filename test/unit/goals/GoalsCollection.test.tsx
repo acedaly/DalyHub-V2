@@ -689,19 +689,21 @@ describe("the lens rail's counts (DEBT-121)", () => {
      * lens is a `tab` whose element is still a real anchor carrying the `?view=`
      * link. The numbers, and the rule that "All" carries none, are unchanged.
      */
-    expect(within(rail).getByRole("tab", { name: /On track 5/ })).toBeVisible();
     expect(
-      within(rail).getByRole("tab", { name: /Needs attention 3/ }),
+      within(rail).getByRole("link", { name: /On track 5/ }),
     ).toBeVisible();
     expect(
-      within(rail).getByRole("tab", { name: /Set aside 2/ }),
+      within(rail).getByRole("link", { name: /Needs attention 3/ }),
     ).toBeVisible();
     expect(
-      within(rail).getByRole("tab", { name: /Completed 4/ }),
+      within(rail).getByRole("link", { name: /Set aside 2/ }),
+    ).toBeVisible();
+    expect(
+      within(rail).getByRole("link", { name: /Completed 4/ }),
     ).toBeVisible();
     // "All" carries no number: it is the unset state, and a total beside it
     // would compete with the subtitle that already states what is loaded.
-    expect(within(rail).getByRole("tab", { name: "All" })).toBeVisible();
+    expect(within(rail).getByRole("link", { name: "All" })).toBeVisible();
   });
 
   it("shows NO numbers at all when the workspace figures are unavailable", () => {
@@ -710,7 +712,7 @@ describe("the lens rail's counts (DEBT-121)", () => {
     // workspace-true figure there is no number — never a fallback tally.
     renderCollection([goal()], { lensCounts: null });
     const rail = screen.getByTestId("goals-views");
-    expect(within(rail).getByRole("tab", { name: "On track" })).toBeVisible();
+    expect(within(rail).getByRole("link", { name: "On track" })).toBeVisible();
     expect(
       within(rail).queryByRole("tab", { name: /On track \d/ }),
     ).not.toBeInTheDocument();

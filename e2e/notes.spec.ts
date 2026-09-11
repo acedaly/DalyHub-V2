@@ -658,7 +658,7 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
     const toasts = page.getByRole("region", { name: "Notifications" });
     await expect(toasts.getByText(`"${noteTitle}" deleted`)).toBeVisible();
 
-    await page.getByRole("tab", { name: "Deleted" }).click();
+    await page.getByRole("link", { name: "Deleted" }).click();
     await expect(page).toHaveURL(/state=deleted/);
     const deletedList = page.getByRole("list", { name: "Deleted notes" });
     await expect(deletedList.getByText(noteTitle)).toBeVisible();
@@ -674,7 +674,7 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
         .getByText(`"${noteTitle}" restored`),
     ).toBeVisible();
 
-    await page.getByRole("tab", { name: "Active" }).click();
+    await page.getByRole("link", { name: "Active" }).click();
     await expect(page).toHaveURL("/notes");
     await page.getByRole("link", { name: noteTitle }).click();
     await expect(page).toHaveURL(/\/notes\/[^/?#]+$/);

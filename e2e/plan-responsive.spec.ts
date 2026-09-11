@@ -132,7 +132,7 @@ test("the phone day rail moves the day, by pointer and by keyboard", async ({
   await page.setViewportSize({ width: 393, height: 852 });
   await gotoFixture(page, "/plan");
 
-  const rail = page.getByRole("tablist", { name: "Days of the week" });
+  const rail = page.getByRole("navigation", { name: "Days of the week" });
   const tabs = rail.getByRole("tab");
   await expect(tabs).toHaveCount(7);
 

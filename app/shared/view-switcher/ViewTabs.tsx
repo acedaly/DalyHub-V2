@@ -24,13 +24,24 @@
  * segmented control for a bounded state toggle inside content. What is gone is
  * the third and fourth ways of drawing either.
  *
- * ── UNTITLED-04 — the rail IS Untitled's `application/tabs` ──────────────────
+ * ── UNTITLED-05 — Untitled's LOOK, navigation's SEMANTICS ────────────────────
  *
- * `type="underline"`, over React Aria, which is where the roving tabindex, the
- * arrow keys and `aria-selected` now come from. Each tab keeps its `href`, so
- * the URL contract is untouched: middle-click, "copy link address" and
- * Back/Forward behave exactly as they did, and React Aria routes the click
- * through the app's `RouterProvider`.
+ * The rail takes `application/tabs`'s `type="underline"` appearance through
+ * `overrides/link-tab-rail`, and stays a labelled `navigation` landmark of
+ * ordinary anchors with `aria-current="page"` on the current one.
+ *
+ * UNTITLED-04 built it on `application/tabs` itself, which made every option a
+ * `role="tab"`. ARIA's tab pattern requires each tab to control a `tabpanel`,
+ * and the thing this rail selects is a COLLECTION the router renders elsewhere
+ * in the document, across a route boundary this component does not own. The
+ * panel each tab got was therefore a visually hidden placeholder reading
+ * "Viewing …" — syntactically valid `aria-controls` pointing at the wrong
+ * content. That is worse than the dangling reference it replaced, and this
+ * component is shared, so it propagated product-wide. The override's header
+ * carries the full reasoning.
+ *
+ * The URL contract is untouched either way: middle-click, "copy link address"
+ * and Back/Forward behave exactly as they always have.
  *
  * ── Behaviour ────────────────────────────────────────────────────────────────
  *
@@ -39,14 +50,13 @@
  * view compose instead of clobbering each other.
  */
 
-import { useLocation, useSearchParams } from "react-router";
+import { Link, useLocation, useSearchParams } from "react-router";
 
 import {
-  Tab,
-  TabList,
-  TabPanel,
-  Tabs,
-} from "~/shared/ui/untitled/application/tabs/tabs";
+  LinkTabContent,
+  linkTabClassName,
+  linkTabRailClassName,
+} from "~/shared/ui/untitled/overrides/link-tab-rail";
 
 export type ViewTabOption = {
   readonly value: string;
@@ -115,57 +125,34 @@ export function ViewTabs({
     };
   });
 
-  // Adapted from Untitled UI React `application/tabs` (`type="underline"`),
-  // the rail Untitled's Application UI dashboards draw above a collection.
-  // Changes: DalyHub URL-backed view values, so each tab stays a real link.
+  // Untitled UI React `application/tabs` (`type="underline"`) is the rail
+  // Untitled's Application UI dashboards draw above a collection. Its
+  // appearance, through `overrides/link-tab-rail`; its `role="tab"` semantics
+  // deliberately not, because these options navigate. See the file header.
   return (
-    <Tabs
-      selectedKey={value}
+    <nav
+      aria-label={label}
       // The rail scrolls INSIDE itself rather than widening the document; see
       // `ViewSwitcher` for the same reasoning.
-      className={["w-auto max-w-full overflow-x-auto", className]
-        .filter(Boolean)
-        .join(" ")}
+      className={linkTabRailClassName(
+        "underline",
+        ["w-auto max-w-full overflow-x-auto", className]
+          .filter(Boolean)
+          .join(" "),
+      )}
       data-testid={testId}
       data-untitled-source="application/tabs:underline"
     >
-      <TabList type="underline" size="sm" aria-label={label}>
-        {targets.map(({ option, to }) => (
-          <Tab
-            key={option.value}
-            id={option.value}
-            href={to}
-            /*
-             * UNTITLED-04 — the phone TOUCH FLOOR, restored.
-             *
-             * `view-tabs.css` pinned the rail at `--app-touch-target-min` on a
-             * phone and the floor went with the stylesheet. Untitled's
-             * underline tab is 32px, which is the right proportion on a fine
-             * pointer and half a thumb on a narrow screen — and this rail is
-             * the collection's primary navigation there. Stated on the WIDTH,
-             * like the rule it replaces, because a 320px viewport is the case
-             * that matters whether or not the pointer reports as coarse.
-             */
-            className={
-              "max-md:min-w-[var(--app-touch-target-min)] max-md:min-h-[var(--app-touch-target-min)] max-md:justify-center"
-            }
-          >
-            {option.label}
-          </Tab>
-        ))}
-      </TabList>
-      {/*
-       * The panel a tab CONTROLS is the collection below, which is a separate
-       * document at a separate URL — so each tab gets a visually hidden panel
-       * naming the view instead. ARIA's tab pattern wants a panel for every
-       * tab; without one the rail would be a tablist that controls nothing.
-       * Same treatment as the Tasks saved-view rail.
-       */}
-      {targets.map(({ option }) => (
-        <TabPanel key={option.value} id={option.value} className="sr-only">
-          {option.value === value ? `Viewing ${option.label}` : option.label}
-        </TabPanel>
+      {targets.map(({ option, to }) => (
+        <Link
+          key={option.value}
+          to={to}
+          aria-current={option.value === value ? "page" : undefined}
+          className={linkTabClassName("underline")}
+        >
+          <LinkTabContent>{option.label}</LinkTabContent>
+        </Link>
       ))}
-    </Tabs>
+    </nav>
   );
 }

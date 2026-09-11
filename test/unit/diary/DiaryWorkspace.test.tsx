@@ -106,7 +106,7 @@ describe("Diary workspace", () => {
       screen.getByRole("heading", { level: 1, name: "Diary" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("tablist", { name: "Diary views" }),
+      screen.getByRole("navigation", { name: "Diary views" }),
     ).toBeInTheDocument();
     /*
      * UIX-04 §18 — the day navigator is a week STRIP of links, so it is a

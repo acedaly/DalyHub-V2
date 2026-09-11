@@ -55,8 +55,8 @@ describe("ViewSwitcher", () => {
         label="Task layout"
       />,
     );
-    const group = screen.getByRole("tablist", { name: "Task layout" });
-    const links = within(group).getAllByRole("tab");
+    const group = screen.getByRole("navigation", { name: "Task layout" });
+    const links = within(group).getAllByRole("link");
     expect(links.map((link) => link.textContent)).toEqual([
       "List",
       "Board",
@@ -64,11 +64,11 @@ describe("ViewSwitcher", () => {
     ]);
     // Selected is exposed PROGRAMMATICALLY, not only painted.
     expect(
-      links.filter((link) => link.getAttribute("aria-selected") === "true"),
+      links.filter((link) => link.getAttribute("aria-current") === "page"),
     ).toHaveLength(1);
-    expect(within(group).getByRole("tab", { name: "Board" })).toHaveAttribute(
-      "aria-selected",
-      "true",
+    expect(within(group).getByRole("link", { name: "Board" })).toHaveAttribute(
+      "aria-current",
+      "page",
     );
     // …and every option is still a real anchor.
     for (const link of links) expect(link.tagName).toBe("A");
@@ -84,15 +84,15 @@ describe("ViewSwitcher", () => {
       />,
       "/tasks?status=open",
     );
-    const group = screen.getByRole("tablist", { name: "Task layout" });
+    const group = screen.getByRole("navigation", { name: "Task layout" });
     // An unrelated param survives every switch (the DS-03 `drawer` stack is the
     // case that matters most), and the default view is the ABSENCE of the param
     // rather than an explicit value.
-    expect(within(group).getByRole("tab", { name: "List" })).toHaveAttribute(
+    expect(within(group).getByRole("link", { name: "List" })).toHaveAttribute(
       "href",
       "/tasks?status=open",
     );
-    expect(within(group).getByRole("tab", { name: "Board" })).toHaveAttribute(
+    expect(within(group).getByRole("link", { name: "Board" })).toHaveAttribute(
       "href",
       "/tasks?status=open&view=board",
     );
@@ -110,7 +110,7 @@ describe("ViewSwitcher", () => {
       "/tasks?cursor=abc123",
     );
     expect(
-      screen.getByRole("tab", { name: "Board" }).getAttribute("href"),
+      screen.getByRole("link", { name: "Board" }).getAttribute("href"),
     ).toBe("/tasks?view=board");
   });
 
@@ -127,11 +127,11 @@ describe("ViewSwitcher", () => {
       "/people/recent",
     );
     expect(
-      screen.getByRole("tab", { name: "All people" }).getAttribute("href"),
+      screen.getByRole("link", { name: "All people" }).getAttribute("href"),
     ).toBe("/people");
-    expect(screen.getByRole("tab", { name: "Recent" })).toHaveAttribute(
-      "aria-selected",
-      "true",
+    expect(screen.getByRole("link", { name: "Recent" })).toHaveAttribute(
+      "aria-current",
+      "page",
     );
   });
 
@@ -220,7 +220,7 @@ describe("ViewSwitcher", () => {
     // No nested containers: ONE tablist holding its options directly. "Avoid
     // excessive borders and nested containers" is a visual rule that is only
     // kept if the DOM keeps it.
-    const group = screen.getByRole("tablist", { name: "Task layout" });
+    const group = screen.getByRole("navigation", { name: "Task layout" });
     expect(within(group).queryAllByRole("tablist")).toHaveLength(0);
     expect(group.children).toHaveLength(3);
   });

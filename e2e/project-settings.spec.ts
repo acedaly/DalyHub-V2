@@ -137,7 +137,7 @@ test.describe("PROJ-05 — Project Settings and Archived collection", () => {
     // `gotoFixture`, not a bare `goto`: a React Aria tab rail replaces its own
     // DOM once after hydration, and a click across that swap is lost.
     await gotoFixture(page, "/projects");
-    await page.getByRole("tab", { name: "Archived" }).click();
+    await page.getByRole("link", { name: "Archived" }).click();
     await expect(page).toHaveURL(/state=archived/);
     const archivedCard = page.getByRole("link", {
       name: "Open Settings journey project",
@@ -277,9 +277,8 @@ test.describe("PROJ-05 Slice 4 — Today integration", () => {
     // The tab's default sub-view is OPEN tasks, so a completed row leaves it —
     // "All" is where both halves of this are visible on one screen.
     await page
-      // UNTITLED-04 — a `tablist` of links, not a `navigation` landmark.
-      .getByRole("tablist", { name: "Filter tasks by state" })
-      .getByRole("tab", { name: "All", exact: true })
+      .getByRole("navigation", { name: "Filter tasks by state" })
+      .getByRole("link", { name: "All", exact: true })
       .click();
     // V2.8 CONV-01 — the tab renders the shared `TaskRow` (a list item, which
     // has no accessible name of its own), so the row is found the way every
@@ -478,7 +477,7 @@ test.describe("PROJ-05 Slice 4 — Today integration", () => {
     // links, then open the archived card — all real client navigation.
     await goToProjects();
     await expect(page).toHaveURL(/\/projects$/);
-    await page.getByRole("tab", { name: "Archived" }).click();
+    await page.getByRole("link", { name: "Archived" }).click();
     await expect(page).toHaveURL(/state=archived/);
     const archivedCard = page.getByRole("link", {
       name: "Open Today integration project",

@@ -292,10 +292,10 @@ describe("Areas presentations", () => {
      * (`type="button-border"`), whose items take an `href`, so the capability is
      * unchanged and the ROLE is `tab` rather than `link`.
      */
-    const grid = screen.getByRole("tab", { name: /Grid/ });
-    const list = screen.getByRole("tab", { name: /List/ });
-    expect(list).toHaveAttribute("aria-selected", "true");
-    expect(grid).toHaveAttribute("aria-selected", "false");
+    const grid = screen.getByRole("link", { name: /Grid/ });
+    const list = screen.getByRole("link", { name: /List/ });
+    expect(list).toHaveAttribute("aria-current", "page");
+    expect(grid).not.toHaveAttribute("aria-current");
     expect(grid.tagName).toBe("A");
     expect(grid.getAttribute("href")).toContain("present=grid");
   });

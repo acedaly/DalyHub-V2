@@ -195,8 +195,7 @@ test.describe("PROJ-06 — mobile Projects", () => {
     // `navigation` of links rather than a `group` of segments. The NAME is
     // unchanged ("Project views"), because the one-vocabulary-across-every-
     // collection rule is about the wording, not about the control.
-    // UNTITLED-04 — a `tablist` of links; see `spine-workspaces.spec.ts`.
-    const filter = page.getByRole("tablist", { name: "Project views" });
+    const filter = page.getByRole("navigation", { name: "Project views" });
     await expect(filter).toBeVisible();
     /*
      * "Active", not "Open".
@@ -219,10 +218,10 @@ test.describe("PROJ-06 — mobile Projects", () => {
     await expect(page.locator(".dh-card-swipe")).toHaveCount(0);
     await expectNoAxeViolations(page);
 
-    await filter.getByRole("tab", { name: "Completed", exact: true }).click();
+    await filter.getByRole("link", { name: "Completed", exact: true }).click();
     await expect(page).toHaveURL(/state=completed/);
     await expectNoHorizontalOverflow(page);
-    await filter.getByRole("tab", { name: "All", exact: true }).click();
+    await filter.getByRole("link", { name: "All", exact: true }).click();
     await expect(page).toHaveURL(/\/projects$/);
 
     const { trigger, dialog } = await openNewProjectSheet(page);
@@ -247,7 +246,7 @@ test.describe("PROJ-06 — mobile Projects", () => {
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toHaveCount(0);
 
-    await page.getByRole("tab", { name: "Completed", exact: true }).click();
+    await page.getByRole("link", { name: "Completed", exact: true }).click();
     const completedTaskLink = page.getByRole("link", {
       name: `Open ${COMPLETED_TASK}`,
     });
@@ -433,19 +432,15 @@ test.describe("PROJ-06 — mobile Projects", () => {
     await gotoFixture(page, "/projects/pg-tasks?tasks=all");
     await expectNoHorizontalOverflow(page);
     /*
-     * UIX-02 — the task-state filter is the shared TAB RAIL.
-     *
-     * UNTITLED-04 — its current tab states itself with `aria-selected`, not
-     * `aria-current`. The rail is Untitled's `application/tabs` over React Aria
-     * now, so "this is the one you are on" comes from the tab pattern's own
-     * attribute. Each option is still a real link to the URL that IS that view,
-     * so deep-linking, middle-click and open-in-new-tab are unchanged; the
-     * attribute the pattern owns simply takes precedence over the one the
-     * hand-rolled rail chose.
+     * UIX-02 — the task-state filter is the shared TAB RAIL, whose current
+     * option carries `aria-current="page"`. Each option is a link to the URL
+     * that IS that view, so "this is the current page" is literally what it
+     * means (UNTITLED-05 keeps that: the rail takes Untitled's underline
+     * appearance and stays navigation).
      */
     await expect(
-      page.getByRole("tab", { name: "All", exact: true }),
-    ).toHaveAttribute("aria-selected", "true");
+      page.getByRole("link", { name: "All", exact: true }),
+    ).toHaveAttribute("aria-current", "page");
     await page.getByRole("button", { name: "Load more tasks" }).click();
     const lateTask = page.getByRole("link", {
       name: "Open Paginated task 060",

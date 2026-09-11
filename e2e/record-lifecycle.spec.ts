@@ -98,7 +98,7 @@ test.describe("PX-04 — reversible removal, end to end", () => {
     await page.getByRole("menuitem", { name: "Delete Goal" }).click();
     await expect(page).toHaveURL(/\/goals$/);
 
-    await page.getByRole("tab", { name: "Deleted" }).click();
+    await page.getByRole("link", { name: "Deleted" }).click();
     await expect(page).toHaveURL(/state=deleted/);
     const row = page.getByRole("article").filter({ hasText: title! });
     await expect(row).toBeVisible();

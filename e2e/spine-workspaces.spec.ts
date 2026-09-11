@@ -188,7 +188,7 @@ test.describe("REDESIGN-04 — the Projects collection", () => {
       .evaluateAll((nodes) => nodes.map((n) => n.getAttribute("aria-label")));
     expect(gridNames.length).toBeGreaterThan(0);
 
-    await page.getByRole("tab", { name: "Table", exact: true }).click();
+    await page.getByRole("link", { name: "Table", exact: true }).click();
     await expect(page).toHaveURL(/[?&]present=table/);
 
     // UNTITLED-04 — `grid`; see the note above.
@@ -210,7 +210,7 @@ test.describe("REDESIGN-04 — the Projects collection", () => {
       expect(tableNames.some((row) => row.includes(name ?? ""))).toBe(true);
     }
 
-    await page.getByRole("tab", { name: "Grid", exact: true }).click();
+    await page.getByRole("link", { name: "Grid", exact: true }).click();
     await expect(page.getByRole("grid")).toHaveCount(0);
   });
 
@@ -219,18 +219,18 @@ test.describe("REDESIGN-04 — the Projects collection", () => {
   }) => {
     await gotoFixture(page, "/projects");
     /*
-     * UNTITLED-04 — the rail is a `tablist`, not a `navigation` landmark.
-     * Every option is still a real link to the URL that IS that view; what
-     * changed is that the set of them states itself with the ARIA tabs pattern,
-     * which is what Untitled's `application/tabs` builds on.
+     * UNTITLED-05 — the rail keeps its `navigation` landmark and its links.
+     * It takes Untitled's `application/tabs` underline APPEARANCE without the
+     * tab pattern's semantics, because the view it selects is a collection the
+     * router renders elsewhere — nothing a `tabpanel` here could hold.
      */
-    const rail = page.getByRole("tablist", { name: "Project views" });
+    const rail = page.getByRole("navigation", { name: "Project views" });
     // The reference's word for `open`; the URL contract is untouched.
-    await expect(rail.getByRole("tab", { name: "Active" })).toHaveAttribute(
+    await expect(rail.getByRole("link", { name: "Active" })).toHaveAttribute(
       "href",
       /state=open/,
     );
-    await rail.getByRole("tab", { name: "Archived" }).click();
+    await rail.getByRole("link", { name: "Archived" }).click();
     await expect(page).toHaveURL(/state=archived/);
   });
 
@@ -479,8 +479,7 @@ test.describe("REDESIGN-04 — the Goals workspace", () => {
     // one-click Restore, still no way IN to a soft-deleted record.
     await expect(
       page
-        // UNTITLED-04 — a `tablist` of links; see the Projects note above.
-        .getByRole("tablist", { name: "Goal views" })
+        .getByRole("navigation", { name: "Goal views" })
         .or(page.getByRole("group", { name: "Goal views" })),
     ).toBeVisible();
     await expectNoAxeViolations(page);

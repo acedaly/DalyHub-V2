@@ -56,18 +56,17 @@
  */
 
 import type { ReactNode } from "react";
-import { useLocation, useSearchParams } from "react-router";
+import { Link, useLocation, useSearchParams } from "react-router";
 
 import {
   ButtonGroup,
   ButtonGroupItem,
 } from "~/shared/ui/untitled/base/button-group/button-group";
 import {
-  Tab,
-  TabList,
-  TabPanel,
-  Tabs,
-} from "~/shared/ui/untitled/application/tabs/tabs";
+  LinkTabContent,
+  linkTabClassName,
+  linkTabRailClassName,
+} from "~/shared/ui/untitled/overrides/link-tab-rail";
 
 export interface ViewSwitcherOption {
   readonly value: string;
@@ -202,74 +201,66 @@ export function ViewSwitcher({
   };
 
   if (!onSelect) {
-    // Adapted from Untitled UI React `application/tabs` (`type="button-border"`),
-    // the segmented control Untitled's Application UI draws for a presentation
-    // toggle. Changes: DalyHub URL-backed presentation values, so each segment
-    // is a real link to the URL that IS that presentation.
+    /*
+     * UNTITLED-05 — Untitled's LOOK, navigation's SEMANTICS.
+     *
+     * `application/tabs` (`type="button-border"`) is the segmented control
+     * Untitled's Application UI draws for a presentation toggle, and its
+     * appearance is what this takes, through `overrides/link-tab-rail`. Its
+     * `role="tab"` semantics it deliberately does not: these options navigate
+     * to a different URL, and the collection each one selects is rendered by
+     * the router elsewhere in the document, so no `tabpanel` here could hold
+     * it. UNTITLED-04's hidden "Viewing …" panels made `aria-controls` valid
+     * while pointing every tab at the wrong content. The override's header
+     * carries the full reasoning.
+     *
+     * A labelled `navigation` of ordinary links instead, the current one
+     * carrying `aria-current="page"` — which is also what this control said
+     * before the migration.
+     */
+    const type = weight === "subtle" ? "button-minimal" : "button-border";
     return (
-      <Tabs
-        selectedKey={value}
+      <nav
+        aria-label={label}
         /*
-         * `max-w-full` with the overflow on the root, never `min-w-max`: a
-         * five-scope switcher (People's circles, Assets' views) is wider than a
-         * 390px header, and a control that forces its own width pushes the
-         * DOCUMENT sideways instead of scrolling inside itself.
+         * ONE box: the rail's classes sit on the `nav` itself rather than on an
+         * inner strip, which is what "no nested containers" has always meant
+         * here and what the unit test pins.
+         *
+         * `max-w-full` with the overflow on it, never `min-w-max`: a five-scope
+         * switcher (People's circles, Assets' views) is wider than a 390px
+         * header, and a control that forces its own width pushes the DOCUMENT
+         * sideways instead of scrolling inside itself.
          */
-        className={["w-auto max-w-full overflow-x-auto", className]
-          .filter(Boolean)
-          .join(" ")}
+        className={linkTabRailClassName(
+          type,
+          ["w-auto max-w-full overflow-x-auto", className]
+            .filter(Boolean)
+            .join(" "),
+        )}
         data-untitled-source="application/tabs:button-border"
       >
-        <TabList
-          type={weight === "subtle" ? "button-minimal" : "button-border"}
-          size="sm"
-          aria-label={label}
-        >
-          {options.map((option) => (
-            <Tab
-              key={option.value}
-              id={option.value}
-              href={hrefFor(option)}
-              /*
-               * The history semantics the link mode always had, carried through
-               * React Aria's `RouterProvider`: a param-derived switch REPLACES
-               * (Back leaves the collection rather than walking every view the
-               * owner glanced at), while a route-per-view switch pushes.
-               */
-              routerOptions={{
-                replace: replace ?? option.href === undefined,
-                preventScrollReset: true,
-              }}
-              {...(option.icon ? { icon: option.icon } : {})}
-              {...(iconOnly ? { "aria-label": option.label } : {})}
-              /* UNTITLED-04 — the phone touch floor; see `ViewTabs`. */
-              className={
-                "max-md:min-w-[var(--app-touch-target-min)] max-md:min-h-[var(--app-touch-target-min)] max-md:justify-center"
-              }
-            >
-              {iconOnly ? undefined : option.label}
-            </Tab>
-          ))}
-        </TabList>
-        {/*
-         * UNTITLED-04 — a visually hidden panel per tab, and it is a
-         * CORRECTNESS requirement rather than tidiness.
-         *
-         * React Aria writes `aria-controls` on every tab whether or not the
-         * panel is mounted, so a tablist with no panels points every tab at an
-         * id that is not in the document — `aria-valid-attr-value`, which axe
-         * reports as a critical WCAG 2.2 AA violation and which a screen reader
-         * cannot follow. The panel a scope tab really controls is the collection
-         * below, which is a separate document at a separate URL, so each tab
-         * gets a hidden panel naming the view instead. Same treatment as
-         * `ViewTabs` and the Tasks saved-view rail.
-         */}
         {options.map((option) => (
-          <TabPanel key={option.value} id={option.value} className="sr-only">
-            {option.value === value ? `Viewing ${option.label}` : option.label}
-          </TabPanel>
+          <Link
+            key={option.value}
+            to={hrefFor(option)}
+            aria-current={option.value === value ? "page" : undefined}
+            {...(iconOnly ? { "aria-label": option.label } : {})}
+            /*
+             * The history semantics the link mode always had: a param-derived
+             * switch REPLACES (Back leaves the collection rather than walking
+             * every view the owner glanced at), while a route-per-view switch
+             * pushes.
+             */
+            replace={replace ?? option.href === undefined}
+            preventScrollReset
+            className={linkTabClassName(type)}
+          >
+            {option.icon}
+            {iconOnly ? null : <LinkTabContent>{option.label}</LinkTabContent>}
+          </Link>
         ))}
-      </Tabs>
+      </nav>
     );
   }
 

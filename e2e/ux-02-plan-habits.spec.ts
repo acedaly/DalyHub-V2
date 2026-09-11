@@ -512,11 +512,10 @@ test.describe("the Habits collection", () => {
        * scope is carried by `aria-current` — the one attribute that is both the
        * appearance and what assistive technology reads.
        */
-      // UNTITLED-04 — a `tablist` of links; selection is `aria-selected`.
-      const views = page.getByRole("tablist", { name: "Habit views" });
+      const views = page.getByRole("navigation", { name: "Habit views" });
       await expect(
-        views.getByRole("tab", { name: "Today", exact: true }),
-      ).toHaveAttribute("aria-selected", "true");
+        views.getByRole("link", { name: "Today", exact: true }),
+      ).toHaveAttribute("aria-current", "page");
       await expect(tableRow(page, title)).toHaveCount(1);
 
       // All active — the paginated, searchable collection.

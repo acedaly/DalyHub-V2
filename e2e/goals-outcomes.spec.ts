@@ -247,7 +247,7 @@ test.describe("UIX-03 — the status views", () => {
     }
     expect(count).toBeLessThanOrEqual(all);
 
-    await views.getByRole("tab", { name: "All" }).click();
+    await views.getByRole("link", { name: "All" }).click();
     await waitForInteractive(page);
     await expect(page.getByTestId("goal-row")).toHaveCount(all);
   });

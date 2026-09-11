@@ -115,7 +115,7 @@ test.describe("UIQ-013 — one view switcher, at laptop width", () => {
     page,
   }) => {
     await gotoFixture(page, "/assets");
-    const group = page.getByRole("tablist", { name: "Asset views" });
+    const group = page.getByRole("navigation", { name: "Asset views" });
     const before = await group.boundingBox();
     expect(before).not.toBeNull();
     /*
@@ -238,7 +238,7 @@ test.describe("UIQ-014 — the primary action, in one place", () => {
     // The arrangement UIQ-014 named: the create action is no longer a fifth
     // pill in the view row, it is the trailing end of the header.
     const switcher = await page
-      .getByRole("tablist", { name: "Review views" })
+      .getByRole("navigation", { name: "Review views" })
       .boundingBox();
     const action = await primary.boundingBox();
     expect(action!.x).toBeGreaterThan(switcher!.x + switcher!.width);

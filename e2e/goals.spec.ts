@@ -277,13 +277,13 @@ test.describe("AREA-02 — Goals", () => {
     /*
      * UNTITLED-04 — addressed by ROLE, not by the retired class.
      *
-     * `.dh-viewtabs__tab` came out with `view-tabs.css` when the rail moved to
-     * Untitled's `application/tabs`. The role is the better hook anyway: it is
-     * what a screen reader and a keyboard user actually get, and it cannot be
+     * `.dh-viewtabs__tab` came out with `view-tabs.css` when the rail took
+     * Untitled's appearance. The role is the better hook anyway: it is what a
+     * screen reader and a keyboard user actually get, and it cannot be
      * satisfied by a `div` that happens to carry the class.
      */
-    await expect(rail.getByRole("tab")).toHaveCount(6);
-    await expect(rail.getByRole("tab").last()).toHaveText("Deleted");
+    await expect(rail.getByRole("link")).toHaveCount(6);
+    await expect(rail.getByRole("link").last()).toHaveText("Deleted");
 
     // Nothing left in the header's view slot — no second rail, no segmented
     // control beside the title.
@@ -300,7 +300,7 @@ test.describe("AREA-02 — Goals", () => {
     await gotoFixture(page, "/goals");
     await page
       .getByTestId("goals-views")
-      .getByRole("tab", { name: "Deleted" })
+      .getByRole("link", { name: "Deleted" })
       .click();
     await expect(page).toHaveURL(/state=deleted/);
 
@@ -308,22 +308,13 @@ test.describe("AREA-02 — Goals", () => {
     // the way out is where the way in was, and the counts are gone because they
     // describe the active page.
     const rail = page.getByTestId("goals-views");
-    /*
-     * UNTITLED-04 — `aria-selected`, not `aria-current`.
-     *
-     * The rail is Untitled's `application/tabs` over React Aria now: a
-     * `tablist` of real anchors. Every href, param and deep link is unchanged
-     * and each option is still a link you can middle-click; what changed is
-     * that "this is the one you are on" is stated with the tab pattern's own
-     * attribute instead of with `aria-current`.
-     */
-    await expect(rail.getByRole("tab", { name: "Deleted" })).toHaveAttribute(
-      "aria-selected",
-      "true",
+    await expect(rail.getByRole("link", { name: "Deleted" })).toHaveAttribute(
+      "aria-current",
+      "page",
     );
-    await expect(rail.getByRole("tab", { name: "All" })).toBeVisible();
+    await expect(rail.getByRole("link", { name: "All" })).toBeVisible();
 
-    await rail.getByRole("tab", { name: "All" }).click();
+    await rail.getByRole("link", { name: "All" }).click();
     await expect(page).not.toHaveURL(/state=deleted/);
     await expectNoHorizontalOverflow(page);
   });

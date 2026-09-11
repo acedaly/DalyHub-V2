@@ -237,7 +237,7 @@ test.describe("NOTES-02/03/06 — knowledge, organisation and export", () => {
     ).toHaveCount(0);
 
     // …the Archived view shows it, flagged in WORDS…
-    await page.getByRole("tab", { name: "Archived", exact: true }).click();
+    await page.getByRole("link", { name: "Archived", exact: true }).click();
     await expect(page).toHaveURL(/state=archived/);
     await expect(
       page.getByRole("link", { name: `Open ${archiveTitle}` }),

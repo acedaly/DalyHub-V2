@@ -332,12 +332,12 @@ test.describe("filters are subordinate to tabs", () => {
     page,
   }) => {
     await gotoFixture(page, "/projects/pr-rc-kitchen");
-    // UIX-02 — the task-state filter is the shared TAB RAIL (`ViewTabs`), and
-    // UNTITLED-04 made that rail a `tablist` of real links rather than a
-    // `navigation` landmark. The point of this test is unchanged and if
+    // UIX-02 — the task-state filter is the shared TAB RAIL (`ViewTabs`), which
+    // takes Untitled's underline appearance and stays a labelled `navigation`
+    // of links (UNTITLED-05). The point of this test is unchanged and if
     // anything better served: the rail is quieter than the segmented track it
     // replaced, which is exactly what "subordinate to the tabs above it" means.
-    const filter = page.getByRole("tablist", {
+    const filter = page.getByRole("navigation", {
       name: "Filter tasks by state",
     });
     await expect(filter).toBeVisible();
@@ -352,8 +352,9 @@ test.describe("filters are subordinate to tabs", () => {
     const sizes = await page.evaluate(() => {
       const tab = document.querySelector(".record-tab");
       const option = document.querySelector(
-        // UNTITLED-04 — the rail states its current tab with `aria-selected`.
-        '.dh-project-tasks [role="tab"][aria-selected="false"]',
+        // UNTITLED-05 — an UNSELECTED option in the rail. The rail is links,
+        // so "not current" is the absence of `aria-current`.
+        ".dh-project-tasks nav a:not([aria-current])",
       );
       if (!tab || !option) return null;
       const optionStyle = getComputedStyle(option);

@@ -52,17 +52,29 @@ export function LabelledTableHead({
       {...props}
       className={cx(
         "relative p-0 px-6 py-2 outline-hidden focus-visible:z-1 focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-bg-primary focus-visible:ring-inset",
+        // `text-left`, because the user agent centres a `<th>` by default and
+        // upstream's left alignment comes from the flex wrapper below.
+        "text-left",
         className,
       )}
     >
       {/*
-       * Directly in the header, with no `group` between it and the `<th>`, so
-       * the name-from-content algorithm reaches it.
+       * Upstream's layout wrapper, as a PLAIN span.
+       *
+       * It carries the same `flex items-center gap-1` — the `<th>` itself must
+       * not, because `display: flex` on a table cell takes it out of table
+       * layout and collapses the column widths. What it does NOT carry is
+       * upstream's `role="group"`, which is the whole point: a `group` does not
+       * support name-from-content, so the accessible-name algorithm stopped at
+       * it and the column announced nothing. A span with no role is transparent
+       * to the algorithm.
        */}
-      <span className="text-xs font-semibold whitespace-nowrap text-quaternary">
-        {label}
+      <span className="flex items-center gap-1">
+        <span className="text-xs font-semibold whitespace-nowrap text-quaternary">
+          {label}
+        </span>
+        {children}
       </span>
-      {children}
     </AriaColumn>
   );
 }

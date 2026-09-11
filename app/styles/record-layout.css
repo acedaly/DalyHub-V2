@@ -407,22 +407,15 @@
    * padding and state are Untitled's (`application/tabs`); this is the one
    * product rule on top of them.
    *
-   * UNTITLED-04 — the BLOCK axis joined it. Untitled's underline tab is 32px
-   * tall, and when the strip moved onto `application/tabs` the record's own
-   * height went with the rules that were deleted — so every record tab on a
-   * phone was a 32px target. It is stated only on a coarse pointer, like the
-   * button family's floor: on a fine pointer 32px is Untitled's proportion and
-   * is correct.
+   * UNTITLED-05 — the BLOCK axis is stated by `RecordTabs` itself, on the
+   * WIDTH (`max-md:min-h-…`). It was briefly here under `@media (hover: none)`
+   * nested in this container query, which is two conditions a viewport resize
+   * does not satisfy — so the floor never applied where it was measured. See
+   * the note on the component.
    */
   .record-tab {
     min-inline-size: var(--app-touch-target-min);
     justify-content: center;
-  }
-
-  @media (hover: none) {
-    .record-tab {
-      min-block-size: var(--app-touch-target-min);
-    }
   }
 }
 
