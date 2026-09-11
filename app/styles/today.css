@@ -32,8 +32,12 @@
   .dh-today__grid {
     @apply grid grid-cols-1 min-w-0 gap-4;
   }
+  /* UNTITLED-04 — the same bounded Untitled card boundary the migrated
+   * collection tables, entity cards and record panels carry, `shadow-xs`
+   * included: Today was the one migrated surface drawing a flat panel while
+   * every other raised one sat a shade above the canvas. */
   .dh-today__panel {
-    @apply min-w-0 overflow-hidden rounded-xl bg-primary ring-1 ring-secondary;
+    @apply min-w-0 overflow-hidden rounded-xl bg-primary shadow-xs ring-1 ring-secondary;
   }
   .dh-today__panel-head {
     @apply flex min-w-0 flex-wrap items-center justify-between gap-3 border-b border-secondary px-4 py-4 sm:px-5;
@@ -246,6 +250,20 @@
     .dh-today__grid > .dh-today__now,
     .dh-today__grid > .dh-today__next {
       grid-column: span 6 / span 6;
+    }
+    /*
+     * The pair share a row; ALONE, the survivor takes it.
+     *
+     * "Now" is drawn whenever there is a first useful task, and "Next meeting"
+     * only when there is a meeting left today — which is most of the time on a
+     * personal workspace. At half width with nothing beside it the day's single
+     * most important row read as a fragment with the canvas showing through.
+     */
+    .dh-today__grid:not(:has(> .dh-today__next))
+      > .dh-today__now,
+    .dh-today__grid:not(:has(> .dh-today__now))
+      > .dh-today__next {
+      grid-column: span 12 / span 12;
     }
     .dh-today__grid > .dh-today__timeline,
     .dh-today__grid > .dh-today__attention,
