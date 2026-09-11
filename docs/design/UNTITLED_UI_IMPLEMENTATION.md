@@ -600,3 +600,82 @@ The corollary is a rule for the rest of the migration: **a migrated component
 never borrows a legacy class that still has rules attached to it.** Where a
 class name survives as a test hook, its presentation is deleted in the same
 change.
+
+## Phase 5 completion record
+
+Phase 4 migrated the STRUCTURE of nine surfaces. Phase 5 is the finding that
+came out of proving it: the structure was Untitled's and the PAINT was not.
+
+### The button, and why "it contains an Untitled Button" was not migration
+
+DS-02 built the shared `<Button>` on `base/buttons/button`, and
+`buttonClassName` then emitted `dh-button dh-btn dh-btn--primary` alongside
+Untitled's own utility classes. `ui.css` is unlayered; Tailwind's utilities live
+in `@layer utilities`; an unlayered declaration beats a layered one
+unconditionally whatever the specificity. So every `<Button>` in the product
+carried Untitled markup, Untitled ARIA and Untitled focus behaviour, and was
+painted by `ui.css`. Height, radius, fill, border, type rung and hover treatment
+were all overridden — on every surface Phase 4 had declared migrated.
+
+Three unlayered stylesheets were doing it, and each is now scoped
+`:not(.dh-button)`:
+
+| Stylesheet | What it was overriding | Effect |
+|---|---|---|
+| `ui.css` button section | The whole control | Legacy violet fill, 10px radius, legacy height |
+| `premium.css` `.dh-btn` | `box-shadow: none` | Untitled draws its border (`ring-1 ring-primary ring-inset`) AND its lift (`shadow-xs-skeuomorphic`) through `box-shadow` — one `none` erased every secondary button's edge |
+| `collection-layout.css` `.dh-collection-controls__trigger` | A second copy of a secondary button | The one control in every collection header was a different radius from every other button on its row |
+
+`.dh-btn` stays ON the markup as a HOOK, because thirteen module stylesheets
+carry layout rules that name it (`.dh-record-toolbar > .dh-btn`,
+`.dh-settings-row__control .dh-btn`, `.dh-review-guide__nav .dh-btn`). Two rules
+still reach both deliberately: the `(hover: none)` touch floor, because
+Untitled's heights sit under the 44px target the product guarantees on a coarse
+pointer, and reduced motion. `.dh-button` also left the shared state-layer host
+list in `base.css` — Untitled draws hover and pressed as real container changes,
+so a `currentColor` wash on top is a second hover state, and on a primary button
+a white film over the accent.
+
+### The 201 literals, and why they had to go now
+
+With the component painting correctly, DalyHub drew two different primary
+buttons side by side: `<Button variant="primary">` in Branded Plum
+(`--color-bg-brand-solid`, rgb(105 63 117)) and a hand-written
+`className="dh-btn dh-btn--primary"` in the legacy `--accent` violet
+(rgb(91 75 214)). "Add a measurement" on a Goal record and "New habit" on the
+Habits header were different colours on the same shell.
+
+Every literal — 201 across 85 files — now calls `buttonClassName()`, which is
+rebuilt on the vendored component's own exported `styles`, so an element that
+cannot BE an Untitled button (a `DrawerTrigger`, a router `Link`, a `<label>`
+acting as a file picker) gets the identical paint from the identical source.
+The DOM does not change at all, which is what makes a sweep this wide
+reviewable. `.dh-btn--filled` and `.dh-btn--text` had no rules in any stylesheet
+and rendered as the bare base control; they map to primary and subtle, which is
+what their names claim and what their call sites intend.
+
+### Habits and the glance row
+
+| Surface | Untitled source | Structural change | Legacy remaining |
+|---|---|---|---|
+| Habits table panel | Untitled card boundary (`application/table`'s `TableCard.Root` grammar) | `.dh-habits__main`'s border/radius/background deleted; drawn by `HabitsCollection` | The four-column grid and its container queries (`HabitList` owns them) |
+| Habits rail cards | Untitled card boundary | `.dh-habits-card` deleted; one `RAIL_CARD` constant | `__head` / `__title` / `__count` typography |
+| Habits actions | Untitled `Button` via `ButtonLink` | Both `dh-btn` anchors converted | — |
+| Habits footer door | Semantic tokens | `.dh-habits__footer-link` deleted | — |
+| Glance row (`StatCard`) | Untitled card boundary + hover lift | `.dh-stat`'s border/radius/background/shadow and `.dh-stat--interactive`'s lift deleted | The three-row grid the ring spans |
+
+`StatCard` is shared, so the Analytics, Reviews and Today glance rows move with
+Habits. The hover lift is applied only where the card is a link: a figure you
+cannot go and look at has no hover state to earn.
+
+Habits could not be judged on the shared E2E seed, which renders the "No habits
+yet" empty state. `scripts/ux-02-seed.mjs` — the fixture written for exactly
+this — seeds eight active Habits, one archived and five weeks of check-ins.
+
+### Verification by computed style, not by eye
+
+A script walks every `.dh-button` on eighteen routes and asserts the brand fill
+on primaries, a real `box-shadow` on primaries and secondaries, and Untitled's
+8px radius on all of them. That is what found `premium.css` and the collection
+controls trigger; neither is visible in a diff and both are easy to miss in a
+screenshot.

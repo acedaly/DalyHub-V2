@@ -480,14 +480,62 @@ came from the genuine vendored tree under `app/shared/ui/untitled/`, which the
 earlier phases imported from a licensed checkout. No Pro component was recreated
 from memory, and no unavailable example or snippet was invented.
 
+## Phase 5 — the paint
+
+Phase 4 migrated structure. Phase 5 is what proving it turned up: the structure
+was Untitled's and the paint was not. `ui.css`, `premium.css` and
+`collection-layout.css` are unlayered and were painting over every shared
+`<Button>` in the product — fill, radius, height, border and hover. The
+implementation record has the full account; the migration consequences are:
+
+**Stylesheet sections withdrawn (scoped `:not(.dh-button)`, hooks kept)**
+
+- `ui.css` — the whole Button paint block (base, icon insets, `--sm`, all four
+  families, disabled).
+- `premium.css` — `.dh-btn` and `.dh-btn--primary`.
+- `base.css` — `.dh-button` left the shared state-layer host list; the legacy
+  literal stays a host.
+
+**Stylesheet sections deleted outright**
+
+- `collection-layout.css` — `.dh-collection-controls__trigger`'s border, radius,
+  background, height and type rung (it has been a `<Button variant="secondary">`
+  since DS-02).
+- `habits.css` — `.dh-habits__main`, `.dh-habits-card`, `.dh-habits__footer` and
+  `.dh-habits__footer-link`.
+- `card-family.css` — `.dh-stat`'s boundary, `.dh-stat--washed` and
+  `.dh-stat--interactive:hover`.
+- `today.css` — the flat `.dh-today__panel` (replaced by the Untitled boundary).
+
+**Call sites converted**
+
+201 raw `className="dh-btn …"` strings across 85 files, every module and every
+shared component, now call `buttonClassName()` — which is rebuilt on the
+vendored component's own exported `styles`. Zero `dh-btn` literals remain in
+`app/`. The DOM is unchanged at every one of them.
+
+### Accessibility notes for Phase 5
+
+No role, name or keyboard behaviour changed. The state layer moving off
+`.dh-button` removes a duplicate hover treatment, not a state: Untitled draws
+hover and pressed as container changes and focus as its own 2px ring. The
+`(hover: none)` touch floor still reaches the component, so the 44px coarse-
+pointer target is unchanged.
+
 ### Next
 
-1. Meetings — the collection list and the meeting record's outcome sections.
-2. Notes — the list/detail composition and the note row.
-3. Habits — the check-in row, week strip and history.
-4. Diary — the day navigator and the timeline.
-5. People, Assets, Reviews, Obligations, Finance — their row/table structures.
-6. Settings — the most Untitled-native area in the product, from complete
+1. Diary — the day navigator and the timeline.
+2. People, Assets, Reviews, Obligations, Finance — their row/table structures.
+   (Their controls, empty states, switchers and now their buttons are migrated;
+   what is left is the row/table composition.)
+3. Meeting record — the notebook and agenda sections are still domain
+   compositions on legacy styling.
+4. Settings — the most Untitled-native area in the product, from complete
    settings page examples.
-7. Remove the inert legacy class names once their tests address product hooks
-   instead.
+5. `IconButton` — the last primitive in `~/shared/ui` not built on Untitled, and
+   still a full state-layer host.
+6. Remove the inert legacy class names once their tests address product hooks
+   instead, and with them the `.dh-btn` hook and the thirteen module rules that
+   need it.
+7. `.dh-btn--danger-quiet` in `tasks.css` has no consumer in `app/` — verify and
+   delete.
