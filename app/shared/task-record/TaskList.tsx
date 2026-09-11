@@ -27,6 +27,7 @@ import { Link } from "react-router";
 
 import { ChevronDownIcon } from "~/shared/icons";
 import { DH_MOTION_BASE_MS, usePresence } from "~/shared/motion";
+import { Table, TableCard } from "~/shared/ui/untitled/application/table/table";
 import type { TaskDensity } from "~/kernel/task-views";
 
 /**
@@ -57,6 +58,8 @@ export interface TaskListProps {
    * is NOT in the tab order.
    */
   readonly listRef?: (element: HTMLUListElement | null) => void;
+  /** Programmatic focus target for the Untitled table variant. */
+  readonly tableRef?: (element: HTMLTableElement | null) => void;
   /**
    * The owner's chosen Tasks density, from the shared control's `?density=`.
    *
@@ -68,15 +71,63 @@ export interface TaskListProps {
   readonly density?: TaskDensity;
   readonly children: ReactNode;
   readonly className?: string;
+  /** Use the genuine Untitled Application UI table grammar on `/tasks`. */
+  readonly structure?: "list" | "untitled-table";
 }
 
 export function TaskList({
   ariaLabel,
   density,
   listRef,
+  tableRef,
   children,
   className,
+  structure = "list",
 }: TaskListProps) {
+  if (structure === "untitled-table") {
+    // Adapted from Untitled UI React Pro dashboard `dashboards-01/02`
+    // (https://www.untitledui.com/react/examples/application/dashboards-01/02),
+    // purchased Pro license, retrieved 2026-09-11.
+    // Changes: DalyHub task columns, cursor pagination and responsive row data.
+    return (
+      <TableCard.Root
+        size="sm"
+        className="rounded-lg bg-primary shadow-xs ring-1 ring-secondary"
+        data-testid="tasks-untitled-table"
+        data-untitled-source="dashboards-01/02:table-card"
+      >
+        <Table
+          ref={tableRef}
+          aria-label={ariaLabel}
+          size="sm"
+          className="bg-primary max-md:block"
+          data-dh-density={densityPreset(density)}
+          tabIndex={-1}
+        >
+          <Table.Header className="bg-secondary max-md:hidden">
+            <Table.Head id="completion" label="Done" className="w-16" />
+            <Table.Head
+              id="task"
+              label="Task"
+              isRowHeader
+              className="w-full min-w-72"
+            />
+            <Table.Head
+              id="due"
+              label="Due"
+              className="w-36 whitespace-nowrap"
+            />
+            <Table.Head id="project" label="Project / Area" className="w-48" />
+            <Table.Head id="priority" label="Priority" className="w-24" />
+            <Table.Head id="status" label="Status" className="w-32" />
+            <Table.Head id="actions" label="" className="w-14" />
+          </Table.Header>
+          <Table.Body>{children}</Table.Body>
+        </Table>
+      </TableCard.Root>
+    );
+  }
+
   return (
     <div
       className={["dh-tasklist", className].filter(Boolean).join(" ")}

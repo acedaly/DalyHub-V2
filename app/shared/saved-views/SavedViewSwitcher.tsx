@@ -42,12 +42,18 @@
  */
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { Link, useRevalidator } from "react-router";
+import { Link, useNavigate, useRevalidator } from "react-router";
 
 import { ConfirmationDialog } from "~/shared/settings";
 import { Popover } from "~/shared/floating";
 import { OverflowMenu } from "~/shared/overflow-menu";
 import type { OverflowMenuItem } from "~/shared/overflow-menu";
+import {
+  Tab,
+  TabList,
+  TabPanel,
+  Tabs,
+} from "~/shared/ui/untitled/application/tabs/tabs";
 
 /** One selectable view in the switcher: built-in or the owner's own. */
 export interface SavedViewOption {
@@ -104,6 +110,8 @@ export interface SavedViewSwitcherProps {
   readonly classPrefix: string;
   /** `data-testid` stem, so existing end-to-end selectors keep working. */
   readonly testIdPrefix: string;
+  /** Render pinned views with the genuine Untitled React Aria tabs source. */
+  readonly useUntitledTabs?: boolean;
 }
 
 export function SavedViewSwitcher({
@@ -122,8 +130,10 @@ export function SavedViewSwitcher({
   pinnedViewIds,
   classPrefix,
   testIdPrefix,
+  useUntitledTabs = false,
 }: SavedViewSwitcherProps) {
   const revalidator = useRevalidator();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   // A COUNT, not a flag: two overlapping posts must not have the first to
@@ -316,7 +326,31 @@ export function SavedViewSwitcher({
      * scroll containers and paint a cue on the one that never moves.
      */
     <div className={`${classPrefix} dh-scroll-strip`}>
-      {pinned.length > 0 ? (
+      {pinned.length > 0 && useUntitledTabs ? (
+        <Tabs
+          selectedKey={activeViewId ?? undefined}
+          onSelectionChange={(key) => {
+            const selected = pinned.find((view) => view.id === String(key));
+            if (selected) navigate(`${basePath}?${selected.query}`);
+          }}
+          className="w-auto min-w-max"
+          data-testid={`${testIdPrefix}-rail`}
+          data-untitled-source="application/tabs:underline"
+        >
+          <TabList type="underline" size="sm" aria-label={collectionLabel}>
+            {pinned.map((view) => (
+              <Tab key={view.id} id={view.id}>
+                {view.name}
+              </Tab>
+            ))}
+          </TabList>
+          {pinned.map((view) => (
+            <TabPanel key={view.id} id={view.id} className="sr-only">
+              {view.id === activeViewId ? `Viewing ${view.name}` : view.name}
+            </TabPanel>
+          ))}
+        </Tabs>
+      ) : pinned.length > 0 ? (
         /*
          * The rail is a `nav`, because that is what it is: each tab is an
          * ordinary link to the URL that IS the view, so it is shareable,

@@ -1554,11 +1554,16 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
         density={density}
         departing={quick.departing}
         dropDimension={dropDimension}
+        structure={
+          bucketKey === undefined && config.presentation === "list"
+            ? "untitled-table"
+            : "list"
+        }
         toRowProps={toRowProps}
         {...(bucketKey === undefined ? {} : { bucketKey })}
       />
     ),
-    [toRowProps, density, dropDimension, quick.departing],
+    [toRowProps, density, dropDimension, quick.departing, config.presentation],
   );
 
   const count = isGrouped ? groupedTotal : items.length;
@@ -1687,29 +1692,39 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       }
       primaryAction={<NewTaskButton />}
       filterBar={
-        <TasksViewSwitcher
-          views={data.views}
-          activeViewId={data.activeViewId}
-          modified={data.viewModified}
-          currentQuery={currentQuery}
-          shareUrl={shareUrl}
-        />
+        // Adapted from Untitled UI React Pro dashboard `dashboards-01/02`
+        // (https://www.untitledui.com/react/examples/application/dashboards-01/02),
+        // purchased Pro license, retrieved 2026-09-11.
+        // Changes: DalyHub saved views and URL-backed filter behavior.
+        <div
+          className="flex flex-wrap items-start gap-3 border-b border-secondary bg-primary px-4 py-3 max-lg:flex-col max-lg:items-stretch lg:px-6"
+          data-testid="tasks-untitled-toolbar"
+          data-untitled-source="dashboards-01/02:filter-bar"
+        >
+          <div className="-mx-1 min-w-0 flex-1 overflow-x-auto px-1 py-1 max-lg:w-full max-lg:max-w-full">
+            <TasksViewSwitcher
+              views={data.views}
+              activeViewId={data.activeViewId}
+              modified={data.viewModified}
+              currentQuery={currentQuery}
+              shareUrl={shareUrl}
+            />
+          </div>
+          <div className="flex min-w-0 shrink-0 items-start gap-3 max-lg:w-full">
+            <CollectionControls
+              groups={controlGroups}
+              triggerLabel="Filter & sort"
+              basePath={basePath}
+              params={canonicalParams}
+            />
+          </div>
+        </div>
       }
-      // ONE control surface at every width (TASKS-03): the shared sheet carries all
-      // sixteen filter dimensions, the sorts, the groupings and the density, and the
-      // shared chip row keeps what is applied visible without reopening it.
       persistentControls
-      mobileControls={
-        <CollectionControls
-          groups={controlGroups}
-          triggerLabel="Filter & sort"
-          basePath={basePath}
-          params={canonicalParams}
-        />
-      }
       error={
         data.failed ? (
           <EmptyState
+            structure="untitled"
             title="We couldn’t load your tasks"
             description="Something went wrong. Please try again."
           />
@@ -1719,6 +1734,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       isFilteredEmpty={!data.failed && count === 0 && filterCount > 0}
       filteredEmptySlot={
         <EmptyState
+          structure="untitled"
           icon={<EntityIcon type="task" />}
           title="No tasks match these filters"
           description="Nothing is hidden permanently — remove a filter above, or reset them all, to see your tasks again."
@@ -1726,6 +1742,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       }
       emptySlot={
         <EmptyState
+          structure="untitled"
           icon={<EntityIcon type="task" />}
           title="No tasks yet"
           description="Capture a task, or choose a different view."
@@ -1827,6 +1844,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
           loadFailed={loadFailed}
           onLoadMore={loadMore}
           label="Load more tasks"
+          structure="untitled-pagination"
         />
       ) : null}
 
@@ -1859,6 +1877,7 @@ function TaskCollection({
   departing,
   dropDimension,
   bucketKey,
+  structure,
   toRowProps,
 }: {
   readonly list: readonly TaskCardData[];
@@ -1868,12 +1887,13 @@ function TaskCollection({
   readonly departing: ReadonlySet<string>;
   readonly dropDimension: TaskDropDimension | null;
   readonly bucketKey?: string;
+  readonly structure?: "list" | "untitled-table";
   readonly toRowProps: (
     card: TaskCardData,
     headingLevel: 2 | 3,
   ) => TaskRowProps;
 }) {
-  const listElement = useRef<HTMLUListElement | null>(null);
+  const listElement = useRef<HTMLElement | null>(null);
   const { rendered, isLeaving } = useDepartingRows(
     list,
     departing,
@@ -1883,9 +1903,21 @@ function TaskCollection({
     <TaskList
       ariaLabel={ariaLabel}
       density={density}
-      listRef={(element) => {
-        listElement.current = element;
-      }}
+      structure={structure}
+      listRef={
+        structure === "list"
+          ? (element) => {
+              listElement.current = element;
+            }
+          : undefined
+      }
+      tableRef={
+        structure === "untitled-table"
+          ? (element) => {
+              listElement.current = element;
+            }
+          : undefined
+      }
     >
       {rendered.map((card) => {
         const leaving = isLeaving(card.id);
@@ -1904,7 +1936,12 @@ function TaskCollection({
             rowProps={rowProps}
           />
         ) : (
-          <TaskRow key={card.id} {...rowProps} leaving={leaving} />
+          <TaskRow
+            key={card.id}
+            {...rowProps}
+            leaving={leaving}
+            structure={structure}
+          />
         );
       })}
     </TaskList>

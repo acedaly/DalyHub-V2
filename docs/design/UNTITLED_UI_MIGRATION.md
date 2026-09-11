@@ -311,6 +311,25 @@ moved to genuine Untitled source where suitable; the remaining selectors are
 layout, product semantics, test hooks or compatibility debt and should be
 removed only after their other consumers migrate.
 
+### Tasks final structural pass
+
+The ungrouped `/tasks` list now uses the genuine React Aria-backed Untitled
+`TableCard`, `Table.Header`, `Table.Head`, `Table.Body`, `Table.Row` and
+`Table.Cell` structure adapted from Pro Application UI `dashboards-01/02`.
+Pinned task views use Untitled `Tabs`/`TabList`/`Tab`; the view and filter
+controls occupy that example's responsive filter-toolbar structure; empty
+states use Untitled's compound empty-state anatomy; cursor loading adapts the
+Untitled `PaginationCardMinimal` footer without inventing page numbers; bulk
+actions use the shared Untitled-backed buttons; and the drawer uses Untitled
+slideout header anatomy, `CloseButton`, `Content` and `Footer` around the
+existing URL/focus stack contract.
+
+Tasks no longer consumes the legacy `dh-tasklist`, `dh-tasklist__rows`,
+`dh-taskrow`, `dh-taskrow__cell`, `dh-taskrow__meta`, `dh-taskrow__main`,
+`dh-taskrow__actions`, `dh-viewtabs` or `dh-viewtabs__tab` structures in its
+standard ungrouped list. Those classes remain for Today, Planning, Projects and
+the domain-specific grouped/board presentations until their own migrations.
+
 ## Dependencies
 
 - Licensed Untitled UI React Pro source and configured discovery workflow.

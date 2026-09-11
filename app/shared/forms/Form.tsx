@@ -31,6 +31,8 @@ export interface FormProps {
   /** Whether the form is mid-submission (sets `aria-busy`). */
   readonly busy?: boolean;
   readonly className?: string;
+  /** Use the Untitled Application UI form rhythm without legacy form layout. */
+  readonly structure?: "legacy" | "untitled";
   readonly children: ReactNode;
 }
 
@@ -44,10 +46,16 @@ export function Form({
   onSubmit,
   busy = false,
   className,
+  structure = "legacy",
   children,
   ...aria
 }: FormProps) {
-  const rootClassName = ["dh-form", className].filter(Boolean).join(" ");
+  const rootClassName = [
+    structure === "legacy" ? "dh-form" : "flex w-full flex-col gap-5",
+    className,
+  ]
+    .filter(Boolean)
+    .join(" ");
   return (
     <form
       id={id}
@@ -140,6 +148,7 @@ export interface FormActionsProps {
    * a phone commitment row should carry anyway.
    */
   readonly sticky?: boolean | "phone";
+  readonly structure?: "legacy" | "untitled";
 }
 
 /** The explicit actions row (Save / Cancel). Kept visually distinct and last. */
@@ -147,11 +156,18 @@ export function FormActions({
   children,
   className,
   sticky = "phone",
+  structure = "legacy",
 }: FormActionsProps) {
   const rootClassName = [
-    "dh-form-actions",
-    sticky === true ? "dh-form-actions--sticky" : null,
-    sticky === "phone" ? "dh-form-actions--sticky-phone" : null,
+    structure === "legacy"
+      ? "dh-form-actions"
+      : "flex flex-col-reverse gap-3 border-t border-secondary pt-5 sm:flex-row sm:justify-end",
+    structure === "legacy" && sticky === true
+      ? "dh-form-actions--sticky"
+      : null,
+    structure === "legacy" && sticky === "phone"
+      ? "dh-form-actions--sticky-phone"
+      : null,
     className,
   ]
     .filter(Boolean)

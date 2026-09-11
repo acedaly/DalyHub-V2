@@ -258,6 +258,7 @@ function TaskDetailsForm({
       aria-label="Edit task"
       busy={form.isSubmitting}
       onSubmit={form.handleSubmit}
+      structure="untitled"
     >
       <FormErrorSummary
         formError={form.formError}
@@ -329,7 +330,7 @@ function TaskDetailsForm({
         onCommit={form.handleSubmit}
         {...descriptionField}
       />
-      <FormActions>
+      <FormActions structure="untitled" sticky={false}>
         <FormButton
           type="button"
           variant="secondary"

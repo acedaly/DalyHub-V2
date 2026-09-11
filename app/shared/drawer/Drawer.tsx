@@ -16,9 +16,9 @@
 
 import { useEffect, useId, useRef } from "react";
 
-import { CloseIcon } from "~/shared/icons";
-import { IconButton } from "~/shared/ui/IconButton";
 import { PanelHeading } from "~/shared/ui/PanelHeading";
+import { SlideoutMenu } from "~/shared/ui/untitled/application/slideout-menus/slideout-menu";
+import { CloseButton } from "~/shared/ui/untitled/base/buttons/close-button";
 
 import { useDrawerFocus } from "./use-drawer-focus";
 import type { DrawerEntry, DrawerRenderResult } from "./types";
@@ -92,7 +92,7 @@ export function Drawer({ entry, result, opener, onClose }: DrawerProps) {
   return (
     <div
       ref={panelRef}
-      className="drawer dh-motion-edge-inline"
+      className="drawer dh-motion-edge-inline relative flex size-full flex-col items-start gap-0 overflow-hidden bg-primary ring-1 ring-secondary_alt outline-hidden"
       role="dialog"
       aria-modal={isTop ? true : undefined}
       aria-labelledby={titleId}
@@ -106,8 +106,17 @@ export function Drawer({ entry, result, opener, onClose }: DrawerProps) {
       data-title-in-header={result?.titleInHeaderOnly ? "true" : undefined}
       inert={!isTop ? true : undefined}
       tabIndex={-1}
+      data-untitled-source="application/slideout-menus:slideout-menu"
     >
-      <header className="drawer__header dh-panel-header">
+      <header
+        ref={(node) => {
+          closeButtonRef.current =
+            node?.querySelector<HTMLButtonElement>(
+              'button[aria-label="Close"]',
+            ) ?? null;
+        }}
+        className="drawer__header dh-panel-header relative z-1 w-full border-b border-secondary px-4 pt-6 pb-4 md:px-6"
+      >
         <PanelHeading
           title={title}
           titleId={titleId}
@@ -120,23 +129,22 @@ export function Drawer({ entry, result, opener, onClose }: DrawerProps) {
         {headerActions !== undefined && (
           <div className="drawer__header-actions">{headerActions}</div>
         )}
-        <IconButton
-          ref={closeButtonRef}
-          className="drawer__close dh-panel-close md-state-layer"
-          icon={<CloseIcon />}
+        <CloseButton
+          className="drawer__close dh-panel-close md-state-layer relative z-10"
           label="Close"
+          slot={null}
           onClick={onClose}
         />
       </header>
-      <div className="drawer__body dh-panel-body">
+      <SlideoutMenu.Content className="drawer__body dh-panel-body gap-0 px-0 md:px-0">
         {result === null ? <DrawerNotFound /> : result.children}
-      </div>
+      </SlideoutMenu.Content>
       {stickyActions !== undefined && (
         // Pinned OUTSIDE the scrolling body so it never scrolls away, and
         // keyboard-safe by construction (see drawer.css).
-        <div className="drawer__sticky-actions dh-panel-footer">
+        <SlideoutMenu.Footer className="drawer__sticky-actions dh-panel-footer">
           {stickyActions}
-        </div>
+        </SlideoutMenu.Footer>
       )}
     </div>
   );

@@ -55,6 +55,7 @@ import { EntityIcon, isEntityType } from "~/shared/entity";
 import { Checkbox, Menu, type MenuItem } from "~/shared/ui";
 import { Badge } from "~/shared/ui/untitled/base/badges/badges";
 import { badgeTypes } from "~/shared/ui/untitled/base/badges/badge-types";
+import { Table } from "~/shared/ui/untitled/application/table/table";
 import { CheckCircleIcon, RepeatIcon, ScheduleIcon } from "~/shared/icons";
 import {
   checklistProgressLabel,
@@ -239,6 +240,8 @@ export interface TaskRowProps {
    * passes nothing and is unchanged.
    */
   readonly current?: boolean;
+  /** Render with the genuine Untitled Application UI table anatomy. */
+  readonly structure?: "list" | "untitled-table";
 }
 
 /**
@@ -275,6 +278,7 @@ export function TaskRow({
   dragging = false,
   leaving = false,
   current = false,
+  structure = "list",
 }: TaskRowProps) {
   const Heading = `h${headingLevel}` as const;
   /* The selection control's id, so its 44px label can name it explicitly. */
@@ -353,7 +357,7 @@ export function TaskRow({
    * swipe-only mutation anywhere in this component — which is also what keeps
    * the gesture an accelerator rather than the only way to reach either act.
    */
-  const dateCellRef = useRef<HTMLSpanElement | null>(null);
+  const dateCellRef = useRef<HTMLElement | null>(null);
   const selectionShiftRef = useRef(false);
   const openScheduler = useCallback(() => {
     // The cell holds exactly one control: `InlineTaskDate`'s trigger button.
@@ -400,6 +404,242 @@ export function TaskRow({
           ...(disabled ? {} : { onEndEdge: openScheduler }),
         }),
   });
+
+  if (structure === "untitled-table") {
+    const interactionHandlers =
+      longPress.enabled || swipe.enabled
+        ? {
+            onPointerDown: (event: React.PointerEvent<HTMLElement>) => {
+              longPress.onPointerDown(event);
+              swipe.onPointerDown(event);
+            },
+            onPointerMove: (event: React.PointerEvent<HTMLElement>) => {
+              longPress.onPointerMove(event);
+              swipe.onPointerMove(event);
+            },
+            onPointerUp: (event: React.PointerEvent<HTMLElement>) => {
+              longPress.onPointerUp(event);
+              swipe.onPointerUp(event);
+            },
+            onPointerCancel: (event: React.PointerEvent<HTMLElement>) => {
+              longPress.onPointerCancel(event);
+              swipe.onPointerCancel(event);
+            },
+            onClickCapture: (event: React.MouseEvent<HTMLElement>) => {
+              longPress.onClickCapture(event);
+              swipe.onClickCapture(event);
+            },
+          }
+        : {};
+
+    return (
+      <Table.Row
+        id={task.id}
+        size="sm"
+        className="h-auto min-h-14 bg-primary hover:bg-secondary max-md:grid max-md:grid-cols-[44px_minmax(0,1fr)_44px] max-md:items-center"
+        data-testid="task-row"
+        data-untitled-source="table-row"
+        data-dh-action-context="true"
+        data-completed={task.completed ? "true" : undefined}
+        data-overdue={overdue ? "true" : undefined}
+        data-selected={selection?.selected ? "true" : undefined}
+        data-pending={pending ? "true" : undefined}
+        data-dh-drag-item={dragHandle ? "true" : undefined}
+        data-dh-drag-source={dragging ? "true" : undefined}
+        data-dh-exit={leaving ? "true" : undefined}
+        aria-hidden={leaving ? true : undefined}
+        data-current={current ? "true" : undefined}
+        data-swipe-enabled={swipe.enabled ? "true" : undefined}
+        data-swipe-edge={swipe.edge ?? undefined}
+        data-swipe-armed={swipe.armed ? "true" : undefined}
+        data-swipe-dragging={swipe.dragging ? "true" : undefined}
+        style={
+          swipe.offset === 0
+            ? undefined
+            : ({ "--swipe-offset": `${swipe.offset}px` } as React.CSSProperties)
+        }
+        {...interactionHandlers}
+      >
+        <Table.Cell className="w-16 px-4 py-3 max-md:col-start-1 max-md:row-span-2 max-md:w-auto max-md:px-2">
+          <span className="flex min-h-10 items-center justify-center gap-1">
+            {dragHandle}
+            {selection ? (
+              <Checkbox
+                id={selectionId}
+                checked={selection.selected}
+                data-testid="task-select"
+                aria-label={selection.label}
+                onCheckedChange={(selected) => {
+                  selection.onSelectedChange(selected, {
+                    shift: selectionShiftRef.current,
+                  });
+                  selectionShiftRef.current = false;
+                }}
+                onPointerDown={(event) => {
+                  selectionShiftRef.current = event.shiftKey;
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === " " || event.key === "Enter") {
+                    selectionShiftRef.current = event.shiftKey;
+                  }
+                }}
+                onClick={(event) => event.stopPropagation()}
+              />
+            ) : readOnly ? null : (
+              <label className="dh-check-circle-target">
+                <input
+                  type="checkbox"
+                  className="dh-check-circle"
+                  checked={task.completed}
+                  data-testid="task-complete"
+                  aria-label={
+                    task.completed
+                      ? `Reopen ${task.title}`
+                      : `Complete ${task.title}`
+                  }
+                  onChange={(event) =>
+                    onCompletedChange(event.currentTarget.checked)
+                  }
+                  onClick={(event) => event.stopPropagation()}
+                />
+              </label>
+            )}
+          </span>
+        </Table.Cell>
+
+        <Table.Cell className="min-w-72 px-4 py-3 max-md:col-start-2 max-md:min-w-0 max-md:px-1 max-md:pb-1">
+          <Heading className="flex min-w-0 items-center gap-2 font-medium text-primary">
+            {titleEditor ?? (
+              <Link
+                className="min-w-0 truncate rounded-sm font-medium text-primary outline-focus-ring hover:text-brand-secondary focus-visible:outline-2 focus-visible:outline-offset-2"
+                to={href}
+                aria-label={`Open ${task.title}`}
+                aria-current={current ? "page" : undefined}
+                data-testid="task-row-open"
+                onClick={(event) => {
+                  if (
+                    event.metaKey ||
+                    event.ctrlKey ||
+                    event.shiftKey ||
+                    event.altKey
+                  )
+                    return;
+                  event.preventDefault();
+                  onOpen();
+                }}
+              >
+                {task.title}
+              </Link>
+            )}
+            {repeat !== null ? (
+              <span
+                className="shrink-0 text-fg-quaternary"
+                data-testid="task-row-repeat"
+              >
+                <RepeatIcon aria-hidden="true" />
+                <span className="dh-visually-hidden">Repeats: {repeat}</span>
+              </span>
+            ) : null}
+            {checklist !== null ? (
+              <span
+                className="shrink-0 text-xs text-tertiary"
+                data-testid="task-row-checklist"
+              >
+                {checklist}
+              </span>
+            ) : null}
+            {blocked !== null ? (
+              <span
+                className="truncate text-xs text-warning-primary"
+                data-testid="task-row-blocked"
+              >
+                {blocked}
+              </span>
+            ) : null}
+            {pendingNote ? (
+              <span
+                className="shrink-0 text-xs text-tertiary"
+                data-testid="task-row-sync"
+              >
+                {pendingNote}
+              </span>
+            ) : null}
+          </Heading>
+          {waiting ? <WaitingFact fact={waiting} todayIso={todayIso} /> : null}
+        </Table.Cell>
+
+        <Table.Cell
+          ref={(node) => {
+            dateCellRef.current = node;
+          }}
+          className="w-36 whitespace-nowrap px-4 py-3 max-md:col-start-2 max-md:row-start-2 max-md:w-auto max-md:px-1 max-md:pt-0"
+        >
+          {task.dueDate === null && task.scheduledDate !== null ? (
+            <InlineTaskDate
+              taskId={task.id}
+              title={task.title}
+              kind="scheduled"
+              value={task.scheduledDate}
+              todayIso={todayIso}
+              stillOwed={task.stillOwed}
+              onSaved={onInlineSave}
+              disabled={disabled}
+            />
+          ) : (
+            <InlineTaskDate
+              taskId={task.id}
+              title={task.title}
+              kind="due"
+              value={task.dueDate}
+              todayIso={todayIso}
+              stillOwed={task.stillOwed}
+              onSaved={onInlineSave}
+              disabled={disabled}
+            />
+          )}
+        </Table.Cell>
+
+        <Table.Cell className="w-48 px-4 py-3 max-md:hidden">
+          <InlineTaskParent
+            taskId={task.id}
+            title={task.title}
+            parent={task.parent}
+            options={parents}
+            onSaved={onInlineSave}
+            disabled={disabled}
+            {...(onSearchParents && !disabled
+              ? { onSearchAll: onSearchParents }
+              : {})}
+          />
+        </Table.Cell>
+        <Table.Cell className="w-24 px-4 py-3 max-md:hidden">
+          <InlineTaskPriority
+            taskId={task.id}
+            title={task.title}
+            priority={task.priority}
+            onSaved={onInlineSave}
+            disabled={disabled}
+          />
+        </Table.Cell>
+        <Table.Cell className="w-32 px-4 py-3 max-lg:hidden">
+          {showState ? (
+            <Badge
+              type={badgeTypes.badgeModern}
+              size="sm"
+              color="gray"
+              data-tone={task.stateTone}
+              data-testid="task-row-state"
+            >
+              {task.stateLabel}
+            </Badge>
+          ) : null}
+        </Table.Cell>
+        <Table.Cell className="w-14 px-3 py-3 max-md:col-start-3 max-md:row-span-2 max-md:w-auto max-md:px-1">
+          <Menu label={`More actions for ${task.title}`} items={menuItems} />
+        </Table.Cell>
+      </Table.Row>
+    );
+  }
 
   return (
     <li

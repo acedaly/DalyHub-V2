@@ -283,6 +283,7 @@ export function CollectionControls({
           title={label}
           opener={triggerRef.current}
           onClose={closeSheet}
+          className="z-10"
           data-testid="collection-sheet"
           footer={
             <>

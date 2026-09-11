@@ -15,6 +15,7 @@
  */
 
 import type { ReactNode } from "react";
+import { EmptyState as UntitledEmptyState } from "~/shared/ui/untitled/application/empty-state/empty-state";
 
 export type EmptyStateProps = {
   /** A decorative glyph (commonly an entity-identity icon). */
@@ -55,6 +56,8 @@ export type EmptyStateProps = {
    */
   readonly size?: "default" | "compact" | "inline";
   readonly className?: string;
+  /** Render with the genuine Untitled Application UI empty-state anatomy. */
+  readonly structure?: "legacy" | "untitled";
 };
 
 export function EmptyState({
@@ -67,9 +70,42 @@ export function EmptyState({
   secondaryAction,
   size = "default",
   className,
+  structure = "legacy",
 }: EmptyStateProps) {
   const Heading = `h${headingLevel}` as const;
   const classes = ["dh-empty-state", className].filter(Boolean).join(" ");
+
+  if (structure === "untitled") {
+    return (
+      <UntitledEmptyState
+        size={size === "compact" || size === "inline" ? "sm" : "md"}
+        className={className}
+        data-untitled-source="application/empty-state"
+      >
+        {illustration || icon ? (
+          <UntitledEmptyState.Header pattern="none">
+            <div className="flex size-12 items-center justify-center rounded-lg bg-brand-primary text-fg-brand-secondary ring-1 ring-brand-secondary">
+              {illustration ?? icon}
+            </div>
+          </UntitledEmptyState.Header>
+        ) : null}
+        <UntitledEmptyState.Content>
+          <UntitledEmptyState.Title>{title}</UntitledEmptyState.Title>
+          {description ? (
+            <UntitledEmptyState.Description>
+              {description}
+            </UntitledEmptyState.Description>
+          ) : null}
+        </UntitledEmptyState.Content>
+        {primaryAction || secondaryAction ? (
+          <UntitledEmptyState.Footer>
+            {primaryAction}
+            {secondaryAction}
+          </UntitledEmptyState.Footer>
+        ) : null}
+      </UntitledEmptyState>
+    );
+  }
 
   return (
     <div className={classes} data-size={size}>
