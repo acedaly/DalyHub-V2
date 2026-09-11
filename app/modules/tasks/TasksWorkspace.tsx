@@ -60,6 +60,7 @@ import { helpTopicHref } from "~/shared/help";
 import { EntityIcon } from "~/shared/entity";
 import { LoadMore } from "~/shared/load-more";
 import { useFeedback } from "~/shared/feedback";
+import { Button } from "~/shared/ui";
 import { type TaskRowFieldSave } from "~/shared/task-record/TaskRowFields";
 import { TaskRow, type TaskRowProps } from "~/shared/task-record/TaskRow";
 import { TaskTitleEditor } from "~/shared/task-record/TaskTitleEditor";
@@ -206,20 +207,17 @@ function NewTaskButton() {
   const capture = useCapture();
   const ref = useRef<HTMLButtonElement>(null);
   return (
-    <button
-      type="button"
+    <Button
       ref={ref}
-      className="dh-btn dh-btn--primary"
+      variant="primary"
+      icon={<PlusIcon />}
       data-testid="tasks-new-task"
       onClick={() => {
         if (ref.current) capture?.openCapture("task", ref.current);
       }}
     >
-      <span className="dh-btn__icon" aria-hidden="true">
-        <PlusIcon />
-      </span>
       New task
-    </button>
+    </Button>
   );
 }
 

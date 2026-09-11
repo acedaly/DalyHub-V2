@@ -274,6 +274,40 @@ source snippet or screenshot was fabricated. The exact official documentation
 topics consulted and the fallback source workflow are recorded in
 `UNTITLED_UI_IMPLEMENTATION.md`.
 
+## Phase 3 baseline: Tasks
+
+Tasks remains a behavior-preserving presentation migration. The route loaders,
+canonical `/tasks/:taskId` and `/tasks/bulk` mutations, optimistic updates,
+keyset pagination, saved views, search/filter URL state, offline queue,
+recurrence, dependencies, checklists, assignment, priorities, due/scheduled
+dates, board/sectors presentations and drawer URL state were audited and left
+unchanged.
+
+The surface now reaches the shared Untitled-backed `Button` for creation and
+the shared Untitled-backed `Input` for collection search. Existing shared
+`Checkbox`, `Menu`, `SelectField`, `DateField`, `Tabs`, `Sheet`, `Drawer`,
+`EmptyState` and form compositions remain the behavior-bearing boundary. The
+primary task collection deliberately remains a semantic list rather than being
+coerced into the generic Untitled table because task rows have inline domain
+editors, selection-mode replacement, touch completion/scheduling gestures,
+waiting and blocked facts, and optional persisted drag destinations.
+
+Catalogue references selected during the phase were Pro `dashboards-01/02` and
+`dashboards-01/09`, plus `table`, `filters-menu`, `project-details-menu` and
+`command-menu-actions`. The official Introduction, Theming, Dark mode,
+Buttons, Checkboxes, Filter bars, Drawers, Tables and Tabs documentation was
+consulted. CLI authentication succeeded and the MCP/catalogue reported
+`has_pro_access: true`; no paid source was recreated from memory.
+
+No new generic primitive was created. The remaining legacy presentation
+boundary is the established task-row/list stylesheet family (`task-list.css`,
+`task-signals.css`, `task-drawer.css`, `task-checklist.css`,
+`task-dependencies.css`, `tasks.css`) and shared collection/form compatibility
+selectors. They remain because Today, Projects, Planning, Reviews and other
+active surfaces consume the same task compositions. They are migration debt,
+not frontend authority, and should be removed only after those consumers move
+to the shared Untitled/Tailwind composition.
+
 ## Dependencies
 
 - Licensed Untitled UI React Pro source and configured discovery workflow.

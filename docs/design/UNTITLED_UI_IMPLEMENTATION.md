@@ -341,3 +341,82 @@ The source and documentation workflow used for this phase was:
 No screenshot is a design authority for Today. Temporary review screenshots,
 if captured by a future agent, must remain outside the repository's design
 assets and must never be referenced as implementation guidance.
+
+## Tasks Phase 3 implementation baseline
+
+Tasks is the first data-dense feature migration after Today. Its presentation
+uses the Untitled Application UI grammar for page headers, tables/list hybrids,
+filter bars, tabs, dropdown actions, drawers, forms, empty states and
+pagination, while the existing DalyHub task projection and mutation routes
+remain authoritative.
+
+### Untitled references selected and verified
+
+The authenticated Pro catalogue was queried during this phase. The selected
+page foundation is `dashboards-01/02`, whose Application UI template provides a
+sidebar application layout, table, filter-bar, select and pagination pattern.
+`dashboards-01/09` was also inspected as a reference for dense status-heavy
+data and selection controls. Component searches returned and the bundle
+resolved successfully for:
+
+- `table`;
+- `filters-menu`;
+- `project-details-menu`;
+- `command-menu-actions`.
+
+The genuine local source used by the Tasks surface is already vendored under
+`app/shared/ui/untitled/`, including:
+
+- `application/table` for the available accessible table grammar;
+- `application/slideout-menus` for the drawer/slideout interaction model;
+- `application/command-menus` for command actions;
+- `application/tabs`, `application/date-picker` and `application/empty-state`;
+- `base/buttons`, `base/checkbox`, `base/dropdown`, `base/input`,
+  `base/select`, `base/badges` and `base/tooltip`.
+
+Tasks uses the existing `TaskList` product composition rather than forcing
+task rows into a generic table: the product row includes inline completion,
+date, parent and priority editing, touch gestures, selection replacement,
+waiting/blocked semantics and optional drop destinations. Those are DalyHub
+domain behaviours above the Untitled primitives, not a reason to create a
+second generic table system.
+
+### Reference-first workflow and documentation consulted
+
+The Pro CLI session was re-authenticated with `npx untitledui@latest login`.
+The catalogue and component bundle calls succeeded with `has_pro_access: true`.
+Official documentation consulted during implementation:
+
+- [Introduction](https://www.untitledui.com/react/docs/introduction), including
+  the source-code model, Tailwind CSS v4 and React Aria foundations;
+- [Theming](https://www.untitledui.com/react/docs/theming), for the purple
+  `--color-brand-*` token architecture;
+- [Dark mode](https://www.untitledui.com/react/docs/dark-mode), for token-based
+  light/dark appearance behaviour;
+- [Buttons](https://www.untitledui.com/react/components/buttons),
+  [Checkboxes](https://www.untitledui.com/react/components/checkboxes),
+  [Filter bars](https://www.untitledui.com/react/components/filter-bars),
+  [Drawers](https://www.untitledui.com/react/components/drawers),
+  [Tables](https://www.untitledui.com/react/components/tables) and
+  [Tabs](https://www.untitledui.com/react/components/tabs).
+
+### DalyHub-specific compositions and custom UI policy
+
+`TaskRow`, `TaskList`, `TaskBulkActionBar`, `TaskRecordDrawer`, recurrence,
+dependency and checklist sections, inline task fields, offline feedback and
+the saved-view/filter state are retained or composed above Untitled source.
+They carry task completion, optimistic/offline writes, recurrence successor
+rules, directed dependencies, checklist persistence, selection/range
+selection, keyboard focus and canonical route behaviour. Recurrence and
+dependency editors are legitimate domain-specific compositions because
+Untitled has no DalyHub task model; their controls still use the shared
+Untitled-backed form/select/checkbox/drawer primitives.
+
+This phase creates no new generic button, input, select, table, menu, drawer,
+badge or dialog primitive. The Tasks create action now uses the shared genuine
+Untitled-backed `Button`, and collection search now uses the shared genuine
+Untitled-backed `Input`. Existing legacy class names remain only as temporary
+layout/test hooks for unmigrated consumers and are not new design authority.
+
+No screenshot, historical visual audit or legacy Material/MD3/DHDS stylesheet
+is an implementation reference for Tasks.
