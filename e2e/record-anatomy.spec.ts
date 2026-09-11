@@ -155,6 +155,7 @@ test.describe("the record's contained surfaces", () => {
         return {
           background: computed.backgroundColor,
           borderInline: computed.borderInlineStartWidth,
+          boxShadow: computed.boxShadow,
           padding: computed.paddingInlineStart,
           radius: computed.borderEndStartRadius,
         };
@@ -163,8 +164,20 @@ test.describe("the record's contained surfaces", () => {
       // A real background, not the canvas showing through.
       expect(style.background).not.toBe("rgba(0, 0, 0, 0)");
       expect(style.background).not.toBe("transparent");
-      // A real hairline and real inset.
-      expect(parseFloat(style.borderInline)).toBeGreaterThan(0);
+      /*
+       * A real hairline — UNTITLED-04: as a BORDER or as Untitled's `ring-1`.
+       *
+       * The contract is unchanged and is what is asserted: the panel is clad,
+       * not the canvas showing through. Which property draws the 1px edge is
+       * not the contract, and after the migration it is a `box-shadow` ring
+       * (`rounded-xl bg-primary shadow-xs ring-1 ring-secondary`) on this panel
+       * and on every other bounded surface in the product.
+       */
+      const hasRing = /0px 0px 0px 1px/.test(style.boxShadow);
+      expect(
+        parseFloat(style.borderInline) > 0 || hasRing,
+        "the panel draws a 1px edge — a border or Untitled's ring",
+      ).toBe(true);
       expect(parseFloat(style.padding)).toBeGreaterThan(8);
       // The bottom corners are rounded; the top ones join the tab strip.
       expect(parseFloat(style.radius)).toBeGreaterThan(0);

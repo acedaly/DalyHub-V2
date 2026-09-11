@@ -136,7 +136,21 @@ export function Drawer({ entry, result, opener, onClose }: DrawerProps) {
           onClick={onClose}
         />
       </header>
-      <SlideoutMenu.Content className="drawer__body dh-panel-body gap-0 px-0 md:px-0">
+      <SlideoutMenu.Content
+        /*
+         * UNTITLED-04 — NOT a `main` landmark.
+         *
+         * Upstream's `Content` defaults to `role="main"`, which is right for a
+         * slideout that IS the page and wrong for DalyHub's drawer, which opens
+         * over the shell's own `<main>`: two main landmarks, one nested inside
+         * the other (`landmark-no-duplicate-main` and
+         * `landmark-main-is-top-level`) on every record with the task drawer
+         * open. The element is a scroll container inside a `dialog`; the dialog
+         * is the landmark and carries the name.
+         */
+        role="presentation"
+        className="drawer__body dh-panel-body gap-0 px-0 md:px-0"
+      >
         {result === null ? <DrawerNotFound /> : result.children}
       </SlideoutMenu.Content>
       {stickyActions !== undefined && (

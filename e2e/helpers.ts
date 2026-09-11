@@ -362,13 +362,18 @@ async function waitForAriaCollections(page: Page): Promise<void> {
   try {
     await page.evaluate(() => {
       const scope = window as unknown as {
+        __ariaStart?: number;
         __ariaLastMutation?: number;
+        __ariaSawMutation?: boolean;
         __ariaObserver?: MutationObserver;
       };
       scope.__ariaObserver?.disconnect();
+      scope.__ariaStart = performance.now();
       scope.__ariaLastMutation = performance.now();
+      scope.__ariaSawMutation = false;
       scope.__ariaObserver = new MutationObserver(() => {
         scope.__ariaLastMutation = performance.now();
+        scope.__ariaSawMutation = true;
       });
       for (const container of document.querySelectorAll(
         '[role="tablist"], [role="grid"], [role="listbox"]',
@@ -377,11 +382,23 @@ async function waitForAriaCollections(page: Page): Promise<void> {
       }
     });
     await page.waitForFunction(
-      () =>
-        performance.now() -
-          ((window as unknown as { __ariaLastMutation?: number })
-            .__ariaLastMutation ?? 0) >
-        400,
+      () => {
+        const scope = window as unknown as {
+          __ariaStart?: number;
+          __ariaLastMutation?: number;
+          __ariaSawMutation?: boolean;
+        };
+        const now = performance.now();
+        const quiet = now - (scope.__ariaLastMutation ?? 0) > 400;
+        // The swap has either happened (and gone quiet), or enough time has
+        // passed that this page was never going to have one. Quiet ALONE is not
+        // enough: the pre-swap DOM holds perfectly still, so a quiet-only gate
+        // returns before the swap rather than after it.
+        const settled =
+          scope.__ariaSawMutation === true ||
+          now - (scope.__ariaStart ?? 0) > 1200;
+        return quiet && settled;
+      },
       undefined,
       { polling: "raf", timeout: 10_000 },
     );
