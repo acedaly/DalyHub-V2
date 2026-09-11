@@ -213,7 +213,22 @@ describe("Finance categorisation, through the whole gateway", () => {
      * called. A payee, an amount and a category name are all financial content
      * and none of them may be in the ledger.
      */
-    const stored = JSON.stringify(row);
+    /*
+     * TIMESTAMPS are excluded from the haystack, and it is a correctness fix
+     * rather than a loosening.
+     *
+     * They are machine fields that cannot carry financial content, and an ISO
+     * instant contains a seconds-and-milliseconds run that WILL collide with a
+     * money amount eventually: CI failed this assertion on
+     * `"completedAt":"2026-09-11T21:23:42.300Z"`, which contains "42.30", while
+     * nothing had leaked. Roughly a 1-in-6000 run, so it took until now to
+     * fire. The claim below is unchanged — a payee, an amount and a category
+     * name may not be in the ledger — and is now made against the fields that
+     * could actually carry one.
+     */
+    const stored = JSON.stringify(row, (key, value) =>
+      key === "requestedAt" || key === "completedAt" ? undefined : value,
+    );
     expect(stored).not.toContain("NORTHWIND");
     expect(stored).not.toContain("SYNTH CAFE");
     expect(stored).not.toContain("42.30");

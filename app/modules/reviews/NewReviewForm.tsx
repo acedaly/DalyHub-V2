@@ -22,6 +22,7 @@ import {
 import { useSetMobileTopBar } from "~/shared/shell";
 
 import type { NewReviewActionData } from "./routes/new";
+import { buttonClassName } from "~/shared/ui";
 
 function nextPeriod(
   type: ReviewType,
@@ -115,7 +116,10 @@ export function NewReviewForm({
             annual or custom period.
           </p>
         </div>
-        <Link className="dh-btn dh-btn--secondary" to="/reviews">
+        <Link
+          className={buttonClassName({ variant: "secondary" })}
+          to="/reviews"
+        >
           Back to Reviews
         </Link>
       </div>
@@ -161,14 +165,14 @@ export function NewReviewForm({
               <div className="dh-review-new__period-controls">
                 <button
                   type="button"
-                  className="dh-btn dh-btn--secondary"
+                  className={buttonClassName({ variant: "secondary" })}
                   onClick={() => move(-1)}
                 >
                   Previous
                 </button>
                 <button
                   type="button"
-                  className="dh-btn dh-btn--secondary"
+                  className={buttonClassName({ variant: "secondary" })}
                   onClick={() => move(1)}
                 >
                   Next
@@ -249,11 +253,14 @@ export function NewReviewForm({
         ) : null}
 
         <div className="dh-review-new__actions">
-          <Link className="dh-btn dh-btn--secondary" to="/reviews">
+          <Link
+            className={buttonClassName({ variant: "secondary" })}
+            to="/reviews"
+          >
             Cancel
           </Link>
           <button
-            className="dh-btn dh-btn--primary"
+            className={buttonClassName({ variant: "primary" })}
             type="submit"
             disabled={submitting}
           >

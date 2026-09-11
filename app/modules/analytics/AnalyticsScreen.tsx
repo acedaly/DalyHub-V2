@@ -74,6 +74,7 @@ import { ViewSwitcher } from "~/shared/view-switcher";
 
 import { WhatChangedPanel } from "./WhatChangedPanel";
 import type { AnalyticsPageData } from "./analytics-context";
+import { buttonClassName } from "~/shared/ui";
 
 export function AnalyticsScreen({
   data,
@@ -215,7 +216,10 @@ export function AnalyticsScreen({
             title="Nothing completed in this period"
             description="Analytics reads what you have actually finished. Complete a Task, or widen the range, and the shape of your effort appears here."
             primaryAction={
-              <Link className="dh-btn dh-btn--primary" to="/tasks">
+              <Link
+                className={buttonClassName({ variant: "primary" })}
+                to="/tasks"
+              >
                 Open Tasks
               </Link>
             }

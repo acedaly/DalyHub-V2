@@ -27,6 +27,7 @@ import {
 import { EntityIcon } from "~/shared/entity";
 import { PaneHeader } from "~/shared/shell";
 import { CalendarIcon, CheckIcon, ProjectIcon, TaskIcon } from "~/shared/icons";
+import { buttonClassName } from "~/shared/ui";
 
 export default function DesignCardFamilyRoute() {
   return (
@@ -41,7 +42,10 @@ export default function DesignCardFamilyRoute() {
             title="Daily summary"
             supporting="MetricRow"
             headerAction={
-              <a className="dh-btn dh-btn--text" href="#daily">
+              <a
+                className={buttonClassName({ variant: "subtle" })}
+                href="#daily"
+              >
                 View all
               </a>
             }
@@ -90,7 +94,7 @@ export default function DesignCardFamilyRoute() {
             title="Fixture rows"
             density="compact"
             footer={
-              <a className="dh-btn dh-btn--text" href="#all">
+              <a className={buttonClassName({ variant: "subtle" })} href="#all">
                 View all rows
               </a>
             }
@@ -207,7 +211,7 @@ export default function DesignCardFamilyRoute() {
             overflow={
               <button
                 type="button"
-                className="dh-btn dh-btn--text"
+                className={buttonClassName({ variant: "subtle" })}
                 data-testid="entity-card-fixture-action"
                 onClick={(event) => {
                   event.currentTarget.dataset.clicked = "true";

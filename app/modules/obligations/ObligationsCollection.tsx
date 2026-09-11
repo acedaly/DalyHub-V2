@@ -45,7 +45,7 @@ import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 import { useFeedback } from "~/shared/feedback";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
-import { Input } from "~/shared/ui";
+import { buttonClassName, Input } from "~/shared/ui";
 import {
   groupObligationsByBand,
   ObligationBands,
@@ -236,7 +236,10 @@ export function ObligationsCollection(props: ObligationsCollectionProps) {
         />
       }
       primaryAction={
-        <Link to="/obligations/new" className="dh-btn dh-btn--primary">
+        <Link
+          to="/obligations/new"
+          className={buttonClassName({ variant: "primary" })}
+        >
           <CreateActionLabel>New obligation</CreateActionLabel>
         </Link>
       }
@@ -256,7 +259,10 @@ export function ObligationsCollection(props: ObligationsCollectionProps) {
           title="Nothing due"
           description="Life Admin holds everything with a date on it that is not a task — a registration, an insurance renewal, a tax return, a subscription. Most of them are about nothing in particular, and that is fine."
           primaryAction={
-            <Link to="/obligations/new" className="dh-btn dh-btn--primary">
+            <Link
+              to="/obligations/new"
+              className={buttonClassName({ variant: "primary" })}
+            >
               <CreateActionLabel>New obligation</CreateActionLabel>
             </Link>
           }

@@ -33,141 +33,31 @@
 }
 
 /* -------------------------------------------------------------------------- */
-/* Header                                                                     */
+/* Header — MIGRATED to Untitled UI (UNTITLED-04)                             */
 /* -------------------------------------------------------------------------- */
-
 /*
- * RECORD-01 — the header is TIGHT.
+ * `.record-header`, `.record-breadcrumb`, `.record-title`, `.record-status`,
+ * `.record-type__icon`, `.record-action` and `.record-context-item` are drawn by
+ * the component now (`~/shared/record-layout/RecordHeader.tsx`): Untitled's
+ * Application UI page-header anatomy, Untitled token type and foreground
+ * colours, the genuine Untitled badge for the state chip, and the shared
+ * Untitled-backed `Button` for every header action. The class names survive in
+ * the markup as the hooks product tests and journeys address.
  *
- * `space-3` between three stacked bands (breadcrumb / type line / title row /
- * metadata row) is what produced the empty band between a record's name and its
- * tabs. The bands are now two — breadcrumb, then identity — with the context
- * line hanging directly off the identity, so the gap can close without the
- * header feeling cramped.
+ * Two rules survive below, and only two, because they are not presentation:
+ * they are what keeps the DS-16 inline title EDITOR laid out correctly inside a
+ * flex row. Both are about intrinsic sizing, which no utility class states.
  */
-.record-header {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-2);
-  min-width: 0;
-}
-
-.record-breadcrumb ol {
-  list-style: none;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--app-space-1) var(--app-space-2);
-  margin: 0;
-  padding: 0;
-  font-size: var(--dh-text-meta-size);
-  color: var(--dh-color-text-muted);
-}
-
-/*
- * `li` is deliberately flow content, NOT `inline-flex`: a long crumb label
- * (e.g. an Area title) wraps across several lines on a narrow phone, and an
- * `inline-flex` `li` would lay its separator out as a SIBLING flex item —
- * centring the "/" against the whole wrapped block instead of the label's
- * first line, so it floats mid-paragraph. Plain inline flow keeps the
- * separator attached to the text that follows it, wherever it wraps.
- */
-.record-breadcrumb li {
-  overflow-wrap: anywhere;
-}
-
-/* Separator between crumbs, drawn with a decorative pseudo-element. */
-.record-breadcrumb li + li::before {
-  content: "/";
-  margin-inline-end: var(--app-space-2);
-  color: var(--dh-color-border-strong);
-}
-
-.record-breadcrumb a {
-  color: var(--dh-color-text-muted);
-  text-decoration: none;
-}
-
-.record-breadcrumb a:hover {
-  color: var(--dh-color-accent);
-  text-decoration: underline;
-}
-
-.record-breadcrumb [aria-current="page"] {
-  color: var(--dh-color-text);
-  font-weight: 500;
-}
-
-.record-header__bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--app-space-3) var(--app-space-4);
-  min-width: 0;
-}
-
-.record-header__identity {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-1);
-  min-width: 0;
-  flex: 1 1 20rem;
-}
-
-/*
- * The entity glyph now sits INSIDE the title row, sized against the heading
- * rather than against a label that no longer exists. `flex: none` keeps it a
- * fixed leading mark so it never competes with the title for width, and
- * `align-self: center` keeps it centred on a single-line title while a wrapped
- * title grows past it.
- */
-.record-type__icon {
-  display: inline-flex;
-  align-items: center;
-  flex: none;
-  align-self: center;
-  font-size: 1.375rem;
-  line-height: 1;
-  color: var(--dh-color-accent);
-}
-
-.record-header__titlerow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--app-space-2) var(--app-space-3);
-  min-width: 0;
-}
-
-/*
- * DS-14 — a record title is the largest thing on its page and does not also
- * need to be the heaviest. Size and the space around it carry the hierarchy;
- * `medium` keeps it from reading as a banner.
- */
-.record-title {
-  margin: 0;
-  font-size: var(--dh-text-page-title-size);
-  line-height: 1.2;
-  letter-spacing: -0.01em;
-  font-weight: 500;
-  /* Long titles wrap and break rather than force the page wider. */
-  min-width: 0;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
 
 /*
  * DS-16 — a heading that hosts the inline title editor.
  *
- * `overflow-wrap: anywhere` above makes the heading's min-content width ONE
- * CHARACTER. That is harmless for a plain text heading — it simply permits a
- * very long word to break — but it is not harmless for a flex item whose
- * content is a control: the row was free to shrink the heading to a sliver, and
- * the record's name then wrapped one character per line. Breaking only between
- * words restores a real min-content width, so the heading keeps enough room for
- * its longest word and the status chip still sits beside it rather than being
- * pushed to the far edge of the row.
+ * The heading permits a long word to break, which makes its min-content width
+ * ONE CHARACTER. Harmless for plain text; not harmless for a flex item whose
+ * content is a control, because the row is then free to shrink the heading to a
+ * sliver and the record's name wraps one character per line. Breaking only
+ * between words restores a real min-content width, so the heading keeps room
+ * for its longest word and the status chip still sits beside it.
  */
 .record-title:has(.dh-inline-edit) {
   overflow-wrap: break-word;
@@ -177,283 +67,30 @@
 /*
  * UIQ-003 — while the title is being EDITED, the heading takes the row.
  *
- * The read state's width comes from the heading's own text (M3-INT: the title's
- * max-content contribution is its full name, so a long name fills the row and a
- * short one lets the status chip sit beside it). The edit state has no text to
- * contribute: the flex item's base size becomes the editor frame's, which
- * resolves to the browser's default `<input>` intrinsic width — ~20ch — so
+ * The read state's width comes from the heading's own text. The edit state has
+ * no text to contribute: the flex item's base size becomes the editor frame's,
+ * which resolves to the browser's default `<input>` intrinsic width — ~20ch — so
  * renaming a record collapsed a full-width heading to a ~300px box clipping the
- * very name being edited, while the rest of the row stood empty.
- *
- * Growing is the correct tool here where a percentage was not (#127): `flex-
- * grow` distributes FREE space after layout and never feeds back into the
- * intrinsic measurement that caused the read-state fault. Bound to
- * `data-editing` so the read state — chip beside a short title — is untouched.
+ * very name being edited. `flex-grow` distributes FREE space after layout and
+ * never feeds back into the intrinsic measurement, and it is bound to
+ * `data-editing` so the read state is untouched.
  */
 .record-title:has(> .dh-inline-edit[data-editing="true"]) {
   flex: 1 1 auto;
 }
 
-/* Status pill — tone sets the colour, the label always carries the meaning. */
-.record-status {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--app-space-1);
-  padding: var(--app-space-px) var(--app-space-2);
-  border-radius: var(--dh-radius-pill);
-  border: var(--app-border-width-thin) solid var(--dh-color-border);
-  background: var(--dh-color-surface);
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-label-size);
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.record-status__dot {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: var(--dh-radius-pill);
-  background: var(--dh-color-text-muted);
-  flex: none;
-}
-
-.record-status[data-tone="accent"] {
-  background: var(--dh-color-accent-subtle);
-  color: var(--dh-color-accent);
-  border-color: var(--dh-color-accent-subtle);
-}
-.record-status[data-tone="accent"] .record-status__dot {
-  background: var(--dh-color-accent);
-}
-
-.record-status[data-tone="success"] {
-  background: var(--dh-color-success-subtle);
-  color: var(--dh-color-text-on-success-subtle);
-  border-color: var(--dh-color-success-subtle);
-}
-.record-status[data-tone="success"] .record-status__dot {
-  background: var(--dh-color-success);
-}
-
-.record-status[data-tone="warning"] {
-  background: var(--dh-color-warning-subtle);
-  color: var(--dh-color-text-on-warning-subtle);
-  border-color: var(--dh-color-warning-subtle);
-}
-.record-status[data-tone="warning"] .record-status__dot {
-  background: var(--dh-color-warning);
-}
-
-.record-status[data-tone="danger"] {
-  background: var(--dh-color-danger-subtle);
-  color: var(--dh-color-text-on-danger-subtle);
-  border-color: var(--dh-color-danger-subtle);
-}
-.record-status[data-tone="danger"] .record-status__dot {
-  background: var(--dh-color-danger);
-}
-
-.record-status[data-tone="info"] {
-  background: var(--dh-color-info-subtle);
-  color: var(--dh-color-text-on-info-subtle);
-  border-color: var(--dh-color-info-subtle);
-}
-.record-status[data-tone="info"] .record-status__dot {
-  background: var(--dh-color-info);
-}
-
-/* THEME-01 lifecycle tones — completed / waiting / on-hold carry their own tokens
- * rather than borrowing success / warning / neutral, so a theme can say "paused"
- * without changing what a real warning looks like. */
-.record-status[data-tone="completed"] {
-  background: var(--dh-color-state-completed-subtle);
-  color: var(--dh-color-text-on-completed-subtle);
-  border-color: var(--dh-color-state-completed-subtle);
-}
-.record-status[data-tone="completed"] .record-status__dot {
-  background: var(--dh-color-state-completed);
-}
-.record-status[data-tone="waiting"] {
-  background: var(--dh-color-state-waiting-subtle);
-  color: var(--dh-color-text-on-waiting-subtle);
-  border-color: var(--dh-color-state-waiting-subtle);
-}
-.record-status[data-tone="waiting"] .record-status__dot {
-  background: var(--dh-color-state-waiting);
-}
-.record-status[data-tone="on-hold"] {
-  background: var(--dh-color-state-on-hold-subtle);
-  color: var(--dh-color-text-on-hold-subtle);
-  border-color: var(--dh-color-state-on-hold-subtle);
-}
-.record-status[data-tone="on-hold"] .record-status__dot {
-  background: var(--dh-color-state-on-hold);
-}
-
-/* Actions: wrap onto their own line on narrow containers rather than disappear. */
-.record-header__actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--app-space-2);
-  flex: 0 1 auto;
-}
-
-.record-action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--app-space-2);
-  min-height: var(--app-control-height-md);
-  padding: 0 var(--app-space-3);
-  border-radius: var(--dh-radius-control);
-  border: var(--app-border-width-thin) solid transparent;
-  font: inherit;
-  font-size: var(--dh-text-meta-size);
-  font-weight: 500;
-  line-height: 1.2;
-  text-decoration: none;
-  cursor: pointer;
-  white-space: nowrap;
-  transition:
-    background-color var(--dh-motion-fast) var(--dh-ease-standard),
-    border-color var(--dh-motion-fast) var(--dh-ease-standard);
-}
-
-/*
- * M3-INT — the container is the variant, the STATE is the shared layer.
- *
- * Each variant used to restate its own container colour under `:hover` and
- * `:active` so that a hovered record action did not change colour. That is the
- * right M3 instinct written the long way round: the reason an M3 button does
- * not swap its container is that its state arrives as a layer on top, and
- * `.record-action` is now a host of the one implementation in `base.css`. The
- * no-op rules are gone and the control gains real hover, focus and pressed
- * states in the bargain — it previously had none.
- */
-.record-action--primary {
-  background: var(--dh-color-accent);
-  color: var(--dh-color-text-on-accent);
-}
-
-@media (hover: none), (pointer: coarse) {
-  .record-action {
-    min-height: var(--app-touch-target-min);
-  }
-}
-
-/*
- * DS-08 — a record's secondary action is the SECONDARY BUTTON, not a tonal slab.
- *
- * DS-02 already made this decision for `.dh-btn--secondary` and stated it as
- * "the single largest visual change in DS-02": M3's tonal button is a filled
- * `secondary-container`, and beside a primary action two violet containers of
- * different saturations make a hierarchy that has to be read rather than seen.
- * The record header's own action button kept the old paint, so "Complete
- * project" — the most prominent control on every Project, Goal and Area — was
- * still the lavender slab on a page whose buttons had all converged. Same
- * treatment, same token, one control.
- */
-.record-action--secondary {
-  background: var(--dh-color-surface);
-  color: var(--dh-color-text);
-  border-color: var(--dh-color-border-strong);
-}
-
-.record-action:disabled,
-.record-action[aria-disabled="true"] {
-  background: color-mix(in srgb, var(--dh-color-text) 12%, transparent);
-  color: color-mix(in srgb, var(--dh-color-text) 38%, transparent);
-  border-color: color-mix(in srgb, var(--dh-color-text) 12%, transparent);
-  cursor: not-allowed;
-}
-
-/*
- * RECORD-01 — the CONTEXT LINE.
- *
- * One quiet line of current-state facts, hanging directly off the identity
- * block rather than floating as its own band. It carries a strict budget: the
- * facts a reader needs to place the record (an Area, a health signal, a
- * meeting's when/where), never administrative history — Created, Updated,
- * State and owner fields belong in the record's Settings tab, where the
- * shared `dh-record-details` list presents them.
- *
- * Items are separated by a mid-dot rather than by wide gaps: a separator reads
- * as one line of context, where 16px of air reads as several small columns.
- */
-.record-header__context {
-  list-style: none;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--app-space-1) var(--app-space-2);
-  margin: 0;
-  padding: 0;
-  min-width: 0;
-  font-size: var(--dh-text-meta-size);
-  line-height: 1.4;
-}
-
-.record-context-item {
-  display: inline-flex;
-  align-items: baseline;
-  gap: var(--app-space-1);
-  min-width: 0;
-}
-
-.record-context-item + .record-context-item::before {
-  content: "·";
-  margin-inline-end: var(--app-space-2);
-  color: var(--dh-color-border-strong);
-}
-
-.record-context-item__label,
-.record-type__label {
-  color: var(--dh-color-text-muted);
-}
-
-.record-context-item__value {
-  color: var(--dh-color-text);
-  font-weight: 500;
-  overflow-wrap: anywhere;
-  min-inline-size: 0;
-}
-
-/*
- * STEER-02 — an INLINE FIELD in the context line is bounded by the line, and
- * its value takes the ellipsis.
- *
- * `.dh-inline-edit__trigger` is an `inline-flex` box with no maximum, so it
- * sizes to its content and overflows a narrower parent rather than shrinking
- * into it — the same intrinsic-sizing behaviour DHDS-13 measured on the Task
- * row's project cell. It went unnoticed here while every context-line field
- * held something short (a date, a status word). STEER-02's Area picker holds an
- * AREA NAME, and a long one pushed the Goal record to 904px inside a 390px
- * phone: MEASURED, at 390 and 320, on the record the AREA-04 mobile journey
- * creates.
- *
- * The correction is the one `.dh-inline-select__label` already expects: bound
- * the trigger to the line, let the label ellipsise, and leave the caret
- * `flex: none` beside it. Scoped to the context line so it changes nothing
- * about the same field in a table cell or a summary row.
- */
+/* The inline editors a record's CONTEXT LINE hosts inherit the line's own type
+ * rather than the form control's, so a run of facts reads as a run of facts. */
 .record-header__context .dh-inline-edit,
 .record-header__context .dh-inline-picker,
 .record-header__context .dh-inline-date,
 .record-header__context .dh-inline-edit__trigger {
-  max-inline-size: 100%;
-  min-inline-size: 0;
+  font: inherit;
+  color: inherit;
 }
 
 .record-header__context .dh-inline-select__value {
-  min-inline-size: 0;
-  overflow: hidden;
-}
-
-/* A subtype ("Vehicle") is context, not a field: it needs no label beside it. */
-.record-context-item--type .record-type__label {
-  font-weight: 500;
-  color: var(--dh-color-text);
+  font: inherit;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -542,136 +179,51 @@
 }
 
 /* -------------------------------------------------------------------------- */
-/* Tabs                                                                       */
 /* -------------------------------------------------------------------------- */
-
+/* Tabs — MIGRATED to Untitled UI (UNTITLED-04)                               */
+/* -------------------------------------------------------------------------- */
 /*
- * M3-INT — the tab strip and the panel it controls are ONE surface.
+ * `.record-tabs`, `.record-tabs__strip`, `.record-tabs__list`, `.record-tab` and
+ * `.record-tabs__panel` are drawn by the component now
+ * (`~/shared/record-layout/RecordTabs.tsx`), which composes the genuine
+ * vendored Untitled `application/tabs` (`type="underline"`) over React Aria and
+ * gives the active panel Untitled's bounded card surface — the same
+ * `rounded-xl bg-primary shadow-xs ring-1 ring-secondary` boundary the migrated
+ * collection tables and Project cards use. The class names survive in the markup
+ * as hooks.
  *
- * They used to be two: a strip with its own rule, `--app-space-4` of canvas
- * below it, and then a fully-bordered, fully-rounded card. The gap and the
- * second top edge said "here is a tab bar, and separately, here is a card",
- * which is the segmented look the review reported — and it is the same mistake
- * the editor already fixed between its toolbar and its writing surface
- * (`markdown-editor.css`, EDIT-01). The strip's bottom rule IS the panel's top
- * edge, so the tabs visibly control what is underneath them.
+ * The strip and its panel are no longer welded into one edge-joined surface.
+ * That was a bespoke arrangement (a strip whose bottom rule WAS the panel's top
+ * edge, with square top corners on the panel); Untitled's Application UI draws
+ * the rail on the canvas with the content in its own bounded sections beneath
+ * it, and so does DalyHub now. One less thing behaving differently from
+ * everything else on the page.
+ *
+ * What survives below is not presentation:
  */
-.record-tabs {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  min-width: 0;
+
+/*
+ * POLISH-01 — the panel IS a surface, so it says which one.
+ *
+ * `--app-surface-current` is the product's "what am I painted on" property
+ * (`card.css`, `drawer.css` and `inspector.css` all set it). Anything inside the
+ * panel that needs to know — today the shared scroll cue on a nested tab rail —
+ * otherwise falls back to the page tone and draws a pale block at each end of
+ * the rail. A `plain` panel draws no surface, so it declares none.
+ */
+.record-tabs__panel {
+  --app-surface-current: var(--dh-color-surface);
 }
 
-/* MOBILE-01 — the strip holds the scrolling tablist AND the pinned "More
- * sections" trigger, so the trigger never scrolls out of reach. */
-.record-tabs__strip {
-  display: flex;
-  align-items: stretch;
-  gap: var(--app-space-1);
-  border-bottom: var(--app-border-width-thin) solid var(--dh-color-border);
-  min-width: 0;
-}
-
-.record-tabs__list {
-  display: flex;
-  gap: var(--app-space-1);
-  /* Overflow horizontally on narrow screens instead of widening the page (the
-   * shared `.dh-scroll-strip` owns the overflow and the cue). The bottom border
-   * lives on the strip, so the tablist and the More trigger share one rule. */
-  min-width: 0;
-  flex: 1;
-}
-
-/* The overflow trigger: a 44px target pinned at the end of the strip. */
-.record-tabs__more {
-  flex: none;
-  min-inline-size: var(--app-touch-target-min);
-  min-block-size: var(--app-control-height-lg);
-  align-self: center;
-}
-
-.record-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--app-space-2);
-  flex: none;
-  min-height: var(--app-control-height-lg);
-  padding: 0 var(--app-space-3);
-  border: none;
-  border-bottom: var(--app-border-width-thick) solid transparent;
-  margin-bottom: calc(-1 * var(--app-border-width-thin));
-  background: none;
-  color: var(--dh-color-text-muted);
-  font: inherit;
-  font-size: var(--dh-text-meta-size);
-  font-weight: 500;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: color var(--dh-motion-fast) var(--dh-ease-standard);
-}
-
-.record-tab:hover {
-  color: var(--dh-color-text);
-}
-
-/* Active tab: weight change + underline bar carry the state without colour. */
-.record-tab[data-active="true"] {
-  color: var(--dh-color-text);
-  font-weight: 500;
-  border-bottom-color: var(--dh-color-accent);
-}
-
-.record-tab[data-disabled="true"] {
-  color: color-mix(in srgb, var(--dh-color-text) 38%, transparent);
-  cursor: not-allowed;
-}
-
-.record-tab__badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 1.25rem;
-  padding: 0 var(--app-space-1);
-  border-radius: var(--dh-radius-pill);
-  background: var(--dh-color-bg-sunken);
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-meta-size);
-  font-weight: 500;
-}
-
-/* The active tab panel and the no-tabs content region are the record's main
- * content surface. They carry the SAME contained treatment as `.record-summary`
- * (surface + hairline border + radius + padding, all DS-01 tokens) so the header,
- * summary, tabs and content read as one deliberate record workspace instead of the
- * content dissolving into the page canvas (the reported production defect). This is
- * one shared fix for every canonical record (Area, Goal, Project, Note, Task), not a
- * per-module border. Cards inside sit on `--app-color-surface-raised`, one shade
- * above this `--app-color-surface` panel, so nested cards stay distinct without
- * doubling the boundary. */
-/* The active panel is the record's working surface — one card, card radius,
- * hairline, no shadow, and the Collection preset's inset so a row list inside it
- * lands on the same inline rhythm as a routed collection. */
-.record-tabs__panel,
-.record-layout__content {
-  min-width: 0;
-  padding: var(--app-space-5);
-  background: var(--dh-color-surface);
-  border: var(--app-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-lg);
+.record-tabs__panel[data-surface="plain"] {
+  --app-surface-current: initial;
 }
 
 /*
- * UIX-03 — the record WORKSPACE region.
- *
- * Deliberately unstyled beyond its box: it is a top-level region of the record,
- * and whatever fills it brings its own composition. Giving it a card here would
- * recreate the very nesting the slot exists to remove — a Goal's chart would be
- * back inside a container inside the record.
- *
- * It has its OWN rule rather than joining the two selectors above, which is the
- * whole point: those two ARE the contained working surface, and this one must
- * not be.
+ * The record's WORKSPACE region (UIX-03), deliberately unstyled beyond its box:
+ * it is a top-level region of the record and whatever fills it brings its own
+ * composition. Giving it a card here would recreate the very nesting the slot
+ * exists to remove.
  */
 .record-layout__feature {
   min-width: 0;
@@ -679,57 +231,6 @@
   flex-direction: column;
 }
 
-/*
- * M3-INT — the TABBED panel joins its strip: no top edge of its own (the strip's
- * rule is already there) and square top corners, so the two read as one working
- * surface rather than as a bar sitting on a card. `.record-layout__content` —
- * the no-tabs region — is untouched, because with nothing above it there is
- * nothing to join and it stays a complete card.
- */
-.record-tabs__panel {
-  border-block-start: none;
-  border-start-start-radius: 0;
-  border-start-end-radius: 0;
-  /*
-   * POLISH-01 — the panel IS a surface, so it says which one.
-   *
-   * `--app-surface-current` is the product's "what am I painted on" property
-   * (`card.css`, `drawer.css`, `inspector.css` all set it). The record panel
-   * never did, so anything inside it that needs to know — today the shared
-   * scroll cue on a nested tab rail — fell back to the page tone and drew a
-   * pale block at each end of the rail.
-   */
-  --app-surface-current: var(--dh-color-surface);
-}
-
-.record-tabs__panel:focus-visible {
-  outline: var(--app-border-width-thick) solid var(--dh-color-accent);
-  outline-offset: 2px;
-}
-
-/*
- * RECORD-01 — a panel whose content already IS a surface does not draw a second.
- *
- * The Note record is the case this exists for. The shared editor deliberately
- * draws ONE outline around its toolbar and its text (EDIT-01: "a note with a
- * toolbar", not "a formatting palette sitting on a note"), and the panel drew
- * another around that — a frame inside a frame with two left edges 21px apart,
- * 40px of horizontal padding taken off the writing measure, and the doubled
- * border DS-14's surface rules exist to prevent.
- *
- * Padding goes too: the inner surface owns its own, and the panel's would only
- * inset the writing column further from the record's edge for no gain. The
- * panel remains a real `tabpanel` with its focus ring and its label — only its
- * paint is suppressed.
- */
-.record-tabs__panel[data-surface="plain"] {
-  padding: 0;
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-}
-
-/* -------------------------------------------------------------------------- */
 /* Content region                                                             */
 /* -------------------------------------------------------------------------- */
 
@@ -830,7 +331,11 @@
     justify-content: flex-start;
   }
 
-  .record-action {
+  /*
+   * UNTITLED-04 — the actions are Untitled buttons now, addressed through the
+   * region rather than through a `.record-action` class that no longer exists.
+   */
+  .record-header__actions > * {
     flex: 1 1 auto;
   }
 }
@@ -852,13 +357,6 @@
 
   .record-header {
     gap: var(--app-space-2);
-  }
-
-  /* Long titles WRAP (never truncate — a record's name is essential) but do not
-   * push the actions off-screen, because the actions already wrap below. */
-  .record-header__title {
-    font-size: var(--dh-text-section-title-size);
-    overflow-wrap: anywhere;
   }
 
   /* The context line tightens further on a phone but stays one wrapped line. */
@@ -901,18 +399,21 @@
   /* Tabs stay ONE row: the strip scrolls (an intentional, contained overflow) and
    * the surplus lives in the More menu — a wrapped multi-row tab bar would eat
    * the record. */
+  /*
+   * MOBILE-01 (iPhone daily driver) — a short label still gets a target.
+   *
+   * A two-character tab ("AI" on the Note and Meeting records) measured 27px
+   * across: full height, and barely half the touch floor. The tab's type,
+   * padding and state are Untitled's (`application/tabs`); this is the one
+   * product rule on top of them.
+   *
+   * UNTITLED-05 — the BLOCK axis is stated by `RecordTabs` itself, on the
+   * WIDTH (`max-md:min-h-…`). It was briefly here under `@media (hover: none)`
+   * nested in this container query, which is two conditions a viewport resize
+   * does not satisfy — so the floor never applied where it was measured. See
+   * the note on the component.
+   */
   .record-tab {
-    padding: 0 var(--app-space-2);
-    font-size: var(--dh-text-meta-size);
-    /*
-     * MOBILE-01 (iPhone daily driver) — a short label still gets a target.
-     *
-     * The phone padding above is 8px a side, so a two-character tab measured
-     * 27×45 on the Note and Meeting records ("AI"): full height, and barely
-     * half the floor across. The floor is stated on the INLINE axis only, so a
-     * long tab is unchanged and the strip's own scrolling still absorbs the
-     * difference.
-     */
     min-inline-size: var(--app-touch-target-min);
     justify-content: center;
   }
@@ -961,145 +462,18 @@
 }
 
 /* -------------------------------------------------------------------------- */
-/* Record summary band (RECORD-01)                                            */
-/*                                                                            */
-/* The compact replacement for the per-module roll-up dashboards. It is a      */
-/* BAND on the page canvas — no fill, no outline, no radius — because a card   */
-/* is what turned three modules' derived state into the tallest thing on their */
-/* record. Hierarchy here comes from spacing and typography, which is the      */
-/* order M3 asks for before another surface.                                   */
+/* Record summary band — MIGRATED to Untitled UI (UNTITLED-04)                */
 /* -------------------------------------------------------------------------- */
-
-.dh-record-summary-bar {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-2);
-  min-inline-size: 0;
-}
-
-/* A single calm line: an archived banner, or "nothing active here" stated once. */
-.dh-record-summary-bar__note {
-  margin: 0;
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-body-size);
-  line-height: var(--dh-text-body-line-height);
-}
-
-/* Progress and state read as ONE statement, so they share a row and only wrap
- * when the container genuinely cannot hold them. */
-.dh-record-summary-bar__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--app-space-2) var(--app-space-4);
-  min-inline-size: 0;
-}
-
-.dh-record-summary-bar__progress {
-  flex: 1 1 18rem;
-  min-inline-size: 0;
-}
-
-.dh-record-summary-bar__state {
-  flex: none;
-}
-
 /*
- * Inside the band the meter's label is context, not a heading: the record's
- * heading is the record's name, and a `title-small` "Roll-up progress" above a
- * 4px track was competing with it.
+ * `.dh-record-summary-bar` and its elements are drawn by the component
+ * (`~/shared/record-layout/RecordSummaryBar.tsx`): Untitled's bounded card
+ * grammar, Untitled token type and foreground colours, and the Untitled progress
+ * composition for its meter. The class names survive in the markup as hooks.
+ *
+ * Its budget is unchanged and is the point of the band: one meter, one state
+ * chip, one signal line, one context line. Anything that does not fit belongs in
+ * a tab or in the record's Settings details.
  */
-.dh-record-summary-bar__progress .dh-progress {
-  gap: var(--app-space-1);
-}
-
-.dh-record-summary-bar__progress .dh-progress__label {
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-  font-weight: 500;
-  letter-spacing: normal;
-  color: var(--dh-color-text-muted);
-}
-
-.dh-record-summary-bar__progress .dh-progress__summary {
-  color: var(--dh-color-text);
-  font-weight: 500;
-}
-
-/* Signals: one wrapped line of short sentences, mid-dot separated. Tone tints
- * the separator dot's sentence, never replaces the words. */
-.dh-record-summary-bar__signals {
-  list-style: none;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--app-space-1) var(--app-space-2);
-  margin: 0;
-  padding: 0;
-  min-inline-size: 0;
-  font-size: var(--dh-text-meta-size);
-  line-height: 1.4;
-  color: var(--dh-color-text-muted);
-}
-
-.dh-record-summary-bar__signal {
-  min-inline-size: 0;
-}
-
-.dh-record-summary-bar__signal + .dh-record-summary-bar__signal::before {
-  content: "·";
-  margin-inline-end: var(--app-space-2);
-  color: var(--dh-color-border-strong);
-}
-
-.dh-record-summary-bar__signal[data-tone="danger"] {
-  color: var(--dh-color-danger);
-}
-
-.dh-record-summary-bar__signal[data-tone="warning"] {
-  color: var(--dh-color-warning);
-}
-
-.dh-record-summary-bar__signal[data-tone="success"] {
-  color: var(--dh-color-success);
-}
-
-/* Quiet secondary context, same visual weight as the header's context line so a
- * fact reads the same wherever the record chose to put it. */
-.dh-record-summary-bar__facts {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--app-space-1) var(--app-space-2);
-  margin: 0;
-  min-inline-size: 0;
-  font-size: var(--dh-text-meta-size);
-  line-height: 1.4;
-}
-
-.dh-record-summary-bar__fact {
-  display: inline-flex;
-  align-items: baseline;
-  gap: var(--app-space-1);
-  min-inline-size: 0;
-}
-
-.dh-record-summary-bar__fact + .dh-record-summary-bar__fact::before {
-  content: "·";
-  margin-inline-end: var(--app-space-2);
-  color: var(--dh-color-border-strong);
-}
-
-.dh-record-summary-bar__fact dt {
-  color: var(--dh-color-text-muted);
-}
-
-.dh-record-summary-bar__fact dd {
-  margin: 0;
-  color: var(--dh-color-text);
-  font-weight: 500;
-  overflow-wrap: anywhere;
-}
 
 /* -------------------------------------------------------------------------- */
 /* Record details (RECORD-01)                                                 */
@@ -1193,26 +567,6 @@
   }
 }
 
-/*
- * RECORD-01 — a summary band carrying PROSE takes the card surface.
- *
- * The same rule `RecordSummary` already follows (M3-INT: "a container is
- * earned, not automatic"). A band of derived state is a line of context and
- * belongs on the page canvas; a band that also carries a Goal's definition of
- * done is a substantial region and takes the plane every other in-flow card
- * takes.
- */
-.dh-record-summary-bar[data-density="full"] {
-  gap: var(--app-space-4);
-  padding: var(--app-space-5);
-  background: var(--dh-color-surface);
-  border: var(--app-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-lg);
-}
-
-.dh-record-summary-bar__description {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-4);
-  min-inline-size: 0;
-}
+/* UNTITLED-04 — see the band's own section above; `data-density` survives as
+ * the caller's declaration that the band carries PROSE rather than derived
+ * state, and the component spaces it accordingly. */

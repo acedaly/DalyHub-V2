@@ -24,18 +24,39 @@
  * segmented control for a bounded state toggle inside content. What is gone is
  * the third and fourth ways of drawing either.
  *
+ * ── UNTITLED-05 — Untitled's LOOK, navigation's SEMANTICS ────────────────────
+ *
+ * The rail takes `application/tabs`'s `type="underline"` appearance through
+ * `overrides/link-tab-rail`, and stays a labelled `navigation` landmark of
+ * ordinary anchors with `aria-current="page"` on the current one.
+ *
+ * UNTITLED-04 built it on `application/tabs` itself, which made every option a
+ * `role="tab"`. ARIA's tab pattern requires each tab to control a `tabpanel`,
+ * and the thing this rail selects is a COLLECTION the router renders elsewhere
+ * in the document, across a route boundary this component does not own. The
+ * panel each tab got was therefore a visually hidden placeholder reading
+ * "Viewing …" — syntactically valid `aria-controls` pointing at the wrong
+ * content. That is worse than the dangling reference it replaced, and this
+ * component is shared, so it propagated product-wide. The override's header
+ * carries the full reasoning.
+ *
+ * The URL contract is untouched either way: middle-click, "copy link address"
+ * and Back/Forward behave exactly as they always have.
+ *
  * ── Behaviour ────────────────────────────────────────────────────────────────
  *
  * Targets are derived from ONE search param, preserving every unrelated param
  * — including the DS-03 `drawer` stack — so opening a record and changing the
- * view compose instead of clobbering each other. The current tab carries
- * `aria-current="page"`, so selection is semantic and never rests on the violet
- * underline alone. Keyboard is the native one: Tab reaches the rail, Tab moves
- * between tabs, Enter activates. No roving focus is invented, because these are
- * links and behave exactly as they announce themselves.
+ * view compose instead of clobbering each other.
  */
 
-import { Link, useSearchParams } from "react-router";
+import { Link, useLocation, useSearchParams } from "react-router";
+
+import {
+  LinkTabContent,
+  linkTabClassName,
+  linkTabRailClassName,
+} from "~/shared/ui/untitled/overrides/link-tab-rail";
 
 export type ViewTabOption = {
   readonly value: string;
@@ -84,47 +105,54 @@ export function ViewTabs({
   "data-testid": testId,
 }: ViewTabsProps) {
   const [searchParams] = useSearchParams();
+  // An ABSOLUTE target — see `ViewSwitcher` for why a rail states its own path.
+  const { pathname } = useLocation();
 
+  const targets = options.map((option) => {
+    const next = new URLSearchParams(searchParams);
+    if (defaultValue !== undefined && option.value === defaultValue) {
+      next.delete(param);
+    } else {
+      next.set(param, option.value);
+    }
+    // A view change starts a new page of results, so any accumulated keyset
+    // cursor must not be carried across into a different scope.
+    next.delete("cursor");
+    const query = next.toString();
+    return {
+      option,
+      to: option.to ?? (query.length > 0 ? `${pathname}?${query}` : pathname),
+    };
+  });
+
+  // Untitled UI React `application/tabs` (`type="underline"`) is the rail
+  // Untitled's Application UI dashboards draw above a collection. Its
+  // appearance, through `overrides/link-tab-rail`; its `role="tab"` semantics
+  // deliberately not, because these options navigate. See the file header.
   return (
     <nav
-      /*
-       * POLISH-01 — the rail is the SCROLL CONTAINER, and it says so.
-       *
-       * `dh-scroll-strip` brings the horizontal overflow, the hidden scrollbar
-       * and the shared "there is more this way" cue. A tab rail that silently
-       * cuts "Completed" mid-word reads as a shorter set of views rather than
-       * as a scrollable one — measured at 393px on `/projects`, where Completed
-       * and Archived were both effectively unreachable.
-       */
-      className={["dh-viewtabs", "dh-scroll-strip", className]
-        .filter(Boolean)
-        .join(" ")}
       aria-label={label}
+      // The rail scrolls INSIDE itself rather than widening the document; see
+      // `ViewSwitcher` for the same reasoning.
+      className={linkTabRailClassName(
+        "underline",
+        ["w-auto max-w-full overflow-x-auto", className]
+          .filter(Boolean)
+          .join(" "),
+      )}
       data-testid={testId}
+      data-untitled-source="application/tabs:underline"
     >
-      {options.map((option) => {
-        const next = new URLSearchParams(searchParams);
-        if (defaultValue !== undefined && option.value === defaultValue) {
-          next.delete(param);
-        } else {
-          next.set(option.value === value ? param : param, option.value);
-        }
-        // A view change starts a new page of results, so any accumulated
-        // keyset cursor must not be carried across into a different scope.
-        next.delete("cursor");
-        const query = next.toString();
-        return (
-          <Link
-            key={option.value}
-            to={option.to ?? (query.length > 0 ? `?${query}` : "?")}
-            className="dh-viewtabs__tab"
-            aria-current={option.value === value ? "page" : undefined}
-            preventScrollReset
-          >
-            {option.label}
-          </Link>
-        );
-      })}
+      {targets.map(({ option, to }) => (
+        <Link
+          key={option.value}
+          to={to}
+          aria-current={option.value === value ? "page" : undefined}
+          className={linkTabClassName("underline")}
+        >
+          <LinkTabContent>{option.label}</LinkTabContent>
+        </Link>
+      ))}
     </nav>
   );
 }

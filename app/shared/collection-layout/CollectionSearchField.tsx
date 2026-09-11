@@ -41,10 +41,12 @@
  * owns no query state and knows nothing about entities.
  */
 
-import { useId, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
-import { SearchIcon, CloseIcon } from "~/shared/icons";
-import { Input } from "~/shared/ui";
+import { SearchLg, XClose } from "@untitledui/icons";
+
+import { ButtonUtility } from "~/shared/ui/untitled/base/buttons/button-utility";
+import { Input as UntitledInput } from "~/shared/ui/untitled/base/input/input";
 
 export type CollectionSearchFieldProps = {
   /** The current query text. */
@@ -70,7 +72,6 @@ export function CollectionSearchField({
   className,
   "data-testid": testId,
 }: CollectionSearchFieldProps) {
-  const inputId = useId();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const toggleRef = useRef<HTMLButtonElement | null>(null);
   const [phoneOpen, setPhoneOpen] = useState(false);
@@ -79,72 +80,97 @@ export function CollectionSearchField({
   // width — a hidden filter that cannot be seen cannot be cleared.
   const open = phoneOpen || hasQuery;
 
+  const clearOnEscape = (event: {
+    key: string;
+    stopPropagation: () => void;
+  }) => {
+    if (event.key !== "Escape") return;
+    if (hasQuery) {
+      // Stop the key here: an Escape that clears the field must not also close
+      // the drawer or sheet the collection may sit under.
+      event.stopPropagation();
+      onChange("");
+    } else if (phoneOpen) {
+      event.stopPropagation();
+      setPhoneOpen(false);
+      // Focus goes back to the control that opened the field, never to the top
+      // of the document.
+      toggleRef.current?.focus();
+    }
+  };
+
   return (
     <div
-      className={["dh-csearch", className].filter(Boolean).join(" ")}
+      className={[
+        "flex min-w-0 items-center gap-2",
+        open ? "max-md:w-full" : null,
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
       data-open={open ? "true" : undefined}
       data-testid={testId}
+      data-untitled-source="base/input"
     >
-      {/*
-       * The phone affordance. Hidden at every width the field is permanent at,
-       * so desktop assistive tech never meets a second control for one job.
-       */}
-      <button
-        type="button"
+      <ButtonUtility
         ref={toggleRef}
-        className="dh-csearch__toggle"
+        size="sm"
+        color="tertiary"
+        icon={SearchLg}
+        tooltip={label}
+        aria-label={label}
         aria-expanded={open}
+        className={["dh-csearch__toggle", open ? "hidden" : "md:hidden"]
+          .filter(Boolean)
+          .join(" ")}
         onClick={() => {
           setPhoneOpen(true);
-          // The field is revealed by the same state change, so focus has to wait
-          // for it to exist.
           requestAnimationFrame(() => inputRef.current?.focus());
         }}
+      />
+      <div
+        className={[
+          /*
+           * A CAP, not a width.
+           *
+           * This was `md:w-64 md:flex-none lg:w-72`, which is a field that
+           * refuses to shrink. On a collection that keeps its view switcher
+           * INLINE with the header (Habits, Reviews), the header then carries a
+           * title, a 288px field, a tab strip and a primary action on one row —
+           * and at 1440px the field overflowed its own track and was drawn
+           * underneath the switcher. Capping instead keeps the identical width
+           * wherever there is room, and gives the row somewhere to take it from
+           * where there is not.
+           */
+          "relative min-w-0 flex-1 md:max-w-64 lg:max-w-72",
+          open ? "" : "max-md:hidden",
+        ].join(" ")}
       >
-        <span className="dh-visually-hidden">{label}</span>
-        <SearchIcon />
-      </button>
-      <div className="dh-csearch__field">
-        <label className="dh-visually-hidden" htmlFor={inputId}>
-          {label}
-        </label>
-        <Input
-          id={inputId}
+        <UntitledInput
           ref={inputRef}
-          className="dh-csearch__input"
+          size="sm"
           type="search"
-          leading={<SearchIcon />}
+          icon={SearchLg}
+          aria-label={label}
           value={value}
           placeholder={placeholder ?? label}
-          onChange={(event) => onChange(event.currentTarget.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Escape") {
-              if (hasQuery) {
-                // Stop the key here: an Escape that clears the field must not
-                // also close the drawer or sheet the collection may sit under.
-                event.stopPropagation();
-                onChange("");
-              } else if (phoneOpen) {
-                event.stopPropagation();
-                setPhoneOpen(false);
-                // Focus goes back to the control that opened the field, never
-                // to the top of the document.
-                toggleRef.current?.focus();
-              }
-            }
-          }}
+          onChange={onChange}
+          onKeyDown={clearOnEscape}
+          inputClassName={
+            hasQuery ? "dh-csearch__input pr-9" : "dh-csearch__input"
+          }
         />
         {hasQuery ? (
           <button
             type="button"
-            className="dh-csearch__clear"
+            className="absolute inset-y-0 right-1.5 my-auto flex size-6 cursor-pointer items-center justify-center rounded-md text-fg-quaternary outline-focus-ring transition duration-100 ease-linear hover:bg-primary_hover hover:text-fg-quaternary_hover focus-visible:outline-2 focus-visible:outline-offset-2"
             onClick={() => {
               onChange("");
               inputRef.current?.focus();
             }}
           >
-            <span className="dh-visually-hidden">{`Clear ${label.toLowerCase()}`}</span>
-            <CloseIcon />
+            <span className="sr-only">{`Clear ${label.toLowerCase()}`}</span>
+            <XClose className="size-4" aria-hidden="true" />
           </button>
         ) : null}
       </div>

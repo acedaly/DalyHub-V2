@@ -24,6 +24,7 @@ import type {
 import type { OverflowMenuItem } from "~/shared/overflow-menu";
 
 import { TASK_RELATES_TO, type SerializedTaskView } from "./task-view";
+import { buttonClassName } from "~/shared/ui";
 
 interface TaskLinksTabProps {
   readonly task: SerializedTaskView;
@@ -66,7 +67,7 @@ export function TaskLinksTab({
               <button
                 key={action.id}
                 type="button"
-                className="dh-btn dh-btn--secondary"
+                className={buttonClassName({ variant: "secondary" })}
                 onClick={action.onSelect}
               >
                 {action.label}

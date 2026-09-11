@@ -283,13 +283,20 @@ describe("Areas presentations", () => {
 
   it("offers the two presentations as ONE view switcher, never as a filter", () => {
     renderCollection([area()]);
-    // Both options are always reachable, and both are links carrying the
-    // `present` param — deep-linkable, Back/Forward-correct, no JavaScript
-    // required. Neither changes WHICH records are shown.
+    /*
+     * Both options are always reachable, and both are real ANCHORS carrying the
+     * `present` param — deep-linkable, middle-clickable, Back/Forward-correct,
+     * no JavaScript required. Neither changes WHICH records are shown.
+     *
+     * UNTITLED-04 draws the switcher with Untitled's `application/tabs`
+     * (`type="button-border"`), whose items take an `href`, so the capability is
+     * unchanged and the ROLE is `tab` rather than `link`.
+     */
     const grid = screen.getByRole("link", { name: /Grid/ });
     const list = screen.getByRole("link", { name: /List/ });
-    expect(list).toHaveAttribute("aria-current", "true");
+    expect(list).toHaveAttribute("aria-current", "page");
     expect(grid).not.toHaveAttribute("aria-current");
+    expect(grid.tagName).toBe("A");
     expect(grid.getAttribute("href")).toContain("present=grid");
   });
 

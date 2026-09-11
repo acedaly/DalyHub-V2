@@ -42,13 +42,23 @@
 /* Controls                                                                   */
 /* -------------------------------------------------------------------------- */
 
-.dh-btn {
+/*
+ * UNTITLED-04 — `:not(.dh-button)`, like the rest of the legacy button paint.
+ *
+ * `box-shadow: none` here was the reason a shared `<Button>` had no ring and no
+ * elevation: Untitled draws both its `ring-1 ring-primary ring-inset` border and
+ * its `shadow-xs-skeuomorphic` lift THROUGH `box-shadow`, this stylesheet is
+ * unlayered, and one `none` therefore erased the entire secondary button's edge
+ * everywhere in the product. The radius did the same to Untitled's `rounded-lg`.
+ * See `ui.css`'s button section for the whole bridge.
+ */
+.dh-btn:not(.dh-button) {
   border-radius: var(--dh-radius-sm);
   font-weight: var(--dh-text-label-weight);
   box-shadow: none;
 }
 
-.dh-btn--primary {
+.dh-btn--primary:not(.dh-button) {
   box-shadow: none;
 }
 
@@ -65,18 +75,11 @@
   color: var(--dh-color-text-muted);
 }
 
-.dh-viewtabs,
-.dh-segmented {
-  border-radius: var(--dh-radius-sm);
-}
-
 /* -------------------------------------------------------------------------- */
 /* One premium card language across every record family                       */
 /* -------------------------------------------------------------------------- */
 
 .dh-card,
-.dh-ecard,
-.dh-pcard,
 .dh-acard,
 .dh-rcard {
   border: var(--dh-border-width) solid var(--dh-color-border);
@@ -86,33 +89,22 @@
 }
 
 .dh-card:hover:has(a, button),
-.dh-ecard--interactive:hover,
-.dh-pcard:hover,
 .dh-acard:hover,
 .dh-rcard:hover {
   border-color: var(--dh-color-border-strong);
   box-shadow: var(--dh-elevation-raised);
 }
 
-.dh-ecard-grid {
-  gap: var(--dh-space-4);
-}
-
-.dh-ecard,
-.dh-pcard,
 .dh-acard,
 .dh-rcard {
   padding: var(--dh-space-5);
 }
 
-.dh-ecard__title,
-.dh-pcard__title,
 .dh-acard__title,
 .dh-rcard__title {
   letter-spacing: -0.01em;
 }
 
-.dh-ecard__status,
 .dh-card__status {
   border-radius: var(--dh-radius-sm);
 }
@@ -139,38 +131,20 @@
   max-inline-size: calc(var(--app-width-wide) + 2 * var(--app-page-padding));
 }
 
-.record-tabs__panel,
-.dh-record-summary-bar {
-  border: var(--dh-border-width) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface);
-  box-shadow: none;
-}
-
 /*
- * …and the TABBED panel still JOINS its strip.
+ * UNTITLED-04 — the record PANEL and the record SUMMARY BAND left the card
+ * family's legacy edge.
  *
- * `record-layout.css` removes the panel's own top edge and squares its top
- * corners, deliberately: *"the strip's rule is already there … so the two read
- * as one working surface rather than as a bar sitting on a card"* (M3-INT). The
- * shorthand above is later in the cascade, so restating the family's edge on
- * this surface silently put both back — a second hairline directly under the
- * strip's own, and a rounded corner on each side of it.
+ * Both are drawn by their components now, on Untitled's bounded card grammar
+ * (`rounded-xl bg-primary shadow-xs ring-1 ring-secondary`) — the same boundary
+ * the migrated collection tables and Project cards carry. Restating the legacy
+ * family's border, radius and background here would have painted straight over
+ * it, because this stylesheet is unlayered.
  *
- * The join is restated here rather than the rule above being narrowed, because
- * the record panel genuinely is a member of the card family and should keep
- * taking the family's edge when that edge changes. What it must never take back
- * is the edge it shares with the strip above it.
+ * The strip/panel JOIN is gone with them: Untitled's Application UI draws the
+ * tab rail on the canvas with the content in its own bounded section beneath,
+ * which is one fewer bespoke arrangement to keep in step.
  */
-.record-tabs__panel {
-  border-block-start: none;
-  border-start-start-radius: 0;
-  border-start-end-radius: 0;
-}
-
-.dh-record-summary-bar {
-  padding: var(--dh-space-5);
-}
 
 .dh-record-section + .dh-record-section {
   padding-block-start: var(--dh-space-6);
@@ -216,12 +190,6 @@
     padding: var(--dh-space-3);
   }
 
-  .dh-ecard-grid {
-    gap: var(--dh-space-3);
-  }
-
-  .dh-ecard,
-  .dh-pcard,
   .dh-acard,
   .dh-rcard {
     padding: var(--dh-space-4);
@@ -230,8 +198,6 @@
 
 @media (prefers-reduced-motion: no-preference) {
   .dh-card,
-  .dh-ecard,
-  .dh-pcard,
   .dh-acard,
   .dh-rcard {
     transition:

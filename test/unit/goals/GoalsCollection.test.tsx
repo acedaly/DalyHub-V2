@@ -684,6 +684,11 @@ describe("the lens rail's counts (DEBT-121)", () => {
     // page's, and a page-derived count could never produce them.
     renderCollection([goal()], { lensCounts: counts });
     const rail = screen.getByTestId("goals-views");
+    /*
+     * UNTITLED-04 draws the rail with Untitled's `application/tabs`, so each
+     * lens is a `tab` whose element is still a real anchor carrying the `?view=`
+     * link. The numbers, and the rule that "All" carries none, are unchanged.
+     */
     expect(
       within(rail).getByRole("link", { name: /On track 5/ }),
     ).toBeVisible();
@@ -709,7 +714,7 @@ describe("the lens rail's counts (DEBT-121)", () => {
     const rail = screen.getByTestId("goals-views");
     expect(within(rail).getByRole("link", { name: "On track" })).toBeVisible();
     expect(
-      within(rail).queryByRole("link", { name: /On track \d/ }),
+      within(rail).queryByRole("tab", { name: /On track \d/ }),
     ).not.toBeInTheDocument();
   });
 

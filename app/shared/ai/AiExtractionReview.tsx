@@ -32,6 +32,7 @@ import {
   type NoteDraft,
   type TaskDraft,
 } from "./ai-view";
+import { buttonClassName } from "~/shared/ui";
 
 /** A link the owner may accept. Only allowlisted targets ever appear. */
 interface LinkDraft {
@@ -261,7 +262,7 @@ export function AiExtractionReview({
 
                 <button
                   type="button"
-                  className="dh-btn dh-btn--ghost"
+                  className={buttonClassName({ variant: "subtle" })}
                   onClick={() => remove(draft.index)}
                 >
                   Remove this suggestion
@@ -332,7 +333,7 @@ export function AiExtractionReview({
 
                 <button
                   type="button"
-                  className="dh-btn dh-btn--ghost"
+                  className={buttonClassName({ variant: "subtle" })}
                   onClick={() => removeNote(note.index)}
                 >
                   Remove this suggestion
@@ -397,7 +398,7 @@ export function AiExtractionReview({
       <div className="dh-ai-review__actions">
         <button
           type="button"
-          className="dh-btn dh-btn--primary"
+          className={buttonClassName({ variant: "primary" })}
           disabled={busy || selectedCount === 0}
           onClick={() =>
             onAccept(acceptancePayload(drafts, notes, links, sourceEntityId))
@@ -409,7 +410,7 @@ export function AiExtractionReview({
         </button>
         <button
           type="button"
-          className="dh-btn dh-btn--ghost"
+          className={buttonClassName({ variant: "subtle" })}
           disabled={busy}
           onClick={onReject}
         >

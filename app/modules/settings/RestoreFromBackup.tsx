@@ -38,6 +38,7 @@ import {
   type RestorePreviewView,
   type RestoreRejectionView,
 } from "./restore-flow";
+import { buttonClassName } from "~/shared/ui";
 
 /** Read the filename the server chose, exactly as the export controls do. */
 function filenameFromDisposition(
@@ -338,7 +339,10 @@ export function RestoreFromBackup() {
         statusLive
         control={
           <div className="dh-restore__control">
-            <label className="dh-btn dh-btn--secondary" htmlFor={inputId}>
+            <label
+              className={buttonClassName({ variant: "secondary" })}
+              htmlFor={inputId}
+            >
               Choose backup…
             </label>
             <input
@@ -368,7 +372,7 @@ export function RestoreFromBackup() {
           control={
             <button
               type="button"
-              className="dh-btn dh-btn--ghost"
+              className={buttonClassName({ variant: "subtle" })}
               onClick={reset}
               disabled={busy}
             >
@@ -394,7 +398,7 @@ export function RestoreFromBackup() {
           control={
             <button
               type="button"
-              className="dh-btn dh-btn--secondary"
+              className={buttonClassName({ variant: "secondary" })}
               data-testid="restore-safety-backup"
               onClick={() => {
                 void takeSafetyBackup();
@@ -448,7 +452,7 @@ export function RestoreFromBackup() {
           }
           align="start"
           control={
-            <a className="dh-btn dh-btn--primary" href="/">
+            <a className={buttonClassName({ variant: "primary" })} href="/">
               Back to DalyHub
             </a>
           }

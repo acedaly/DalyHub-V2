@@ -87,7 +87,6 @@
 @import "./styles/appearance.css";
 @import "./styles/scroll-strip.css";
 @import "./styles/collection-layout.css";
-@import "./styles/empty-state.css";
 @import "./styles/skeleton.css";
 @import "./styles/record-layout.css";
 @import "./styles/drawer.css";
@@ -122,11 +121,9 @@
  * default. It adds no task-row treatment of its own. */
 @import "./styles/plan.css";
 @import "./styles/views.css";
-@import "./styles/segmented-filter.css";
 /* UIX-02 — the shared view TAB RAIL (`.dh-viewtabs`), drawn by both `ViewTabs`
  * and the saved-view rail. After the segmented control because they are the two
  * halves of the same decision and this is the newer, quieter one. */
-@import "./styles/view-tabs.css";
 @import "./styles/task-drawer.css";
 @import "./styles/task-signals.css";
 /* TASKS-13 — the Task record's checklist and the row's compact progress figure.
@@ -151,7 +148,6 @@
 /* GOAL-02 — the shared TrendLine / ComparisonBars primitives. After
    progress.css because both are read as progress visualisations. */
 @import "./styles/charts.css";
-@import "./styles/load-more.css";
 @import "./styles/command.css";
 @import "./styles/feedback.css";
 /* NOTIFY-01 — the notification bell and the ledger-backed INBOX. Immediately

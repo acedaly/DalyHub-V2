@@ -38,7 +38,7 @@ import {
 import { EmptyState } from "~/shared/empty-state";
 import { AccentIcon, EntityIcon } from "~/shared/entity";
 import type { SelectOption } from "~/shared/forms/types";
-import { ButtonLink } from "~/shared/ui";
+import { buttonClassName, ButtonLink } from "~/shared/ui";
 
 import { CreateFromTemplateForm } from "./CreateFromTemplateForm";
 import type { SerializedTemplateSummary } from "./template-view";
@@ -174,7 +174,7 @@ export function ProjectTemplatesView({
               <span className="dh-template-row__actions">
                 <DrawerTrigger
                   drawerKey={CREATE_FROM_TEMPLATE_KEY}
-                  className="dh-btn dh-btn--secondary"
+                  className={buttonClassName({ variant: "secondary" })}
                   onClick={() => setSelected(template)}
                 >
                   {/* Named for the record, so a screen reader hears which one. */}

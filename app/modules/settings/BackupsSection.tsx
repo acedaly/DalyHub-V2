@@ -49,6 +49,7 @@ import { SettingsGroup, SettingsLayout, SettingsRow } from "~/shared/settings";
 import type { BackupSettingsData } from "~/platform/backup";
 
 import type { BackupActionResult } from "./routes/backups";
+import { buttonClassName } from "~/shared/ui";
 
 /**
  * How often the surface re-reads status while a backup is running.
@@ -378,7 +379,7 @@ function BackUpNowRow({
         <fetcher.Form method="post" action="/settings/backups/run">
           <button
             type="submit"
-            className="dh-btn dh-btn--filled"
+            className={buttonClassName({ variant: "primary" })}
             disabled={disabled}
             data-testid="backup-run"
           >

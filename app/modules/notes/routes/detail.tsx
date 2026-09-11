@@ -58,6 +58,7 @@ import {
 } from "../note-view";
 import type { NoteMutationResult } from "./mutate";
 import type { Route } from "./+types/detail";
+import { buttonClassName } from "~/shared/ui";
 
 const TAGS_KEY = "tags";
 
@@ -368,7 +369,10 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
           title="We couldn’t find that note"
           description="It may have been deleted, or the link is out of date."
           primaryAction={
-            <a className="dh-btn dh-btn--primary" href="/notes">
+            <a
+              className={buttonClassName({ variant: "primary" })}
+              href="/notes"
+            >
               Back to Notes
             </a>
           }

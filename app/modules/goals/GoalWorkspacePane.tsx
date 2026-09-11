@@ -73,6 +73,7 @@ import { GoalConditionField } from "./GoalConditionField";
 import { GoalMeasurementSection } from "./GoalMeasurementSection";
 import { GoalProjectChips } from "./GoalProjectChips";
 import type { GoalWorkspaceDetail } from "./goal-workspace-load";
+import { buttonClassName } from "~/shared/ui";
 
 export function GoalWorkspacePane({
   detail,
@@ -299,7 +300,7 @@ export function GoalWorkspacePane({
           {detail.contribution.total === 0 ? (
             <DrawerTrigger
               drawerKey={NEW_PROJECT_FOR_GOAL_KEY}
-              className="dh-btn dh-btn--outlined dh-btn--sm"
+              className={buttonClassName({ variant: "secondary", size: "sm" })}
               data-testid="goal-pane-new-project"
             >
               New Project for this Goal

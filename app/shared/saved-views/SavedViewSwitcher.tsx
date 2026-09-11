@@ -42,18 +42,18 @@
  */
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { Link, useNavigate, useRevalidator } from "react-router";
+import { Link, useRevalidator } from "react-router";
 
 import { ConfirmationDialog } from "~/shared/settings";
 import { Popover } from "~/shared/floating";
 import { OverflowMenu } from "~/shared/overflow-menu";
 import type { OverflowMenuItem } from "~/shared/overflow-menu";
 import {
-  Tab,
-  TabList,
-  TabPanel,
-  Tabs,
-} from "~/shared/ui/untitled/application/tabs/tabs";
+  LinkTabContent,
+  linkTabClassName,
+  linkTabRailClassName,
+} from "~/shared/ui/untitled/overrides/link-tab-rail";
+import { buttonClassName } from "~/shared/ui";
 
 /** One selectable view in the switcher: built-in or the owner's own. */
 export interface SavedViewOption {
@@ -110,8 +110,6 @@ export interface SavedViewSwitcherProps {
   readonly classPrefix: string;
   /** `data-testid` stem, so existing end-to-end selectors keep working. */
   readonly testIdPrefix: string;
-  /** Render pinned views with the genuine Untitled React Aria tabs source. */
-  readonly useUntitledTabs?: boolean;
 }
 
 export function SavedViewSwitcher({
@@ -130,10 +128,8 @@ export function SavedViewSwitcher({
   pinnedViewIds,
   classPrefix,
   testIdPrefix,
-  useUntitledTabs = false,
 }: SavedViewSwitcherProps) {
   const revalidator = useRevalidator();
-  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   // A COUNT, not a flag: two overlapping posts must not have the first to
@@ -326,64 +322,35 @@ export function SavedViewSwitcher({
      * scroll containers and paint a cue on the one that never moves.
      */
     <div className={`${classPrefix} dh-scroll-strip`}>
-      {pinned.length > 0 && useUntitledTabs ? (
-        <Tabs
-          selectedKey={activeViewId ?? undefined}
-          onSelectionChange={(key) => {
-            const selected = pinned.find((view) => view.id === String(key));
-            if (selected) navigate(`${basePath}?${selected.query}`);
-          }}
-          className="w-auto min-w-max"
-          data-testid={`${testIdPrefix}-rail`}
-          data-untitled-source="application/tabs:underline"
-        >
-          <TabList type="underline" size="sm" aria-label={collectionLabel}>
-            {pinned.map((view) => (
-              <Tab key={view.id} id={view.id}>
-                {view.name}
-              </Tab>
-            ))}
-          </TabList>
-          {pinned.map((view) => (
-            <TabPanel key={view.id} id={view.id} className="sr-only">
-              {view.id === activeViewId ? `Viewing ${view.name}` : view.name}
-            </TabPanel>
-          ))}
-        </Tabs>
-      ) : pinned.length > 0 ? (
+      {pinned.length > 0 ? (
         /*
-         * The rail is a `nav`, because that is what it is: each tab is an
-         * ordinary link to the URL that IS the view, so it is shareable,
-         * middle-clickable and Back/Forward-correct with no extra machinery.
-         * The current one carries `aria-current`, so selection is semantic and
-         * never rests on the violet underline the stylesheet draws.
+         * UNTITLED-05 — a NAVIGATION rail wearing Untitled's tab treatment.
+         *
+         * Each pinned view is a different URL whose collection the router
+         * renders elsewhere in the document, so these are links, not tabs: the
+         * tab pattern would owe each one a `tabpanel` holding its content, and
+         * the only panel this component could offer is a placeholder that
+         * describes the wrong thing to a screen reader. `overrides/link-tab-rail`
+         * carries Untitled's own class strings so the appearance is unchanged.
          */
         <nav
-          /*
-           * UIX-02 — the rail carries the SHARED `dh-viewtabs` classes as well
-           * as its own prefixed ones.
-           *
-           * The prefixed pair stays because this module's stylesheet and its
-           * end-to-end tests address it; the shared pair is where the rail is
-           * now actually DRAWN. Until UIX-02 the treatment lived in
-           * `tasks.css`, scoped to `.dh-collection--tasks`, which meant the
-           * next collection that wanted the same tabs had to copy it — and
-           * "do not independently reinvent view tabs" is the brief's own rule.
-           * One definition, two consumers.
-           */
-          className={`${classPrefix}__rail dh-viewtabs`}
           aria-label={collectionLabel}
+          className={linkTabRailClassName(
+            "underline",
+            `${classPrefix}__rail w-auto min-w-max`,
+          )}
           data-testid={`${testIdPrefix}-rail`}
+          data-untitled-source="application/tabs:underline"
         >
           {pinned.map((view) => (
             <Link
               key={view.id}
               to={`${basePath}?${view.query}`}
-              className={`${classPrefix}__tab dh-viewtabs__tab`}
+              className={linkTabClassName("underline")}
               aria-current={view.id === activeViewId ? "page" : undefined}
               preventScrollReset
             >
-              {view.name}
+              <LinkTabContent>{view.name}</LinkTabContent>
             </Link>
           ))}
         </nav>
@@ -491,7 +458,7 @@ export function SavedViewSwitcher({
               <div className={`${classPrefix}__name-actions`}>
                 <button
                   type="button"
-                  className="dh-btn dh-btn--ghost"
+                  className={buttonClassName({ variant: "subtle" })}
                   onClick={() => {
                     setNaming(null);
                     triggerRef.current?.focus();
@@ -501,7 +468,7 @@ export function SavedViewSwitcher({
                 </button>
                 <button
                   type="submit"
-                  className="dh-btn dh-btn--primary"
+                  className={buttonClassName({ variant: "primary" })}
                   disabled={busy}
                   data-testid={`${testIdPrefix}-name-save`}
                 >

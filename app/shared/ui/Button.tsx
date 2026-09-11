@@ -43,7 +43,11 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { ButtonHTMLAttributes, ReactElement, ReactNode, Ref } from "react";
 
-import { Button as UntitledButton } from "~/shared/ui/untitled/base/buttons/button";
+import {
+  Button as UntitledButton,
+  styles as untitledButtonStyles,
+} from "~/shared/ui/untitled/base/buttons/button";
+import { cx } from "~/shared/ui/untitled/utils/cx";
 
 const UntitledButtonBridge = UntitledButton as (
   props: Record<string, unknown> & { readonly ref?: Ref<HTMLElement> },
@@ -123,27 +127,32 @@ function assignRef<T>(ref: Ref<T> | undefined, value: T | null) {
 /**
  * Build the class list. Exported because `ButtonLink` and the small number of
  * call sites that must render something else (a `<label>` acting as a file
- * picker, a router `<Link>`) need the SAME paint without a second stylesheet.
- * A raw string of `dh-button dh-button--primary` at a call site is the thing
- * DS-02 exists to remove; this function is the supported way to reach it.
+ * picker, a router `<Link>`, a `DrawerTrigger`) need the SAME paint without a
+ * second stylesheet. A raw string of `dh-btn dh-btn--primary` at a call site is
+ * the thing DS-02 exists to remove; this function is the supported way to reach
+ * it.
+ *
+ * ── UNTITLED-04 — it emits Untitled's own recipe ─────────────────────────────
+ *
+ * `untitledButtonStyles` is the vendored component's exported style object, so
+ * an element that cannot BE an Untitled button still gets the identical paint
+ * from the identical source: no second recipe to keep in step, and a `<label>`
+ * that acts as a button is plum where a `<Button>` beside it is plum.
  *
  * ── Why the legacy `.dh-btn` classes are emitted too ─────────────────────────
  *
- * `ui.css` names `.dh-btn` beside `.dh-button` on every rule, so an UNMIGRATED
- * call site takes the new paint. This is the other half of that bridge, and
- * without it the migration is not symmetric: thirteen module stylesheets carry
- * rules like `.dh-settings-row__control .dh-btn`, `.dh-record-toolbar > .dh-btn`
- * and `.dh-review-guide__nav .dh-btn` — layout adjustments belonging to the
- * surface rather than to the button. Converting a call site to `<Button>` would
- * silently drop out of every one of them, which is the worst kind of regression:
- * invisible in review, invisible in a unit test, and visible only as a button
- * that has quietly stopped filling its row on one screen.
+ * Thirteen module stylesheets carry rules like `.dh-settings-row__control
+ * .dh-btn`, `.dh-record-toolbar > .dh-btn` and `.dh-review-guide__nav .dh-btn`
+ * — LAYOUT adjustments belonging to the surface rather than to the button.
+ * Converting a call site to `<Button>` would silently drop out of every one of
+ * them, which is the worst kind of regression: invisible in review, invisible
+ * in a unit test, and visible only as a button that has quietly stopped filling
+ * its row on one screen. So the legacy names survive as HOOKS.
  *
- * Emitting both makes the conversion a genuine no-op, which is the property the
- * whole staged migration rests on. It costs one duplicated class in the markup
- * and nothing at all in the cascade, because both names resolve to the same
- * declarations. **It comes out with the bridge**, when the last `.dh-btn`
- * literal and the last module rule naming it are gone.
+ * `.dh-button` alongside them is what withdraws the legacy PAINT: every rule in
+ * `ui.css`'s button block is scoped `:not(.dh-button)`. The pair together is
+ * the whole bridge — hooks kept, paint moved — and **both come out** when the
+ * last `.dh-btn` literal and the last module rule naming it are gone.
  */
 export function buttonClassName(options: {
   readonly variant?: ButtonVariant;
@@ -152,19 +161,26 @@ export function buttonClassName(options: {
   readonly className?: string;
 }): string {
   const { variant = "secondary", size = "md", block, className } = options;
-  return [
-    "dh-button",
-    `dh-button--${variant}`,
-    size === "sm" ? "dh-button--sm" : null,
-    block ? "dh-button--block" : null,
-    // The bridge. Temporary, and deliberate — see above.
-    "dh-btn",
-    `dh-btn--${LEGACY_VARIANTS[variant]}`,
-    size === "sm" ? "dh-btn--sm" : null,
+  const untitledSize = size === "sm" ? "xs" : "sm";
+  return cx(
+    untitledButtonStyles.common.root,
+    untitledButtonStyles.sizes[untitledSize].root,
+    untitledButtonStyles.colors[UNTITLED_VARIANTS[variant]].root,
+    block && "flex w-full",
+    [
+      "dh-button",
+      `dh-button--${variant}`,
+      size === "sm" ? "dh-button--sm" : null,
+      block ? "dh-button--block" : null,
+      // The bridge. Temporary, and deliberate — see above.
+      "dh-btn",
+      `dh-btn--${LEGACY_VARIANTS[variant]}`,
+      size === "sm" ? "dh-btn--sm" : null,
+    ]
+      .filter(Boolean)
+      .join(" "),
     className,
-  ]
-    .filter(Boolean)
-    .join(" ");
+  );
 }
 
 /** The DalyHub button. */

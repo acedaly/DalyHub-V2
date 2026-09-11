@@ -7,7 +7,7 @@ import type { DiaryMode } from "~/modules/diary/routes/index";
 
 /**
  * DIARY-01B — the Day/Timeline mode switch: two REAL modes (no dead Week/Month),
- * URL-backed with `aria-current`, dropping the scope-bound cursor and (leaving Day)
+ * URL-backed with `aria-selected`, dropping the scope-bound cursor and (leaving Day)
  * the now-irrelevant date.
  */
 
@@ -17,7 +17,7 @@ function renderTabs(mode: DiaryMode, url: string) {
     { initialEntries: [url] },
   );
   render(<RouterProvider router={router} />);
-  return screen.getByRole("group", { name: "Diary views" });
+  return screen.getByRole("navigation", { name: "Diary views" });
 }
 
 describe("Diary mode tabs", () => {
@@ -31,7 +31,7 @@ describe("Diary mode tabs", () => {
     const group = renderTabs("timeline", "/diary?mode=timeline");
     expect(
       within(group).getByRole("link", { name: "Timeline" }),
-    ).toHaveAttribute("aria-current", "true");
+    ).toHaveAttribute("aria-current", "page");
   });
 
   it("dropping to Day clears mode; Timeline drops date; both drop cursor", () => {

@@ -46,7 +46,6 @@ import { useNavigate, useRevalidator } from "react-router";
 import { EntityCardGrid, ProjectCard } from "~/shared/card";
 import type { ProjectLifecycleCounts } from "~/kernel/projects";
 import {
-  CollectionControlRow,
   CollectionLayout,
   CollectionSearchField,
   collectionCountLabel,
@@ -58,8 +57,8 @@ import {
   type CollectionPresentation,
 } from "~/shared/collection-layout";
 import {
+  DrawerButton,
   DrawerProvider,
-  DrawerTrigger,
   useDrawer,
   type DrawerEntry,
   type DrawerRenderResult,
@@ -72,7 +71,7 @@ import { useRecordLifecycle } from "~/shared/record-lifecycle";
 import type { SelectOption } from "~/shared/forms/types";
 import type { GoalSummary } from "~/shared/goal-progress";
 import { GridIcon, TableIcon } from "~/shared/icons";
-import { ButtonLink } from "~/shared/ui";
+import { Button, ButtonLink } from "~/shared/ui";
 import { ViewSwitcher, ViewTabs } from "~/shared/view-switcher";
 
 import { GoalSummarySection } from "./GoalSummarySection";
@@ -577,12 +576,9 @@ function ProjectsCollection({
       subtitle={subtitle}
       presentation="grid"
       primaryAction={
-        <DrawerTrigger
-          drawerKey={NEW_PROJECT_KEY}
-          className="dh-btn dh-btn--primary"
-        >
+        <DrawerButton drawerKey={NEW_PROJECT_KEY} variant="primary">
           <CreateActionLabel>New project</CreateActionLabel>
-        </DrawerTrigger>
+        </DrawerButton>
       }
       /*
        * PROJECT-02 — the way to the template library: ONE quiet secondary link
@@ -645,8 +641,32 @@ function ProjectsCollection({
        * included. It has simply been given the row the reference draws it on.
        */
       filterBar={
-        <CollectionControlRow
-          leading={
+        /*
+         * UNTITLED-04 — the Untitled Application UI filter-bar band: a bordered
+         * strip on the card surface with the collection's mode rail at the
+         * leading edge and its presentation control at the trailing one. The
+         * same structure `/tasks` adopted from Pro `dashboards-01/02`, so the
+         * two busiest collections in the product now carry one toolbar grammar.
+         */
+        <div
+          /*
+           * `min-w-0` is load-bearing: a flex ITEM's automatic minimum size is
+           * its min-content, which overrides `w-full`, so without it this band
+           * grew to fit the widest tab strip and put the whole document into
+           * horizontal scroll at 320px. With it the strip scrolls inside its
+           * own track, which is what it is built to do.
+           */
+          className="flex w-full min-w-0 flex-wrap items-center gap-3 max-md:flex-col max-md:items-stretch"
+          data-untitled-source="dashboards-01/02:filter-bar"
+        >
+          {/*
+           * The scroller stays. The rail draws one of its own, but at 320px the
+           * band is a column and the strip is wider than the viewport, so
+           * removing this one put 100px of horizontal scroll on the DOCUMENT —
+           * measured, and the thing `expectNoHorizontalOverflow` exists to
+           * catch. A contained overflow is the intended behaviour here.
+           */}
+          <div className="min-w-0 max-w-full flex-1 overflow-x-auto">
             <ViewTabs
               param="state"
               options={STATE_OPTIONS}
@@ -654,8 +674,8 @@ function ProjectsCollection({
               label="Project views"
               defaultValue="all"
             />
-          }
-          trailing={
+          </div>
+          <div className="flex shrink-0 items-center gap-3 max-md:justify-end">
             <ViewSwitcher
               param="present"
               options={PRESENTATION_OPTIONS}
@@ -670,8 +690,8 @@ function ProjectsCollection({
                */
               alwaysWriteValue
             />
-          }
-        />
+          </div>
+        </div>
       }
       error={
         failed ? (
@@ -696,13 +716,9 @@ function ProjectsCollection({
             title={`No projects match “${query}”`}
             description="Try a shorter search, or a different lifecycle tab."
             primaryAction={
-              <button
-                type="button"
-                className="dh-btn"
-                onClick={() => setDraft("")}
-              >
+              <Button variant="secondary" onClick={() => setDraft("")}>
                 Clear search
-              </button>
+              </Button>
             }
           />
         ) : (
@@ -722,12 +738,9 @@ function ProjectsCollection({
             }
             primaryAction={
               state === "archived" ? undefined : (
-                <DrawerTrigger
-                  drawerKey={NEW_PROJECT_KEY}
-                  className="dh-btn dh-btn--primary"
-                >
+                <DrawerButton drawerKey={NEW_PROJECT_KEY} variant="primary">
                   <CreateActionLabel>New project</CreateActionLabel>
-                </DrawerTrigger>
+                </DrawerButton>
               )
             }
           />
@@ -740,12 +753,9 @@ function ProjectsCollection({
           title="No Projects yet"
           description="Projects are the finite bodies of work you run under an Area or a Goal. Create your first one to get started."
           primaryAction={
-            <DrawerTrigger
-              drawerKey={NEW_PROJECT_KEY}
-              className="dh-btn dh-btn--primary"
-            >
+            <DrawerButton drawerKey={NEW_PROJECT_KEY} variant="primary">
               <CreateActionLabel>New project</CreateActionLabel>
-            </DrawerTrigger>
+            </DrawerButton>
           }
         />
       }

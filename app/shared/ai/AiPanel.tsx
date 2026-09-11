@@ -25,6 +25,7 @@ import type {
   AiDisclosure,
   AiSurfaceState,
 } from "./ai-view";
+import { buttonClassName } from "~/shared/ui";
 
 /** The polite progress line shown while a request is in flight. */
 export function AiProgress({
@@ -47,7 +48,7 @@ export function AiProgress({
       {onCancel ? (
         <button
           type="button"
-          className="dh-btn dh-btn--ghost"
+          className={buttonClassName({ variant: "subtle" })}
           onClick={onCancel}
         >
           Cancel
@@ -71,7 +72,7 @@ export function AiFailure({
       {onRetry ? (
         <button
           type="button"
-          className="dh-btn dh-btn--ghost"
+          className={buttonClassName({ variant: "subtle" })}
           onClick={onRetry}
         >
           Try again
@@ -89,7 +90,7 @@ export function AiUnavailable({ state }: { readonly state: AiSurfaceState }) {
     <div className="dh-ai__unavailable">
       <p className="dh-ai__unavailable-text">{copy.text}</p>
       {copy.href ? (
-        <a className="dh-btn dh-btn--ghost" href={copy.href}>
+        <a className={buttonClassName({ variant: "subtle" })} href={copy.href}>
           {copy.action}
         </a>
       ) : null}

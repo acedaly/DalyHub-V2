@@ -22,6 +22,7 @@ import {
 } from "~/shared/settings";
 
 import type { SerializedPerson } from "./person-view";
+import { buttonClassName } from "~/shared/ui";
 
 interface PersonSettingsTabProps {
   readonly person: SerializedPerson;
@@ -56,7 +57,7 @@ export function PersonSettingsTab({
             control={
               <button
                 type="button"
-                className="dh-btn dh-btn--primary"
+                className={buttonClassName({ variant: "primary" })}
                 onClick={onRestore}
                 disabled={pending}
               >
@@ -71,7 +72,7 @@ export function PersonSettingsTab({
             control={
               <button
                 type="button"
-                className="dh-btn dh-btn--secondary"
+                className={buttonClassName({ variant: "secondary" })}
                 onClick={onArchive}
                 disabled={pending}
               >

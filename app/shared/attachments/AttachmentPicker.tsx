@@ -41,6 +41,7 @@ import {
   MAX_ATTACHMENT_BYTES,
   formatAttachmentSize,
 } from "~/kernel/attachments";
+import { buttonClassName } from "~/shared/ui";
 
 export interface AttachmentPickerProps {
   readonly onSelect: (files: readonly File[]) => void;
@@ -79,7 +80,10 @@ export function AttachmentPicker({
   return (
     <div className="dh-attachment-picker" data-testid={testId}>
       <label
-        className="dh-btn dh-btn--secondary dh-attachment-picker__control"
+        className={buttonClassName({
+          variant: "secondary",
+          className: "dh-attachment-picker__control",
+        })}
         htmlFor={fileId}
       >
         Add file
@@ -98,7 +102,11 @@ export function AttachmentPicker({
 
       {allowCapture ? (
         <label
-          className="dh-btn dh-btn--secondary dh-attachment-picker__control dh-attachment-picker__control--camera"
+          className={buttonClassName({
+            variant: "secondary",
+            className:
+              "dh-attachment-picker__control dh-attachment-picker__control--camera",
+          })}
           htmlFor={cameraId}
         >
           Take a photo

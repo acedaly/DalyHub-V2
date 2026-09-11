@@ -134,7 +134,9 @@ test.describe("PROJ-05 — Project Settings and Archived collection", () => {
     ).toBeVisible();
 
     // Reach it again via the dedicated Archived collection segment.
-    await page.goto("/projects");
+    // `gotoFixture`, not a bare `goto`: a React Aria tab rail replaces its own
+    // DOM once after hydration, and a click across that swap is lost.
+    await gotoFixture(page, "/projects");
     await page.getByRole("link", { name: "Archived" }).click();
     await expect(page).toHaveURL(/state=archived/);
     const archivedCard = page.getByRole("link", {

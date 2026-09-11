@@ -145,7 +145,14 @@ test.describe("REDESIGN-04 — the Projects collection", () => {
     await expect(
       page
         .getByRole("list", { name: "Projects" })
-        .or(page.getByRole("table", { name: /^Projects,/ })),
+        /*
+         * UNTITLED-04 — `grid`, not `table`. The presentation is Untitled's
+         * `application/table` over React Aria, which exposes an interactive
+         * data grid: the browser's row and column semantics are unchanged and
+         * the caption is the same sentence, but keyboard navigation is now the
+         * grid pattern's rather than a static table's.
+         */
+        .or(page.getByRole("grid", { name: /^Projects,/ })),
     ).toBeVisible();
 
     const first = projectRecords(page).first();
@@ -184,7 +191,8 @@ test.describe("REDESIGN-04 — the Projects collection", () => {
     await page.getByRole("link", { name: "Table", exact: true }).click();
     await expect(page).toHaveURL(/[?&]present=table/);
 
-    const table = page.getByRole("table");
+    // UNTITLED-04 — `grid`; see the note above.
+    const table = page.getByRole("grid");
     await expect(table).toBeVisible();
     // A real table, so the browser's own row/column semantics apply.
     await expect(
@@ -203,13 +211,19 @@ test.describe("REDESIGN-04 — the Projects collection", () => {
     }
 
     await page.getByRole("link", { name: "Grid", exact: true }).click();
-    await expect(page.getByRole("table")).toHaveCount(0);
+    await expect(page.getByRole("grid")).toHaveCount(0);
   });
 
   test("keeps the lifecycle tabs, with the mockup's word and the repository's values", async ({
     page,
   }) => {
     await gotoFixture(page, "/projects");
+    /*
+     * UNTITLED-05 — the rail keeps its `navigation` landmark and its links.
+     * It takes Untitled's `application/tabs` underline APPEARANCE without the
+     * tab pattern's semantics, because the view it selects is a collection the
+     * router renders elsewhere — nothing a `tabpanel` here could hold.
+     */
     const rail = page.getByRole("navigation", { name: "Project views" });
     // The reference's word for `open`; the URL contract is untouched.
     await expect(rail.getByRole("link", { name: "Active" })).toHaveAttribute(

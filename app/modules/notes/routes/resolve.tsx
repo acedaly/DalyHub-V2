@@ -54,6 +54,7 @@ import { EntityIcon } from "~/shared/entity";
 import { entityDestination } from "~/shared/entity/destination";
 
 import type { Route } from "./+types/resolve";
+import { buttonClassName } from "~/shared/ui";
 
 export function meta() {
   return [{ title: "Link unavailable · DalyHub" }];
@@ -129,7 +130,7 @@ export default function ResolveRoute() {
         title="That link doesn’t go anywhere"
         description="The record it points to may have been deleted, or it isn’t part of this workspace. The note itself is untouched."
         primaryAction={
-          <a className="dh-btn dh-btn--primary" href="/notes">
+          <a className={buttonClassName({ variant: "primary" })} href="/notes">
             Back to Notes
           </a>
         }

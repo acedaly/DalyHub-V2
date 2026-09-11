@@ -142,7 +142,7 @@ describe("the Notes filter controls", () => {
         label="Note views"
       />,
     );
-    const group = screen.getByRole("group", { name: "Note views" });
+    const group = screen.getByRole("navigation", { name: "Note views" });
     expect(
       within(group)
         .getAllByRole("link")
@@ -150,7 +150,7 @@ describe("the Notes filter controls", () => {
     ).toEqual(["Active", "Archived", "Deleted"]);
     expect(
       within(group).getByRole("link", { name: "Archived" }),
-    ).toHaveAttribute("aria-current", "true");
+    ).toHaveAttribute("aria-current", "page");
   });
 });
 

@@ -525,3 +525,157 @@ The main list and drawer are DalyHub compositions above genuine Untitled
 primitives, not a second generic UI library. Forcing generic table or slideout
 markup into the record would remove task semantics rather than migrate
 presentation. No new generic primitive or visual token layer was introduced.
+
+## Phase 4 completion record — collections, the Record Layout and the shared primitives
+
+The authenticated Pro catalogue was available for this pass (the MCP connector
+reported `has_pro_access: true`). **The Untitled CLI could not be authenticated
+in this environment**: `npx untitledui@latest login` starts a local callback
+server and opens a browser at
+`https://www.untitledui.com/react/api/cli-auth?port=<localhost port>`, which a
+headless remote container cannot complete, and the MCP connector returns
+metadata plus the CLI command rather than source. Free-tier component source was
+still retrievable directly from `https://www.untitledui.com/react/api/components`,
+and the genuine Pro source vendored into `app/shared/ui/untitled/` by the earlier
+phases was the material this phase built from. Nothing was recreated from memory
+and no unavailable example name, snippet or screenshot was invented.
+
+Catalogue references inspected for this phase: page templates
+`informational-01/13` (a project detail: breadcrumb, page header, tab rail,
+split content with an activity column), `informational-02/06` (a filterable
+collection table with status badges and progress bars), `dashboards-02/02` and
+`dashboards-01/02` (the filter-bar-plus-table grammar the Tasks phase adopted),
+and components `table`, `filter-bar`, `application/tabs`, `application/pagination`,
+`application/empty-state`, `base/badges`, `base/button-group`, `base/input`,
+`base/progress-indicators` and `foundations/featured-icon`.
+
+| Surface | Untitled source | Structural change | Legacy remaining |
+|---|---|---|---|
+| Projects table | `application/table` (`TableCard.Root` + React Aria `Table`), `dashboards-01/02` filter bar | Hand-written `<table class="dh-ptable">` replaced; Status column added; fixed layout so the table fits its card at every width | Inline Area picker and DS-12 overflow (product controls) |
+| Projects card | Untitled card boundary, `LabelledProgressBar` | `dh-pcard` presentation deleted; phone row composition moved into the component | `dh-pcard*` class names as test hooks |
+| Projects toolbar | `application/tabs` (underline), `application/tabs` (button-border), `base/input` | Lifecycle rail, presentation toggle and search all Untitled | — |
+| Record header | Untitled page-header anatomy, `base/badges`, Untitled `Button` | `record-header*`, `record-title`, `record-status`, `record-action`, `record-context-item` presentation deleted | Two intrinsic-sizing rules for the inline title editor |
+| Record tabs | `application/tabs` (underline) over React Aria | Hand-rolled WAI-ARIA tabs (roving tabindex, arrow keys, Home/End, wrapping, disabled skipping) replaced by the library's | Phone "More sections" accelerator, lazy panel, `surface="plain"` |
+| Record summary band | Untitled card grammar, `LabelledProgressBar` | `dh-record-summary-bar*` presentation deleted | `data-density` as the caller's prose/derived-state declaration |
+| Entity card / row list | Untitled card boundary, `LabelledProgressBar` | `dh-ecard*`, `dh-erow*` and both phone blocks deleted | `dh-ecard*` / `dh-erow*` class names as hooks |
+| Areas | The above, plus Untitled empty state and toolbar | Gallery and row list both Untitled surfaces | — |
+| Goals | `application/tabs` for the lens rail and the pane rail; Untitled card grammar for both halves of the master–detail | `goals.css` keeps layout only | Measurement panel and chips (domain compositions) |
+| Empty states | `application/empty-state` + `foundations/featured-icon` | `empty-state.css` deleted product-wide | `size="inline"`, the record-level absence |
+| View switcher | `application/tabs` (button-border / button-minimal), `base/button-group` | `segmented-filter.css` and `view-tabs.css` deleted | — |
+| Collection search | `base/input` | Legacy control chrome deleted | Phone reveal, Escape contract, Clear affordance |
+| Load more | `application/pagination` card footer | `load-more.css` deleted; keyset cursor unchanged | — |
+
+### Deliberate deviations from upstream, and why
+
+- **`EmptyState.Title` is an `<h1>` upstream.** DalyHub renders empty states
+  inside record tabs, collections and drawers, three of which can be on screen
+  at once. The caller's `headingLevel` is carried as `aria-level`, which is what
+  assistive technology reports, so the genuine component still draws the title.
+- **`ProgressBarBase` has no accessible name.** `overrides/labelled-progress-bar.tsx`
+  keeps upstream's geometry, token classes and transform-not-width technique and
+  adds `aria-label` / `aria-valuetext`, because a DalyHub measure always
+  announces the same sentence the surface states in words.
+- **`Badge` spreads no arbitrary props.** `UntitledStatusBadge` wraps it in a
+  `display: contents` span carrying `data-dh-badge` and the tone, rather than
+  editing a file `scripts/vendor-untitled.mjs` regenerates.
+- **The record tab strip activates on focus.** Untitled's default is manual
+  activation; DalyHub's record tabs have always activated on focus, and changing
+  that for every record is not a migration decision.
+- **The presentation switcher is tabs, not a button group.** A URL-backed
+  switcher has to stay made of real links — deep-linkable, middle-clickable and
+  correct with no JavaScript — and only `application/tabs` takes an `href`.
+
+### The cascade, and the one thing that had to move
+
+Unlayered CSS beats layered CSS unconditionally, and `untitled.css` deliberately
+puts all of Tailwind inside layers so legacy screens are untouched. That is
+correct for a legacy screen and wrong for a zero-specificity FLOOR: `base.css`'s
+`:where(a)` and its native-control rules were outranking `text-primary` and
+Untitled's control chrome on migrated components. Those rules now live in a
+`dh-floor` layer declared between Tailwind's `base` and `components`, which is
+exactly what their own notes always claimed they were. Legacy unlayered
+stylesheets still outrank everything in it.
+
+The corollary is a rule for the rest of the migration: **a migrated component
+never borrows a legacy class that still has rules attached to it.** Where a
+class name survives as a test hook, its presentation is deleted in the same
+change.
+
+## Phase 5 completion record
+
+Phase 4 migrated the STRUCTURE of nine surfaces. Phase 5 is the finding that
+came out of proving it: the structure was Untitled's and the PAINT was not.
+
+### The button, and why "it contains an Untitled Button" was not migration
+
+DS-02 built the shared `<Button>` on `base/buttons/button`, and
+`buttonClassName` then emitted `dh-button dh-btn dh-btn--primary` alongside
+Untitled's own utility classes. `ui.css` is unlayered; Tailwind's utilities live
+in `@layer utilities`; an unlayered declaration beats a layered one
+unconditionally whatever the specificity. So every `<Button>` in the product
+carried Untitled markup, Untitled ARIA and Untitled focus behaviour, and was
+painted by `ui.css`. Height, radius, fill, border, type rung and hover treatment
+were all overridden — on every surface Phase 4 had declared migrated.
+
+Three unlayered stylesheets were doing it, and each is now scoped
+`:not(.dh-button)`:
+
+| Stylesheet | What it was overriding | Effect |
+|---|---|---|
+| `ui.css` button section | The whole control | Legacy violet fill, 10px radius, legacy height |
+| `premium.css` `.dh-btn` | `box-shadow: none` | Untitled draws its border (`ring-1 ring-primary ring-inset`) AND its lift (`shadow-xs-skeuomorphic`) through `box-shadow` — one `none` erased every secondary button's edge |
+| `collection-layout.css` `.dh-collection-controls__trigger` | A second copy of a secondary button | The one control in every collection header was a different radius from every other button on its row |
+
+`.dh-btn` stays ON the markup as a HOOK, because thirteen module stylesheets
+carry layout rules that name it (`.dh-record-toolbar > .dh-btn`,
+`.dh-settings-row__control .dh-btn`, `.dh-review-guide__nav .dh-btn`). Two rules
+still reach both deliberately: the `(hover: none)` touch floor, because
+Untitled's heights sit under the 44px target the product guarantees on a coarse
+pointer, and reduced motion. `.dh-button` also left the shared state-layer host
+list in `base.css` — Untitled draws hover and pressed as real container changes,
+so a `currentColor` wash on top is a second hover state, and on a primary button
+a white film over the accent.
+
+### The 201 literals, and why they had to go now
+
+With the component painting correctly, DalyHub drew two different primary
+buttons side by side: `<Button variant="primary">` in Branded Plum
+(`--color-bg-brand-solid`, rgb(105 63 117)) and a hand-written
+`className="dh-btn dh-btn--primary"` in the legacy `--accent` violet
+(rgb(91 75 214)). "Add a measurement" on a Goal record and "New habit" on the
+Habits header were different colours on the same shell.
+
+Every literal — 201 across 85 files — now calls `buttonClassName()`, which is
+rebuilt on the vendored component's own exported `styles`, so an element that
+cannot BE an Untitled button (a `DrawerTrigger`, a router `Link`, a `<label>`
+acting as a file picker) gets the identical paint from the identical source.
+The DOM does not change at all, which is what makes a sweep this wide
+reviewable. `.dh-btn--filled` and `.dh-btn--text` had no rules in any stylesheet
+and rendered as the bare base control; they map to primary and subtle, which is
+what their names claim and what their call sites intend.
+
+### Habits and the glance row
+
+| Surface | Untitled source | Structural change | Legacy remaining |
+|---|---|---|---|
+| Habits table panel | Untitled card boundary (`application/table`'s `TableCard.Root` grammar) | `.dh-habits__main`'s border/radius/background deleted; drawn by `HabitsCollection` | The four-column grid and its container queries (`HabitList` owns them) |
+| Habits rail cards | Untitled card boundary | `.dh-habits-card` deleted; one `RAIL_CARD` constant | `__head` / `__title` / `__count` typography |
+| Habits actions | Untitled `Button` via `ButtonLink` | Both `dh-btn` anchors converted | — |
+| Habits footer door | Semantic tokens | `.dh-habits__footer-link` deleted | — |
+| Glance row (`StatCard`) | Untitled card boundary + hover lift | `.dh-stat`'s border/radius/background/shadow and `.dh-stat--interactive`'s lift deleted | The three-row grid the ring spans |
+
+`StatCard` is shared, so the Analytics, Reviews and Today glance rows move with
+Habits. The hover lift is applied only where the card is a link: a figure you
+cannot go and look at has no hover state to earn.
+
+Habits could not be judged on the shared E2E seed, which renders the "No habits
+yet" empty state. `scripts/ux-02-seed.mjs` — the fixture written for exactly
+this — seeds eight active Habits, one archived and five weeks of check-ins.
+
+### Verification by computed style, not by eye
+
+A script walks every `.dh-button` on eighteen routes and asserts the brand fill
+on primaries, a real `box-shadow` on primaries and secondaries, and Untitled's
+8px radius on all of them. That is what found `premium.css` and the collection
+controls trigger; neither is visible in a diff and both are easy to miss in a
+screenshot.

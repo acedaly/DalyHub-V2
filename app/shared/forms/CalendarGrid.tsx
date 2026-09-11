@@ -109,7 +109,15 @@ function CalendarMonthHeading({
 
   return (
     <span id={id} className="dh-calendar__month">
-      <span>{parts.find((part) => part.type === "month")?.value}</span>
+      {/*
+       * The SPACE is text, not a gap.
+       *
+       * The two parts are separate spans so the year can take its own weight,
+       * and with only a flex gap between them the heading's text content — and
+       * so its accessible NAME — was "September2028": one token, read as one
+       * word, and unparseable by anything that reads the label back.
+       */}
+      <span>{parts.find((part) => part.type === "month")?.value}</span>{" "}
       <span>{parts.find((part) => part.type === "year")?.value}</span>
     </span>
   );

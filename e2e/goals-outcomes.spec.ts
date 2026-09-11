@@ -226,8 +226,8 @@ test.describe("UIX-03 — the status views", () => {
 
     /*
      * "Needs attention" is a partition of statuses the evaluator produces, so
-     * every row it shows must CARRY one of those statuses — the tab and the row
-     * are two readings of the same derivation and can never disagree.
+     * every row it shows must CARRY one of those statuses — the view and the
+     * row are two readings of the same derivation and can never disagree.
      *
      * The row states its status through the shared meter (`data-meter-status`),
      * because REDESIGN-04 deliberately gives the row a bar and a value rather

@@ -28,6 +28,7 @@ import { LoadMore } from "~/shared/load-more";
 
 import { goalProjectStateLabel } from "./goal-view";
 import type { SerializedGoalProjectItem } from "./goal-view";
+import { buttonClassName } from "~/shared/ui";
 
 interface GoalProjectsTabProps {
   readonly goalId: string;
@@ -267,7 +268,7 @@ export function GoalProjectsTab({
         primaryAction={
           <DrawerTrigger
             drawerKey={NEW_PROJECT_FOR_GOAL_KEY}
-            className="dh-btn dh-btn--primary"
+            className={buttonClassName({ variant: "primary" })}
             data-testid="goal-projects-new-project"
           >
             New Project for this Goal

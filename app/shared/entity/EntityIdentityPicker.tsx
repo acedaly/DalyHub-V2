@@ -87,6 +87,7 @@ import {
 import type { EntityType } from "./identity";
 import { identityAttribute, resolveIdentity } from "./identity-resolution";
 import { RecordIcon } from "./RecordIcon";
+import { buttonClassName } from "~/shared/ui";
 
 /** A record's chosen identity, as it travels to and from a form. */
 export type EntityIdentityValue = {
@@ -290,7 +291,7 @@ export function EntityIdentityPicker({
             <div className="dh-icon-picker__actions">
               <button
                 type="button"
-                className="dh-btn dh-btn--text"
+                className={buttonClassName({ variant: "subtle" })}
                 onClick={() => {
                   setDraftIcon(null);
                   setDraftSlot(null);
@@ -301,14 +302,14 @@ export function EntityIdentityPicker({
               <span className="dh-icon-picker__actions-spacer" />
               <button
                 type="button"
-                className="dh-btn dh-btn--secondary"
+                className={buttonClassName({ variant: "secondary" })}
                 onClick={() => setOpen(false)}
               >
                 Cancel
               </button>
               <button
                 type="button"
-                className="dh-btn dh-btn--primary"
+                className={buttonClassName({ variant: "primary" })}
                 onClick={apply}
               >
                 Apply

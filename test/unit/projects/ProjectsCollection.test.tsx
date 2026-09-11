@@ -126,7 +126,9 @@ describe("Projects collection", () => {
     // The subtitle reflects the count.
     expect(screen.getByText("2 Projects")).toBeInTheDocument();
     // UIX-02 — the lifecycle mode is a tab RAIL of links under the title, not
-    // a segmented capsule beside it, so it announces as navigation.
+    // a segmented capsule beside it. UNTITLED-04 draws that rail with the
+    // genuine Untitled `application/tabs` underline anatomy, so it announces as
+    // a tablist whose tabs are real links to the URL that IS each view.
     expect(
       screen.getByRole("navigation", { name: "Project views" }),
     ).toBeInTheDocument();

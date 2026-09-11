@@ -48,6 +48,7 @@ import { EntityIdentityPicker } from "~/shared/entity";
 import { templateContentsLabel } from "~/kernel/project-templates";
 
 import { useParentOptionsSearch } from "./use-parent-options-search";
+import { buttonClassName } from "~/shared/ui";
 
 /**
  * The two shapes this form shares with the Projects module, DUPLICATED here
@@ -167,7 +168,10 @@ function NoEligibleParents({ onCancel }: { readonly onCancel: () => void }) {
         <FormButton type="button" variant="secondary" onClick={onCancel}>
           Close
         </FormButton>
-        <a className="dh-btn dh-btn--primary" href="/areas?drawer=new-area">
+        <a
+          className={buttonClassName({ variant: "primary" })}
+          href="/areas?drawer=new-area"
+        >
           Create an Area
         </a>
       </FormActions>

@@ -28,7 +28,7 @@ import {
   obligationStateTone,
   type SerializedObligation,
 } from "~/shared/obligations";
-import { TagChipList } from "~/shared/ui";
+import { buttonClassName, TagChipList } from "~/shared/ui";
 
 import { AssetDatesTab } from "./AssetDatesTab";
 import { AssetValueHistory } from "./AssetValueHistory";
@@ -268,7 +268,7 @@ export function AssetOverview({
               : `${open.length} open ${open.length === 1 ? "obligation" : "obligations"}.`}{" "}
             <button
               type="button"
-              className="dh-btn dh-btn--ghost dh-btn--sm"
+              className={buttonClassName({ variant: "subtle", size: "sm" })}
               onClick={onOpenObligations}
             >
               View obligations
@@ -286,7 +286,7 @@ export function AssetOverview({
           No maintenance or renewals tracked yet.{" "}
           <button
             type="button"
-            className="dh-btn dh-btn--ghost dh-btn--sm"
+            className={buttonClassName({ variant: "subtle", size: "sm" })}
             onClick={onOpenObligations}
           >
             Add one
@@ -400,14 +400,14 @@ export function AssetOverview({
       <p className="dh-asset-summary__edit">
         <button
           type="button"
-          className="dh-btn dh-btn--ghost"
+          className={buttonClassName({ variant: "subtle" })}
           onClick={onEditDetails}
         >
           Edit details
         </button>{" "}
         <button
           type="button"
-          className="dh-btn dh-btn--ghost"
+          className={buttonClassName({ variant: "subtle" })}
           onClick={onOpenHistory}
         >
           View history

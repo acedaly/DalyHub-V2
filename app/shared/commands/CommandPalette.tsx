@@ -212,7 +212,10 @@ export default function CommandPalette({
               untitledButtonStyles.common.root,
               untitledButtonStyles.sizes.sm.root,
               untitledButtonStyles.colors.tertiary.root,
-              "dh-command__close min-w-11",
+              // UNTITLED-04 — the product's 44px target on both axes. Untitled's
+              // `sm` button is 40px tall, and this control is reached by thumb
+              // on a phone; `min-w-11` already stated the inline half.
+              "dh-command__close min-h-11 min-w-11",
             )}
             ref={closeButtonRef}
             onClick={onClose}
@@ -231,7 +234,16 @@ export default function CommandPalette({
           <CommandInput
             ref={inputRef}
             type="text"
-            className="dh-command__inputrow p-3"
+            /*
+             * UNTITLED-04 — the product's 44px floor, on the INPUT.
+             *
+             * `CommandInput`'s `className` lands on its wrapping group; the
+             * `[role="combobox"]` the touch-target contract is written against
+             * is the inner field, which sized to its type at 42px. The arbitrary
+             * variant is the way to reach it without editing a vendored file
+             * that `scripts/vendor-untitled.mjs` regenerates.
+             */
+            className="dh-command__inputrow p-3 [&_input]:min-h-11"
             name="command"
             placeholder="What do you want to do?"
             autoComplete="off"
@@ -612,7 +624,9 @@ function CommandOption({
       aria-selected={showActive}
       aria-disabled={disabled || undefined}
       aria-busy={pending || undefined}
-      className="dh-command__option rounded-lg"
+      // UNTITLED-04 — the listbox option is the palette's primary touch
+      // surface, and a one-line option measured 42px.
+      className="dh-command__option min-h-11 rounded-lg"
       data-active={showActive || undefined}
       data-disabled={disabled || undefined}
       data-pending={pending || undefined}

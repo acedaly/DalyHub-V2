@@ -45,6 +45,7 @@ import { AriaRouterProvider } from "./shared/router/AriaRouterProvider";
 import { isSameDocumentParameterChange } from "./shared/router/revalidation";
 import { COLOR_SCHEME_PALETTES } from "./shared/tokens";
 import "./app.css";
+import { buttonClassName } from "~/shared/ui";
 
 /**
  * APPEARANCE-01 — the FALLBACK appearance, read from the first-paint cookie
@@ -391,7 +392,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
           shell's route context, and a dead end that offers a broken control is
           worse than one that offers none. */}
       <p className="dh-route-error__actions">
-        <a className="dh-btn dh-btn--primary" href="/today">
+        <a className={buttonClassName({ variant: "primary" })} href="/today">
           Go to Today
         </a>
       </p>

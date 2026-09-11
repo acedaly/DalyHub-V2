@@ -111,6 +111,7 @@ import { BackupsSection } from "../BackupsSection";
 import { RestoreFromBackup } from "../RestoreFromBackup";
 
 import type { Route } from "./+types/index";
+import { buttonClassName } from "~/shared/ui";
 
 type SectionId =
   | "general"
@@ -1157,7 +1158,11 @@ export default function SettingsRoute({ loaderData }: Route.ComponentProps) {
         {/* Phone only — the way back to the list. It is a real link to the
          * section-less URL, so it is also what Back does. */}
         <p className="dh-settings-page__back">
-          <Link to="?" preventScrollReset className="dh-btn dh-btn--ghost">
+          <Link
+            to="?"
+            preventScrollReset
+            className={buttonClassName({ variant: "subtle" })}
+          >
             <span aria-hidden="true">←</span> All settings
             {activeSection ? (
               <span className="dh-visually-hidden">
@@ -1685,14 +1690,14 @@ function TaskCaptureParentSetting({
           <div className="dh-settings-page__inline-actions">
             <button
               type="submit"
-              className="dh-btn dh-btn--secondary"
+              className={buttonClassName({ variant: "secondary" })}
               disabled={fetcher.state !== "idle"}
             >
               Save destination
             </button>
             <button
               type="button"
-              className="dh-btn dh-btn--ghost"
+              className={buttonClassName({ variant: "subtle" })}
               disabled={fetcher.state !== "idle" || value.length === 0}
               onClick={() => {
                 setValue("");

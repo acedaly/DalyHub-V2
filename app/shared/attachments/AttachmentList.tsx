@@ -19,6 +19,7 @@ import type { SerializedAttachment } from "~/kernel/attachments";
 
 import { AttachmentRow } from "./AttachmentRow";
 import type { PendingUpload } from "./use-attachments";
+import { buttonClassName } from "~/shared/ui";
 
 export interface AttachmentListProps {
   readonly attachments: readonly SerializedAttachment[];
@@ -87,7 +88,7 @@ export function AttachmentList({
             {entry.state === "failed" && onRetry ? (
               <button
                 type="button"
-                className="dh-btn dh-btn--ghost dh-btn--sm"
+                className={buttonClassName({ variant: "subtle", size: "sm" })}
                 onClick={() => onRetry(entry.operationId)}
                 data-testid="attachment-retry"
               >
@@ -98,7 +99,7 @@ export function AttachmentList({
             {entry.state === "failed" && onDismiss ? (
               <button
                 type="button"
-                className="dh-btn dh-btn--ghost dh-btn--sm"
+                className={buttonClassName({ variant: "subtle", size: "sm" })}
                 onClick={() => onDismiss(entry.operationId)}
                 data-testid="attachment-dismiss"
               >

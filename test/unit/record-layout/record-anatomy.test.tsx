@@ -215,18 +215,42 @@ describe("RecordLayout — one summary region, and the plain-surface tab", () =>
   });
 
   it("marks a tab whose content brings its own surface as plain", () => {
-    const { container } = render(
+    /*
+     * UNTITLED-04 — exactly the SELECTED panel is mounted (React Aria's tabs),
+     * so the contract is asserted one active tab at a time rather than over a
+     * list of hidden panels.
+     */
+    const tabs = [
+      {
+        id: "note",
+        label: "Note",
+        surface: "plain" as const,
+        content: <p>body</p>,
+      },
+      { id: "linked", label: "Links", content: <p>links</p> },
+    ];
+    const plain = render(
       <RecordLayout
         title="Kitchen fit-out brief"
-        tabs={[
-          { id: "note", label: "Note", surface: "plain", content: <p>body</p> },
-          { id: "linked", label: "Links", content: <p>links</p> },
-        ]}
+        tabs={tabs}
+        activeTabId="note"
       />,
     );
-    const panels = container.querySelectorAll(".record-tabs__panel");
-    expect(panels[0]).toHaveAttribute("data-surface", "plain");
+    expect(
+      plain.container.querySelector(".record-tabs__panel"),
+    ).toHaveAttribute("data-surface", "plain");
+    plain.unmount();
+
     // A tab that does NOT declare it keeps the contained record surface.
-    expect(panels[1]).toHaveAttribute("data-surface", "panel");
+    const panel = render(
+      <RecordLayout
+        title="Kitchen fit-out brief"
+        tabs={tabs}
+        activeTabId="linked"
+      />,
+    );
+    expect(
+      panel.container.querySelector(".record-tabs__panel"),
+    ).toHaveAttribute("data-surface", "panel");
   });
 });

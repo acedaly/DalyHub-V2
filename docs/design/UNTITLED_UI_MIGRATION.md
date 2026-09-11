@@ -392,3 +392,150 @@ Remove a legacy component, stylesheet, token group, screenshot or document when:
 
 Git history is the archive. Do not keep obsolete design files merely for
 reference.
+
+## Phase 4: collections, the shared Record Layout, and the primitive sweep
+
+Status: implemented. This phase took Projects, Areas and Goals through a
+structural migration, migrated the scaffold every record surface composes, and
+then retired the staged `structure` props the earlier phases introduced.
+
+### What moved, and in what order
+
+1. **Projects.** The table presentation became the genuine
+   `application/table` composition (`TableCard.Root` + React Aria `Table`); the
+   gallery card became Untitled's bounded card surface; the lifecycle rail,
+   presentation toggle, search, empty states and load-more footer became their
+   Untitled sources. `dh-ptable*` and `dh-pcard*` presentation was deleted.
+2. **The shared Record Layout.** `RecordTabs` became Untitled's
+   `application/tabs` over React Aria — retiring the largest piece of
+   hand-rolled accessibility in the shared layer — and `RecordHeader`,
+   `RecordSummaryBar`, `RecordAction` and the content panel took Untitled's
+   page-header and card grammar. That migrated every record surface in the
+   product at once: Project, Area, Goal, Note, Meeting, Habit, Person, Asset,
+   Review, Obligation, Finance account, Project template and the Task drawer.
+3. **`EntityCard` / `EntityRowList`.** The collection objects Areas and Goals
+   are drawn from, on the same Untitled card boundary, with both phone
+   compositions moved out of media queries and into the components.
+4. **Goals.** Both halves of the master–detail, and both tab rails.
+5. **The primitive sweep.** With every collection migrated, the `structure`
+   props on `EmptyState`, `LoadMore`, `ViewTabs`, `ViewSwitcher` and
+   `CollectionSearchField` were removed along with their legacy branches. That
+   reached Notes, Meetings, Habits, People, Diary, Assets, Reviews, Analytics,
+   Obligations, Finance and Reports without any of them changing a line.
+
+### Stylesheets deleted
+
+`empty-state.css`, `load-more.css`, `segmented-filter.css` (the `.dh-segmented`
+stylesheet) and `view-tabs.css`, plus the `.dh-pcard*`, `.dh-ptable*`,
+`.dh-ecard*`, `.dh-erow*`, `record-header*`, `record-title`, `record-status`,
+`record-action`, `record-context-item`, `record-tabs*` and
+`.dh-record-summary-bar*` rule families from `card-family.css`,
+`record-layout.css`, `premium.css`, `projects.css`, `progress.css` and
+`collection-layout.css`.
+
+The class NAMES survive in the markup wherever a product test or an end-to-end
+journey addresses them. That is the compatibility boundary this phase leaves
+behind, and it is deliberately inert: every one of those selectors is now
+unstyled.
+
+### Cascade change
+
+`base.css`'s zero-specificity native-control and link floor moved into a
+`dh-floor` cascade layer, declared in `untitled/untitled.css` between Tailwind's
+`base` and `components`. Unlayered CSS beats layered CSS unconditionally, so
+`:where(a)` was outranking `text-primary` on migrated components — the floor now
+sits where its own notes always said it did. Legacy unlayered stylesheets are
+unaffected.
+
+`.dh-csearch__*` was scoped under `.dh-csearch` for the same reason while both
+structures coexisted; the legacy structure is now gone and those rules are next
+to remove.
+
+### Accessibility changes worth knowing about
+
+These are role changes where the ARIA got stronger, not weaker, and the tests
+record them:
+
+- a URL-backed view switcher is a `tablist` of ANCHORS with `aria-selected`
+  (it was a `group` of links with `aria-current`); every href, param and deep
+  link is unchanged, and the `replace` history semantics ride through React
+  Aria's `routerOptions`;
+- the client-state switcher is a `radiogroup`, which states that the options are
+  mutually exclusive instead of leaving that to be inferred from three
+  independent toggles;
+- a record's tab panels are now mounted one at a time (React Aria's model). The
+  user-facing requirement is the same one, stated more strongly: an inactive
+  tab's content is not on the page — which also means a record's Activity,
+  Knowledge and Evidence tabs no longer all read on mount.
+
+### Untitled Pro access in this environment
+
+The MCP connector authenticated (`has_pro_access: true`) and was used for
+catalogue search, page-template selection and component identification. The
+Untitled CLI could not be authenticated: `npx untitledui@latest login` completes
+an OAuth callback to a localhost port, which a headless remote container cannot
+reach, and the connector hands back the CLI command rather than source. Free-tier
+component source remained retrievable from the public component API; Pro source
+came from the genuine vendored tree under `app/shared/ui/untitled/`, which the
+earlier phases imported from a licensed checkout. No Pro component was recreated
+from memory, and no unavailable example or snippet was invented.
+
+## Phase 5 — the paint
+
+Phase 4 migrated structure. Phase 5 is what proving it turned up: the structure
+was Untitled's and the paint was not. `ui.css`, `premium.css` and
+`collection-layout.css` are unlayered and were painting over every shared
+`<Button>` in the product — fill, radius, height, border and hover. The
+implementation record has the full account; the migration consequences are:
+
+**Stylesheet sections withdrawn (scoped `:not(.dh-button)`, hooks kept)**
+
+- `ui.css` — the whole Button paint block (base, icon insets, `--sm`, all four
+  families, disabled).
+- `premium.css` — `.dh-btn` and `.dh-btn--primary`.
+- `base.css` — `.dh-button` left the shared state-layer host list; the legacy
+  literal stays a host.
+
+**Stylesheet sections deleted outright**
+
+- `collection-layout.css` — `.dh-collection-controls__trigger`'s border, radius,
+  background, height and type rung (it has been a `<Button variant="secondary">`
+  since DS-02).
+- `habits.css` — `.dh-habits__main`, `.dh-habits-card`, `.dh-habits__footer` and
+  `.dh-habits__footer-link`.
+- `card-family.css` — `.dh-stat`'s boundary, `.dh-stat--washed` and
+  `.dh-stat--interactive:hover`.
+- `today.css` — the flat `.dh-today__panel` (replaced by the Untitled boundary).
+
+**Call sites converted**
+
+201 raw `className="dh-btn …"` strings across 85 files, every module and every
+shared component, now call `buttonClassName()` — which is rebuilt on the
+vendored component's own exported `styles`. Zero `dh-btn` literals remain in
+`app/`. The DOM is unchanged at every one of them.
+
+### Accessibility notes for Phase 5
+
+No role, name or keyboard behaviour changed. The state layer moving off
+`.dh-button` removes a duplicate hover treatment, not a state: Untitled draws
+hover and pressed as container changes and focus as its own 2px ring. The
+`(hover: none)` touch floor still reaches the component, so the 44px coarse-
+pointer target is unchanged.
+
+### Next
+
+1. Diary — the day navigator and the timeline.
+2. People, Assets, Reviews, Obligations, Finance — their row/table structures.
+   (Their controls, empty states, switchers and now their buttons are migrated;
+   what is left is the row/table composition.)
+3. Meeting record — the notebook and agenda sections are still domain
+   compositions on legacy styling.
+4. Settings — the most Untitled-native area in the product, from complete
+   settings page examples.
+5. `IconButton` — the last primitive in `~/shared/ui` not built on Untitled, and
+   still a full state-layer host.
+6. Remove the inert legacy class names once their tests address product hooks
+   instead, and with them the `.dh-btn` hook and the thirteen module rules that
+   need it.
+7. `.dh-btn--danger-quiet` in `tasks.css` has no consumer in `app/` — verify and
+   delete.

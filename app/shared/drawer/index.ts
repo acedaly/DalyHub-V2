@@ -16,6 +16,8 @@ export { DrawerProvider } from "./DrawerProvider";
 export type { DrawerProviderProps } from "./DrawerProvider";
 export { DrawerTrigger } from "./DrawerTrigger";
 export type { DrawerTriggerProps } from "./DrawerTrigger";
+export { DrawerButton } from "./DrawerButton";
+export type { DrawerButtonProps } from "./DrawerButton";
 export { DrawerClose } from "./DrawerClose";
 export type { DrawerCloseProps } from "./DrawerClose";
 export { useDrawer } from "./use-drawer";

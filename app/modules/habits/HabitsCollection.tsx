@@ -62,6 +62,7 @@ import {
   TodayIcon,
 } from "~/shared/icons";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
+import { ButtonLink } from "~/shared/ui";
 import { ViewSwitcher } from "~/shared/view-switcher";
 
 import type {
@@ -74,6 +75,17 @@ const RAIL_TODAY_LIMIT = 6;
 
 /** How many Goals the rail's supporting card names. */
 const RAIL_GOAL_LIMIT = 4;
+
+/**
+ * UNTITLED-04 — the rail card's boundary, written once.
+ *
+ * Untitled's bounded card grammar, the same one the collection table beside it
+ * now takes: `rounded-xl bg-primary shadow-xs ring-1 ring-secondary`. It used to
+ * be `.dh-habits-card` in `habits.css` on the legacy border/radius pair, which
+ * left the two halves of this screen drawn by two different systems.
+ */
+const RAIL_CARD =
+  "flex min-w-0 flex-col gap-3 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary";
 
 export type HabitsCollectionProps = HabitsCollectionData;
 
@@ -199,9 +211,9 @@ export function HabitsCollection({
       }
       primaryAction={
         scope === "archived" ? undefined : (
-          <a className="dh-btn dh-btn--primary" href="/habits/new">
+          <ButtonLink variant="primary" href="/habits/new">
             <CreateActionLabel>New habit</CreateActionLabel>
-          </a>
+          </ButtonLink>
         )
       }
       error={
@@ -221,9 +233,9 @@ export function HabitsCollection({
           title="No habits yet"
           description="A habit is a behaviour you want to practise — not a task you must not forget. Choose how often, and check it off as you go."
           primaryAction={
-            <a className="dh-btn dh-btn--primary" href="/habits/new">
+            <ButtonLink variant="primary" href="/habits/new">
               <CreateActionLabel>New habit</CreateActionLabel>
-            </a>
+            </ButtonLink>
           }
         />
       }
@@ -249,7 +261,18 @@ export function HabitsCollection({
       {overview === null ? null : <HabitsStats overview={overview} />}
 
       <div className="dh-habits__body">
-        <section className="dh-habits__main" aria-label={listLabel}>
+        <section
+          /*
+           * UNTITLED-04 — the same bounded card the migrated collection tables
+           * and record panels carry, drawn here rather than in `habits.css`.
+           * The composition reason the stylesheet gave for a panel is unchanged
+           * and still right: this is a table BESIDE a rail of cards, and a flat
+           * list against three bounded cards reads as an unfinished region.
+           * What changes is which system draws the edge.
+           */
+          className="dh-habits__main flex min-w-0 flex-col gap-4 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary"
+          aria-label={listLabel}
+        >
           <HabitList ariaLabel={listLabel} columns data-testid="habit-list">
             {items.map((habit) => (
               <HabitRow
@@ -280,8 +303,11 @@ export function HabitsCollection({
            * the same navigation the switcher performs.
            */}
           {scope === "archived" ? null : (
-            <p className="dh-habits__footer">
-              <a className="dh-habits__footer-link" href="/habits/archived">
+            <p className="dh-habits__footer m-0 border-t border-secondary pt-2 text-center">
+              <a
+                className="inline-flex min-h-[var(--app-touch-target-min)] items-center gap-2 text-sm text-tertiary no-underline transition duration-100 ease-linear hover:text-secondary_hover hover:underline"
+                href="/habits/archived"
+              >
                 <ArchiveIcon aria-hidden="true" />
                 Show archived habits
               </a>
@@ -431,7 +457,7 @@ function HabitsRail({
       data-testid="habits-rail"
     >
       <section
-        className="dh-habits-card dh-habits-card--today"
+        className={`dh-habits-card--today ${RAIL_CARD}`}
         aria-labelledby="habits-today-heading"
         data-testid="habits-today"
       >
@@ -484,7 +510,7 @@ function HabitsRail({
 
       {goals.length === 0 ? null : (
         <section
-          className="dh-habits-card"
+          className={RAIL_CARD}
           aria-labelledby="habits-goals-heading"
           data-testid="habits-goals"
         >
@@ -537,7 +563,7 @@ function HabitsRail({
       )}
 
       <section
-        className="dh-habits-card"
+        className={RAIL_CARD}
         aria-labelledby="habits-week-heading"
         data-testid="habits-week"
       >

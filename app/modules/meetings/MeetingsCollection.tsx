@@ -10,11 +10,12 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router";
+import { useSearchParams } from "react-router";
 
 import {
   collectionCountLabel,
   CollectionLayout,
+  CollectionSearchField,
   CreateActionLabel,
   SortMenu,
   useCollectionLoading,
@@ -22,7 +23,7 @@ import {
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
-import { Input } from "~/shared/ui";
+import { ButtonLink } from "~/shared/ui";
 import { ViewSwitcher } from "~/shared/view-switcher";
 
 import { MeetingsList } from "./MeetingsList";
@@ -171,28 +172,20 @@ export function MeetingsCollection({
         />
       }
       filterBar={
-        <div className="dh-meetings-filters">
-          {/*
-            UIX-04 §7/§37 — the search field's visible label is its placeholder,
-            exactly as the Notes band does it. The label element is only
-            VISUALLY hidden, so the control is still named for assistive tech;
-            what goes is the empty, unlabelled box the band used to open with.
-          */}
-          <label
-            className="dh-field dh-meetings-search"
-            htmlFor="meetings-search"
-          >
-            <span className="dh-field__label-text dh-visually-hidden">
-              Search meetings
-            </span>
-            <Input
-              id="meetings-search"
-              type="search"
-              placeholder="Search meetings"
-              value={draftQuery}
-              onChange={(event) => setDraftQuery(event.target.value)}
-            />
-          </label>
+        /*
+         * UNTITLED-04 — the shared collection search field, which is Untitled's
+         * `base/input`, in place of this module's own hand-built label/field
+         * pair. It carries its own accessible name, its own Clear affordance
+         * and the phone reveal every other collection has.
+         */
+        <div className="dh-meetings-filters flex w-full flex-wrap items-center gap-3">
+          <CollectionSearchField
+            value={draftQuery}
+            onChange={setDraftQuery}
+            label="Search meetings"
+            placeholder="Search meetings"
+            data-testid="meetings-search"
+          />
           <SortMenu
             subject="meetings"
             value={sort}
@@ -219,9 +212,9 @@ export function MeetingsCollection({
           // arrived with the header button's removal so the empty view is not
           // left without one.
           primaryAction={
-            <Link className="dh-btn dh-btn--primary" to="/new/meeting">
+            <ButtonLink variant="primary" href="/new/meeting">
               <CreateActionLabel>New meeting</CreateActionLabel>
-            </Link>
+            </ButtonLink>
           }
         />
       ) : (

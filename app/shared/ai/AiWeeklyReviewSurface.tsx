@@ -28,6 +28,7 @@ import {
 } from "./AiGrounded";
 import { asWeeklyReview, type AiSurfaceState } from "./ai-view";
 import { useAiRequest } from "./use-ai-request";
+import { buttonClassName } from "~/shared/ui";
 
 export interface AiWeeklyReviewSurfaceProps {
   readonly reviewId: string;
@@ -101,7 +102,7 @@ export function AiWeeklyReviewSurface({
           <AiSendNotice />
           <button
             type="button"
-            className="dh-btn dh-btn--primary"
+            className={buttonClassName({ variant: "primary" })}
             onClick={start}
           >
             Generate assistant summary
@@ -152,7 +153,7 @@ export function AiWeeklyReviewSurface({
             <p className="dh-ai-review__summary">{summary.overview}</p>
             <button
               type="button"
-              className="dh-btn dh-btn--ghost"
+              className={buttonClassName({ variant: "subtle" })}
               onClick={() => onAccept(summary.overview)}
             >
               Copy the overview into my reflection
@@ -266,7 +267,7 @@ export function AiWeeklyReviewSurface({
               </ul>
               <button
                 type="button"
-                className="dh-btn dh-btn--primary"
+                className={buttonClassName({ variant: "primary" })}
                 disabled={chosen.size === 0}
                 onClick={() =>
                   onAccept(

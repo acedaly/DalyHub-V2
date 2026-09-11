@@ -34,6 +34,7 @@ import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 
 import { GROUNDED_ASK_EXAMPLES, readAiAvailability } from "~/platform/ai";
 import type { Route } from "./+types/index";
+import { buttonClassName } from "~/shared/ui";
 
 export function meta() {
   return [
@@ -149,7 +150,7 @@ export default function AskDalyHubRoute({ loaderData }: Route.ComponentProps) {
             <div className="dh-ask__actions">
               <button
                 type="submit"
-                className="dh-btn dh-btn--primary"
+                className={buttonClassName({ variant: "primary" })}
                 disabled={
                   question.trim().length === 0 ||
                   state.kind === "running" ||
@@ -174,7 +175,7 @@ export default function AskDalyHubRoute({ loaderData }: Route.ComponentProps) {
                 <li key={example.intent}>
                   <button
                     type="button"
-                    className="dh-btn dh-btn--ghost"
+                    className={buttonClassName({ variant: "subtle" })}
                     onClick={() => setQuestion(example.question)}
                   >
                     {example.question}

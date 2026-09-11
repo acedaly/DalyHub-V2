@@ -48,6 +48,7 @@ import {
 import type { ReactNode } from "react";
 
 import { useCombobox } from "~/shared/forms/use-combobox";
+import { buttonClassName } from "~/shared/ui";
 
 /** How long typing settles before a search request is issued. */
 const SEARCH_DEBOUNCE_MS = 250;
@@ -289,7 +290,7 @@ export function RecordLinkPicker({
       <div className="dh-record-link-picker__actions">
         <button
           type="button"
-          className="dh-btn dh-btn--ghost"
+          className={buttonClassName({ variant: "subtle" })}
           onMouseDown={(event) => event.preventDefault()}
           onClick={onCancel}
         >

@@ -39,6 +39,7 @@ import {
 import { type AiSurfaceState } from "./ai-view";
 import type { ProposalRowDraft, ProposalRowOutcome } from "./proposal-view";
 import { useAiRequest } from "./use-ai-request";
+import { buttonClassName } from "~/shared/ui";
 
 /** What the record's own loader resolved about AI, server-side. */
 export interface AiSurfaceAvailabilityGate {
@@ -321,7 +322,7 @@ export function AiAssistSurface(props: AiAssistSurfaceProps) {
           <AiSendNotice />
           <button
             type="button"
-            className="dh-btn dh-btn--primary"
+            className={buttonClassName({ variant: "primary" })}
             disabled={props.readOnly === true}
             onClick={start}
           >

@@ -28,6 +28,8 @@
 
 import { Link } from "react-router";
 
+import { ButtonLink } from "~/shared/ui";
+
 import {
   formatMeetingDayGroup,
   formatMeetingDuration,
@@ -142,23 +144,43 @@ export function MeetingsList({
   const groups = groupByDay(meetings, todayKey, ownerTimezone);
 
   return (
-    <div className="dh-meetings-list" aria-label={ariaLabel}>
+    /*
+     * UNTITLED-04 — a day is a bounded Untitled surface, and the schedule is a
+     * stack of them.
+     *
+     * The reading is unchanged and is the point of the composition: a fixed
+     * leading TIME column, so a day's meetings read down the page as a schedule
+     * rather than as a list that happens to mention times. What changed is that
+     * each day now sits in the same bounded card the migrated collection tables
+     * and entity lists use, with the day heading as its section header — so the
+     * groups are visibly groups instead of headings floating on the canvas.
+     */
+    <div
+      className="dh-meetings-list flex flex-col gap-4"
+      aria-label={ariaLabel}
+    >
       {groups.map((group) => (
-        <section key={`${group.key}-${group.meetings[0].id}`}>
+        <section
+          key={`${group.key}-${group.meetings[0].id}`}
+          className="overflow-hidden rounded-xl bg-primary shadow-xs ring-1 ring-secondary"
+        >
           {/* REFINE §16/§40 — the day heading takes the Tasks group-heading
            * language: sentence case, the row's own size, weight 600, near-black,
            * with the day's count beside it. One vocabulary for "a bucket of
            * records", on every screen that has buckets. */}
-          <h2 className="dh-meetings-list__day">
-            {group.heading}{" "}
-            <span className="dh-meetings-list__day-sep" aria-hidden="true">
+          <h2 className="dh-meetings-list__day m-0 flex items-baseline gap-2 border-b border-secondary bg-secondary px-5 py-2.5 text-sm font-semibold text-secondary max-md:px-4">
+            {group.heading}
+            <span
+              className="dh-meetings-list__day-sep text-quaternary"
+              aria-hidden="true"
+            >
               ·
-            </span>{" "}
-            <span className="dh-meetings-list__day-count">
+            </span>
+            <span className="dh-meetings-list__day-count font-medium text-tertiary tabular-nums">
               {group.meetings.length}
             </span>
           </h2>
-          <ul className="dh-meetings-list__rows">
+          <ul className="dh-meetings-list__rows m-0 list-none p-0">
             {group.meetings.map((meeting) => {
               const status = meeting.archivedAt
                 ? "Archived"
@@ -208,54 +230,64 @@ export function MeetingsList({
                 meeting.status === "planned";
 
               return (
-                <li key={meeting.id} className="dh-meetings-list__row">
+                <li
+                  key={meeting.id}
+                  className="dh-meetings-list__row relative flex items-center gap-3 border-b border-secondary px-5 last:border-b-0 hover:bg-secondary max-md:px-4"
+                >
                   <Link
                     to={`/meeting/${meeting.id}`}
-                    className="dh-meetings-list__item"
+                    /*
+                     * On a PHONE the time moves ABOVE the title rather than
+                     * stealing 80px from it — a title truncated to make room for
+                     * "10:00 am" is the wrong trade.
+                     */
+                    className="dh-meetings-list__item flex min-w-0 flex-1 items-start gap-4 py-3 outline-focus-ring after:absolute after:inset-0 after:content-[''] focus-visible:outline-2 focus-visible:-outline-offset-2 max-md:flex-col max-md:gap-0.5"
                     prefetch="intent"
                   >
                     {/* The time is a fixed leading column, so a day's meetings
                      * read down the page as a schedule rather than as a list
                      * that happens to mention times. */}
                     <time
-                      className="dh-meetings-list__time"
+                      className="dh-meetings-list__time flex w-20 shrink-0 flex-col text-sm font-semibold text-secondary tabular-nums max-md:w-auto max-md:flex-row max-md:items-baseline max-md:gap-1.5 max-md:text-xs"
                       dateTime={meeting.startsAt}
                     >
                       {formatMeetingTime(meeting.startsAt, meeting.timezone)}
                       {zone ? (
-                        <span className="dh-meetings-list__zone">{zone}</span>
+                        <span className="dh-meetings-list__zone text-xs font-normal text-tertiary max-md:before:pr-1.5 max-md:before:content-['·']">
+                          {zone}
+                        </span>
                       ) : null}
                     </time>
-                    <span className="dh-meetings-list__main">
-                      <span className="dh-meetings-list__title">
+                    <span className="dh-meetings-list__main flex min-w-0 flex-col gap-0.5">
+                      <span className="dh-meetings-list__title text-sm font-semibold text-primary">
                         {meeting.title}
                       </span>
                       {where || status || duration || who ? (
-                        <span className="dh-meetings-list__meta">
+                        <span className="dh-meetings-list__meta flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-sm text-tertiary">
                           {/* REFINE §40 — duration leads the meta line, because
                            * it is the fact a schedule is read for after the time
                            * itself. It is derived from the meeting's own
                            * `endsAt` and is absent when the record has none. */}
                           {duration ? (
-                            <span className="dh-meetings-list__duration">
+                            <span className="dh-meetings-list__duration whitespace-nowrap before:pr-1.5 before:text-quaternary before:content-['·'] first:before:hidden">
                               {duration}
                             </span>
                           ) : null}
                           {where ? (
-                            <span className="dh-meetings-list__where">
+                            <span className="dh-meetings-list__where min-w-0 truncate before:pr-1.5 before:text-quaternary before:content-['·'] first:before:hidden">
                               {where}
                             </span>
                           ) : null}
                           {who ? (
                             <span
-                              className="dh-meetings-list__who"
+                              className="dh-meetings-list__who min-w-0 truncate before:pr-1.5 before:text-quaternary before:content-['·'] first:before:hidden"
                               data-testid="meeting-row-attendees"
                             >
                               {who}
                             </span>
                           ) : null}
                           {status ? (
-                            <span className="dh-meetings-list__status">
+                            <span className="dh-meetings-list__status whitespace-nowrap before:pr-1.5 before:text-quaternary before:content-['·'] first:before:hidden">
                               {status}
                             </span>
                           ) : null}
@@ -271,15 +303,17 @@ export function MeetingsList({
                     place in DalyHub survives the call.
                   */}
                   {joinable ? (
-                    <a
-                      className="dh-btn dh-btn--secondary dh-meetings-list__join"
+                    <ButtonLink
+                      variant="secondary"
+                      size="sm"
+                      className="dh-meetings-list__join relative z-10 shrink-0"
                       href={meeting.meetingUrl as string}
                       target="_blank"
                       rel="noreferrer"
                       aria-label={`Join ${meeting.title}`}
                     >
                       Join
-                    </a>
+                    </ButtonLink>
                   ) : null}
                 </li>
               );

@@ -162,7 +162,7 @@ import {
   type DayTask,
 } from "./day-view";
 import { useTaskSurfaceActions } from "~/shared/task-record/use-task-surface-actions";
-import { Button } from "~/shared/ui";
+import { Button, buttonClassName } from "~/shared/ui";
 import { PaneHeader } from "~/shared/shell/PaneHeader";
 import {
   type AttentionItem,
@@ -844,7 +844,7 @@ function SchedulePanel({
       {stale ? (
         <p className="dh-today__panel-foot">
           <Link
-            className="dh-btn dh-btn--ghost"
+            className={buttonClassName({ variant: "subtle" })}
             to="/settings?section=calendars"
           >
             A calendar did not refresh — showing the last schedule DalyHub
@@ -899,7 +899,10 @@ function ReflectionCard({
             <p>
               <button
                 type="button"
-                className="dh-btn dh-btn--ghost dh-today__reflection-write"
+                className={buttonClassName({
+                  variant: "subtle",
+                  className: "dh-today__reflection-write",
+                })}
                 data-testid="today-reflection-write"
                 onClick={(event) => diary.open(event.currentTarget)}
               >
@@ -1583,7 +1586,7 @@ export function TodayScreen({
             <AddTaskButton />
             {plan.hidden > 0 ? (
               <Link
-                className="dh-btn dh-btn--ghost"
+                className={buttonClassName({ variant: "subtle" })}
                 to="/tasks?system=today"
                 data-testid="today-focus-view-all"
               >

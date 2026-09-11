@@ -59,6 +59,7 @@ import {
 } from "../area-view";
 import type { AreaMutationResult } from "./mutate";
 import type { Route } from "./+types/detail";
+import { buttonClassName } from "~/shared/ui";
 
 const AREA_CHILD_PAGE_SIZE = 50;
 
@@ -608,7 +609,10 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
           title="We couldn’t find that Area"
           description="It may have been deleted, or the link is out of date."
           primaryAction={
-            <a className="dh-btn dh-btn--primary" href="/areas">
+            <a
+              className={buttonClassName({ variant: "primary" })}
+              href="/areas"
+            >
               Back to Areas
             </a>
           }

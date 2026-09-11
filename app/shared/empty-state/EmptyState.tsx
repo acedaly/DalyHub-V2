@@ -14,8 +14,12 @@
  * is just this component configured with a "clear filters" recovery action.
  */
 
+import { createElement } from "react";
 import type { ReactNode } from "react";
+
 import { EmptyState as UntitledEmptyState } from "~/shared/ui/untitled/application/empty-state/empty-state";
+import { cx } from "~/shared/ui/untitled/utils/cx";
+import { FeaturedIcon } from "~/shared/ui/untitled/foundations/featured-icon/featured-icon";
 
 export type EmptyStateProps = {
   /** A decorative glyph (commonly an entity-identity icon). */
@@ -56,8 +60,6 @@ export type EmptyStateProps = {
    */
   readonly size?: "default" | "compact" | "inline";
   readonly className?: string;
-  /** Render with the genuine Untitled Application UI empty-state anatomy. */
-  readonly structure?: "legacy" | "untitled";
 };
 
 export function EmptyState({
@@ -70,62 +72,139 @@ export function EmptyState({
   secondaryAction,
   size = "default",
   className,
-  structure = "legacy",
 }: EmptyStateProps) {
-  const Heading = `h${headingLevel}` as const;
-  const classes = ["dh-empty-state", className].filter(Boolean).join(" ");
-
-  if (structure === "untitled") {
+  /*
+   * RECORD-01 — `inline` is the RECORD-level absence and is deliberately NOT
+   * Untitled's empty state.
+   *
+   * Untitled's is always a centred block with a featured icon, which is right
+   * for a collection and wrong inside a record tab: there the same treatment
+   * restates a next action that is already visible a few pixels above, in a
+   * block tall enough to be the loudest thing in the panel. This keeps the
+   * heading — the outline stays correct and assistive tech still hears the
+   * region's state — and drops the theatre.
+   */
+  if (size === "inline") {
+    const Heading = `h${headingLevel}` as const;
     return (
-      <UntitledEmptyState
-        size={size === "compact" || size === "inline" ? "sm" : "md"}
-        className={className}
-        data-untitled-source="application/empty-state"
+      <div
+        className={["dh-empty-state flex min-w-0 flex-col gap-1", className]
+          .filter(Boolean)
+          .join(" ")}
+        data-size="inline"
       >
-        {illustration || icon ? (
-          <UntitledEmptyState.Header pattern="none">
-            <div className="flex size-12 items-center justify-center rounded-lg bg-brand-primary text-fg-brand-secondary ring-1 ring-brand-secondary">
-              {illustration ?? icon}
-            </div>
-          </UntitledEmptyState.Header>
+        <Heading className="dh-empty-state__title text-sm font-semibold text-secondary">
+          {title}
+        </Heading>
+        {description ? (
+          <p className="dh-empty-state__body m-0 text-sm text-tertiary">
+            {description}
+          </p>
         ) : null}
-        <UntitledEmptyState.Content>
-          <UntitledEmptyState.Title>{title}</UntitledEmptyState.Title>
-          {description ? (
-            <UntitledEmptyState.Description>
-              {description}
-            </UntitledEmptyState.Description>
-          ) : null}
-        </UntitledEmptyState.Content>
         {primaryAction || secondaryAction ? (
-          <UntitledEmptyState.Footer>
+          <div className="dh-empty-state__actions mt-2 flex flex-wrap gap-2">
             {primaryAction}
             {secondaryAction}
-          </UntitledEmptyState.Footer>
+          </div>
         ) : null}
-      </UntitledEmptyState>
+      </div>
     );
   }
 
   return (
-    <div className={classes} data-size={size}>
-      {illustration ? (
-        <div className="dh-empty-state__illustration">{illustration}</div>
-      ) : icon ? (
-        <div className="dh-empty-state__icon" aria-hidden="true">
-          {icon}
-        </div>
+    <UntitledEmptyState
+      size={size === "compact" ? "sm" : "md"}
+      className={["dh-empty-state", className].filter(Boolean).join(" ")}
+      data-size={size}
+      data-untitled-source="application/empty-state"
+    >
+      {illustration || icon ? (
+        <UntitledEmptyState.Header pattern="none">
+          {illustration ? (
+            /*
+             * An ILLUSTRATION is already a picture and brings its own size and
+             * frame; upstream's `Illustration` slot only takes one of its own
+             * named artworks, so a DalyHub illustration renders directly here.
+             */
+            <div className="dh-empty-state__illustration z-1">
+              {illustration}
+            </div>
+          ) : (
+            /*
+             * Untitled's `FeaturedIcon`, given DalyHub's own entity glyph. The
+             * upstream component takes an icon COMPONENT or a rendered element,
+             * and DalyHub's callers pass the latter
+             * (`<EntityIcon type="goal" />`) because the glyph is chosen from
+             * the entity's identity, not from an icon import.
+             */
+            <FeaturedIcon
+              size="lg"
+              theme="modern"
+              color="gray"
+              icon={icon}
+              className="dh-empty-state__icon"
+              aria-hidden="true"
+            />
+          )}
+        </UntitledEmptyState.Header>
       ) : null}
-      <Heading className="dh-empty-state__title">{title}</Heading>
-      {description ? (
-        <p className="dh-empty-state__body">{description}</p>
-      ) : null}
+      {/*
+       * Upstream's `Content` is a `<main>`, for the same reason `Title` is an
+       * `<h1>`: the component was drawn as a whole PAGE. DalyHub renders empty
+       * states inside a record tab, a collection and a drawer, so it produced a
+       * second `<main>` nested inside the shell's — two axe violations at once
+       * (`landmark-no-duplicate-main` and `landmark-main-is-top-level`), on
+       * every record with an empty tab.
+       *
+       * `role="presentation"` is not the way out: it is not an allowed role for
+       * `<main>` (`aria-allowed-role`), so it trades two findings for one. The
+       * element is a layout box with upstream's own class recipe instead, which
+       * is exactly what it draws — and the vendored file, which
+       * `scripts/vendor-untitled.mjs` regenerates, stays untouched.
+       */}
+      <div
+        className={cx(
+          "z-10 flex w-full max-w-88 flex-col items-center justify-center",
+          size === "compact" ? "mb-6 gap-1" : "mb-8 gap-2",
+        )}
+      >
+        {/*
+         * Upstream's `Title` is an `<h1>`, which is correct for the standalone
+         * page it was drawn for and wrong for an empty state inside a record
+         * tab, a collection or a drawer — three of which can be on screen at
+         * once.
+         *
+         * `aria-level` alone was not enough. It fixes what assistive technology
+         * ANNOUNCES, and leaves a second literal `<h1>` in a document that
+         * already has the record's own — which `record-lifecycle.spec.ts` found
+         * by asking for "the level 1 heading" and getting two. So the ELEMENT
+         * follows the caller's level too, drawn with upstream's own class
+         * recipe rather than through a slot that hard-codes its tag. Nothing
+         * about the appearance changes, and the vendored file — which
+         * `scripts/vendor-untitled.mjs` regenerates — stays untouched.
+         */}
+        {createElement(
+          `h${headingLevel}`,
+          {
+            className: cx(
+              "dh-empty-state__title font-semibold text-primary",
+              size === "compact" ? "text-md" : "text-lg",
+            ),
+          },
+          title,
+        )}
+        {description ? (
+          <UntitledEmptyState.Description className="dh-empty-state__body">
+            {description}
+          </UntitledEmptyState.Description>
+        ) : null}
+      </div>
       {primaryAction || secondaryAction ? (
-        <div className="dh-empty-state__actions">
+        <UntitledEmptyState.Footer className="dh-empty-state__actions flex-wrap justify-center">
           {primaryAction}
           {secondaryAction}
-        </div>
+        </UntitledEmptyState.Footer>
       ) : null}
-    </div>
+    </UntitledEmptyState>
   );
 }

@@ -63,7 +63,6 @@ export function TasksViewSwitcher({
       deleteExplanation="This deletes the saved view only. Your tasks are not affected, and you can save the same configuration again at any time."
       classPrefix="dh-tasks-views"
       testIdPrefix="tasks-view"
-      useUntitledTabs
     />
   );
 }

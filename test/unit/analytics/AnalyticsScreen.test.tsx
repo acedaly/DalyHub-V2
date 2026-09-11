@@ -169,7 +169,7 @@ describe("Analytics screen (UIX-05)", () => {
 
   it("offers every Insight window as the surface's one view rail", () => {
     renderScreen(pageData());
-    const rail = screen.getByRole("group", { name: "Insight window" });
+    const rail = screen.getByRole("navigation", { name: "Insight window" });
     expect(within(rail).getByRole("link", { name: /7 days/ })).toHaveAttribute(
       "href",
       "/analytics?window=this-week",
@@ -196,7 +196,7 @@ describe("Analytics screen (UIX-05)", () => {
       pageData({}, { window: "12-months", grain: "week", grains: ["week"] }),
       "/analytics?window=12-months&grain=week",
     );
-    const rail = screen.getByRole("group", { name: "Insight window" });
+    const rail = screen.getByRole("navigation", { name: "Insight window" });
     expect(within(rail).getByRole("link", { name: /7 days/ })).toHaveAttribute(
       "href",
       "/analytics?window=this-week",
@@ -210,7 +210,9 @@ describe("Analytics screen (UIX-05)", () => {
    */
   it("offers the grain only where the window has more than one", () => {
     const { unmount } = renderScreen(pageData());
-    expect(screen.queryByRole("group", { name: "Insight grain" })).toBeNull();
+    expect(
+      screen.queryByRole("navigation", { name: "Insight grain" }),
+    ).toBeNull();
     unmount();
 
     renderScreen(
@@ -219,10 +221,10 @@ describe("Analytics screen (UIX-05)", () => {
         { window: "12-weeks", grain: "week", grains: ["day", "week"] },
       ),
     );
-    const control = screen.getByRole("group", { name: "Insight grain" });
+    const control = screen.getByRole("navigation", { name: "Insight grain" });
     expect(within(control).getByRole("link", { name: "Daily" })).toBeTruthy();
     expect(within(control).getByRole("link", { name: "Weekly" })).toBeTruthy();
-    expect(within(control).queryByRole("link", { name: "Monthly" })).toBeNull();
+    expect(within(control).queryByRole("tab", { name: "Monthly" })).toBeNull();
   });
 
   /*
@@ -241,7 +243,7 @@ describe("Analytics screen (UIX-05)", () => {
         { window: "12-weeks", grain: "week", grains: ["day", "week"] },
       ),
     );
-    const control = screen.getByRole("group", { name: "Insight grain" });
+    const control = screen.getByRole("navigation", { name: "Insight grain" });
     expect(
       within(control).getByRole("link", { name: "Daily" }),
     ).toHaveAttribute("href", "/analytics?grain=day");

@@ -56,9 +56,17 @@
  */
 
 import type { ReactNode } from "react";
-import { Link, useSearchParams } from "react-router";
+import { Link, useLocation, useSearchParams } from "react-router";
 
-import { Tooltip } from "~/shared/tooltip";
+import {
+  ButtonGroup,
+  ButtonGroupItem,
+} from "~/shared/ui/untitled/base/button-group/button-group";
+import {
+  LinkTabContent,
+  linkTabClassName,
+  linkTabRailClassName,
+} from "~/shared/ui/untitled/overrides/link-tab-rail";
 
 export interface ViewSwitcherOption {
   readonly value: string;
@@ -128,6 +136,17 @@ export interface ViewSwitcherProps {
    * only ever repeats the default is noise in a shared URL.
    */
   readonly alwaysWriteValue?: boolean;
+  /**
+   * RECORD-01 — a filter is SUBORDINATE to the tabs above it.
+   *
+   * A record's tab strip answers "where am I in this record"; a segmented
+   * filter answers "which subset of this tab". At the switcher's full weight it
+   * was the loudest thing in the panel and, on the Project record, read as a
+   * second competing row of tabs directly under the real ones. `subtle` takes
+   * Untitled's quieter `button-minimal` segmented type; the anatomy, the target
+   * size and the keyboard behaviour are identical.
+   */
+  readonly weight?: "default" | "subtle";
   readonly className?: string;
 }
 
@@ -141,9 +160,21 @@ export function ViewSwitcher({
   iconOnly = false,
   replace,
   alwaysWriteValue = false,
+  weight = "default",
   className,
 }: ViewSwitcherProps) {
   const [searchParams] = useSearchParams();
+  /*
+   * The switcher writes an ABSOLUTE target (this path plus the new query)
+   * rather than a bare `?view=…`.
+   *
+   * A search-only href resolves against the current document, which is correct
+   * in a browser and depends on the router doing that resolution. React Aria
+   * hands the href to React Router's `useHref`, so stating the path here means
+   * the option's `href` is the same string whether it is read by the router, by
+   * "copy link address", or by a screen reader announcing the link.
+   */
+  const { pathname } = useLocation();
   const defaultValue = options[0]?.value;
 
   const hrefFor = (option: ViewSwitcherOption): string => {
@@ -166,90 +197,98 @@ export function ViewSwitcher({
       next.delete(stale);
     }
     const query = next.toString();
-    return query.length > 0 ? `?${query}` : "?";
+    return query.length > 0 ? `${pathname}?${query}` : pathname;
   };
 
-  const classes = [
-    "dh-segmented",
-    iconOnly ? "dh-segmented--icon-only" : null,
-    className,
-  ]
-    .filter(Boolean)
-    .join(" ");
-
-  return (
-    <div className={classes} role="group" aria-label={label}>
-      {options.map((option) => {
-        const active = option.value === value;
-        const content = (
-          <>
-            {option.icon ? (
-              <span className="dh-segmented__icon" aria-hidden="true">
-                {option.icon}
-              </span>
-            ) : null}
-            <span
-              className={
-                iconOnly ? "dh-visually-hidden" : "dh-segmented__label"
-              }
-            >
-              {option.label}
-            </span>
-          </>
-        );
-
-        if (onSelect) {
-          const button = (tipRef?: (node: HTMLElement | null) => void) => (
-            <button
-              key={option.value}
-              type="button"
-              ref={tipRef}
-              className="dh-segmented__option"
-              aria-pressed={active}
-              onClick={() => {
-                // Re-selecting the active view is a no-op, not a toggle-off:
-                // a collection always has exactly one active view.
-                if (!active) {
-                  onSelect(option.value);
-                }
-              }}
-            >
-              {content}
-            </button>
-          );
-          // An icon-only control composes the shared tooltip so the glyph is
-          // explained on hover and on keyboard focus; the visually-hidden label
-          // remains the accessible NAME (a tooltip never names — M3-TIP).
-          return iconOnly ? (
-            <Tooltip key={option.value} label={option.label} placement="top">
-              {(tip) => button(tip.ref)}
-            </Tooltip>
-          ) : (
-            button()
-          );
-        }
-
-        const link = (tipRef?: (node: HTMLElement | null) => void) => (
+  if (!onSelect) {
+    /*
+     * UNTITLED-05 — Untitled's LOOK, navigation's SEMANTICS.
+     *
+     * `application/tabs` (`type="button-border"`) is the segmented control
+     * Untitled's Application UI draws for a presentation toggle, and its
+     * appearance is what this takes, through `overrides/link-tab-rail`. Its
+     * `role="tab"` semantics it deliberately does not: these options navigate
+     * to a different URL, and the collection each one selects is rendered by
+     * the router elsewhere in the document, so no `tabpanel` here could hold
+     * it. UNTITLED-04's hidden "Viewing …" panels made `aria-controls` valid
+     * while pointing every tab at the wrong content. The override's header
+     * carries the full reasoning.
+     *
+     * A labelled `navigation` of ordinary links instead, the current one
+     * carrying `aria-current="page"` — which is also what this control said
+     * before the migration.
+     */
+    const type = weight === "subtle" ? "button-minimal" : "button-border";
+    return (
+      <nav
+        aria-label={label}
+        /*
+         * ONE box: the rail's classes sit on the `nav` itself rather than on an
+         * inner strip, which is what "no nested containers" has always meant
+         * here and what the unit test pins.
+         *
+         * `max-w-full` with the overflow on it, never `min-w-max`: a five-scope
+         * switcher (People's circles, Assets' views) is wider than a 390px
+         * header, and a control that forces its own width pushes the DOCUMENT
+         * sideways instead of scrolling inside itself.
+         */
+        className={linkTabRailClassName(
+          type,
+          ["w-auto max-w-full overflow-x-auto", className]
+            .filter(Boolean)
+            .join(" "),
+        )}
+        data-untitled-source="application/tabs:button-border"
+      >
+        {options.map((option) => (
           <Link
             key={option.value}
             to={hrefFor(option)}
+            aria-current={option.value === value ? "page" : undefined}
+            {...(iconOnly ? { "aria-label": option.label } : {})}
+            /*
+             * The history semantics the link mode always had: a param-derived
+             * switch REPLACES (Back leaves the collection rather than walking
+             * every view the owner glanced at), while a route-per-view switch
+             * pushes.
+             */
             replace={replace ?? option.href === undefined}
             preventScrollReset
-            ref={tipRef}
-            className="dh-segmented__option"
-            aria-current={active ? "true" : undefined}
+            className={linkTabClassName(type)}
           >
-            {content}
+            {option.icon}
+            {iconOnly ? null : <LinkTabContent>{option.label}</LinkTabContent>}
           </Link>
-        );
-        return iconOnly ? (
-          <Tooltip key={option.value} label={option.label} placement="top">
-            {(tip) => link(tip.ref)}
-          </Tooltip>
-        ) : (
-          link()
-        );
-      })}
-    </div>
+        ))}
+      </nav>
+    );
+  }
+
+  // The client-state switcher: no URL to link to, so Untitled's
+  // `base/button-group` toggle group, with selection on `aria-pressed`.
+  return (
+    <ButtonGroup
+      size="md"
+      aria-label={label}
+      selectedKeys={[value]}
+      disallowEmptySelection
+      onSelectionChange={(keys) => {
+        const next = [...keys].map(String).find((key) => key !== value);
+        if (next !== undefined) onSelect?.(next);
+      }}
+      className={className}
+      data-untitled-source="base/button-group"
+    >
+      {options.map((option) => (
+        <ButtonGroupItem
+          key={option.value}
+          id={option.value}
+          aria-label={iconOnly ? option.label : undefined}
+          {...(option.icon ? { iconLeading: option.icon } : {})}
+        >
+          {iconOnly ? undefined : option.label}
+        </ButtonGroupItem>
+      ))}
+    </ButtonGroup>
   );
 }

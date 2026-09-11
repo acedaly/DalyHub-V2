@@ -60,7 +60,7 @@ import { helpTopicHref } from "~/shared/help";
 import { EntityIcon } from "~/shared/entity";
 import { LoadMore } from "~/shared/load-more";
 import { useFeedback } from "~/shared/feedback";
-import { Button } from "~/shared/ui";
+import { Button, buttonClassName } from "~/shared/ui";
 import { type TaskRowFieldSave } from "~/shared/task-record/TaskRowFields";
 import { TaskRow, type TaskRowProps } from "~/shared/task-record/TaskRow";
 import { TaskTitleEditor } from "~/shared/task-record/TaskTitleEditor";
@@ -1701,7 +1701,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
           data-testid="tasks-untitled-toolbar"
           data-untitled-source="dashboards-01/02:filter-bar"
         >
-          <div className="-mx-1 min-w-0 flex-1 overflow-x-auto px-1 py-1 max-lg:w-full max-lg:max-w-full">
+          <div className="min-w-0 max-w-full flex-1 overflow-x-auto py-1 max-lg:w-full">
             <TasksViewSwitcher
               views={data.views}
               activeViewId={data.activeViewId}
@@ -1724,7 +1724,6 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       error={
         data.failed ? (
           <EmptyState
-            structure="untitled"
             title="We couldn’t load your tasks"
             description="Something went wrong. Please try again."
           />
@@ -1734,7 +1733,6 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       isFilteredEmpty={!data.failed && count === 0 && filterCount > 0}
       filteredEmptySlot={
         <EmptyState
-          structure="untitled"
           icon={<EntityIcon type="task" />}
           title="No tasks match these filters"
           description="Nothing is hidden permanently — remove a filter above, or reset them all, to see your tasks again."
@@ -1742,14 +1740,13 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       }
       emptySlot={
         <EmptyState
-          structure="untitled"
           icon={<EntityIcon type="task" />}
           title="No tasks yet"
           description="Capture a task, or choose a different view."
           primaryAction={
             <DrawerTrigger
               drawerKey={NEW_TASK_KEY}
-              className="dh-btn dh-btn--primary"
+              className={buttonClassName({ variant: "primary" })}
             >
               New task
             </DrawerTrigger>
@@ -1760,7 +1757,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
           // does the same thing as the first.
           secondaryAction={
             <Link
-              className="dh-btn dh-btn--secondary"
+              className={buttonClassName({ variant: "secondary" })}
               to={helpTopicHref("scheduled-vs-due")}
             >
               How tasks work
@@ -1844,7 +1841,6 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
           loadFailed={loadFailed}
           onLoadMore={loadMore}
           label="Load more tasks"
-          structure="untitled-pagination"
         />
       ) : null}
 

@@ -21,6 +21,7 @@ import {
 } from "~/shared/settings";
 
 import type { SerializedAsset } from "./asset-view";
+import { buttonClassName } from "~/shared/ui";
 
 interface AssetSettingsTabProps {
   readonly asset: SerializedAsset;
@@ -55,7 +56,7 @@ export function AssetSettingsTab({
             control={
               <button
                 type="button"
-                className="dh-btn dh-btn--primary"
+                className={buttonClassName({ variant: "primary" })}
                 onClick={onRestore}
                 disabled={pending}
               >
@@ -70,7 +71,7 @@ export function AssetSettingsTab({
             control={
               <button
                 type="button"
-                className="dh-btn dh-btn--secondary"
+                className={buttonClassName({ variant: "secondary" })}
                 onClick={onArchive}
                 disabled={pending}
               >

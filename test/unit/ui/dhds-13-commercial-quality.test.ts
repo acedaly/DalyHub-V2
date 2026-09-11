@@ -35,7 +35,9 @@ describe("DHDS-13 — floating surfaces read as floating", () => {
       "drawer.css",
       "forms.css",
       "inspector.css",
-      "search.css",
+      // `search.css` was deleted in #282 when the Search surface moved to
+      // Untitled's command-menu components; it is drawn by Tailwind utilities
+      // now and has no stylesheet to re-mix anything in.
       "settings.css",
       "sheet.css",
       "shell.css",
@@ -169,15 +171,19 @@ describe("DHDS-13 — one row grammar across the collections", () => {
     // The contract needs BOTH halves: the context on the row and the reveal
     // class on the trailing container (`motion.css`). The Projects table
     // declared the first and never the second; the Areas row declared neither.
+    // UNTITLED-04 — the Projects table is now the Untitled `application/table`
+    // composition, so the trailing container is a `Table.Cell` rather than a
+    // hand-written `<td class="dh-ptable__actions">`. The contract is the same
+    // one: the row declares the context, the trailing cell carries the reveal.
     const table = read("app", "modules", "projects", "ProjectsTable.tsx");
     expect(table).toMatch(/data-dh-action-context="true"/);
-    expect(table).toMatch(/className="dh-ptable__actions dh-action-reveal"/);
+    expect(table).toMatch(/<Table\.Cell className="dh-action-reveal/);
 
     const entityRow = read("app", "shared", "card", "EntityRowList.tsx");
     expect(entityRow).toMatch(
       /data-dh-action-context=\{overflow \? "true" : undefined\}/,
     );
-    expect(entityRow).toMatch(/className="dh-erow__overflow dh-action-reveal"/);
+    expect(entityRow).toMatch(/dh-erow__overflow dh-action-reveal/);
   });
 
   it("drops the bespoke tray around the Assets filter band", () => {

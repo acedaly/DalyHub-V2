@@ -139,6 +139,23 @@ export function StatCard({
   const classes = [
     "dh-stat",
     "dh-tone",
+    /*
+     * UNTITLED-04 — the one card boundary, drawn by Untitled.
+     *
+     * `rounded-xl bg-primary shadow-xs ring-1 ring-secondary` is the boundary
+     * the migrated collection tables, entity cards, record panels and the
+     * Habits rail all carry. The glance row was the last raised surface still
+     * drawing the legacy border/radius pair, which put four flat tiles directly
+     * beside cards a shade above the canvas — the mismatch the eye finds first
+     * on a screen that opens with a row of figures.
+     *
+     * `hover:shadow-md hover:ring-primary` only where the card is a LINK: a
+     * figure you cannot go and look at has no hover state to earn.
+     */
+    "rounded-xl bg-primary shadow-xs ring-1 ring-secondary",
+    href
+      ? "transition duration-100 ease-linear hover:shadow-md hover:ring-primary"
+      : null,
     // The ONE shared hover/focus/pressed fill (base.css). A washed card cannot
     // separate itself on hover with a shadow (that would break the row's
     // flatness), and it must not re-mix its own tint — so it becomes a host.

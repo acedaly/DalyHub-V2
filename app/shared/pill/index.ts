@@ -14,3 +14,9 @@ export {
   type PillTone,
   type StatusPillProps,
 } from "./Pill";
+
+/** UNTITLED-04 — the same tone vocabulary, drawn with genuine Untitled badges. */
+export {
+  UntitledStatusBadge,
+  type UntitledStatusBadgeProps,
+} from "./UntitledStatusBadge";

@@ -32,6 +32,7 @@ import {
   meetingItemKindLabel,
   type FollowUpTaskEntry,
 } from "./follow-up-view";
+import { buttonClassName } from "~/shared/ui";
 
 type SerializedMeetingItem = SerializedMeeting["items"][number];
 
@@ -71,7 +72,7 @@ function ItemConversionControl({
     return (
       <button
         type="button"
-        className="dh-btn dh-btn--secondary"
+        className={buttonClassName({ variant: "secondary" })}
         onClick={() => onOpenTask(convertedTask.id)}
       >
         Open task
@@ -84,7 +85,7 @@ function ItemConversionControl({
   return (
     <button
       type="button"
-      className="dh-btn dh-btn--secondary"
+      className={buttonClassName({ variant: "secondary" })}
       onClick={() => onConvert(itemId)}
     >
       Create task
@@ -137,7 +138,7 @@ export function MeetingItemRow({
         {!readOnly && onRemove ? (
           <button
             type="button"
-            className="dh-btn dh-btn--ghost"
+            className={buttonClassName({ variant: "subtle" })}
             aria-label={`Remove ${meetingItemKindLabel(item.kind).toLowerCase()}`}
             onClick={() => onRemove(item.id)}
           >
@@ -249,7 +250,7 @@ export function MeetingItemsSection({
           </label>
           <button
             type="submit"
-            className="dh-btn dh-btn--secondary"
+            className={buttonClassName({ variant: "secondary" })}
             aria-label={`Add ${label}`}
             disabled={saving}
           >
@@ -294,7 +295,7 @@ export function MeetingFollowUpTab({
         {!readOnly ? (
           <button
             type="button"
-            className="dh-btn dh-btn--primary"
+            className={buttonClassName({ variant: "primary" })}
             onClick={onAddFollowUp}
           >
             Add follow-up task

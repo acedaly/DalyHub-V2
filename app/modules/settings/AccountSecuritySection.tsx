@@ -52,6 +52,7 @@ import {
   SettingsLayout,
   SettingsRow,
 } from "~/shared/settings";
+import { buttonClassName } from "~/shared/ui";
 
 /** Everything the section renders that only the server can know. */
 export type AccountSecurityData = {
@@ -472,7 +473,7 @@ function SignOutGroup({ data }: { readonly data: AccountSecurityData }) {
         control={
           <button
             type="button"
-            className="dh-btn dh-btn--secondary"
+            className={buttonClassName({ variant: "secondary" })}
             disabled={busy}
             onClick={() => void signOut.signOut()}
           >

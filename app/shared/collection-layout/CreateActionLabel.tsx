@@ -42,9 +42,18 @@ export type CreateActionLabelProps = {
 };
 
 export function CreateActionLabel({ children }: CreateActionLabelProps) {
+  /*
+   * UNTITLED-04 — the glyph carries its own gap.
+   *
+   * `dh-btn__icon` used to get one from `.dh-btn`'s own flex `gap`. The migrated
+   * collections put this label inside an Untitled-backed `Button`, whose gap
+   * applies to the button's own icon slots rather than to arbitrary children, so
+   * the plus sat flush against the first word ("+New area"). Stating it on the
+   * glyph works in both.
+   */
   return (
     <>
-      <span className="dh-btn__icon" aria-hidden="true">
+      <span className="dh-btn__icon mr-1.5 inline-flex" aria-hidden="true">
         <PlusIcon />
       </span>
       {children}

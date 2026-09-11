@@ -210,7 +210,7 @@ test.describe("PROJ-06 — mobile Projects", () => {
      */
     for (const label of ["All", "Active", "Completed", "Archived"]) {
       await expectMinTouchTarget(
-        filter.getByRole("link", { name: label, exact: true }),
+        filter.getByRole("tab", { name: label, exact: true }),
       );
     }
     const website = page.getByRole("link", { name: "Open Website relaunch" });
@@ -432,13 +432,11 @@ test.describe("PROJ-06 — mobile Projects", () => {
     await gotoFixture(page, "/projects/pg-tasks?tasks=all");
     await expectNoHorizontalOverflow(page);
     /*
-     * UIX-02 — the task-state filter is the shared TAB RAIL, whose current tab
-     * carries `aria-current="page"`. That is the rail's existing convention
-     * (`SavedViewSwitcher`'s pinned tabs have used it since UIX-01) and the
-     * right token here: each tab is a link to the URL that IS that view, so
-     * "this is the current page" is literally what it means. The segmented
-     * control it replaced used `"true"`, which is the correct token for a
-     * control that is not a set of links.
+     * UIX-02 — the task-state filter is the shared TAB RAIL, whose current
+     * option carries `aria-current="page"`. Each option is a link to the URL
+     * that IS that view, so "this is the current page" is literally what it
+     * means (UNTITLED-05 keeps that: the rail takes Untitled's underline
+     * appearance and stays navigation).
      */
     await expect(
       page.getByRole("link", { name: "All", exact: true }),

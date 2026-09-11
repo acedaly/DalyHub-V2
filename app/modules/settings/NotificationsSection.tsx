@@ -34,6 +34,7 @@ import type {
   NotificationActionResult,
   NotificationSettingsView,
 } from "./routes/notifications";
+import { buttonClassName } from "~/shared/ui";
 
 /** Everything this section renders that only the server can know. */
 export type NotificationSettingsData = {
@@ -404,7 +405,7 @@ function PushoverGroup({ data }: { readonly data: NotificationSettingsData }) {
           control={
             <button
               type="submit"
-              className="dh-btn dh-btn--filled"
+              className={buttonClassName({ variant: "primary" })}
               disabled={
                 save.state !== "idle" ||
                 userKey.trim() === "" ||
@@ -438,7 +439,7 @@ function PushoverGroup({ data }: { readonly data: NotificationSettingsData }) {
           <test.Form method="post" action="/settings/notifications/test">
             <button
               type="submit"
-              className="dh-btn dh-btn--outlined"
+              className={buttonClassName({ variant: "secondary" })}
               disabled={!canTest}
               data-testid="pushover-test"
             >

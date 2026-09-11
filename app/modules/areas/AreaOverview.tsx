@@ -51,6 +51,7 @@ import {
   type SerializedAreaProjectItem,
   type SerializedAreaRollup,
 } from "./area-view";
+import { buttonClassName } from "~/shared/ui";
 
 /** The Drawer key that opens the AREA-02 "New Goal" create form. */
 export const NEW_GOAL_KEY = "new-goal";
@@ -359,7 +360,7 @@ function AreaOverviewTab({
               supporting={
                 <button
                   type="button"
-                  className="dh-btn dh-btn--ghost dh-btn--sm"
+                  className={buttonClassName({ variant: "subtle", size: "sm" })}
                   onClick={() => onSelectTab?.("goals")}
                 >
                   View Goals
@@ -376,7 +377,7 @@ function AreaOverviewTab({
               supporting={
                 <button
                   type="button"
-                  className="dh-btn dh-btn--ghost dh-btn--sm"
+                  className={buttonClassName({ variant: "subtle", size: "sm" })}
                   onClick={() => onSelectTab?.("projects")}
                 >
                   View Projects
@@ -657,7 +658,7 @@ export function AreaOverviewView({
                     <div className="dh-record-toolbar">
                       <DrawerTrigger
                         drawerKey={NEW_GOAL_KEY}
-                        className="dh-btn dh-btn--ghost"
+                        className={buttonClassName({ variant: "subtle" })}
                       >
                         New Goal
                       </DrawerTrigger>

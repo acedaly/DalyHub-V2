@@ -155,6 +155,7 @@ test.describe("the record's contained surfaces", () => {
         return {
           background: computed.backgroundColor,
           borderInline: computed.borderInlineStartWidth,
+          boxShadow: computed.boxShadow,
           padding: computed.paddingInlineStart,
           radius: computed.borderEndStartRadius,
         };
@@ -163,8 +164,20 @@ test.describe("the record's contained surfaces", () => {
       // A real background, not the canvas showing through.
       expect(style.background).not.toBe("rgba(0, 0, 0, 0)");
       expect(style.background).not.toBe("transparent");
-      // A real hairline and real inset.
-      expect(parseFloat(style.borderInline)).toBeGreaterThan(0);
+      /*
+       * A real hairline — UNTITLED-04: as a BORDER or as Untitled's `ring-1`.
+       *
+       * The contract is unchanged and is what is asserted: the panel is clad,
+       * not the canvas showing through. Which property draws the 1px edge is
+       * not the contract, and after the migration it is a `box-shadow` ring
+       * (`rounded-xl bg-primary shadow-xs ring-1 ring-secondary`) on this panel
+       * and on every other bounded surface in the product.
+       */
+      const hasRing = /0px 0px 0px 1px/.test(style.boxShadow);
+      expect(
+        parseFloat(style.borderInline) > 0 || hasRing,
+        "the panel draws a 1px edge — a border or Untitled's ring",
+      ).toBe(true);
       expect(parseFloat(style.padding)).toBeGreaterThan(8);
       // The bottom corners are rounded; the top ones join the tab strip.
       expect(parseFloat(style.radius)).toBeGreaterThan(0);
@@ -319,8 +332,9 @@ test.describe("filters are subordinate to tabs", () => {
     page,
   }) => {
     await gotoFixture(page, "/projects/pr-rc-kitchen");
-    // UIX-02 — the task-state filter is the shared TAB RAIL (`ViewTabs`), so it
-    // announces as a `navigation`. The point of this test is unchanged and if
+    // UIX-02 — the task-state filter is the shared TAB RAIL (`ViewTabs`), which
+    // takes Untitled's underline appearance and stays a labelled `navigation`
+    // of links (UNTITLED-05). The point of this test is unchanged and if
     // anything better served: the rail is quieter than the segmented track it
     // replaced, which is exactly what "subordinate to the tabs above it" means.
     const filter = page.getByRole("navigation", {
@@ -338,7 +352,9 @@ test.describe("filters are subordinate to tabs", () => {
     const sizes = await page.evaluate(() => {
       const tab = document.querySelector(".record-tab");
       const option = document.querySelector(
-        ".dh-project-tasks .dh-viewtabs__tab:not([aria-current])",
+        // UNTITLED-05 — an UNSELECTED option in the rail. The rail is links,
+        // so "not current" is the absence of `aria-current`.
+        ".dh-project-tasks nav a:not([aria-current])",
       );
       if (!tab || !option) return null;
       const optionStyle = getComputedStyle(option);

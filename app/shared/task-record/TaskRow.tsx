@@ -623,15 +623,27 @@ export function TaskRow({
         </Table.Cell>
         <Table.Cell className="w-32 px-4 py-3 max-lg:hidden">
           {showState ? (
-            <Badge
-              type={badgeTypes.badgeModern}
-              size="sm"
-              color="gray"
+            /*
+             * UNTITLED-04 — the hooks live on a `display: contents` wrapper.
+             *
+             * Untitled's `Badge` destructures `type`, `size`, `color`,
+             * `className` and `children` and spreads NOTHING, so `data-testid`
+             * and `data-tone` were dropped on the floor — silently, which is
+             * how the Waiting surface lost its state cell to the tests and the
+             * tone attribute the product reads. Same device as
+             * `UntitledStatusBadge`: the wrapper carries the data, the genuine
+             * component draws the badge, and `display: contents` means the
+             * wrapper is not a box in the layout.
+             */
+            <span
+              className="contents"
               data-tone={task.stateTone}
               data-testid="task-row-state"
             >
-              {task.stateLabel}
-            </Badge>
+              <Badge type={badgeTypes.badgeModern} size="sm" color="gray">
+                {task.stateLabel}
+              </Badge>
+            </span>
           ) : null}
         </Table.Cell>
         <Table.Cell className="w-14 px-3 py-3 max-md:col-start-3 max-md:row-span-2 max-md:w-auto max-md:px-1">
@@ -1031,16 +1043,22 @@ export function TaskRow({
         </span>
         <span className="dh-taskrow__cell dh-taskrow__cell--status">
           {showState ? (
-            <Badge
-              type={badgeTypes.badgeModern}
-              size="sm"
-              color="gray"
-              className="dh-taskrow__state"
+            /* The hooks on a `display: contents` wrapper; see the note in the
+             * columns layout above. */
+            <span
+              className="contents"
               data-tone={task.stateTone}
               data-testid="task-row-state"
             >
-              {task.stateLabel}
-            </Badge>
+              <Badge
+                type={badgeTypes.badgeModern}
+                size="sm"
+                color="gray"
+                className="dh-taskrow__state"
+              >
+                {task.stateLabel}
+              </Badge>
+            </span>
           ) : null}
         </span>
       </span>

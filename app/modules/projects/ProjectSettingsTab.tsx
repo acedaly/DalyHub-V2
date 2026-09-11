@@ -73,6 +73,7 @@ import {
 } from "./project-view";
 import { useParentOptionsSearch } from "./use-parent-options-search";
 import type { SelectOption } from "~/shared/forms/types";
+import { buttonClassName } from "~/shared/ui";
 
 export interface ProjectSettingsTabProps {
   readonly overview: SerializedProjectOverview;
@@ -314,7 +315,7 @@ function RestoreGroup({
         control={
           <button
             type="button"
-            className="dh-btn dh-btn--secondary"
+            className={buttonClassName({ variant: "secondary" })}
             onClick={(event) => {
               setOpener(event.currentTarget);
               setOpen(true);

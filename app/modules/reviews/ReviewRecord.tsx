@@ -42,6 +42,7 @@ import { ReviewInsightsPanel } from "./insights/ReviewInsightsPanel";
 import { ReviewTimelineTab } from "./ReviewTimelineTab";
 import type { SerializedReview, SerializedReviewSection } from "./review-view";
 import type { ReviewMutationResult } from "./routes/mutate";
+import { buttonClassName } from "~/shared/ui";
 
 interface ReviewRecordProps {
   readonly review: SerializedReview;
@@ -123,7 +124,7 @@ function SectionEditor({
         {!readOnly ? (
           <button
             type="button"
-            className="dh-btn dh-btn--secondary"
+            className={buttonClassName({ variant: "secondary" })}
             disabled={saving || value === section.body}
             onClick={() => void save()}
           >
@@ -348,7 +349,7 @@ export function ReviewRecord({
     review.type === "weekly" && !review.archived ? (
       <p className="dh-review-guide-entry">
         <Link
-          className="dh-btn dh-btn--secondary"
+          className={buttonClassName({ variant: "secondary" })}
           to={`/reviews/${encodeURIComponent(review.id)}/guide`}
         >
           {review.status === "draft"
@@ -707,7 +708,7 @@ function ReviewSettings({
                 disabled={review.archived}
               />
               <button
-                className="dh-btn dh-btn--secondary"
+                className={buttonClassName({ variant: "secondary" })}
                 type="submit"
                 disabled={review.archived || title === review.title}
               >
@@ -728,7 +729,7 @@ function ReviewSettings({
           }
           control={
             <button
-              className="dh-btn dh-btn--primary"
+              className={buttonClassName({ variant: "primary" })}
               type="button"
               disabled={review.archived || pending}
               onClick={review.status === "completed" ? onReopen : onComplete}
@@ -750,7 +751,7 @@ function ReviewSettings({
           }
           control={
             <button
-              className="dh-btn dh-btn--secondary"
+              className={buttonClassName({ variant: "secondary" })}
               type="button"
               disabled={pending}
               onClick={review.archived ? onRestore : onArchive}

@@ -27,6 +27,7 @@ import { loadReviewInsights } from "../insights/review-insights-context";
 import { loadReviewPeriodContext } from "../review-period-context";
 import { serializeReview } from "../review-view";
 import type { Route } from "./+types/detail";
+import { buttonClassName } from "~/shared/ui";
 
 export function meta() {
   return [{ title: "Review · DalyHub" }];
@@ -155,7 +156,10 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
           title="We couldn’t find that Review"
           description="It may have been deleted, or the link is out of date."
           primaryAction={
-            <a className="dh-btn dh-btn--primary" href="/reviews">
+            <a
+              className={buttonClassName({ variant: "primary" })}
+              href="/reviews"
+            >
               Back to Reviews
             </a>
           }

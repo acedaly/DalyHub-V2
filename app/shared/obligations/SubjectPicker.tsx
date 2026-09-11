@@ -28,6 +28,7 @@ import { EntityIcon, isEntityType } from "~/shared/entity";
 import { Field } from "~/shared/forms";
 import { useCombobox } from "~/shared/forms/use-combobox";
 import { OptionContent } from "~/shared/floating";
+import { buttonClassName } from "~/shared/ui";
 
 /** One candidate subject, as the module's search route returns it. */
 export interface ObligationSubjectOption {
@@ -141,7 +142,7 @@ export function SubjectPicker({
               <span className="dh-subject-picker__title">{value.title}</span>
               <button
                 type="button"
-                className="dh-btn dh-btn--ghost dh-btn--sm"
+                className={buttonClassName({ variant: "subtle", size: "sm" })}
                 disabled={disabled}
                 onClick={() => {
                   onChange(null);

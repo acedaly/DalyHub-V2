@@ -7,6 +7,7 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
+  waitForInteractive,
 } from "./helpers";
 
 /**
@@ -34,8 +35,15 @@ test.describe("PROJ-01 — Projects", () => {
      * table. The card assertions below therefore switch to the gallery through
      * the product's own control, which also proves the toggle works from here.
      */
+    /*
+     * UNTITLED-05 — the presentation switcher takes Untitled's segmented
+     * appearance and stays a labelled `navigation` of real links, because each
+     * option navigates. It was a `group` of links with `aria-current`; it is a
+     * `navigation` of links with `aria-current` now, and the URL contract, the
+     * hrefs and the middle-click behaviour are all unchanged.
+     */
     await page
-      .getByRole("group", { name: "Project layout" })
+      .getByRole("navigation", { name: "Project layout" })
       .getByRole("link", { name: "Grid" })
       .click();
     await expect(page).toHaveURL(/present=grid/);
@@ -143,6 +151,7 @@ test.describe("PROJ-01 — Projects", () => {
 
     // The completed task persists after a reload (seen under the Completed filter).
     await page.reload();
+    await waitForInteractive(page);
     await page.getByRole("link", { name: "Completed", exact: true }).click();
     await expect(
       page.getByRole("link", { name: "Open E2E launch task" }).first(),
@@ -353,7 +362,8 @@ test.describe("PROJ-01 — Projects", () => {
     await expectNoAxeViolations(page);
 
     await gotoFixture(page, "/projects?present=table");
-    await expect(page.getByRole("table")).toBeVisible();
+    // UNTITLED-04 — Untitled's `application/table` exposes a `grid`.
+    await expect(page.getByRole("grid")).toBeVisible();
     await expectNoAxeViolations(page);
   });
 
@@ -386,6 +396,9 @@ test.describe("PROJ-01 — Projects", () => {
       await expect(card).toBeVisible();
       const region = card.getByTestId(testid);
       await expect(region).toBeVisible();
+      // `mouse.click` takes viewport coordinates and does no scrolling of its
+      // own, so the region has to be IN view before it is measured.
+      await region.scrollIntoViewIfNeeded();
       const box = (await region.boundingBox())!;
       // The geometric CENTRE of the region, so this is genuinely "what is on
       // top here?" rather than a click that slipped past the edge.
@@ -414,6 +427,7 @@ test.describe("PROJ-01 — Projects", () => {
 
     // The card still navigates from its ordinary content.
     const status = card.getByTestId("entity-card-status");
+    await status.scrollIntoViewIfNeeded();
     const box = (await status.boundingBox())!;
     await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
     await expect(page).toHaveURL(/#entity-1$/);
@@ -451,10 +465,10 @@ test.describe("PROJ-01 — Projects", () => {
     // Above it, with nothing chosen, the collection is the table.
     await expect(page.getByTestId("projects-table")).toBeVisible();
     await expect(
-      page.getByRole("group", { name: "Project layout" }).getByRole("link", {
-        name: "Table",
-      }),
-    ).toHaveAttribute("aria-current", "true");
+      page
+        .getByRole("navigation", { name: "Project layout" })
+        .getByRole("link", { name: "Table" }),
+    ).toHaveAttribute("aria-current", "page");
 
     // …and an explicit gallery is honoured at exactly the same size. This is
     // the case the ADR exists for: a default that re-asserted itself would be a

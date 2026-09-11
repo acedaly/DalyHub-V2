@@ -64,6 +64,7 @@ import { serializeAsset, type SerializedAsset } from "../asset-view";
 import { resolveEventNames } from "./history";
 import type { AssetMutationResult } from "./mutate";
 import type { Route } from "./+types/detail";
+import { buttonClassName } from "~/shared/ui";
 
 const DRAWER_KEY = "asset-drawer";
 
@@ -719,7 +720,10 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
           title="We couldn’t find that asset"
           description="It may have been deleted, or the link is out of date."
           primaryAction={
-            <a className="dh-btn dh-btn--primary" href="/assets">
+            <a
+              className={buttonClassName({ variant: "primary" })}
+              href="/assets"
+            >
               Back to Assets
             </a>
           }

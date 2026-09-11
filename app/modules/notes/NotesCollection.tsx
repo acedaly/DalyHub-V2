@@ -55,6 +55,7 @@ import type {
   SerializedNoteListItem,
 } from "./note-view";
 import type { NoteMutationResult } from "./routes/mutate";
+import { buttonClassName } from "~/shared/ui";
 
 /** The drawer key hosting the create form. */
 const NEW_NOTE_KEY = "new-note";
@@ -363,7 +364,7 @@ function NotesCollection({
         state === "active" ? (
           <DrawerTrigger
             drawerKey={NEW_NOTE_KEY}
-            className="dh-btn dh-btn--primary"
+            className={buttonClassName({ variant: "primary" })}
           >
             <CreateActionLabel>New note</CreateActionLabel>
           </DrawerTrigger>
@@ -388,7 +389,7 @@ function NotesCollection({
           primaryAction={
             <DrawerTrigger
               drawerKey={NEW_NOTE_KEY}
-              className="dh-btn dh-btn--primary"
+              className={buttonClassName({ variant: "primary" })}
             >
               <CreateActionLabel>New note</CreateActionLabel>
             </DrawerTrigger>

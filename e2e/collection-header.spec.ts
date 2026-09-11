@@ -84,10 +84,20 @@ test.describe("UIQ-013 — one view switcher, at laptop width", () => {
     test.slow();
     for (const surface of SWITCHER_SURFACES) {
       await gotoFixture(page, surface.path);
-      const group = page.getByRole("group", { name: surface.group });
+      const group = page.getByRole("navigation", { name: surface.group });
       await expect(group, `${surface.name} switcher`).toBeVisible();
-      // One implementation means one class, on every collection.
-      await expect(group).toHaveClass(/dh-segmented/);
+      /*
+       * UNTITLED-04/05 — one implementation means one SOURCE, on every
+       * collection: Untitled's `application/tabs` in its segmented
+       * (`button-border`) treatment, drawn for real anchors carrying the view's
+       * URL (`overrides/link-tab-rail`) rather than for the tab pattern, which
+       * these options are not.
+       */
+      await expect(
+        page
+          .locator('[data-untitled-source="application/tabs:button-border"]')
+          .first(),
+      ).toBeVisible();
     }
   });
 
@@ -107,7 +117,7 @@ test.describe("UIQ-013 — one view switcher, at laptop width", () => {
     page,
   }) => {
     await gotoFixture(page, "/assets");
-    const group = page.getByRole("group", { name: "Asset views" });
+    const group = page.getByRole("navigation", { name: "Asset views" });
     const before = await group.boundingBox();
     expect(before).not.toBeNull();
     /*
@@ -137,7 +147,7 @@ test.describe("UIQ-013 — one view switcher, at laptop width", () => {
     await group.getByRole("link", { name: "Service due" }).click();
     await expect(
       group.getByRole("link", { name: "Service due" }),
-    ).toHaveAttribute("aria-current", "true");
+    ).toHaveAttribute("aria-current", "page");
 
     // UIQ-013's "no layout movement when state changes": the check's box is
     // reserved in every segment, so selecting a different view leaves every
@@ -172,12 +182,12 @@ test.describe("UIQ-013 — one view switcher, at laptop width", () => {
       page,
     }) => {
       await gotoFixture(page, surface.path);
-      const group = page.getByRole("group", { name: surface.group });
+      const group = page.getByRole("navigation", { name: surface.group });
       await expect(group).toBeVisible();
 
       const measured = await group.evaluate((node) => {
         const selected = node.querySelector(
-          '[aria-current="true"], [aria-pressed="true"]',
+          '[aria-current="page"], [aria-selected="true"], [aria-current="true"], [aria-pressed="true"]',
         ) as HTMLElement | null;
         const title = document.querySelector(
           ".dh-pane-header__title",
@@ -198,7 +208,13 @@ test.describe("UIQ-013 — one view switcher, at laptop width", () => {
 
       // Quieter than the page's own title, which is the whole point.
       expect(measured!.chipSize).toBeLessThan(measured!.titleSize);
-      // The near-black fill STANDS — this changed weight, never colour.
+      /*
+       * The selected segment is still FILLED — it is distinguishable from its
+       * neighbours by more than a colour of text. UNTITLED-04 changed what the
+       * fill is (Untitled's raised `button-border` segment, a surface above the
+       * rail's own ground, rather than the near-black chip) and not that there
+       * is one.
+       */
       expect(measured!.chipBackground).not.toBe("rgba(0, 0, 0, 0)");
       // …and the target is untouched (WCAG 2.2 SC 2.5.8's AA floor on a fine
       // pointer; the coarse floor is asserted in `iphone-daily-driver.spec.ts`).
@@ -224,7 +240,7 @@ test.describe("UIQ-014 — the primary action, in one place", () => {
     // The arrangement UIQ-014 named: the create action is no longer a fifth
     // pill in the view row, it is the trailing end of the header.
     const switcher = await page
-      .getByRole("group", { name: "Review views" })
+      .getByRole("navigation", { name: "Review views" })
       .boundingBox();
     const action = await primary.boundingBox();
     expect(action!.x).toBeGreaterThan(switcher!.x + switcher!.width);
@@ -383,10 +399,12 @@ test.describe("UIQ-013 — the narrow composition is intentional", () => {
     // still renders a header switcher at 390, which is what this test is for.
     for (const path of ["/reviews"]) {
       await gotoFixture(page, path);
-      const switcher = page.locator(".dh-pane-header__views .dh-segmented");
+      const switcher = page.locator(
+        '.dh-pane-header__views [data-untitled-source="application/tabs:button-border"]',
+      );
       await expect(switcher.first()).toBeVisible();
       const shape = await switcher.first().evaluate((node) => {
-        const option = node.querySelector(".dh-segmented__option")!;
+        const option = node.querySelector("a")!;
         return {
           height: node.getBoundingClientRect().height,
           optionHeight: option.getBoundingClientRect().height,

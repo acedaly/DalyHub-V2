@@ -48,6 +48,7 @@ import {
   areaDependencyBlockers,
   type SerializedAreaOverview,
 } from "./area-view";
+import { buttonClassName } from "~/shared/ui";
 
 export interface AreaSettingsTabProps {
   readonly overview: SerializedAreaOverview;
@@ -210,7 +211,7 @@ function RestoreGroup({
         control={
           <button
             type="button"
-            className="dh-btn dh-btn--secondary"
+            className={buttonClassName({ variant: "secondary" })}
             onClick={(event) => {
               setOpener(event.currentTarget);
               setOpen(true);
