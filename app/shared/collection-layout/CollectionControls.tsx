@@ -227,8 +227,9 @@ export function CollectionControls({
   return (
     <>
       <div className="dh-collection-controls">
-        <button
-          type="button"
+        <Button
+          variant="secondary"
+          size="sm"
           ref={triggerRef}
           className="dh-collection-controls__trigger"
           aria-expanded={open}
@@ -245,7 +246,7 @@ export function CollectionControls({
               <span className="dh-visually-hidden"> active filters</span>
             </span>
           ) : null}
-        </button>
+        </Button>
 
         {/* What is applied, as REMOVABLE chips rather than a read-only sentence.
             It answers the same question the old plain-text summary answered — a

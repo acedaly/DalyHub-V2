@@ -53,6 +53,8 @@ import { Link } from "react-router";
 import { useCardLongPress } from "~/shared/card/useCardLongPress";
 import { EntityIcon, isEntityType } from "~/shared/entity";
 import { Checkbox, Menu, type MenuItem } from "~/shared/ui";
+import { Badge } from "~/shared/ui/untitled/base/badges/badges";
+import { badgeTypes } from "~/shared/ui/untitled/base/badges/badge-types";
 import { CheckCircleIcon, RepeatIcon, ScheduleIcon } from "~/shared/icons";
 import {
   checklistProgressLabel,
@@ -789,13 +791,16 @@ export function TaskRow({
         </span>
         <span className="dh-taskrow__cell dh-taskrow__cell--status">
           {showState ? (
-            <span
+            <Badge
+              type={badgeTypes.badgeModern}
+              size="sm"
+              color="gray"
               className="dh-taskrow__state"
               data-tone={task.stateTone}
               data-testid="task-row-state"
             >
               {task.stateLabel}
-            </span>
+            </Badge>
           ) : null}
         </span>
       </span>

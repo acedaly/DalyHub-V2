@@ -413,10 +413,69 @@ Untitled has no DalyHub task model; their controls still use the shared
 Untitled-backed form/select/checkbox/drawer primitives.
 
 This phase creates no new generic button, input, select, table, menu, drawer,
-badge or dialog primitive. The Tasks create action now uses the shared genuine
-Untitled-backed `Button`, and collection search now uses the shared genuine
-Untitled-backed `Input`. Existing legacy class names remain only as temporary
-layout/test hooks for unmigrated consumers and are not new design authority.
+badge or dialog primitive. The Tasks create action uses the shared genuine
+Untitled-backed `Button`; collection search and the filter trigger use the same
+button/input sources; and active filter indicators and task status use the
+genuine Untitled `Badge` source. Existing legacy class names remain only as
+temporary layout/test hooks for unmigrated consumers and are not new design
+authority.
 
 No screenshot, historical visual audit or legacy Material/MD3/DHDS stylesheet
 is an implementation reference for Tasks.
+
+## Untitled UI Reference-First Implementation
+
+Untitled UI Pro is available directly to implementation agents. Agents MUST
+use the actual library and documentation during frontend work. The official
+starting point is the [React introduction](https://www.untitledui.com/react/docs/introduction).
+
+For each page, feature surface or substantial component, agents must search
+Application UI examples, full-page examples where applicable, the component
+catalogue, existing imported Untitled source and the relevant React
+documentation. Prefer importing or copying the genuine implementation, then
+adapt it to DalyHub data and behaviour while preserving Untitled accessibility,
+responsive composition and token usage. Bespoke UI is permitted only when no
+suitable Untitled pattern exists.
+
+Consult the relevant [introduction](https://www.untitledui.com/react/docs/introduction),
+[installation](https://www.untitledui.com/react/docs/installation), [CLI](https://www.untitledui.com/react/docs/cli),
+[MCP](https://www.untitledui.com/react/docs/mcp), [theming](https://www.untitledui.com/react/docs/theming),
+[dark mode](https://www.untitledui.com/react/docs/dark-mode), typography, icons,
+components, Application UI, dashboard, settings and React Aria accessibility
+documentation throughout implementation. Do not rely on memory or manually
+reproduce an Untitled appearance when the actual source is available.
+
+Substantial frontend implementation summaries must identify the Untitled page
+examples and components used, documentation consulted, DalyHub-specific
+extensions/custom components, and reasons for significant deviations.
+
+## Tasks Phase 3B completion record
+
+The authenticated Pro catalogue was available for this pass (`has_pro_access:
+true`). Exact references inspected were Application UI `dashboards-01/02` for
+the sidebar/table/filter/pagination grammar and `dashboards-01/09` for dense
+status-heavy selection tables. Component references were `table`,
+`filters-menu`, `project-details-menu` and `command-menu-actions`.
+
+| Tasks surface | Untitled source/reference | DalyHub adaptation | Legacy remaining |
+|---|---|---|---|
+| Page header | Application UI page-header grammar; shared `PaneHeader` | Task title, view context and actions | Shared header compatibility classes |
+| Main collection | `table` inspected; semantic list composition retained | Inline editing, gestures, selection, blocked/waiting and persisted ordering | `task-list.css` layout rules |
+| Search | `base/input` via shared `Input` | Existing URL/search state | Collection compatibility selectors |
+| Filters | `filters-menu`; shared button/popover/sheet sources | Existing filter reducer, URL state and mobile behavior | Collection filter layout CSS |
+| Active filters | `base/badges` via genuine `Badge` | Existing removable filter links | Chip spacing hooks |
+| Status | `base/badges` via genuine `Badge` | DalyHub status labels and tones | Row state layout hook |
+| Selection/bulk | `base/checkbox`, buttons and menu sources | Existing range/select-all and atomic mutations | Bulk toolbar layout CSS |
+| Row actions | `project-details-menu` / dropdown patterns | Existing task actions | Product row positioning |
+| Drawer | `application/slideout-menus` inspected; shared boundary retained | URL-backed record stack and focus restoration | `task-drawer.css` |
+| Task form | Untitled-backed inputs, selects, date picker and buttons | Existing validation and domain fields | Form layout selectors |
+| Recurrence | Untitled inputs/selects/buttons | DalyHub recurrence and successor rules | Domain editor layout |
+| Dependencies/checklist | Untitled checkbox/input/menu primitives | Directed links and checklist persistence/order | Domain section layout |
+| Empty/loading/error | `application/empty-state` and loading sources | Existing no-result, offline and error semantics | Shared task state classes |
+| Pagination | Untitled pagination inspected | Cursor/keyset `LoadMore` retained to preserve behavior | Load-more layout hook |
+| Board/mobile | Application UI responsive grammar and shared primitives | Existing board sectors and mobile detail behavior | Board/task compatibility styles |
+
+The main list and drawer are DalyHub compositions above genuine Untitled
+primitives, not a second generic UI library. Forcing generic table or slideout
+markup into the record would remove task semantics rather than migrate
+presentation. No new generic primitive or visual token layer was introduced.

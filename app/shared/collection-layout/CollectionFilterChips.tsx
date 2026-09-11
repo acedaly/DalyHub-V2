@@ -21,6 +21,8 @@
  */
 
 import { Link } from "react-router";
+import { Badge } from "~/shared/ui/untitled/base/badges/badges";
+import { badgeTypes } from "~/shared/ui/untitled/base/badges/badge-types";
 
 import {
   activeControls,
@@ -66,7 +68,12 @@ export function CollectionFilterChips({
             key={`${control.groupId}:${control.value}`}
             className="dh-filter-chips__item"
           >
-            <span className="dh-filter-chips__chip">
+            <Badge
+              type={badgeTypes.badgeColor}
+              size="sm"
+              color="gray"
+              className="dh-filter-chips__chip"
+            >
               <span className="dh-filter-chips__label">{control.label}:</span>{" "}
               <span className="dh-filter-chips__value">
                 {control.valueLabel}
@@ -90,7 +97,7 @@ export function CollectionFilterChips({
               >
                 <span aria-hidden="true">×</span>
               </Link>
-            </span>
+            </Badge>
           </li>
         ))}
       </ul>
