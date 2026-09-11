@@ -57,8 +57,13 @@ describe("DHDS-04 — gallery items", () => {
 
 describe("DHDS-05 — metric and chart framing", () => {
   it("uses the same progress and chart primitives across spine and reporting", () => {
+    // UNTITLED-04 — the Projects table draws its measure with the Untitled
+    // progress-bar composition (`LabelledProgressBar`, the `ProgressBarBase`
+    // geometry plus the accessible name DalyHub requires) rather than the
+    // legacy `ProgressTrack`. Still ONE progress primitive per surface family,
+    // which is what this test is defending.
     expect(read("app", "modules", "projects", "ProjectsTable.tsx")).toContain(
-      "<ProgressTrack",
+      "<LabelledProgressBar",
     );
     expect(
       read("app", "modules", "goals", "GoalMeasurementPanel.tsx"),

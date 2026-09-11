@@ -56,9 +56,13 @@
  */
 
 import type { ReactNode } from "react";
-import { Link, useSearchParams } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 
 import { Tooltip } from "~/shared/tooltip";
+import {
+  ButtonGroup,
+  ButtonGroupItem,
+} from "~/shared/ui/untitled/base/button-group/button-group";
 
 export interface ViewSwitcherOption {
   readonly value: string;
@@ -128,6 +132,19 @@ export interface ViewSwitcherProps {
    * only ever repeats the default is noise in a shared URL.
    */
   readonly alwaysWriteValue?: boolean;
+  /**
+   * UNTITLED-04 — draw the control with the genuine Untitled
+   * `base/button-group` anatomy instead of the legacy `dh-segmented` capsule.
+   *
+   * The Untitled structure is a React Aria `ToggleButtonGroup`, so the segments
+   * are BUTTONS rather than links even in `param` mode; the URL contract is
+   * preserved by navigating on selection with the same `replace` semantics the
+   * link mode uses. That trade is deliberate and bounded to presentation
+   * toggles (Grid / Table), which are a reading of the same collection rather
+   * than a destination — a rail whose tabs are destinations uses `ViewTabs`,
+   * whose Untitled structure keeps real links.
+   */
+  readonly structure?: "legacy" | "untitled";
   readonly className?: string;
 }
 
@@ -141,9 +158,11 @@ export function ViewSwitcher({
   iconOnly = false,
   replace,
   alwaysWriteValue = false,
+  structure = "legacy",
   className,
 }: ViewSwitcherProps) {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const defaultValue = options[0]?.value;
 
   const hrefFor = (option: ViewSwitcherOption): string => {
@@ -168,6 +187,47 @@ export function ViewSwitcher({
     const query = next.toString();
     return query.length > 0 ? `?${query}` : "?";
   };
+
+  if (structure === "untitled") {
+    // Adapted from Untitled UI React `base/button-group`, the segmented control
+    // Untitled's Application UI uses for a presentation toggle.
+    // Changes: DalyHub URL-backed presentation values and icon-only labelling.
+    return (
+      <ButtonGroup
+        size="md"
+        aria-label={label}
+        selectedKeys={[value]}
+        disallowEmptySelection
+        onSelectionChange={(keys) => {
+          const next = [...keys].map(String).find((key) => key !== value);
+          if (next === undefined) return;
+          if (onSelect) {
+            onSelect(next);
+            return;
+          }
+          const option = options.find((candidate) => candidate.value === next);
+          if (!option) return;
+          void navigate(hrefFor(option), {
+            replace: replace ?? option.href === undefined,
+            preventScrollReset: true,
+          });
+        }}
+        className={className}
+        data-untitled-source="base/button-group"
+      >
+        {options.map((option) => (
+          <ButtonGroupItem
+            key={option.value}
+            id={option.value}
+            aria-label={iconOnly ? option.label : undefined}
+            {...(option.icon ? { iconLeading: option.icon } : {})}
+          >
+            {iconOnly ? undefined : option.label}
+          </ButtonGroupItem>
+        ))}
+      </ButtonGroup>
+    );
+  }
 
   const classes = [
     "dh-segmented",

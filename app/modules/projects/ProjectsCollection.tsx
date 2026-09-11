@@ -46,7 +46,6 @@ import { useNavigate, useRevalidator } from "react-router";
 import { EntityCardGrid, ProjectCard } from "~/shared/card";
 import type { ProjectLifecycleCounts } from "~/kernel/projects";
 import {
-  CollectionControlRow,
   CollectionLayout,
   CollectionSearchField,
   collectionCountLabel,
@@ -58,8 +57,8 @@ import {
   type CollectionPresentation,
 } from "~/shared/collection-layout";
 import {
+  DrawerButton,
   DrawerProvider,
-  DrawerTrigger,
   useDrawer,
   type DrawerEntry,
   type DrawerRenderResult,
@@ -72,7 +71,7 @@ import { useRecordLifecycle } from "~/shared/record-lifecycle";
 import type { SelectOption } from "~/shared/forms/types";
 import type { GoalSummary } from "~/shared/goal-progress";
 import { GridIcon, TableIcon } from "~/shared/icons";
-import { ButtonLink } from "~/shared/ui";
+import { Button, ButtonLink } from "~/shared/ui";
 import { ViewSwitcher, ViewTabs } from "~/shared/view-switcher";
 
 import { GoalSummarySection } from "./GoalSummarySection";
@@ -577,12 +576,9 @@ function ProjectsCollection({
       subtitle={subtitle}
       presentation="grid"
       primaryAction={
-        <DrawerTrigger
-          drawerKey={NEW_PROJECT_KEY}
-          className="dh-btn dh-btn--primary"
-        >
+        <DrawerButton drawerKey={NEW_PROJECT_KEY} variant="primary">
           <CreateActionLabel>New project</CreateActionLabel>
-        </DrawerTrigger>
+        </DrawerButton>
       }
       /*
        * PROJECT-02 — the way to the template library: ONE quiet secondary link
@@ -608,6 +604,7 @@ function ProjectsCollection({
        */
       search={
         <CollectionSearchField
+          structure="untitled"
           value={draft}
           onChange={setDraft}
           label="Search projects"
@@ -645,18 +642,30 @@ function ProjectsCollection({
        * included. It has simply been given the row the reference draws it on.
        */
       filterBar={
-        <CollectionControlRow
-          leading={
+        /*
+         * UNTITLED-04 — the Untitled Application UI filter-bar band: a bordered
+         * strip on the card surface with the collection's mode rail at the
+         * leading edge and its presentation control at the trailing one. The
+         * same structure `/tasks` adopted from Pro `dashboards-01/02`, so the
+         * two busiest collections in the product now carry one toolbar grammar.
+         */
+        <div
+          className="flex flex-wrap items-center gap-3 border-b border-secondary bg-primary px-4 py-2.5 max-md:flex-col max-md:items-stretch lg:px-6"
+          data-untitled-source="dashboards-01/02:filter-bar"
+        >
+          <div className="-mx-1 min-w-0 flex-1 overflow-x-auto px-1">
             <ViewTabs
+              structure="untitled"
               param="state"
               options={STATE_OPTIONS}
               value={state}
               label="Project views"
               defaultValue="all"
             />
-          }
-          trailing={
+          </div>
+          <div className="flex shrink-0 items-center gap-3 max-md:justify-end">
             <ViewSwitcher
+              structure="untitled"
               param="present"
               options={PRESENTATION_OPTIONS}
               value={presentation}
@@ -670,12 +679,13 @@ function ProjectsCollection({
                */
               alwaysWriteValue
             />
-          }
-        />
+          </div>
+        </div>
       }
       error={
         failed ? (
           <EmptyState
+            structure="untitled"
             title="We couldn’t load your projects"
             description="Something went wrong. Please try again."
           />
@@ -692,21 +702,19 @@ function ProjectsCollection({
       filteredEmptySlot={
         query.length > 0 ? (
           <EmptyState
+            structure="untitled"
             icon={<EntityIcon type="project" />}
             title={`No projects match “${query}”`}
             description="Try a shorter search, or a different lifecycle tab."
             primaryAction={
-              <button
-                type="button"
-                className="dh-btn"
-                onClick={() => setDraft("")}
-              >
+              <Button variant="secondary" onClick={() => setDraft("")}>
                 Clear search
-              </button>
+              </Button>
             }
           />
         ) : (
           <EmptyState
+            structure="untitled"
             icon={<EntityIcon type="project" />}
             title={
               state === "completed"
@@ -722,12 +730,9 @@ function ProjectsCollection({
             }
             primaryAction={
               state === "archived" ? undefined : (
-                <DrawerTrigger
-                  drawerKey={NEW_PROJECT_KEY}
-                  className="dh-btn dh-btn--primary"
-                >
+                <DrawerButton drawerKey={NEW_PROJECT_KEY} variant="primary">
                   <CreateActionLabel>New project</CreateActionLabel>
-                </DrawerTrigger>
+                </DrawerButton>
               )
             }
           />
@@ -736,16 +741,14 @@ function ProjectsCollection({
       isEmpty={!failed && count === 0 && state === "all" && query.length === 0}
       emptySlot={
         <EmptyState
+          structure="untitled"
           icon={<EntityIcon type="project" />}
           title="No Projects yet"
           description="Projects are the finite bodies of work you run under an Area or a Goal. Create your first one to get started."
           primaryAction={
-            <DrawerTrigger
-              drawerKey={NEW_PROJECT_KEY}
-              className="dh-btn dh-btn--primary"
-            >
+            <DrawerButton drawerKey={NEW_PROJECT_KEY} variant="primary">
               <CreateActionLabel>New project</CreateActionLabel>
-            </DrawerTrigger>
+            </DrawerButton>
           }
         />
       }
@@ -780,6 +783,7 @@ function ProjectsCollection({
           loadFailed={loadFailed}
           onLoadMore={loadMore}
           label="Load more projects"
+          structure="untitled-pagination"
         />
       ) : null}
 

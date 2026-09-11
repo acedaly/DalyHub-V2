@@ -85,11 +85,8 @@ import {
   identityAttribute,
   resolveIdentity,
 } from "~/shared/entity/identity-resolution";
-import {
-  meterStatusAttribute,
-  meterStatusFromTone,
-  type MeterStatus,
-} from "~/shared/progress";
+import { meterStatusFromTone, type MeterStatus } from "~/shared/progress";
+import { LabelledProgressBar } from "~/shared/ui/untitled/overrides/labelled-progress-bar";
 
 /** The tone vocabulary the attention dot understands. Meaning is in the words. */
 export type ProjectCardTone =
@@ -202,32 +199,77 @@ export function ProjectCard({
   "data-testid": testId,
 }: ProjectCardProps) {
   const Heading = `h${headingLevel}` as const;
-  const classes = ["dh-pcard", muted ? "dh-pcard--muted" : null, className]
-    .filter(Boolean)
-    .join(" ");
 
   // The ONE resolver. This component never maps a rank to a colour itself — a
   // card and the tile inside it agreeing depends on there being one mapping.
   const identity = resolveIdentity({ colourSlot, colourRank: accent ?? null });
 
   return (
+    /*
+     * UNTITLED-04 — the surface is Untitled's card grammar.
+     *
+     * `rounded-xl bg-primary shadow-xs ring-1 ring-secondary` is the exact
+     * bounded surface `application/table`'s `TableCard.Root` declares and that
+     * Untitled's Application UI uses for every bounded panel, so a Project card
+     * and the Projects table are visibly the same object family rather than two
+     * card languages sitting on one page. The anatomy inside it — mark alone on
+     * its own row, title with the card's full width, the measure pinned to the
+     * foot so a row of cards shares one baseline — is unchanged from UIX-02 /
+     * REDESIGN-04, because that anatomy is a product decision about what a
+     * Project card answers.
+     *
+     * The `dh-pcard*` class names survive as HOOKS only. Their presentation
+     * rules were deleted from `card-family.css` with this pass; product tests
+     * and end-to-end journeys address them as the stable way to ask "which part
+     * of the card is this?", and renaming them would be churn with no gain.
+     */
     // Named by the record, not by the link inside it: the heading's only child
     // is the whole-card link, whose accessible name is "Open <title>", so
     // labelling by it would announce the card as "Open Kitchen Renovation".
     <article
-      className={classes}
+      className={[
+        "dh-pcard",
+        "group relative flex h-full flex-col gap-3 rounded-xl bg-primary p-5 shadow-xs ring-1 ring-secondary transition duration-100 ease-linear hover:shadow-md hover:ring-primary",
+        /*
+         * The PHONE composition: a compact row, not the desktop card at full
+         * size. The mark takes a column and everything else indents against it,
+         * so a list is scanned by mark and by title rather than by counting
+         * boxes, and a 844px viewport shows six Projects instead of three.
+         *
+         * Same DOM, same reading order, same accessible names — `contents`
+         * dissolves the head into the card's own grid, and nothing is moved by
+         * `order`. The card also stops stretching to its row's tallest sibling:
+         * at row scale a uniform height is what a list gives, and equal-height
+         * columns are a two-column idea.
+         */
+        "max-md:grid max-md:h-auto max-md:grid-cols-[auto_minmax(0,1fr)] max-md:content-start max-md:gap-x-3 max-md:gap-y-1 max-md:p-4",
+        muted ? "dh-pcard--muted opacity-70" : null,
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
       aria-label={title}
       {...identityAttribute(identity.slot)}
       data-testid={testId}
     >
-      <div className="dh-pcard__head">
+      <div className="dh-pcard__head flex flex-col gap-3 max-md:contents">
         {icon ? (
-          <span className="dh-pcard__mark" aria-hidden="true">
+          <span
+            /*
+             * On a phone the mark spans the title and its context — that is what
+             * puts the tile beside the record rather than above it — and steps
+             * down to the compact rung by re-pointing the identity-icon size
+             * tokens the shared `AccentIcon` reads. A 48px square on a 358px
+             * content width is a seventh of the row spent on a glyph.
+             */
+            className="dh-pcard__mark flex w-fit items-center max-md:col-start-1 max-md:row-span-2 max-md:self-start max-md:[--app-entity-icon-container-size-lg:var(--app-entity-icon-container-size-sm)] max-md:[--app-entity-icon-size-lg:var(--app-entity-icon-size-sm)]"
+            aria-hidden="true"
+          >
             {icon}
           </span>
         ) : null}
-        <div className="dh-pcard__titles">
-          <Heading className="dh-pcard__title">
+        <div className="dh-pcard__titles flex min-w-0 flex-col gap-0.5 max-md:col-start-2">
+          <Heading className="dh-pcard__title text-md font-semibold text-primary">
             {/*
              * A real router `Link`, covering the card through its ::after. A
              * bare anchor would make every card a full document load, throwing
@@ -236,86 +278,73 @@ export function ProjectCard({
              * address" still behave.
              */}
             <Link
-              className="dh-pcard__open"
+              /*
+               * Two lines then an ellipsis on a gallery card, ONE line in a
+               * phone row: three Projects whose names run to two lines would
+               * give a list three different row heights.
+               */
+              className="dh-pcard__open line-clamp-2 rounded-sm text-primary outline-focus-ring after:absolute after:inset-0 after:content-[''] focus-visible:outline-2 focus-visible:outline-offset-2 max-md:truncate max-md:whitespace-nowrap"
               to={href}
               aria-label={openAriaLabel ?? title}
             >
               {title}
             </Link>
           </Heading>
-          {context ? <p className="dh-pcard__context">{context}</p> : null}
+          {context ? (
+            <p className="dh-pcard__context truncate text-sm text-tertiary">
+              {context}
+            </p>
+          ) : null}
         </div>
       </div>
 
       {/*
-       * The overflow is positioned rather than laid out in the head row.
-       *
-       * In the row it was a third flex child, so at a four-column 1440 the
-       * title's track was the card minus the mark minus a 40px button — and
-       * every title in the gallery came out as "DalyHub…", "Records…",
-       * "Kitchen…". The menu is a corner affordance, not a column; taking it
-       * out of flow gives the title the width it needs and moves nothing else.
+       * The overflow is positioned rather than laid out in the head row, and it
+       * sits ABOVE the stretched link so it stays clickable.
        */}
-      {overflow ? <div className="dh-pcard__overflow">{overflow}</div> : null}
+      {overflow ? (
+        <div className="dh-pcard__overflow absolute top-3 right-3 z-10">
+          {overflow}
+        </div>
+      ) : null}
 
-      {/*
-       * The reference's two-line description. Rendered only where the caller
-       * genuinely has one — a Project without descriptive text shows nothing,
-       * not a placeholder, and the pinned foot keeps the row's baselines
-       * regardless.
-       */}
       {description ? (
-        <p className="dh-pcard__description">{description}</p>
+        // Prose rather than a fact, and absent on most Projects already: the
+        // phone row drops it and the record it belongs to is one tap away.
+        <p className="dh-pcard__description line-clamp-2 text-sm text-tertiary max-md:hidden">
+          {description}
+        </p>
       ) : null}
 
       {/*
-       * DS-05 — the foot is TWO lines, not three.
-       *
-       * The status line and the count are one statement about the work ("3
-       * overdue … 3 open"), so they share a row with the count at the trailing
-       * edge; the bar and its percentage are one statement about the proportion,
-       * so they share the row below it. The baseline gave the percentage a line
-       * of its own at 24px, which is what made the card 215px tall and put a
-       * derived number above the record's own name in the visual hierarchy.
+       * The foot is the MEASURE, then the META LINE — the bar answers "how far
+       * along", the line beneath answers "how much, and how urgent". `mt-auto`
+       * pins it, so a row of cards puts every bar on the same baseline whatever
+       * the title did.
        */}
       {/*
-       * REDESIGN-04 — the foot is the MEASURE, then the META LINE.
-       *
-       * The reference's order, and the honest one: the bar answers "how far
-       * along", the line beneath answers "how much, and how urgent". The foot
-       * is still pinned to the bottom of the card (rule 1 above), so a row of
-       * cards puts every bar on the same baseline whatever the title did.
+       * The foot indents under the title on a phone rather than starting at the
+       * card's edge, so the row has one text column and the eye runs down it.
        */}
-      <div className="dh-pcard__foot">
+      <div className="dh-pcard__foot mt-auto flex flex-col gap-2 pt-1 max-md:col-start-2 max-md:gap-1 max-md:pt-0">
         {progress ? (
           <div
             className="dh-pcard__progress"
             data-testid="project-card-figures"
           >
-            <span
-              className="dh-pcard__track"
-              {...meterStatusAttribute(
-                progress.status ?? meterStatusFromTone(attention?.tone),
-              )}
-              role="progressbar"
-              aria-valuenow={progress.percent}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuetext={progress.valueText}
-              aria-label={`${title} progress`}
-            >
-              <span
-                className="dh-pcard__fill"
-                style={{ inlineSize: `${progress.percent}%` }}
-              />
-            </span>
-            <span className="dh-pcard__percent">{progress.percent}%</span>
+            <LabelledProgressBar
+              label={`${title} progress`}
+              value={progress.percent}
+              valueText={progress.valueText.replace(/^\d+% — /, "")}
+              tone={progressTone(progress.status ?? toneOf(attention?.tone))}
+              showValue
+            />
           </div>
         ) : null}
 
         {attention || (meta && meta.length > 0) || fact ? (
           <p
-            className="dh-pcard__meta"
+            className="dh-pcard__meta flex flex-wrap items-center gap-x-1.5 text-sm text-tertiary"
             data-tone={attention?.tone ?? "neutral"}
             // Named so a test can aim at the REGION — the one place a raised,
             // non-interactive element could swallow a click on the card's
@@ -326,34 +355,20 @@ export function ProjectCard({
               <>
                 {/*
                  * §5.6 — attention survives as SIGNAL rather than as a
-                 * sentence. The dot is decorative; the evaluator's own full
+                 * sentence. The dot is decorative and the evaluator's own full
                  * wording rides along for assistive tech, so nothing on this
-                 * card is carried by colour alone.
-                 *
-                 * ── CONVERGE-01 §C: the SIGNAL got its words back ────────────
-                 * A dot plus a visually-hidden sentence meant a sighted owner
-                 * saw a coloured dot and "24 tasks · 1 due this week" — while
-                 * the card had already derived, and was announcing to screen
-                 * readers alone, "6 tasks past their due date". The one fact on
-                 * the card worth acting on was the one nobody could see; the
-                 * audit asks for exactly this diagnostic to be brought through
-                 * from the detail screen, and it was already here.
-                 *
-                 * So the evaluator's COMPACT phrasing ("6 overdue") is drawn,
-                 * and it is `aria-hidden` because the fuller sentence beside it
-                 * is the announced form — the same split `PriorityFlag` makes
-                 * between its "P2" tag and its "Priority 2" name, so nothing is
-                 * said twice.
-                 *
-                 * Only for a HEALTH signal: a lifecycle attention line says
-                 * "Completed" or "Archived", which the card's own pill and its
-                 * percentage already state.
+                 * card is carried by colour alone. Only a HEALTH signal is
+                 * drawn: a lifecycle attention line says "Completed" or
+                 * "Archived", which the card's percentage already states.
                  */}
-                <span className="dh-pcard__dot" aria-hidden="true" />
-                <span className="dh-visually-hidden">{attention.detail}. </span>
+                <span
+                  className={`dh-pcard__dot size-2 shrink-0 rounded-full ${DOT_TONE[attention.tone]}`}
+                  aria-hidden="true"
+                />
+                <span className="sr-only">{attention.detail}. </span>
                 {attention.fromHealth ? (
                   <span
-                    className="dh-pcard__meta-fact dh-pcard__meta-fact--attention"
+                    className={`dh-pcard__meta-fact dh-pcard__meta-fact--attention font-medium ${TEXT_TONE[attention.tone]}`}
                     aria-hidden="true"
                   >
                     {attention.text}
@@ -364,24 +379,69 @@ export function ProjectCard({
             {(meta ?? []).map((item, index) => (
               <span
                 key={item.key}
-                className="dh-pcard__meta-fact"
+                className={`dh-pcard__meta-fact ${item.tone ? TEXT_TONE[item.tone] : ""}`}
                 data-tone={item.tone ?? undefined}
               >
                 {/* A separator before every fact except the line's first. The
                     attention diagnostic above is a fact too when it is drawn,
                     so it moves what "first" means. */}
                 {index > 0 || (attention?.fromHealth ?? false) ? (
-                  <span className="dh-pcard__meta-sep" aria-hidden="true">
+                  <span
+                    className="dh-pcard__meta-sep pr-1.5 text-quaternary"
+                    aria-hidden="true"
+                  >
                     ·
                   </span>
                 ) : null}
                 {item.text}
               </span>
             ))}
-            {fact ? <span className="dh-pcard__fact">{fact}</span> : null}
+            {fact ? (
+              <span className="dh-pcard__fact ml-auto pl-3 text-tertiary">
+                {fact}
+              </span>
+            ) : null}
           </p>
         ) : null}
       </div>
     </article>
   );
+}
+
+/** The state dot's paint, per tone. Decorative — the words carry the meaning. */
+const DOT_TONE: Record<ProjectCardTone, string> = {
+  neutral: "bg-fg-quaternary",
+  success: "bg-fg-success-secondary",
+  info: "bg-fg-brand-secondary",
+  warning: "bg-fg-warning-secondary",
+  danger: "bg-fg-error-secondary",
+};
+
+/** A tinted meta fragment. Reinforcement only; the fragment states its own fact. */
+const TEXT_TONE: Record<ProjectCardTone, string> = {
+  neutral: "text-tertiary",
+  success: "text-success-primary",
+  info: "text-brand-secondary",
+  warning: "text-warning-primary",
+  danger: "text-error-primary",
+};
+
+/** A `MeterStatus` or a card tone, as the shared bar's tone vocabulary. */
+function toneOf(tone: ProjectCardTone | undefined): MeterStatus | undefined {
+  return meterStatusFromTone(tone);
+}
+
+function progressTone(
+  status: MeterStatus | undefined,
+): "neutral" | "positive" | "caution" | "critical" {
+  switch (status) {
+    case "success":
+      return "positive";
+    case "warning":
+      return "caution";
+    case "danger":
+      return "critical";
+    default:
+      return "neutral";
+  }
 }

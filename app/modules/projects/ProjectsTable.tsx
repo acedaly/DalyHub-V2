@@ -1,48 +1,43 @@
 /**
- * REDESIGN-04 §5.4 — the Projects collection as a TABLE.
+ * The Projects collection as a TABLE — UNTITLED-04.
  *
- * `mockup3.png` puts a Grid/Table toggle at the trailing edge of the Projects
- * control row. The table is real data in another representation, so it is in
- * scope — and it is exactly that: the SAME rows, in the same order, from the
- * same loader, drawn as a table instead of as cards. It performs no reads, adds
- * no columns the gallery does not already have, and its cells are the same
- * derived display values `ProjectCardData` hands the card.
+ * ── What this is now ────────────────────────────────────────────────────────
+ * The genuine Untitled Application UI table: `TableCard.Root`, `Table`,
+ * `Table.Header`, `Table.Head`, `Table.Body`, `Table.Row` and `Table.Cell` from
+ * the vendored `application/table` source, in the card-bounded arrangement
+ * Untitled's Pro dashboards draw a data table in. It replaces the hand-written
+ * `<table class="dh-ptable">` this surface carried, along with its stylesheet's
+ * column, row, hover, reveal and responsive rules.
  *
- * ── Why a real `<table>` ────────────────────────────────────────────────────
- * Because it is tabular data, and the semantics are the accessibility. A grid
- * of divs would need `role="table"`, `role="row"`, `role="cell"` and a column
- * header association reimplemented by hand; a `<table>` with `<th scope="col">`
- * announces "Progress, column 4" for free, and the browser's own row/column
- * navigation works in every screen reader without a roving tabindex.
+ * The React Aria table underneath is what makes that a structural change rather
+ * than a restyle: column/row semantics, the header association, focus
+ * management and keyboard navigation are the library's, not a hand-rolled set of
+ * `scope` attributes, and the row grammar is now the same one `/tasks` uses.
+ *
+ * ── What did not change ─────────────────────────────────────────────────────
+ * Every fact, in the same order, from the same loader: the same rows, the same
+ * `ProjectCardData` the gallery card is drawn from, no extra reads and no extra
+ * derivations. The Area cell is still the contextual `InlinePickerField` over
+ * the bounded `/projects/parent-options?q=` endpoint, posting the same canonical
+ * `move` intent; the overflow is still the shared DS-12 menu over the same
+ * `/projects/:id/mutate` lifecycle contract, kept because its phone-sheet
+ * transformation, dialog ordering and focus return are DalyHub behaviour that
+ * Untitled's dropdown does not carry.
  *
  * ── Sorting ─────────────────────────────────────────────────────────────────
- * There is none, and its absence is deliberate. §5.4 permits sorting "only if
- * sorting already exists in the loader's vocabulary". `ListProjectsInput.orderBy`
- * has exactly two values — `created` and `recent` — and neither corresponds to
- * a column drawn here, so a clickable header would either sort the loaded page
- * client-side (a lie about the collection, which is paginated) or need new
- * repository orderings, new cursor scopes and new indexes. The collection's own
- * ordering is what the table shows, in both presentations.
+ * Still none, and still deliberate. `ListProjectsInput.orderBy` has exactly two
+ * values — `created` and `recent` — and neither corresponds to a column drawn
+ * here, so a sortable header would either sort the loaded page client-side (a
+ * lie about a paginated collection) or need new repository orderings, cursor
+ * scopes and indexes. Untitled's `Table.Head` offers `allowsSorting`; it is not
+ * set, because the collection's own ordering is what the table shows.
  *
  * ── The columns ─────────────────────────────────────────────────────────────
- * Identity, Area, Progress, Tasks, Updated — the five §5.4 names, and every one
- * of them is a value the gallery card already draws or the list item already
- * carries. Nothing new is derived, and nothing new is read.
- *
- * ── DHDS-10 — the AREA cell is the control ──────────────────────────────────
- * Filing is what a table of Projects is FOR: it is the surface an owner scans
- * when deciding where work belongs, and until this phase the answer to "this
- * one is in the wrong Area" was open the record, find the Settings tab, find
- * the row, choose, come back — five interactions and two navigations, from the
- * cell that already states the answer.
- *
- * The cell is now the shared `InlinePickerField` over the same bounded
- * `/projects/parent-options?q=` endpoint the record's own Organisation row
- * uses, posting the same canonical `move` intent. No column was added, no
- * request is made until a picker is opened, and at rest the cell is still the
- * Area's name in ordinary text — `presentation="meta"` holds the caret back
- * until the row is engaged with, so a page of Projects reads as a table of
- * information rather than a page of dropdowns (§6).
+ * Identity, Status, Progress, Area or Goal, Tasks, Updated. Status is the one
+ * addition: the chip was previously only on the gallery card, so the table — the
+ * DEFAULT presentation above forty Projects (ADR-100) — was the presentation
+ * that could not answer "which of these is at risk?". It is the same
+ * `projectCardStatus` precedence the card draws, in an Untitled badge.
  */
 
 import { useCallback, useState } from "react";
@@ -59,7 +54,9 @@ import type { InlineSaveOutcome } from "~/shared/inline-edit";
 import { OverflowMenu } from "~/shared/overflow-menu";
 import { useRecordLifecycle } from "~/shared/record-lifecycle";
 
-import { ProgressTrack, meterStatusFromTone } from "~/shared/progress";
+import { UntitledStatusBadge } from "~/shared/pill";
+import { LabelledProgressBar } from "~/shared/ui/untitled/overrides/labelled-progress-bar";
+import { Table, TableCard } from "~/shared/ui/untitled/application/table/table";
 
 import type { ProjectCardData } from "./project-view";
 import { useParentOptionsSearch } from "./use-parent-options-search";
@@ -72,47 +69,59 @@ export function ProjectsTable({
   readonly onLifecycleChange: () => void;
 }) {
   return (
-    <div className="dh-ptable__scroll">
-      <table className="dh-ptable" data-testid="projects-table">
-        <caption className="dh-visually-hidden">
-          Projects, with the Area or Goal they sit under, progress, task counts
-          and last update.
-        </caption>
-        <thead>
-          <tr>
-            <th scope="col">Project</th>
-            {/*
-             * DHDS-10 — the column is named for what it now CONTAINS.
-             *
-             * It showed the derived Area and is now the STRUCTURAL parent, which
-             * for a Project advancing a Goal is the Goal — the value the `move`
-             * intent actually sets, and the one a control must state honestly.
-             * Heading it "Area" while it read "Learn Spanish" would be a column
-             * whose title disagrees with its cells, and naming the control's
-             * value differently from its visible text would break WCAG 2.5.3.
-             * The Area is still named on the gallery card and on the record.
-             */}
-            <th scope="col" className="dh-ptable__area">
-              Area or Goal
-            </th>
-            <th scope="col" className="dh-ptable__progress">
-              Progress
-            </th>
-            <th scope="col" className="dh-ptable__numeric">
-              Tasks
-            </th>
-            <th scope="col" className="dh-ptable__updated">
-              Updated
-            </th>
-            {/* The actions column is named for assistive tech and unnamed
-             * visually — a visible "Actions" heading over a 32px menu button is
-             * a column title wider than its column. */}
-            <th scope="col">
-              <span className="dh-visually-hidden">Actions</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
+    // Adapted from the Untitled UI React `application/table` source, in the
+    // card-bounded arrangement Untitled's Pro Application UI dashboards use for
+    // a collection table. Changes: DalyHub project columns and row controls.
+    <TableCard.Root
+      size="sm"
+      className="rounded-lg bg-primary shadow-xs ring-1 ring-secondary"
+      data-untitled-source="application/table:table-card"
+    >
+      <Table
+        aria-label="Projects, with the Area or Goal they sit under, status, progress, task counts and last update."
+        size="sm"
+        /*
+         * `table-fixed` is what makes the truncation real: in an auto layout a
+         * long project name simply widens its column and pushes the trailing
+         * ones out of the card. Fixed layout hands every named column the width
+         * declared on its head and gives the Project column what is left, so the
+         * table fits its container at every width and the name ellipsises
+         * instead of the row scrolling sideways.
+         */
+        className="table-fixed bg-primary max-md:block"
+        data-testid="projects-table"
+      >
+        <Table.Header className="bg-secondary [&_th]:px-5 max-md:hidden">
+          <Table.Head
+            id="project"
+            label="Project"
+            isRowHeader
+            /*
+             * Percentages, because the layout is FIXED: a fixed table hands each
+             * column exactly the width its head declares and has no rule for
+             * distributing what is left over, so a column without one collapses
+             * to its minimum and the table ends short of its own card. Stating
+             * all seven as a share of the card is also what keeps the proportions
+             * stable from a 1024 laptop to a 1920 desktop.
+             */
+            className="w-[28%]"
+          />
+          <Table.Head id="status" label="Status" className="w-[12%]" />
+          <Table.Head id="progress" label="Progress" className="w-[16%]" />
+          <Table.Head id="parent" label="Area or Goal" className="w-[16%]" />
+          <Table.Head
+            id="tasks"
+            label="Tasks"
+            className="w-[14%] whitespace-nowrap"
+          />
+          <Table.Head
+            id="updated"
+            label="Updated"
+            className="w-[10%] whitespace-nowrap"
+          />
+          <Table.Head id="actions" label="" className="w-[4%]" />
+        </Table.Header>
+        <Table.Body>
           {cards.map((card) => (
             <ProjectTableRow
               key={card.id}
@@ -120,9 +129,9 @@ export function ProjectsTable({
               onLifecycleChange={onLifecycleChange}
             />
           ))}
-        </tbody>
-      </table>
-    </div>
+        </Table.Body>
+      </Table>
+    </TableCard.Root>
   );
 }
 
@@ -139,8 +148,17 @@ function ProjectTableRow({
   const lifecycle = useProjectRowLifecycle(card, onLifecycleChange);
 
   return (
-    <tr
-      className="dh-ptable__row"
+    <Table.Row
+      id={card.id}
+      size="sm"
+      /*
+       * `h-auto` first: the Untitled row declares a fixed `h-14`, which is right
+       * for a desktop table and wrong for the phone row, where the name is
+       * followed by the facts the hidden columns would have carried. Without it
+       * the second line renders outside the row's box and is painted over by the
+       * next one.
+       */
+      className="h-auto min-h-14 bg-primary hover:bg-secondary max-md:grid max-md:grid-cols-[minmax(0,1fr)_auto] max-md:items-start max-md:gap-x-3 max-md:py-2"
       // The SAME identity the gallery card paints its mark and bar from,
       // resolved once by the shared resolver — one identity across both
       // presentations, never a second colour decision for the table.
@@ -152,22 +170,17 @@ function ProjectTableRow({
       )}
       data-muted={card.isArchived ? "true" : undefined}
       /*
-       * DHDS-08's reveal CONTEXT, which DHDS-10's `meta` fields read: the Area
-       * cell's caret fades in with the row exactly as the overflow button does,
-       * from the one contract, rather than being drawn on forty rows at rest.
+       * The reveal CONTEXT the shared `dh-action-reveal` contract reads: the
+       * overflow fades in with the row rather than being painted on forty rows
+       * at rest. Inert outside a hover pointer, so touch, forced colours and the
+       * keyboard are unchanged.
        */
       data-dh-action-context="true"
       data-testid="project-table-row"
     >
-      <th scope="row" className="dh-ptable__identity">
-        {/*
-         * The flex row is an INNER element, never the cell itself: a `<th>` with
-         * `display: flex` stops participating in table layout, so its column
-         * loses its width and a long title stretches the whole table past the
-         * viewport.
-         */}
-        <span className="dh-ptable__identity-inner">
-          <span className="dh-ptable__mark" aria-hidden="true">
+      <Table.Cell className="px-5 py-3 max-md:col-start-1 max-md:px-4">
+        <span className="flex min-w-0 items-center gap-3">
+          <span className="shrink-0" aria-hidden="true">
             <AccentIcon
               entityType="project"
               iconKey={card.iconKey}
@@ -177,27 +190,60 @@ function ProjectTableRow({
             />
           </span>
           <Link
-            className="dh-ptable__open"
+            className="truncate text-sm font-semibold text-primary outline-focus-ring hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
             to={`/projects/${encodeURIComponent(card.id)}`}
             /*
              * "Open <title>" is the product-wide accessible name for a record's
              * open link — `TaskRow`, `Card` and `EntityCard` all say it, and
-             * AGENTS.md §7 makes one vocabulary a rule rather than a habit.
-             * This row was the one collection surface that named itself
-             * differently, so the same act was announced with different words
-             * depending on which presentation of Projects the owner was in —
-             * and after ADR-100 made the table the DEFAULT at forty Projects,
-             * that is the announcement most owners get. The visible text is
-             * contained in the name, so WCAG 2.5.3 (Label in Name) holds.
+             * AGENTS.md §7 makes one vocabulary a rule rather than a habit. The
+             * visible text is contained in the name, so WCAG 2.5.3 (Label in
+             * Name) holds.
              */
             aria-label={`Open ${card.title}`}
           >
             {card.title}
           </Link>
         </span>
-      </th>
+        {/*
+         * The phone row carries the facts the hidden columns would have, in one
+         * quiet line below the name — the table does not become a horizontally
+         * scrolling grid on a handset, and no fact is simply lost.
+         */}
+        <span className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-tertiary md:hidden">
+          <UntitledStatusBadge tone={card.status.tone} dot size="sm">
+            {card.status.label}
+          </UntitledStatusBadge>
+          {card.progress.has ? <span>{card.progress.percent}%</span> : null}
+          {card.parentLabel ? <span>{card.parentLabel}</span> : null}
+        </span>
+      </Table.Cell>
+      <Table.Cell className="px-5 py-3 max-md:hidden">
+        <UntitledStatusBadge
+          tone={card.status.tone}
+          dot
+          size="sm"
+          data-testid="project-table-status"
+        >
+          {card.status.label}
+        </UntitledStatusBadge>
+      </Table.Cell>
+      <Table.Cell className="px-5 py-3 max-md:hidden">
+        {card.progress.has ? (
+          <LabelledProgressBar
+            label={`${card.title} progress`}
+            value={card.progress.percent}
+            valueText={`${card.progress.summary} complete`}
+            tone={progressTone(card.attention.tone)}
+            showValue
+          />
+        ) : (
+          // No tasks means no proportion, exactly as on the card: an empty bar
+          // at 0% says "nothing done" when the truth is "nothing planned".
+          <Absent label="No tasks yet" />
+        )}
+      </Table.Cell>
       {/*
-       * DHDS-10 — the Area, as a contextual choice.
+       * The Area, as a contextual choice.
        *
        * An ARCHIVED Project is read-only until it is restored (PROJ-05 §5), and
        * the repository already refuses the mutation; the cell renders the plain
@@ -207,63 +253,54 @@ function ProjectTableRow({
        * invitation, held back until the row is engaged with — so the em dash
        * survives only for a Project that cannot be moved at all.
        */}
-      <td className="dh-ptable__area">
+      <Table.Cell className="truncate px-5 py-3 text-sm text-tertiary max-md:hidden">
         {card.isArchived ? (
           (card.areaLabel ?? <Absent label="No Area" />)
         ) : (
           <ProjectAreaCell card={card} onMoved={onLifecycleChange} />
         )}
-      </td>
-      <td className="dh-ptable__progress">
-        <span className="dh-ptable__progress-inner">
-          {card.progress.has ? (
-            <>
-              <ProgressTrack
-                className="dh-ptable__track"
-                label={`${card.title} progress`}
-                percent={card.progress.percent}
-                valueText={`${card.progress.summary} complete`}
-                status={meterStatusFromTone(card.attention.tone)}
-              />
-              <span className="dh-ptable__percent">
-                {card.progress.percent}%
-              </span>
-            </>
-          ) : (
-            // No tasks means no proportion, exactly as on the card: an empty
-            // bar at 0% says "nothing done" when the truth is "nothing
-            // planned".
-            <Absent label="No tasks yet" />
-          )}
-        </span>
-      </td>
-      <td className="dh-ptable__numeric">
-        {card.meta.map((fact) => fact.text).join(" · ")}
-      </td>
-      <td className="dh-ptable__updated">
+      </Table.Cell>
+      <Table.Cell className="truncate px-5 py-3 text-sm text-tertiary max-md:hidden">
+        {card.meta.length > 0 ? (
+          card.meta.map((fact) => fact.text).join(" · ")
+        ) : (
+          <Absent />
+        )}
+      </Table.Cell>
+      <Table.Cell className="px-5 py-3 text-sm whitespace-nowrap text-tertiary max-md:hidden">
         {card.updatedLabel?.replace(/^Updated /, "") ?? <Absent />}
-      </td>
-      {/*
-       * DHDS-13 — the reveal contract, WIRED UP.
-       *
-       * The row has declared `data-dh-action-context="true"` since DHDS-08, and
-       * the note beside it says the overflow button fades in with the row
-       * "rather than being drawn on forty rows at rest". It was: the contract
-       * needs `dh-action-reveal` on the trailing container (`motion.css`) and
-       * this cell never carried it, so the intent was stated and never took
-       * effect. MEASURED at 1440 on `/projects` — a `⋯` painted on every one of
-       * 83 rows with no pointer anywhere near them. The class is inert outside a
-       * hover pointer, so touch, forced colours and the keyboard are unchanged.
-       */}
-      <td className="dh-ptable__actions dh-action-reveal">
+      </Table.Cell>
+      <Table.Cell className="dh-action-reveal px-3 py-3 max-md:col-start-2 max-md:row-start-1 max-md:px-2">
         <OverflowMenu
           items={lifecycle.overflowActions}
           label={`More actions for ${card.title}`}
         />
         {lifecycle.dialogs}
-      </td>
-    </tr>
+      </Table.Cell>
+    </Table.Row>
   );
+}
+
+/**
+ * The bar's tone, from the health evaluator's own tone.
+ *
+ * A card must never draw a calm bar over the words "3 overdue", so the measure
+ * takes the signal the attention line already carries. `info` and `neutral` are
+ * both "nothing to say", which is the brand-coloured default.
+ */
+function progressTone(
+  tone: ProjectCardData["attention"]["tone"],
+): "neutral" | "positive" | "caution" | "critical" {
+  switch (tone) {
+    case "success":
+      return "positive";
+    case "warning":
+      return "caution";
+    case "danger":
+      return "critical";
+    default:
+      return "neutral";
+  }
 }
 
 /**
@@ -372,9 +409,9 @@ function ProjectAreaCell({
 /** An absent value: a dash for the eye, a word for assistive tech. */
 function Absent({ label = "Not recorded" }: { readonly label?: string }) {
   return (
-    <span className="dh-ptable__absent">
+    <span className="text-tertiary">
       <span aria-hidden="true">—</span>
-      <span className="dh-visually-hidden">{label}</span>
+      <span className="sr-only">{label}</span>
     </span>
   );
 }

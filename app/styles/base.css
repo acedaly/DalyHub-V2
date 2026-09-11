@@ -364,148 +364,170 @@ body {
  * styling still win without needing `!important` or a more specific selector.
  * Only appearance is set — no layout, no width — so nothing reflows.
  */
-:where(
-  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(
-      [type="file"]
-    ):not([type="color"]),
-  select,
-  textarea
-) {
-  /*
-   * UIX-06 — the floor is the CONTROL rung, not a smaller one of its own.
-   *
-   * DS-14 set this at 36px/4px, which is the size and shape of nothing else in
-   * the product: `.dh-btn` is 45px on `--app-shape-control` (8px), and so is
-   * every segment, filter trigger and overflow control. A collection header
-   * therefore drew a 36px 4px-cornered search field beside a 45px 8px-cornered
-   * "Filter & sort" pill, on five modules, and the mismatch read as two
-   * different design systems sharing a row — which is exactly what §15 rules
-   * out ("mismatched radii on adjacent controls"). 45px is also the target
-   * floor this product commits to (AGENTS.md §15), and an input is a target.
-   *
-   * ── DS-01 — this reads the DALYHUB token, and is the first thing that does ──
-   * `--dh-control-height` resolves to `--app-control-height-lg` at the default
-   * density, so this line is byte-for-byte the rule UIX-06 wrote. What it buys
-   * is that the control baseline — the one place in the product that decides
-   * how tall a native control is — now answers to the density model rather than
-   * to a fixed rung, so DS-02 can give a dense desktop toolbar its 36px
-   * controls by declaring `data-dh-density` on the region instead of by writing a
-   * height somewhere. The coarse-pointer floor in `tokens.css` is what stops
-   * that ever costing a touch target.
-   */
-  min-block-size: var(--dh-control-height);
-  /*
-   * DS-02 — the inset is density's too.
-   *
-   * It was a fixed 8px/12px, which is `compact`'s block inset and `compact`'s
-   * inline inset by coincidence rather than by contract: a control in a touch
-   * region got the comfortable HEIGHT and the dense PADDING, so its text sat in
-   * a band of empty space. Reading both from the density model is what makes a
-   * bare `<select>` dropped into a filter row proportioned like the designed
-   * controls around it at every density.
-   */
-  padding: var(--dh-inset-block) var(--dh-inset-inline);
-  font: inherit;
-  /*
-   * MOBILE-01 (iPhone daily driver) — the token, not the raw typescale rung.
-   *
-   * `--app-field-font-size-compact` IS `body-medium` on a pointer device and is
-   * floored at 16px on a touch one (tokens.css). Stating it here — on the
-   * baseline every native control already inherits — is what makes the
-   * anti-zoom floor universal instead of a list of three shared classes that
-   * every module control written since has quietly fallen outside of. Measured
-   * before this change at 390px: the Notes search and its five filter selects,
-   * the People search and sort, and both Reviews selects all computed to 14px,
-   * so focusing any of them zoomed iOS Safari and left the page horizontally
-   * scrolled with the collection header off-screen.
-   */
-  font-size: var(--app-field-font-size-compact);
-  /* DS-02 — the DalyHub vocabulary. Value-identical to the UIX-06 rule this
-   * replaces; `--dh-color-surface` is the card surface the raised ramp already
-   * resolved to on a form, and the control rung and hairline are unchanged. */
-  color: var(--dh-color-text);
-  background: var(--dh-color-surface);
-  border: var(--dh-border-width) solid var(--dh-color-border-strong);
-  border-radius: var(--dh-radius-control);
-}
-
 /*
- * UIX-06 — a `<select>` stops looking like a browser.
+ * UNTITLED-04 — the native-control and link FLOOR lives in a cascade LAYER.
  *
- * DS-14 left the user-agent arrow in place, reasoning that removing it would
- * break the platform picker on touch. It does not: `appearance: none` changes
- * only how the closed control is PAINTED. Tapping still opens the iOS wheel and
- * the Android dialog, the keyboard behaviour is the native one, the element is
- * still a `<select>` to assistive tech, and a no-JS form still submits it. What
- * it does remove is the one thing that made Notes, Meetings, People and Reviews
- * read as unfinished: a Windows/macOS chevron, at the user agent's own size and
- * colour, inside a product that draws every other disclosure itself.
+ * Every rule below is `:where(...)`, i.e. zero specificity, and each of their
+ * notes says the same thing: this is a FLOOR, and any component's own treatment
+ * must win without needing `!important`. That was true while every stylesheet in
+ * DalyHub was unlayered and competing on specificity alone.
  *
- * The replacement chevron is a background gradient pair rather than an SVG, so
- * it takes `currentColor` — it is correct in both appearances and in forced
- * colours by construction, with no second asset to keep in step.
+ * It stopped being true the moment a component started being styled by Tailwind:
+ * unlayered CSS beats layered CSS unconditionally, so a zero-specificity rule
+ * here outranked `text-primary` on a migrated Untitled component. Measured on
+ * the Untitled Projects table, where every project title came out in the link
+ * accent because `:where(a)` beat the utility class the component asked for.
+ *
+ * `dh-floor` is declared in `untitled/untitled.css` between Tailwind's `base`
+ * and `components` layers, so the floor now sits BELOW Untitled's utilities and
+ * above nothing at all — which is exactly what these rules always claimed to be.
+ * Legacy unlayered stylesheets are unaffected: they still outrank everything
+ * here, as they did before.
  */
-:where(select) {
-  appearance: none;
-  /* Room for the drawn chevron, which sits `--app-space-4` from the edge. */
-  padding-inline-end: var(--app-space-8);
-  background-image:
-    linear-gradient(45deg, transparent 50%, currentColor 50%),
-    linear-gradient(135deg, currentColor 50%, transparent 50%);
-  background-position:
-    calc(100% - var(--app-space-4) - 5px) center,
-    calc(100% - var(--app-space-4)) center;
-  background-size:
-    5px 5px,
-    5px 5px;
-  background-repeat: no-repeat;
-  cursor: pointer;
-}
+@layer dh-floor {
+  :where(
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(
+        [type="file"]
+      ):not([type="color"]),
+    select,
+    textarea
+  ) {
+    /*
+     * UIX-06 — the floor is the CONTROL rung, not a smaller one of its own.
+     *
+     * DS-14 set this at 36px/4px, which is the size and shape of nothing else in
+     * the product: `.dh-btn` is 45px on `--app-shape-control` (8px), and so is
+     * every segment, filter trigger and overflow control. A collection header
+     * therefore drew a 36px 4px-cornered search field beside a 45px 8px-cornered
+     * "Filter & sort" pill, on five modules, and the mismatch read as two
+     * different design systems sharing a row — which is exactly what §15 rules
+     * out ("mismatched radii on adjacent controls"). 45px is also the target
+     * floor this product commits to (AGENTS.md §15), and an input is a target.
+     *
+     * ── DS-01 — this reads the DALYHUB token, and is the first thing that does ──
+     * `--dh-control-height` resolves to `--app-control-height-lg` at the default
+     * density, so this line is byte-for-byte the rule UIX-06 wrote. What it buys
+     * is that the control baseline — the one place in the product that decides
+     * how tall a native control is — now answers to the density model rather than
+     * to a fixed rung, so DS-02 can give a dense desktop toolbar its 36px
+     * controls by declaring `data-dh-density` on the region instead of by writing a
+     * height somewhere. The coarse-pointer floor in `tokens.css` is what stops
+     * that ever costing a touch target.
+     */
+    min-block-size: var(--dh-control-height);
+    /*
+     * DS-02 — the inset is density's too.
+     *
+     * It was a fixed 8px/12px, which is `compact`'s block inset and `compact`'s
+     * inline inset by coincidence rather than by contract: a control in a touch
+     * region got the comfortable HEIGHT and the dense PADDING, so its text sat in
+     * a band of empty space. Reading both from the density model is what makes a
+     * bare `<select>` dropped into a filter row proportioned like the designed
+     * controls around it at every density.
+     */
+    padding: var(--dh-inset-block) var(--dh-inset-inline);
+    font: inherit;
+    /*
+     * MOBILE-01 (iPhone daily driver) — the token, not the raw typescale rung.
+     *
+     * `--app-field-font-size-compact` IS `body-medium` on a pointer device and is
+     * floored at 16px on a touch one (tokens.css). Stating it here — on the
+     * baseline every native control already inherits — is what makes the
+     * anti-zoom floor universal instead of a list of three shared classes that
+     * every module control written since has quietly fallen outside of. Measured
+     * before this change at 390px: the Notes search and its five filter selects,
+     * the People search and sort, and both Reviews selects all computed to 14px,
+     * so focusing any of them zoomed iOS Safari and left the page horizontally
+     * scrolled with the collection header off-screen.
+     */
+    font-size: var(--app-field-font-size-compact);
+    /* DS-02 — the DalyHub vocabulary. Value-identical to the UIX-06 rule this
+     * replaces; `--dh-color-surface` is the card surface the raised ramp already
+     * resolved to on a form, and the control rung and hairline are unchanged. */
+    color: var(--dh-color-text);
+    background: var(--dh-color-surface);
+    border: var(--dh-border-width) solid var(--dh-color-border-strong);
+    border-radius: var(--dh-radius-control);
+  }
 
-/* A multiple/sized select is a LIST, not a closed control — it has no chevron
- * to draw and no room to reserve for one. */
-:where(select[multiple], select[size]:not([size="1"])) {
-  padding-inline-end: var(--app-space-3);
-  background-image: none;
-}
+  /*
+   * UIX-06 — a `<select>` stops looking like a browser.
+   *
+   * DS-14 left the user-agent arrow in place, reasoning that removing it would
+   * break the platform picker on touch. It does not: `appearance: none` changes
+   * only how the closed control is PAINTED. Tapping still opens the iOS wheel and
+   * the Android dialog, the keyboard behaviour is the native one, the element is
+   * still a `<select>` to assistive tech, and a no-JS form still submits it. What
+   * it does remove is the one thing that made Notes, Meetings, People and Reviews
+   * read as unfinished: a Windows/macOS chevron, at the user agent's own size and
+   * colour, inside a product that draws every other disclosure itself.
+   *
+   * The replacement chevron is a background gradient pair rather than an SVG, so
+   * it takes `currentColor` — it is correct in both appearances and in forced
+   * colours by construction, with no second asset to keep in step.
+   */
+  :where(select) {
+    appearance: none;
+    /* Room for the drawn chevron, which sits `--app-space-4` from the edge. */
+    padding-inline-end: var(--app-space-8);
+    background-image:
+      linear-gradient(45deg, transparent 50%, currentColor 50%),
+      linear-gradient(135deg, currentColor 50%, transparent 50%);
+    background-position:
+      calc(100% - var(--app-space-4) - 5px) center,
+      calc(100% - var(--app-space-4)) center;
+    background-size:
+      5px 5px,
+      5px 5px;
+    background-repeat: no-repeat;
+    cursor: pointer;
+  }
 
-:where(textarea) {
-  padding-block: var(--app-space-2);
-  line-height: 1.5;
-  resize: vertical;
-}
+  /* A multiple/sized select is a LIST, not a closed control — it has no chevron
+   * to draw and no room to reserve for one. */
+  :where(select[multiple], select[size]:not([size="1"])) {
+    padding-inline-end: var(--app-space-3);
+    background-image: none;
+  }
 
-:where(input, select, textarea)::placeholder {
-  color: var(--dh-color-text-muted);
-}
+  :where(textarea) {
+    padding-block: var(--app-space-2);
+    line-height: 1.5;
+    resize: vertical;
+  }
 
-:where(input, select, textarea):disabled {
-  color: color-mix(in srgb, var(--dh-color-text) 38%, transparent);
-  background: color-mix(in srgb, var(--dh-color-text) 12%, transparent);
-  border-color: color-mix(in srgb, var(--dh-color-text) 12%, transparent);
-  cursor: not-allowed;
-}
+  :where(input, select, textarea)::placeholder {
+    color: var(--dh-color-text-muted);
+  }
 
-/* Selection and toggle controls take the accent so they are unmistakably the
- * product's, and a 44px target on touch is provided by their labels/cells. */
-:where(input[type="checkbox"], input[type="radio"]) {
-  accent-color: var(--dh-color-accent);
-  inline-size: var(--app-space-5);
-  block-size: var(--app-space-5);
-  cursor: pointer;
-}
+  :where(input, select, textarea):disabled {
+    color: color-mix(in srgb, var(--dh-color-text) 38%, transparent);
+    background: color-mix(in srgb, var(--dh-color-text) 12%, transparent);
+    border-color: color-mix(in srgb, var(--dh-color-text) 12%, transparent);
+    cursor: not-allowed;
+  }
 
-/*
- * A link is the product's accent, not the user agent's blue.
- *
- * `.page` and `.dh-pane-body` already set this for the document surfaces, which
- * left every link OUTSIDE those two wrappers — the offline shell's "Try DalyHub
- * online", the recovery links, anything a module rendered directly — rendering
- * in default browser blue and visited purple, on a themed page, in seven
- * themes. Zero specificity, so every existing link treatment still wins.
- */
-:where(a) {
-  color: var(--dh-color-accent);
+  /* Selection and toggle controls take the accent so they are unmistakably the
+   * product's, and a 44px target on touch is provided by their labels/cells. */
+  :where(input[type="checkbox"], input[type="radio"]) {
+    accent-color: var(--dh-color-accent);
+    inline-size: var(--app-space-5);
+    block-size: var(--app-space-5);
+    cursor: pointer;
+  }
+
+  /*
+   * A link is the product's accent, not the user agent's blue.
+   *
+   * `.page` and `.dh-pane-body` already set this for the document surfaces, which
+   * left every link OUTSIDE those two wrappers — the offline shell's "Try DalyHub
+   * online", the recovery links, anything a module rendered directly — rendering
+   * in default browser blue and visited purple, on a themed page, in seven
+   * themes. Zero specificity, so every existing link treatment still wins.
+   */
+  :where(a) {
+    color: var(--dh-color-accent);
+  }
 }
 
 /* Honour the user's reduced-motion preference: motion never carries meaning that

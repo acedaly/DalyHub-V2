@@ -713,6 +713,19 @@
    composition every collection converges on (§10.5).
    ========================================================================== */
 
+/*
+ * UNTITLED-04 — every element rule below is scoped UNDER `.dh-csearch`.
+ *
+ * `CollectionSearchField` now has two structures: the legacy one, which carries
+ * this `.dh-csearch` wrapper, and the Untitled one, which is the genuine
+ * `base/input` composition and keeps only `dh-csearch__input` /
+ * `dh-csearch__toggle` as test hooks. These rules are unlayered and would
+ * therefore beat Untitled's utility classes whatever their specificity — so the
+ * Untitled field would have been drawn with the legacy control's border, height
+ * and padding, and its phone toggle would have been `display: none` at every
+ * width. Scoping under the legacy wrapper keeps both structures correct with no
+ * change to the surfaces that have not migrated.
+ */
 .dh-csearch {
   display: flex;
   align-items: center;
@@ -726,7 +739,7 @@
   flex: 1 1 14rem;
 }
 
-.dh-csearch__field {
+.dh-csearch .dh-csearch__field {
   position: relative;
   display: flex;
   align-items: center;
@@ -742,11 +755,11 @@
  * a duplicate in the tab order and in the accessibility tree, not a hidden
  * convenience.
  */
-.dh-csearch__toggle {
+.dh-csearch .dh-csearch__toggle {
   display: none;
 }
 
-.dh-csearch__icon {
+.dh-csearch .dh-csearch__icon {
   position: absolute;
   inset-inline-start: var(--dh-space-3);
   display: inline-flex;
@@ -755,12 +768,12 @@
   color: var(--dh-color-text-muted);
 }
 
-.dh-csearch__icon svg {
+.dh-csearch .dh-csearch__icon svg {
   inline-size: 1rem;
   block-size: 1rem;
 }
 
-.dh-csearch__input {
+.dh-csearch .dh-csearch__input {
   inline-size: 100%;
   /*
    * From `--dh-control-height`, NOT from `--button-height-md`.
@@ -794,26 +807,26 @@
   transition: border-color var(--dh-motion-fast) var(--dh-ease-standard);
 }
 
-.dh-csearch__input::placeholder {
+.dh-csearch .dh-csearch__input::placeholder {
   color: var(--dh-color-text-muted);
 }
 
-.dh-csearch__input:hover {
+.dh-csearch .dh-csearch__input:hover {
   border-color: var(--dh-color-border-strong);
 }
 
-.dh-csearch__input:focus-visible {
+.dh-csearch .dh-csearch__input:focus-visible {
   border-color: var(--dh-color-accent);
   outline: var(--dh-focus-width) solid var(--dh-focus-color);
   outline-offset: var(--dh-focus-offset);
 }
 
 /* The native affordance duplicates the Clear button beside it. */
-.dh-csearch__input::-webkit-search-cancel-button {
+.dh-csearch .dh-csearch__input::-webkit-search-cancel-button {
   appearance: none;
 }
 
-.dh-csearch__clear {
+.dh-csearch .dh-csearch__clear {
   position: absolute;
   inset-inline-end: var(--dh-space-1);
   display: inline-flex;
@@ -830,17 +843,17 @@
   cursor: pointer;
 }
 
-.dh-csearch__clear svg {
+.dh-csearch .dh-csearch__clear svg {
   inline-size: 1rem;
   block-size: 1rem;
 }
 
-.dh-csearch__clear:hover {
+.dh-csearch .dh-csearch__clear:hover {
   color: var(--dh-color-text);
   background: var(--dh-color-surface-quiet);
 }
 
-.dh-csearch__clear:focus-visible {
+.dh-csearch .dh-csearch__clear:focus-visible {
   outline: var(--dh-focus-width) solid var(--dh-focus-color);
   outline-offset: calc(-1 * var(--dh-focus-width));
 }
@@ -965,7 +978,7 @@
     flex: none;
   }
 
-  .dh-csearch__toggle {
+  .dh-csearch .dh-csearch__toggle {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -980,22 +993,22 @@
     cursor: pointer;
   }
 
-  .dh-csearch__toggle svg {
+  .dh-csearch .dh-csearch__toggle svg {
     inline-size: 1.25rem;
     block-size: 1.25rem;
   }
 
-  .dh-csearch__toggle:hover {
+  .dh-csearch .dh-csearch__toggle:hover {
     color: var(--dh-color-text);
     background: var(--dh-color-surface-quiet);
   }
 
-  .dh-csearch__toggle:focus-visible {
+  .dh-csearch .dh-csearch__toggle:focus-visible {
     outline: var(--dh-focus-width) solid var(--dh-focus-color);
     outline-offset: calc(-1 * var(--dh-focus-width));
   }
 
-  .dh-csearch__field {
+  .dh-csearch .dh-csearch__field {
     display: none;
   }
 

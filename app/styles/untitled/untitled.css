@@ -32,7 +32,7 @@
  * nothing.
  */
 
-@layer theme, base, components, utilities;
+@layer theme, base, dh-floor, components, utilities;
 
 /*
  * Tailwind's three parts, imported individually so each can be assigned a layer.
@@ -42,6 +42,16 @@
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/preflight.css" layer(base);
 @import "tailwindcss/utilities.css" layer(utilities);
+
+/*
+ * UNTITLED-04 — `dh-floor` is DalyHub's zero-specificity native-control and link
+ * FLOOR (see `base.css`). It is declared here, in the one file that owns the
+ * cascade order, between Tailwind's `base` and `components` layers: below every
+ * Untitled utility, so a migrated component's own colour, height and radius win;
+ * above nothing, so an un-styled `<a>` or bare `<select>` anywhere in the product
+ * still gets the DalyHub floor. Legacy unlayered stylesheets outrank all of it,
+ * unchanged.
+ */
 
 /* The generated DalyHub-adapted Untitled theme. See `theme.source.css`. */
 @import "./theme.css";

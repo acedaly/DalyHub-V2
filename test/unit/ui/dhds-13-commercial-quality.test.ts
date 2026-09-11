@@ -169,9 +169,13 @@ describe("DHDS-13 — one row grammar across the collections", () => {
     // The contract needs BOTH halves: the context on the row and the reveal
     // class on the trailing container (`motion.css`). The Projects table
     // declared the first and never the second; the Areas row declared neither.
+    // UNTITLED-04 — the Projects table is now the Untitled `application/table`
+    // composition, so the trailing container is a `Table.Cell` rather than a
+    // hand-written `<td class="dh-ptable__actions">`. The contract is the same
+    // one: the row declares the context, the trailing cell carries the reveal.
     const table = read("app", "modules", "projects", "ProjectsTable.tsx");
     expect(table).toMatch(/data-dh-action-context="true"/);
-    expect(table).toMatch(/className="dh-ptable__actions dh-action-reveal"/);
+    expect(table).toMatch(/<Table\.Cell className="dh-action-reveal/);
 
     const entityRow = read("app", "shared", "card", "EntityRowList.tsx");
     expect(entityRow).toMatch(

@@ -37,6 +37,13 @@
 
 import { Link, useSearchParams } from "react-router";
 
+import {
+  Tab,
+  TabList,
+  TabPanel,
+  Tabs,
+} from "~/shared/ui/untitled/application/tabs/tabs";
+
 export type ViewTabOption = {
   readonly value: string;
   readonly label: string;
@@ -72,6 +79,20 @@ export type ViewTabsProps = {
   readonly defaultValue?: string;
   readonly className?: string;
   readonly "data-testid"?: string;
+  /**
+   * UNTITLED-04 — draw the rail with the genuine Untitled Application UI
+   * `tabs` anatomy (`type="underline"`) instead of the legacy `dh-viewtabs`
+   * markup.
+   *
+   * Opt-in, exactly as `EmptyState`, `LoadMore` and `TaskList` opt in, so a
+   * collection adopts the Untitled structure when its own migration lands
+   * rather than every rail in the product changing at once. The URL contract is
+   * identical in both structures: each tab is still a real link to the URL that
+   * IS that view, so middle-click, "copy link address" and Back/Forward behave
+   * the same — React Aria's `Tab` takes `href` and routes it through the app's
+   * `RouterProvider`.
+   */
+  readonly structure?: "legacy" | "untitled";
 };
 
 export function ViewTabs({
@@ -82,8 +103,60 @@ export function ViewTabs({
   defaultValue,
   className,
   "data-testid": testId,
+  structure = "legacy",
 }: ViewTabsProps) {
   const [searchParams] = useSearchParams();
+
+  const targets = options.map((option) => {
+    const next = new URLSearchParams(searchParams);
+    if (defaultValue !== undefined && option.value === defaultValue) {
+      next.delete(param);
+    } else {
+      next.set(param, option.value);
+    }
+    // A view change starts a new page of results, so any accumulated keyset
+    // cursor must not be carried across into a different scope.
+    next.delete("cursor");
+    const query = next.toString();
+    return {
+      option,
+      to: option.to ?? (query.length > 0 ? `?${query}` : "?"),
+    };
+  });
+
+  if (structure === "untitled") {
+    // Adapted from Untitled UI React `application/tabs` (`type="underline"`),
+    // the rail Untitled's Application UI dashboards draw above a collection.
+    // Changes: DalyHub URL-backed view values, so each tab stays a real link.
+    return (
+      <Tabs
+        selectedKey={value}
+        className={["w-auto min-w-max", className].filter(Boolean).join(" ")}
+        data-testid={testId}
+        data-untitled-source="application/tabs:underline"
+      >
+        <TabList type="underline" size="sm" aria-label={label}>
+          {targets.map(({ option, to }) => (
+            <Tab key={option.value} id={option.value} href={to}>
+              {option.label}
+            </Tab>
+          ))}
+        </TabList>
+        {/*
+         * The panel a tab CONTROLS is the collection below, which is a separate
+         * document at a separate URL — so each tab gets a visually hidden panel
+         * naming the view instead. ARIA's tab pattern wants a panel for every
+         * tab; without one the rail would be a tablist that controls nothing.
+         * Same treatment as the Tasks saved-view rail.
+         */}
+        {targets.map(({ option }) => (
+          <TabPanel key={option.value} id={option.value} className="sr-only">
+            {option.value === value ? `Viewing ${option.label}` : option.label}
+          </TabPanel>
+        ))}
+      </Tabs>
+    );
+  }
 
   return (
     <nav
@@ -102,29 +175,17 @@ export function ViewTabs({
       aria-label={label}
       data-testid={testId}
     >
-      {options.map((option) => {
-        const next = new URLSearchParams(searchParams);
-        if (defaultValue !== undefined && option.value === defaultValue) {
-          next.delete(param);
-        } else {
-          next.set(option.value === value ? param : param, option.value);
-        }
-        // A view change starts a new page of results, so any accumulated
-        // keyset cursor must not be carried across into a different scope.
-        next.delete("cursor");
-        const query = next.toString();
-        return (
-          <Link
-            key={option.value}
-            to={option.to ?? (query.length > 0 ? `?${query}` : "?")}
-            className="dh-viewtabs__tab"
-            aria-current={option.value === value ? "page" : undefined}
-            preventScrollReset
-          >
-            {option.label}
-          </Link>
-        );
-      })}
+      {targets.map(({ option, to }) => (
+        <Link
+          key={option.value}
+          to={to}
+          className="dh-viewtabs__tab"
+          aria-current={option.value === value ? "page" : undefined}
+          preventScrollReset
+        >
+          {option.label}
+        </Link>
+      ))}
     </nav>
   );
 }

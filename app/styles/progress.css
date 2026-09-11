@@ -83,12 +83,11 @@
  * meter with nothing to judge should not guess.
  *
  * These rules are shared by every meter in the product: the four bespoke fills
- * (`__pcard`, `__ecard`, `__mrow`, `__ptable`) opt in by carrying the same
+ * (`__ecard`, `__mrow`) opt in by carrying the same
  * `data-meter-status` attribute on their track, so there is one mapping from
  * status to colour rather than five.
  */
 .dh-progress__fill,
-.dh-pcard__fill,
 .dh-ecard__progress-fill,
 .dh-mrow__fill,
 .dh-scard__progress-fill {
@@ -98,7 +97,6 @@
 [data-meter-status="success"]
   :is(
     .dh-progress__fill,
-    .dh-pcard__fill,
     .dh-ecard__progress-fill,
     .dh-mrow__fill,
     .dh-scard__progress-fill
@@ -109,7 +107,6 @@
 [data-meter-status="info"]
   :is(
     .dh-progress__fill,
-    .dh-pcard__fill,
     .dh-ecard__progress-fill,
     .dh-mrow__fill,
     .dh-scard__progress-fill
@@ -120,7 +117,6 @@
 [data-meter-status="warning"]
   :is(
     .dh-progress__fill,
-    .dh-pcard__fill,
     .dh-ecard__progress-fill,
     .dh-mrow__fill,
     .dh-scard__progress-fill
@@ -131,7 +127,6 @@
 [data-meter-status="danger"]
   :is(
     .dh-progress__fill,
-    .dh-pcard__fill,
     .dh-ecard__progress-fill,
     .dh-mrow__fill,
     .dh-scard__progress-fill
@@ -141,10 +136,8 @@
 
 /* Every meter's TRACK, in one place. */
 .dh-progress__track,
-.dh-pcard__track,
 .dh-ecard__progress-track,
 .dh-mrow__track,
-.dh-ptable__track,
 .dh-scard__progress-track {
   background: var(--dh-color-meter-track);
 }
