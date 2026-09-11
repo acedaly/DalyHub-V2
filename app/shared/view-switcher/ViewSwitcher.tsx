@@ -242,6 +242,10 @@ export function ViewSwitcher({
               }}
               {...(option.icon ? { icon: option.icon } : {})}
               {...(iconOnly ? { "aria-label": option.label } : {})}
+              /* UNTITLED-04 — the phone touch floor; see `ViewTabs`. */
+              className={
+                "max-md:min-h-[var(--app-touch-target-min)] max-md:px-4"
+              }
             >
               {iconOnly ? undefined : option.label}
             </Tab>

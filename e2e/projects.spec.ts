@@ -7,6 +7,7 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
+  waitForInteractive,
 } from "./helpers";
 
 /**
@@ -148,7 +149,8 @@ test.describe("PROJ-01 — Projects", () => {
 
     // The completed task persists after a reload (seen under the Completed filter).
     await page.reload();
-    await page.getByRole("link", { name: "Completed", exact: true }).click();
+    await waitForInteractive(page);
+    await page.getByRole("tab", { name: "Completed", exact: true }).click();
     await expect(
       page.getByRole("link", { name: "Open E2E launch task" }).first(),
     ).toBeVisible();

@@ -261,7 +261,11 @@ export function EntityCard({
              * above a bar running the card's full width, which is what makes a
              * grid of records comparable at a glance.
              */
-            <div className="dh-ecard__progress flex min-w-0 flex-col gap-1.5">
+            /* `pointer-events-none` — the meter must not swallow a click meant
+             * for the card. Untitled's bar fills itself with a `transform`,
+             * which makes it a stacking context above the stretched link's
+             * `::after`. See the same note on `ProjectCard`. */
+            <div className="dh-ecard__progress pointer-events-none flex min-w-0 flex-col gap-1.5">
               <span className="dh-ecard__progress-text text-sm font-medium text-secondary">
                 {resolved.text}
               </span>

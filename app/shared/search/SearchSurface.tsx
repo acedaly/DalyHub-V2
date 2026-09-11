@@ -284,7 +284,9 @@ export default function SearchSurface({
           <CommandInput
             ref={inputRef}
             type="text"
-            className="dh-search__inputrow p-3"
+            // UNTITLED-04 — the 44px floor on the inner field; see the
+            // command palette's input for why the variant is needed.
+            className="dh-search__inputrow p-3 [&_input]:min-h-11"
             name="search"
             placeholder="Search everything…"
             autoComplete="off"

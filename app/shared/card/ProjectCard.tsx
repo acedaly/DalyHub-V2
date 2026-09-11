@@ -329,7 +329,19 @@ export function ProjectCard({
       <div className="dh-pcard__foot mt-auto flex flex-col gap-2 pt-1 max-md:col-start-2 max-md:gap-1 max-md:pt-0">
         {progress ? (
           <div
-            className="dh-pcard__progress"
+            /*
+             * `pointer-events-none`, because the meter must not SWALLOW a click
+             * meant for the card.
+             *
+             * The card's whole face is its title link, stretched with an
+             * `::after` overlay. An ordinary static child paints beneath a
+             * positioned pseudo-element, but the Untitled meter fills itself
+             * with a `transform` — which makes it a stacking context, which puts
+             * it on top. The figure is a reading, never a control, so it gives
+             * the pointer back; assistive technology still reads its role, name
+             * and value.
+             */
+            className="dh-pcard__progress pointer-events-none"
             data-testid="project-card-figures"
           >
             <LabelledProgressBar

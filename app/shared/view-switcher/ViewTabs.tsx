@@ -131,7 +131,23 @@ export function ViewTabs({
     >
       <TabList type="underline" size="sm" aria-label={label}>
         {targets.map(({ option, to }) => (
-          <Tab key={option.value} id={option.value} href={to}>
+          <Tab
+            key={option.value}
+            id={option.value}
+            href={to}
+            /*
+             * UNTITLED-04 — the phone TOUCH FLOOR, restored.
+             *
+             * `view-tabs.css` pinned the rail at `--app-touch-target-min` on a
+             * phone and the floor went with the stylesheet. Untitled's
+             * underline tab is 32px, which is the right proportion on a fine
+             * pointer and half a thumb on a narrow screen — and this rail is
+             * the collection's primary navigation there. Stated on the WIDTH,
+             * like the rule it replaces, because a 320px viewport is the case
+             * that matters whether or not the pointer reports as coarse.
+             */
+            className={"max-md:min-h-[var(--app-touch-target-min)] max-md:px-4"}
+          >
             {option.label}
           </Tab>
         ))}

@@ -247,7 +247,7 @@ test.describe("PROJ-06 — mobile Projects", () => {
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toHaveCount(0);
 
-    await page.getByRole("link", { name: "Completed", exact: true }).click();
+    await page.getByRole("tab", { name: "Completed", exact: true }).click();
     const completedTaskLink = page.getByRole("link", {
       name: `Open ${COMPLETED_TASK}`,
     });
