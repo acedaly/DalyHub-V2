@@ -129,11 +129,7 @@ export function ProjectsTable({
            * name goes on the element instead and the header stays blank to the
            * eye, which is what the column wants.
            */}
-          <Table.Head
-            id="actions"
-            aria-label="Actions"
-            className="w-[4%]"
-          />
+          <Table.Head id="actions" aria-label="Actions" className="w-[4%]" />
         </Table.Header>
         <Table.Body>
           {cards.map((card) => (

@@ -275,7 +275,8 @@ test.describe("PROJ-05 Slice 4 — Today integration", () => {
     // The tab's default sub-view is OPEN tasks, so a completed row leaves it —
     // "All" is where both halves of this are visible on one screen.
     await page
-      .getByRole("navigation", { name: "Filter tasks by state" })
+      // UNTITLED-04 — a `tablist` of links, not a `navigation` landmark.
+      .getByRole("tablist", { name: "Filter tasks by state" })
       .getByRole("tab", { name: "All", exact: true })
       .click();
     // V2.8 CONV-01 — the tab renders the shared `TaskRow` (a list item, which

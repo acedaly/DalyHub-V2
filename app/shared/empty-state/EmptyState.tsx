@@ -14,9 +14,11 @@
  * is just this component configured with a "clear filters" recovery action.
  */
 
+import { createElement } from "react";
 import type { ReactNode } from "react";
 
 import { EmptyState as UntitledEmptyState } from "~/shared/ui/untitled/application/empty-state/empty-state";
+import { cx } from "~/shared/ui/untitled/utils/cx";
 import { FeaturedIcon } from "~/shared/ui/untitled/foundations/featured-icon/featured-icon";
 
 export type EmptyStateProps = {
@@ -164,16 +166,27 @@ export function EmptyState({
          * Upstream's `Title` is an `<h1>`, which is correct for the standalone
          * page it was drawn for and wrong for an empty state inside a record
          * tab, a collection or a drawer — three of which can be on screen at
-         * once. `aria-level` is what assistive technology actually reports, so
-         * the announced outline follows the caller's `headingLevel` while the
-         * genuine component keeps drawing the title.
+         * once.
+         *
+         * `aria-level` alone was not enough. It fixes what assistive technology
+         * ANNOUNCES, and leaves a second literal `<h1>` in a document that
+         * already has the record's own — which `record-lifecycle.spec.ts` found
+         * by asking for "the level 1 heading" and getting two. So the ELEMENT
+         * follows the caller's level too, drawn with upstream's own class
+         * recipe rather than through a slot that hard-codes its tag. Nothing
+         * about the appearance changes, and the vendored file — which
+         * `scripts/vendor-untitled.mjs` regenerates — stays untouched.
          */}
-        <UntitledEmptyState.Title
-          aria-level={headingLevel}
-          className="dh-empty-state__title"
-        >
-          {title}
-        </UntitledEmptyState.Title>
+        {createElement(
+          `h${headingLevel}`,
+          {
+            className: cx(
+              "dh-empty-state__title font-semibold text-primary",
+              size === "compact" ? "text-md" : "text-lg",
+            ),
+          },
+          title,
+        )}
         {description ? (
           <UntitledEmptyState.Description className="dh-empty-state__body">
             {description}

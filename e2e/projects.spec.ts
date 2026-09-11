@@ -34,9 +34,14 @@ test.describe("PROJ-01 — Projects", () => {
      * table. The card assertions below therefore switch to the gallery through
      * the product's own control, which also proves the toggle works from here.
      */
+    /*
+     * UNTITLED-04 — the presentation switcher is a `tablist` of real links.
+     * `group` + `aria-current` was the hand-rolled segmented control; the
+     * URL contract, the hrefs and the middle-click behaviour are unchanged.
+     */
     await page
-      .getByRole("group", { name: "Project layout" })
-      .getByRole("link", { name: "Grid" })
+      .getByRole("tablist", { name: "Project layout" })
+      .getByRole("tab", { name: "Grid" })
       .click();
     await expect(page).toHaveURL(/present=grid/);
 
@@ -387,6 +392,9 @@ test.describe("PROJ-01 — Projects", () => {
       await expect(card).toBeVisible();
       const region = card.getByTestId(testid);
       await expect(region).toBeVisible();
+      // `mouse.click` takes viewport coordinates and does no scrolling of its
+      // own, so the region has to be IN view before it is measured.
+      await region.scrollIntoViewIfNeeded();
       const box = (await region.boundingBox())!;
       // The geometric CENTRE of the region, so this is genuinely "what is on
       // top here?" rather than a click that slipped past the edge.
@@ -415,6 +423,7 @@ test.describe("PROJ-01 — Projects", () => {
 
     // The card still navigates from its ordinary content.
     const status = card.getByTestId("entity-card-status");
+    await status.scrollIntoViewIfNeeded();
     const box = (await status.boundingBox())!;
     await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
     await expect(page).toHaveURL(/#entity-1$/);
@@ -452,10 +461,10 @@ test.describe("PROJ-01 — Projects", () => {
     // Above it, with nothing chosen, the collection is the table.
     await expect(page.getByTestId("projects-table")).toBeVisible();
     await expect(
-      page.getByRole("group", { name: "Project layout" }).getByRole("link", {
+      page.getByRole("tablist", { name: "Project layout" }).getByRole("tab", {
         name: "Table",
       }),
-    ).toHaveAttribute("aria-current", "true");
+    ).toHaveAttribute("aria-selected", "true");
 
     // …and an explicit gallery is honoured at exactly the same size. This is
     // the case the ADR exists for: a default that re-asserted itself would be a
@@ -721,7 +730,7 @@ test.describe("PROJ-01 — Projects", () => {
     await gotoFixture(page, "/projects");
     // The state-segment controls meet the 44px touch target.
     await expectMinTouchTarget(
-      page.getByRole("link", { name: "Completed", exact: true }),
+      page.getByRole("tab", { name: "Completed", exact: true }),
     );
   });
 });
