@@ -42,18 +42,17 @@
  */
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { Link, useNavigate, useRevalidator } from "react-router";
+import { Link, useRevalidator } from "react-router";
 
 import { ConfirmationDialog } from "~/shared/settings";
 import { Popover } from "~/shared/floating";
 import { OverflowMenu } from "~/shared/overflow-menu";
 import type { OverflowMenuItem } from "~/shared/overflow-menu";
 import {
-  Tab,
-  TabList,
-  TabPanel,
-  Tabs,
-} from "~/shared/ui/untitled/application/tabs/tabs";
+  LinkTabContent,
+  linkTabClassName,
+  linkTabRailClassName,
+} from "~/shared/ui/untitled/overrides/link-tab-rail";
 import { buttonClassName } from "~/shared/ui";
 
 /** One selectable view in the switcher: built-in or the owner's own. */
@@ -131,7 +130,6 @@ export function SavedViewSwitcher({
   testIdPrefix,
 }: SavedViewSwitcherProps) {
   const revalidator = useRevalidator();
-  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   // A COUNT, not a flag: two overlapping posts must not have the first to
@@ -325,29 +323,37 @@ export function SavedViewSwitcher({
      */
     <div className={`${classPrefix} dh-scroll-strip`}>
       {pinned.length > 0 ? (
-        <Tabs
-          selectedKey={activeViewId ?? undefined}
-          onSelectionChange={(key) => {
-            const selected = pinned.find((view) => view.id === String(key));
-            if (selected) navigate(`${basePath}?${selected.query}`);
-          }}
-          className="w-auto min-w-max"
+        /*
+         * UNTITLED-05 — a NAVIGATION rail wearing Untitled's tab treatment.
+         *
+         * Each pinned view is a different URL whose collection the router
+         * renders elsewhere in the document, so these are links, not tabs: the
+         * tab pattern would owe each one a `tabpanel` holding its content, and
+         * the only panel this component could offer is a placeholder that
+         * describes the wrong thing to a screen reader. `overrides/link-tab-rail`
+         * carries Untitled's own class strings so the appearance is unchanged.
+         */
+        <nav
+          aria-label={collectionLabel}
+          className={linkTabRailClassName(
+            "underline",
+            `${classPrefix}__rail w-auto min-w-max`,
+          )}
           data-testid={`${testIdPrefix}-rail`}
           data-untitled-source="application/tabs:underline"
         >
-          <TabList type="underline" size="sm" aria-label={collectionLabel}>
-            {pinned.map((view) => (
-              <Tab key={view.id} id={view.id}>
-                {view.name}
-              </Tab>
-            ))}
-          </TabList>
           {pinned.map((view) => (
-            <TabPanel key={view.id} id={view.id} className="sr-only">
-              {view.id === activeViewId ? `Viewing ${view.name}` : view.name}
-            </TabPanel>
+            <Link
+              key={view.id}
+              to={`${basePath}?${view.query}`}
+              className={linkTabClassName("underline")}
+              aria-current={view.id === activeViewId ? "page" : undefined}
+              preventScrollReset
+            >
+              <LinkTabContent>{view.name}</LinkTabContent>
+            </Link>
           ))}
-        </Tabs>
+        </nav>
       ) : null}
 
       <button
