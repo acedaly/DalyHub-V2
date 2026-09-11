@@ -181,7 +181,7 @@ test.describe("REDESIGN-04 — the Projects collection", () => {
       .evaluateAll((nodes) => nodes.map((n) => n.getAttribute("aria-label")));
     expect(gridNames.length).toBeGreaterThan(0);
 
-    await page.getByRole("link", { name: "Table", exact: true }).click();
+    await page.getByRole("tab", { name: "Table", exact: true }).click();
     await expect(page).toHaveURL(/[?&]present=table/);
 
     const table = page.getByRole("table");
@@ -202,7 +202,7 @@ test.describe("REDESIGN-04 — the Projects collection", () => {
       expect(tableNames.some((row) => row.includes(name ?? ""))).toBe(true);
     }
 
-    await page.getByRole("link", { name: "Grid", exact: true }).click();
+    await page.getByRole("tab", { name: "Grid", exact: true }).click();
     await expect(page.getByRole("table")).toHaveCount(0);
   });
 
@@ -212,11 +212,11 @@ test.describe("REDESIGN-04 — the Projects collection", () => {
     await gotoFixture(page, "/projects");
     const rail = page.getByRole("navigation", { name: "Project views" });
     // The reference's word for `open`; the URL contract is untouched.
-    await expect(rail.getByRole("link", { name: "Active" })).toHaveAttribute(
+    await expect(rail.getByRole("tab", { name: "Active" })).toHaveAttribute(
       "href",
       /state=open/,
     );
-    await rail.getByRole("link", { name: "Archived" }).click();
+    await rail.getByRole("tab", { name: "Archived" }).click();
     await expect(page).toHaveURL(/state=archived/);
   });
 

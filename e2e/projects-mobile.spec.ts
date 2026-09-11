@@ -210,7 +210,7 @@ test.describe("PROJ-06 — mobile Projects", () => {
      */
     for (const label of ["All", "Active", "Completed", "Archived"]) {
       await expectMinTouchTarget(
-        filter.getByRole("link", { name: label, exact: true }),
+        filter.getByRole("tab", { name: label, exact: true }),
       );
     }
     const website = page.getByRole("link", { name: "Open Website relaunch" });
@@ -218,10 +218,10 @@ test.describe("PROJ-06 — mobile Projects", () => {
     await expect(page.locator(".dh-card-swipe")).toHaveCount(0);
     await expectNoAxeViolations(page);
 
-    await filter.getByRole("link", { name: "Completed", exact: true }).click();
+    await filter.getByRole("tab", { name: "Completed", exact: true }).click();
     await expect(page).toHaveURL(/state=completed/);
     await expectNoHorizontalOverflow(page);
-    await filter.getByRole("link", { name: "All", exact: true }).click();
+    await filter.getByRole("tab", { name: "All", exact: true }).click();
     await expect(page).toHaveURL(/\/projects$/);
 
     const { trigger, dialog } = await openNewProjectSheet(page);
@@ -432,17 +432,19 @@ test.describe("PROJ-06 — mobile Projects", () => {
     await gotoFixture(page, "/projects/pg-tasks?tasks=all");
     await expectNoHorizontalOverflow(page);
     /*
-     * UIX-02 — the task-state filter is the shared TAB RAIL, whose current tab
-     * carries `aria-current="page"`. That is the rail's existing convention
-     * (`SavedViewSwitcher`'s pinned tabs have used it since UIX-01) and the
-     * right token here: each tab is a link to the URL that IS that view, so
-     * "this is the current page" is literally what it means. The segmented
-     * control it replaced used `"true"`, which is the correct token for a
-     * control that is not a set of links.
+     * UIX-02 — the task-state filter is the shared TAB RAIL.
+     *
+     * UNTITLED-04 — its current tab states itself with `aria-selected`, not
+     * `aria-current`. The rail is Untitled's `application/tabs` over React Aria
+     * now, so "this is the one you are on" comes from the tab pattern's own
+     * attribute. Each option is still a real link to the URL that IS that view,
+     * so deep-linking, middle-click and open-in-new-tab are unchanged; the
+     * attribute the pattern owns simply takes precedence over the one the
+     * hand-rolled rail chose.
      */
     await expect(
-      page.getByRole("link", { name: "All", exact: true }),
-    ).toHaveAttribute("aria-current", "page");
+      page.getByRole("tab", { name: "All", exact: true }),
+    ).toHaveAttribute("aria-selected", "true");
     await page.getByRole("button", { name: "Load more tasks" }).click();
     const lateTask = page.getByRole("link", {
       name: "Open Paginated task 060",

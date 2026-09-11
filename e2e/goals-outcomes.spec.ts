@@ -235,7 +235,7 @@ test.describe("UIX-03 — the status views", () => {
      * `warning` and `overdue` to `danger`, and those are the only two statuses
      * `goalMatchesCollectionView("attention", …)` admits.
      */
-    await views.getByRole("link", { name: /Needs attention/ }).click();
+    await views.getByRole("tab", { name: /Needs attention/ }).click();
     await waitForInteractive(page);
     await expect(page).toHaveURL(/view=attention/);
     const narrowed = page.getByTestId("goal-row");
@@ -247,7 +247,7 @@ test.describe("UIX-03 — the status views", () => {
     }
     expect(count).toBeLessThanOrEqual(all);
 
-    await views.getByRole("link", { name: "All" }).click();
+    await views.getByRole("tab", { name: "All" }).click();
     await waitForInteractive(page);
     await expect(page.getByTestId("goal-row")).toHaveCount(all);
   });

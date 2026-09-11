@@ -255,7 +255,7 @@ test.describe("touch targets — Notes (mobile, NOTES-01C)", () => {
     // offers Undo; there is no confirmation step to clear here.
     await overflow.click();
     await page.getByRole("menuitem", { name: "Delete Note" }).click();
-    await page.getByRole("link", { name: "Deleted" }).click();
+    await page.getByRole("tab", { name: "Deleted" }).click();
     // Scoped to this test's own card — an orphaned Deleted Note left behind
     // by an earlier failed run would otherwise make "Restore" ambiguous.
     const ownCard = page.getByRole("listitem").filter({ hasText: noteTitle });

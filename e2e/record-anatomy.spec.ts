@@ -338,7 +338,8 @@ test.describe("filters are subordinate to tabs", () => {
     const sizes = await page.evaluate(() => {
       const tab = document.querySelector(".record-tab");
       const option = document.querySelector(
-        ".dh-project-tasks .dh-viewtabs__tab:not([aria-current])",
+        // UNTITLED-04 — the rail states its current tab with `aria-selected`.
+        '.dh-project-tasks [role="tab"][aria-selected="false"]',
       );
       if (!tab || !option) return null;
       const optionStyle = getComputedStyle(option);

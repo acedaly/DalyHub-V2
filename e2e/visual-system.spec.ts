@@ -30,6 +30,64 @@ import {
   waitForInteractive,
 } from "./helpers";
 
+/**
+ * UNTITLED-04 — how an in-flow surface is allowed to draw its edge.
+ *
+ * The rule DS-05 wrote ("one hairline, a small corner, and no shadow") was
+ * written against the M3/DHDS card and expressed the hairline as a `border`.
+ * The Untitled migration replaced the whole card family with Untitled's bounded
+ * card grammar — `rounded-xl bg-primary shadow-xs ring-1 ring-secondary` — which
+ * draws the SAME hairline as a 1px ring and adds Untitled's `shadow-xs`: a
+ * single `0 1px 2px rgba(0,0,0,0.05)` layer.
+ *
+ * The intent is unchanged and is what these helpers pin. A card still spends
+ * exactly one device on its boundary, and it still may not LIFT: `shadow-xs` at
+ * 5% over 2px is a settling, not an elevation, and the sibling test below still
+ * pins that a surface which genuinely floats gets a real one. What changed is
+ * only which property carries the hairline, so asserting `border-width` alone
+ * would now pass on a card with no visible edge at all.
+ */
+const SHADOW_LAYER = /,(?![^(]*\))/;
+
+/** A layer that paints nothing: `none`, empty, or fully transparent. */
+function isInertShadowLayer(layer: string): boolean {
+  const trimmed = layer.trim();
+  return (
+    trimmed === "" || trimmed === "none" || trimmed.includes("rgba(0, 0, 0, 0)")
+  );
+}
+
+/** The 1px ring Untitled draws instead of a border, if there is one. */
+function hasRingLayer(boxShadow: string): boolean {
+  return boxShadow
+    .split(SHADOW_LAYER)
+    .some(
+      (layer) =>
+        !isInertShadowLayer(layer) &&
+        !layer.includes("inset") &&
+        /0px 0px 0px 1px/.test(layer),
+    );
+}
+
+/**
+ * Every OUTER layer that is not the ring is at most Untitled's `shadow-xs`.
+ * An inset layer is exempt: it paints inside the box and cannot lift anything
+ * (TODAY-TASK-01 draws the day's leading accent rule that way).
+ */
+function drawsNoElevation(boxShadow: string): boolean {
+  return boxShadow.split(SHADOW_LAYER).every((layer) => {
+    const trimmed = layer.trim();
+    if (isInertShadowLayer(trimmed) || trimmed.includes("inset")) return true;
+    if (/0px 0px 0px 1px/.test(trimmed)) return true; // the ring
+    // `shadow-xs` is `0 1px 2px 0 rgb(0 0 0 / 0.05)`. Anything with a larger
+    // blur or offset is an elevation and is refused.
+    const offsets = trimmed.match(/(-?[\d.]+)px/g) ?? [];
+    return offsets
+      .slice(0, 3)
+      .every((value) => Math.abs(parseFloat(value)) <= 2);
+  });
+}
+
 function boxTop(selector: string) {
   return (page: import("@playwright/test").Page) =>
     page
@@ -143,7 +201,6 @@ test.describe("visual system — Today reference layout", () => {
      * ONE device on its edge — the hairline — and no depth at all. A shadow on an
      * in-flow surface is still refused.
      */
-    expect(style.borderStyle).toBe("solid");
     expect(parseFloat(style.borderWidth)).toBeLessThanOrEqual(1);
     /*
      * NO DEPTH — which is not the same as no `box-shadow`.
@@ -159,13 +216,16 @@ test.describe("visual system — Today reference layout", () => {
      * surface draws is inset, and an OUTER shadow — the depth an in-flow card may
      * never spend — is still refused.
      */
-    for (const shadow of style.boxShadow.split(/,(?![^(]*\))/)) {
-      const layer = shadow.trim();
-      if (layer === "none" || layer === "") continue;
-      expect(layer, "an in-flow surface draws no OUTER shadow").toContain(
-        "inset",
-      );
-    }
+    expect(
+      style.borderStyle === "solid" && parseFloat(style.borderWidth) === 1
+        ? true
+        : hasRingLayer(style.boxShadow),
+      "an in-flow surface draws a 1px edge — a border or Untitled's ring",
+    ).toBe(true);
+    expect(
+      drawsNoElevation(style.boxShadow),
+      "an in-flow surface does not LIFT — at most Untitled's `shadow-xs`",
+    ).toBe(true);
     expect(parseFloat(style.borderRadius)).toBeGreaterThanOrEqual(12);
     expect(style.background).not.toBe("rgba(0, 0, 0, 0)");
   });
@@ -308,10 +368,19 @@ test.describe("visual system — surface hierarchy", () => {
      * The corner floor drops 15 → 12 with `--dh-radius-md`, which is the corner
      * DS-05 standardised the whole card family onto.
      */
-    expect(widgetStyle.borderStyle).toBe("solid");
     expect(parseFloat(widgetStyle.borderWidth)).toBeLessThanOrEqual(1);
     expect(parseFloat(widgetStyle.borderRadius)).toBeGreaterThanOrEqual(12);
-    expect(widgetStyle.boxShadow).toBe("none");
+    expect(
+      widgetStyle.borderStyle === "solid" &&
+        parseFloat(widgetStyle.borderWidth) === 1
+        ? true
+        : hasRingLayer(widgetStyle.boxShadow),
+      "an in-flow card draws a 1px edge — a border or Untitled's ring",
+    ).toBe(true);
+    expect(
+      drawsNoElevation(widgetStyle.boxShadow),
+      "an in-flow card does not LIFT — at most Untitled's `shadow-xs`",
+    ).toBe(true);
 
     // The tokens resolve at all (a renamed token silently returns "").
     expect(widgetStyle.card).not.toBe("");

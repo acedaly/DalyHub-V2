@@ -138,6 +138,20 @@ function TopBarCreate() {
        */
       color="secondary"
       size="md"
+      /*
+       * UNTITLED-04 — the product's 44px floor, restated on the one control
+       * whose comment below calls its touch target "unconditional".
+       *
+       * Untitled's `md` button is 40px, and DalyHub's floor
+       * (`--app-touch-target-min`) is `max(2.75rem, 45px)`. The rest of the
+       * button family meets it through the `(hover: none)` rule in `ui.css`,
+       * which is the right shape for a control that is only reached by thumb on
+       * a touch device. This one is different by its own statement and by
+       * `e2e/creation-controls.spec.ts`, which asserts the target on a desktop
+       * viewport: it is the global create action, present on every screen, and
+       * the bar has the room.
+       */
+      className="min-h-11"
       data-testid="topbar-create"
       iconLeading={Plus}
       /*

@@ -294,7 +294,7 @@ test.describe("AREA-02 — Goals", () => {
     await gotoFixture(page, "/goals");
     await page
       .getByTestId("goals-views")
-      .getByRole("link", { name: "Deleted" })
+      .getByRole("tab", { name: "Deleted" })
       .click();
     await expect(page).toHaveURL(/state=deleted/);
 
@@ -302,13 +302,22 @@ test.describe("AREA-02 — Goals", () => {
     // the way out is where the way in was, and the counts are gone because they
     // describe the active page.
     const rail = page.getByTestId("goals-views");
-    await expect(rail.getByRole("link", { name: "Deleted" })).toHaveAttribute(
-      "aria-current",
-      "page",
+    /*
+     * UNTITLED-04 — `aria-selected`, not `aria-current`.
+     *
+     * The rail is Untitled's `application/tabs` over React Aria now: a
+     * `tablist` of real anchors. Every href, param and deep link is unchanged
+     * and each option is still a link you can middle-click; what changed is
+     * that "this is the one you are on" is stated with the tab pattern's own
+     * attribute instead of with `aria-current`.
+     */
+    await expect(rail.getByRole("tab", { name: "Deleted" })).toHaveAttribute(
+      "aria-selected",
+      "true",
     );
-    await expect(rail.getByRole("link", { name: "All" })).toBeVisible();
+    await expect(rail.getByRole("tab", { name: "All" })).toBeVisible();
 
-    await rail.getByRole("link", { name: "All" }).click();
+    await rail.getByRole("tab", { name: "All" }).click();
     await expect(page).not.toHaveURL(/state=deleted/);
     await expectNoHorizontalOverflow(page);
   });

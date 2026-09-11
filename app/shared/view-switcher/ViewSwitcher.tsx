@@ -62,7 +62,12 @@ import {
   ButtonGroup,
   ButtonGroupItem,
 } from "~/shared/ui/untitled/base/button-group/button-group";
-import { Tab, TabList, Tabs } from "~/shared/ui/untitled/application/tabs/tabs";
+import {
+  Tab,
+  TabList,
+  TabPanel,
+  Tabs,
+} from "~/shared/ui/untitled/application/tabs/tabs";
 
 export interface ViewSwitcherOption {
   readonly value: string;
@@ -242,6 +247,24 @@ export function ViewSwitcher({
             </Tab>
           ))}
         </TabList>
+        {/*
+         * UNTITLED-04 — a visually hidden panel per tab, and it is a
+         * CORRECTNESS requirement rather than tidiness.
+         *
+         * React Aria writes `aria-controls` on every tab whether or not the
+         * panel is mounted, so a tablist with no panels points every tab at an
+         * id that is not in the document — `aria-valid-attr-value`, which axe
+         * reports as a critical WCAG 2.2 AA violation and which a screen reader
+         * cannot follow. The panel a scope tab really controls is the collection
+         * below, which is a separate document at a separate URL, so each tab
+         * gets a hidden panel naming the view instead. Same treatment as
+         * `ViewTabs` and the Tasks saved-view rail.
+         */}
+        {options.map((option) => (
+          <TabPanel key={option.value} id={option.value} className="sr-only">
+            {option.value === value ? `Viewing ${option.label}` : option.label}
+          </TabPanel>
+        ))}
       </Tabs>
     );
   }
