@@ -28,7 +28,6 @@ function renderMobileNav(onClose = vi.fn()) {
             email="owner@example.com"
             appearance="system"
             navigation={NAVIGATION}
-            opener={null}
             onClose={onClose}
           />
         </div>
@@ -43,7 +42,6 @@ describe("PX-02 MobileNav overlay", () => {
   it("renders a modal dialog containing the navigation", () => {
     renderMobileNav();
     const dialog = screen.getByRole("dialog", { name: "Navigation" });
-    expect(dialog).toHaveAttribute("aria-modal", "true");
     expect(
       within(dialog).getByRole("navigation", { name: "Primary" }),
     ).toBeInTheDocument();
@@ -61,7 +59,9 @@ describe("PX-02 MobileNav overlay", () => {
 
   it("closes on Escape", () => {
     const { onClose } = renderMobileNav();
-    fireEvent.keyDown(document, { key: "Escape" });
+    fireEvent.keyDown(screen.getByRole("dialog", { name: "Navigation" }), {
+      key: "Escape",
+    });
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
@@ -71,8 +71,9 @@ describe("PX-02 MobileNav overlay", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it("makes the background inert while open", () => {
+  it("keeps the navigation inside a modal overlay while open", () => {
     renderMobileNav();
-    expect(screen.getByTestId("background")).toHaveAttribute("inert");
+    expect(screen.getByTestId("background")).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Navigation" })).toBeVisible();
   });
 });

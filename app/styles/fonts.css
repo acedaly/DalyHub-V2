@@ -1,12 +1,12 @@
 /*
- * M3-01 — the one self-hosted variable family.
+ * DalyHub typography — the one self-hosted variable family.
  *
- * Material Design 3's reference typeface is Roboto, and Roboto Flex is its
- * variable form. It paints EVERY piece of text in DalyHub: labels, controls,
- * collection rows, metadata and prose alike. There is no second family — the
- * DS-14 serif reading column is retired, and prose now renders this face at
- * `body-large` (ADR-074 decision 6). Mono keeps the system stack and ships no
- * file at all.
+ * Roboto Flex currently paints every piece of text in DalyHub: labels, controls,
+ * collection rows, metadata and prose alike. Untitled UI's default theme asks
+ * for Inter, but `app/styles/untitled/untitled.css` points `--font-body` and
+ * `--font-display` at this same `--font` so migrated Untitled components inherit
+ * DalyHub's installed family rather than creating a second type system. Mono
+ * keeps the system stack and ships no file at all.
  *
  * Every constraint below is enforced by the build rather than hoped for:
  *

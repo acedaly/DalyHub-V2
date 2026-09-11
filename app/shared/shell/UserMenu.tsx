@@ -62,6 +62,7 @@ import type { AppearancePreference } from "~/kernel/preferences/appearance";
 import { useSignOut } from "~/shared/account-security";
 import { ChevronDownIcon, SettingsIcon, SignOutIcon } from "~/shared/icons";
 import { Tooltip, composeRefs } from "~/shared/tooltip";
+import { Avatar } from "~/shared/ui/untitled/base/avatar/avatar";
 import { cx } from "~/shared/ui/untitled/utils/cx";
 
 import { ACCESS_LOGOUT_PATH } from "./access-logout";
@@ -288,12 +289,15 @@ export function UserMenu({
           aria-label={`Account — ${displayName}`}
           onClick={() => setOpen((value) => !value)}
         >
-          <span
-            aria-hidden="true"
-            className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-solid text-xs font-semibold text-white"
-          >
-            {initials}
-          </span>
+          <Avatar
+            size="sm"
+            placeholder={
+              <span className="text-xs font-semibold text-white">
+                {initials}
+              </span>
+            }
+            contentClassName="bg-brand-solid"
+          />
           <span
             className={cx(
               "flex-1 truncate text-left text-sm font-semibold text-secondary transition-inherit-all group-hover/account:text-secondary_hover",

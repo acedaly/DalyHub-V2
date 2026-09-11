@@ -1,27 +1,28 @@
 /*
- * DalyHub global stylesheet — the Material Design 3 entry point (M3-01).
+ * DalyHub global stylesheet — Untitled UI foundation plus legacy compatibility.
  *
- * This file composes the layered stylesheets in cascade order. Application code
- * consumes the design TOKENS (colour, typography, shape, elevation, state,
- * motion, spacing, z-index, layout) defined in `styles/tokens.css` — never a raw
- * hex, pixel or duration where a token exists (AGENTS.md §9.8).
+ * This file composes the layered stylesheets in cascade order. New and migrated
+ * frontend code consumes Untitled UI's Tailwind v4 theme and component source
+ * first; the older DalyHub token/CSS files remain a temporary compatibility
+ * layer for feature pages that have not moved yet.
  *
- *   1. tokens.css            — the generated M3 scheme + every other token.
- *   1b. fonts.css            — the one self-hosted variable family.
- *   2. base.css              — reset, body type, focus, the M3 state layer,
+ *   1. untitled/untitled.css — Tailwind v4, Untitled tokens and React Aria
+ *                              variants, intentionally layered.
+ *   2. tokens.css            — historical/transition tokens for legacy screens.
+ *   2b. fonts.css            — the one self-hosted variable family.
+ *   3. base.css              — reset, body type, focus, the M3 state layer,
  *                              reduced motion, and the one prose treatment.
- *   2b. pill.css             — the chip vocabulary + the Area identity mark.
- *   3. icons.css             — the icon + entity-identity primitives.
- *   4. shell.css             — the application frame: navigation drawer, top app
+ *   3b. pill.css             — the chip vocabulary + the Area identity mark.
+ *   4. icons.css             — the icon + entity-identity primitives.
+ *   5. shell.css             — the application frame: navigation drawer, top app
  *                              bar, navigation bar and FAB.
- *   5. collection-layout.css — the Shared Collection Layout.
+ *   6. collection-layout.css — the Shared Collection Layout.
  *   …then the remaining shared components, then the module surfaces, then print.
  *
- * Appearance (ADR-074 + APPEARANCE-01): there is ONE generated light/dark pair
- * and no palettes. `<html data-appearance>` carries the owner's stored
- * System / Light / Dark choice and `system` defers to `prefers-color-scheme`, but
- * that decision is made ENTIRELY inside `tokens.css`: nothing in the cascade below
- * branches on it, and a component styled once is correct in both appearances.
+ * Appearance (APPEARANCE-01): `<html data-appearance>` carries the owner's
+ * System / Light / Dark choice and `system` defers to `prefers-color-scheme`.
+ * The generated Untitled theme is bridged to the same decision, so a component
+ * styled once is correct in both appearances.
  */
 
 /*
@@ -38,7 +39,7 @@
 @import "./styles/untitled/untitled.css";
 
 @import "./styles/tokens.css";
-/* DS-14 — the two self-hosted variable families, before anything consumes them. */
+/* The self-hosted UI family, before legacy styles consume it. */
 @import "./styles/fonts.css";
 @import "./styles/base.css";
 /*

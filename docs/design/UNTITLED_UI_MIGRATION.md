@@ -112,6 +112,64 @@ Preferred order:
 Each phase should migrate a coherent consumer set, verify behaviour, then delete
 the displaced legacy UI. Do not run a broad frontend rewrite as one change.
 
+## Phase 1 baseline: foundation and shell
+
+Status: implemented as the shared platform for later page migrations.
+
+Untitled references selected:
+
+- Application UI page template `dashboards-01/05`: sidebar dashboard template
+  with `mobile-header`, `nav-account-card`, `nav-item`, `nav-list`,
+  `sidebar-simple`, `featured-cards` and related configuration.
+- Application UI component `slideout-menu`: React Aria ModalOverlay/Modal/Dialog
+  layer for mobile navigation.
+- Application UI component `command-menu-actions`: selected as the reference for
+  future command-menu presentation; DalyHub's existing command/search behaviour
+  remains in place for this phase.
+- Base components already imported into DalyHub: `button`, `button-utility`,
+  `avatar`, `avatar-label-group`, `dropdown`, `modal`, `table` and `cx`.
+
+Untitled documentation consulted:
+
+- React introduction;
+- installation and CLI workflow;
+- Vite integration;
+- theming and brand colour variables;
+- dark mode;
+- typography;
+- icons;
+- sidebar navigation components;
+- slideout menu components;
+- command menu components;
+- dropdown/component documentation where user-menu fit was evaluated.
+
+Implemented foundation:
+
+- `app/styles/untitled/untitled.css` is the single Tailwind v4 entry point and
+  imports Untitled theme/base/utilities inside explicit layers.
+- `app/styles/untitled/theme.source.css` is the vendored Untitled theme input.
+  `scripts/generate-untitled-theme.mjs` emits the DalyHub-adapted
+  `theme.css`, re-anchoring Untitled's brand ramp to DalyHub purple and bridging
+  Untitled dark-mode selectors to DalyHub's SSR `data-appearance` decision.
+- `vite.config.ts` uses `@tailwindcss/vite`, matching Untitled's Vite setup.
+- `app/shared/shell/AppShell.tsx` is the one authenticated reusable shell.
+  Existing route children render inside it unchanged while feature pages migrate.
+- Desktop navigation remains persistent and registry-driven.
+- Phone navigation keeps DalyHub's bottom-bar priority model and opens the
+  complete navigation inside Untitled's `slideout-menu` React Aria overlay.
+- The account trigger uses Untitled's `Avatar` primitive while retaining
+  DalyHub-specific appearance and sign-out behaviour.
+
+Temporary compatibility:
+
+- Existing feature pages still use legacy `app/styles/*.css` and historical
+  `--dh-*`, `--app-*` and `--md-*` compatibility tokens.
+- Search, command palette, notifications, capture and feature content are hosted
+  by the shell but not visually rebuilt in this phase.
+- The workspace kernel currently persists scope identity rather than a display
+  name; the shell therefore keeps DalyHub/product identity as the honest visible
+  fallback until a real workspace-display field exists.
+
 ## Dependencies
 
 - Licensed Untitled UI React Pro source and configured discovery workflow.

@@ -109,6 +109,21 @@ Adapt exact paths to existing repository conventions. Do not duplicate Untitled
 source across features. When a primitive becomes shared, put it in the shared
 source layer and migrate consumers to it.
 
+Current Phase 1 source layout:
+
+- Untitled-derived source lives under `app/shared/ui/untitled/`, including
+  `base/buttons`, `base/avatar`, `base/dropdown`, `application/modals`,
+  `application/slideout-menus` and `application/table`.
+- Tailwind v4 and Untitled theme entry live in
+  `app/styles/untitled/untitled.css`.
+- The vendored Untitled theme input is
+  `app/styles/untitled/theme.source.css`; the DalyHub-adapted generated output
+  is `app/styles/untitled/theme.css`.
+- The reusable authenticated shell lives in `app/shared/shell/AppShell.tsx`,
+  with `Sidebar.tsx`, `DesktopTopBar.tsx`, `MobileTopBar.tsx`, `BottomNav.tsx`
+  and `MobileNav.tsx` composing the desktop and mobile navigation surfaces.
+- The pathless authenticated route boundary is `app/routes/app-shell.tsx`.
+
 ## Theme and tokens
 
 DalyHub uses a purple-led brand theme based on Untitled UI's brand-token
