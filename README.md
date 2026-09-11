@@ -88,7 +88,7 @@ and [`docs/development/DEPLOYMENT.md`](docs/development/DEPLOYMENT.md).
 | Constitution | [`AGENTS.md`](AGENTS.md) |
 | Product | [`PRODUCT_PRINCIPLES.md`](docs/product/PRODUCT_PRINCIPLES.md) · [`PRODUCT_DEBT.md`](docs/product/PRODUCT_DEBT.md) · [`IMPLEMENTATION_WORKFLOW.md`](docs/product/IMPLEMENTATION_WORKFLOW.md) |
 | Roadmap | [`ROADMAP_V2.md`](docs/roadmap/ROADMAP_V2.md) (closed) · [`ROADMAP_V2_1.md`](docs/roadmap/ROADMAP_V2_1.md) · [`ROADMAP_V2_2.md`](docs/roadmap/ROADMAP_V2_2.md) (current) |
-| Design | [`DESIGN_SYSTEM.md`](docs/design/DESIGN_SYSTEM.md) |
+| Design | [`DESIGN_DIRECTION.md`](docs/design/DESIGN_DIRECTION.md) · [`UNTITLED_UI_IMPLEMENTATION.md`](docs/design/UNTITLED_UI_IMPLEMENTATION.md) · [`UNTITLED_UI_MIGRATION.md`](docs/design/UNTITLED_UI_MIGRATION.md) · [`DESIGN_SYSTEM.md`](docs/design/DESIGN_SYSTEM.md) |
 | Architecture | [`ARCHITECTURE_OVERVIEW.md`](docs/architecture/ARCHITECTURE_OVERVIEW.md) · [`ARCHITECTURE_DECISIONS.md`](docs/decisions/ARCHITECTURE_DECISIONS.md) |
 | Governance & Reference | [`OPEN_SOURCE_POLICY.md`](docs/governance/OPEN_SOURCE_POLICY.md) · [`REFERENCE_PRODUCTS.md`](docs/reference/REFERENCE_PRODUCTS.md) |
 | Development | [`SETUP_AND_CI.md`](docs/development/SETUP_AND_CI.md) · [`DEPLOYMENT.md`](docs/development/DEPLOYMENT.md) |
@@ -96,7 +96,7 @@ and [`docs/development/DEPLOYMENT.md`](docs/development/DEPLOYMENT.md).
 
 ## Status
 
-DalyHub V2 is a **working personal planning and knowledge system**, deployed to Cloudflare Workers and used daily. The foundation (entities, workspaces, EntityLinks, activity, the module registry, the Area→Goal→Project→Task spine, the Markdown pipeline, auth) is complete, every module is built, and the shared design system is converged across all of them.
+DalyHub V2 is a **working personal planning and knowledge system**, deployed to Cloudflare Workers and used daily. The foundation (entities, workspaces, EntityLinks, activity, the module registry, the Area→Goal→Project→Task spine, the Markdown pipeline, auth) is complete, every module is built, and the frontend is being progressively migrated to Untitled UI React Pro while preserving product behaviour.
 
 **What DalyHub does today.**
 

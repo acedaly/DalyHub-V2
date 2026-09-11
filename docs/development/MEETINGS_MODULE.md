@@ -641,7 +641,7 @@ with the button reading "Add" and keeping the specific accessible name.
 
 ## UIX-04 — the meeting notebook (August 2026)
 
-Redesigned as part of [UIX-04](../design/UIX_04_NOTES_DIARY_MEETINGS_2026_08.md).
+Redesigned as part of [UIX-04](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records).
 No schema change, no new section kinds, no change to follow-up conversion.
 
 **The notebook is the record, and it opens first.** Tab order is `Notebook →

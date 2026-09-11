@@ -33,8 +33,8 @@ If you ever feel you need a long prompt to do a piece of work, that is a **docum
 | [`docs/roadmap/ROADMAP_V2.md`](docs/roadmap/ROADMAP_V2.md) | What are we building next, and in what order? |
 | [`docs/design/DESIGN_DIRECTION.md`](docs/design/DESIGN_DIRECTION.md) | What should DalyHub feel like and how should its product surfaces behave? |
 | [`docs/design/UNTITLED_UI_IMPLEMENTATION.md`](docs/design/UNTITLED_UI_IMPLEMENTATION.md) | How does DalyHub implement that product direction with Untitled UI React Pro? |
+| [`docs/design/UNTITLED_UI_MIGRATION.md`](docs/design/UNTITLED_UI_MIGRATION.md) | What legacy frontend debt remains, and how do we migrate without losing product behaviour? |
 | [`docs/design/DESIGN_SYSTEM.md`](docs/design/DESIGN_SYSTEM.md) | Which DalyHub compositions, semantic adaptations and interaction exceptions are shared? |
-| [`docs/design/DALYHUB_DESIGN_SYSTEM.md`](docs/design/DALYHUB_DESIGN_SYSTEM.md) | Historical DHDS policy and implementation record; it no longer governs frontend implementation. |
 | [`docs/governance/OPEN_SOURCE_POLICY.md`](docs/governance/OPEN_SOURCE_POLICY.md) | When and how do we reuse open-source code, and how do we handle licensing? |
 | [`docs/reference/REFERENCE_PRODUCTS.md`](docs/reference/REFERENCE_PRODUCTS.md) | Which products do we study, and what do we learn from each? |
 | [`docs/product/PRODUCT_DEBT.md`](docs/product/PRODUCT_DEBT.md) | What is inconsistent today, and what is the target state? |
@@ -123,9 +123,8 @@ DalyHub models a life, and lives contain people. People are not a bolt-on CRM; t
 
 The governing product-level visual and interaction brief is
 [`docs/design/DESIGN_DIRECTION.md`](docs/design/DESIGN_DIRECTION.md). Read it
-before changing a user-facing surface. Concept screenshots are references for
-composition and finish; they do not override its usability, semantics, mobile
-or accessibility requirements.
+before changing a user-facing surface. There is no current north-star
+screenshot; historical screenshots and visual references are not authority.
 
 - **One layout to learn.** Every record — a task, a project, a person, a note — uses the same [Record Layout](docs/design/DESIGN_SYSTEM.md#record-header): header, summary, tabs, timeline, activity. Learn it once, know it everywhere.
 - **Progressive disclosure.** Show the essential first; reveal depth on demand. The [Drawer](docs/design/DESIGN_SYSTEM.md#drawer) and [Inspector](docs/design/DESIGN_SYSTEM.md#inspector) exist so the user is never overwhelmed and never blocked.
@@ -133,17 +132,11 @@ or accessibility requirements.
 - **Never lose the user's place.** Navigation preserves context. Opening a task from Today should not throw away where you were. Back always works. State is restored.
 - **No dead ends.** Every empty state teaches the next action. Every error explains the recovery. See [Empty States](docs/design/DESIGN_SYSTEM.md#empty-states) and [Error Feedback](docs/design/DESIGN_SYSTEM.md#error-feedback).
 - **Calm defaults.** Restrained motion, no gratuitous notifications. Motion communicates causality (this became that), never decoration.
-- **DalyHub owns product design; Untitled UI React Pro is the default frontend implementation system.** Read [`DESIGN_DIRECTION.md`](docs/design/DESIGN_DIRECTION.md) for the product experience and [`UNTITLED_UI_IMPLEMENTATION.md`](docs/design/UNTITLED_UI_IMPLEMENTATION.md) for implementation. Search Untitled UI Pro before creating a generic component or page pattern. Compose DalyHub semantics above Untitled source components, preserve React Aria behaviour, and build bespoke generic UI only when no suitable Untitled implementation exists or product-specific behaviour genuinely requires it. Historical DHDS/Material records remain useful history but are not current frontend authority.
+- **DalyHub owns product design; Untitled UI React Pro is the single frontend implementation authority.** Read [`DESIGN_DIRECTION.md`](docs/design/DESIGN_DIRECTION.md) for the product experience and [`UNTITLED_UI_IMPLEMENTATION.md`](docs/design/UNTITLED_UI_IMPLEMENTATION.md) for implementation. Search Untitled UI Application UI examples first, then Untitled components, then already-imported Untitled source before creating a generic component or page pattern. Compose DalyHub semantics above Untitled source components, preserve React Aria behaviour, and build bespoke generic UI only when no suitable Untitled implementation exists or product-specific behaviour genuinely requires it. Do not restore Material, MD3, DHDS or another design system.
 
-  Historical references in this section explain prior decisions; they do not override the current implementation guide.
+- **The application shell has one origin and one reusable implementation.** Build the shell from Untitled Application UI patterns: desktop sidebar, responsive/mobile navigation, active-route state, user/workspace control, global search/command access and consistent page spacing. Preserve DalyHub's frame alignment: rail, gutter, page title, search and first content row align predictably.
 
-- **The navigation rail is RECESSED under its own canvas in both appearances — near-white under a white page, near-black under a dark one — and it has its own colour family regardless.** `--dh-color-rail`, `-text`, `-text-muted`, `-border`, `-selected`, `-focus` exist because the rail is a separate surface from the page it frames — a navigation object drawn ON the page (the phone bar, the modal navigation sheet) sits above it and stays bright, so the rail's foregrounds are chosen against ITS surface rather than against the appearance. Painting anything on the rail means asking for the rail's colours by name.
-
-  This bullet said the rail is DARK in both appearances until **DHDS-13** corrected it. DS-03 did build it that way; **FINAL-UI** amended D35 to the recessed relationship above — the approved product concepts draw a light rail under a light page in every image and at every width — and the shipped rail has followed the appearance since. The constitution was the last document still asserting the superseded rule, which is exactly the kind of stale authority a design phase must not leave behind. See [D35–D38](docs/design/DALYHUB_DESIGN_SYSTEM.md#5-documented-departures-from-stock-material) and [ADR-094](docs/decisions/ARCHITECTURE_DECISIONS.md#adr-094-the-dark-navigation-rail--a-region-that-does-not-follow-the-appearance-a-responsive-tablet-collapse-and-one-origin-for-the-frame).
-
-- **The frame has ONE origin: rail → gutter → everything.** The top bar's search field, a page's title and the first row of its content start on the same vertical line at every width. A page header start-aligns; it never centres, because the rail is on the left and a centred column drifts away from it as the viewport grows.
-
-- **Density is a system, not a per-surface decision.** Three presets — `compact`, `default`, `touch` — selected by `data-dh-density` (namespaced because plain `data-density` is already taken by the Markdown editor and the record summary), controlling eight tokens and nothing else. Density never costs a touch target: on a coarse pointer, `compact`'s hit areas are floored back to the WCAG minimum, unconditionally. See [`DALYHUB_DESIGN_SYSTEM.md` §11](docs/design/DALYHUB_DESIGN_SYSTEM.md#11-density-ds-01).
+- **Density is a system, not a per-surface decision.** Compact information must never cost touch accessibility. Existing density tokens are compatibility machinery while consumers migrate; new density decisions use Untitled/Tailwind semantics and are recorded in [`DESIGN_SYSTEM.md`](docs/design/DESIGN_SYSTEM.md#11-density-ds-01).
 
 - **Generic components carry no product rules, and they live in [`app/shared/ui/`](app/shared/ui/index.ts).** A `Button`, `Menu`, `Dialog`, `Input` or `Checkbox` knows interaction and accessibility; it does not know Areas, Goals, Projects, Tasks, priorities or overdue dates. Product components (`TaskRow`, `ProjectCard`, `GoalProgress`, `QuickCapture`) compose those primitives. Use [`UNTITLED_UI_IMPLEMENTATION.md`](docs/design/UNTITLED_UI_IMPLEMENTATION.md) and the configured Untitled MCP before adding a generic control. Building a second generic component library beside Untitled is a design-system defect.
 
@@ -152,7 +145,7 @@ or accessibility requirements.
 ## 7. Interaction philosophy
 
 - **Keyboard-first, mouse-friendly.** Every primary action has a keyboard path. The [Command Palette](docs/design/DESIGN_SYSTEM.md#command-palette) (`⌘K`) is the universal entry point; [Quick Actions](docs/design/DESIGN_SYSTEM.md#quick-actions) cover the frequent ones.
-- **Direct manipulation where it helps.** Inline-edit in place ([DHDS-10](docs/design/DHDS_10_INLINE_MANIPULATION_AND_DIRECT_EDITING_2026_08.md)); drag where an object has a real destination or a real stored order ([DHDS-11](docs/design/DHDS_11_DRAG_REORDER_AND_OBJECT_CONTINUITY_2026_08.md)). Never *only* drag — there is always a keyboard equivalent, and it is asserted by test rather than by convention. **DHDS-11 narrowed the second half of this bullet on purpose**: "drag to reorder, drag to reschedule" read as a licence, and most DalyHub collections are ordered by data rather than by the owner. A drag is legitimate only when all six questions in DHDS-11 §2 answer yes — chief among them that the change survives a reload. A drag that does not persist is worse than no drag.
+- **Direct manipulation where it helps.** Inline edit in place when it preserves context. Drag only where the object has a real destination or stored order, the change survives reload and there is a keyboard equivalent asserted by test. A drag that does not persist is worse than no drag.
 - **Optimistic and reversible.** Actions apply immediately and are undoable. The system trusts the user and lets them trust it back. Prefer undo over confirmation dialogs.
 - **Speak in the user's nouns.** The interface uses Areas, Goals, Projects, Tasks, People — the product's vocabulary — consistently, everywhere. No synonyms, no drift.
 - **Fast is a feature.** Interactions should feel instantaneous. See [Performance expectations](#16-performance-expectations).
@@ -205,7 +198,7 @@ Long-form text (Notes, descriptions, Diary) is authored and stored as Markdown, 
 > is the Untitled/Tailwind implementation authority described below.
 
 ### 9.8a Shared over bespoke, and one frontend implementation authority
-Before building a module-specific version of anything — a card, a form, a filter bar — check the [Design System](docs/design/DESIGN_SYSTEM.md). If a shared pattern exists, use it. If one *should* exist but doesn't, build it as shared. A bespoke duplicate is [Product Debt](docs/product/PRODUCT_DEBT.md) the moment it's merged.
+Before building a module-specific version of anything — a card, a form, a filter bar — search Untitled Application UI examples, search Untitled components, search already-imported Untitled source, then check the [Design System](docs/design/DESIGN_SYSTEM.md). If a shared pattern exists, use it. If one *should* exist but doesn't, build it as shared above the module boundary. A bespoke duplicate is [Product Debt](docs/product/PRODUCT_DEBT.md) the moment it's merged.
 
 The same rule applies to frontend implementation. [`UNTITLED_UI_IMPLEMENTATION.md`](docs/design/UNTITLED_UI_IMPLEMENTATION.md) is the current authority for generic UI source, theme and accessibility behaviour. Tailwind CSS v4 plus Untitled semantic theme variables is the target styling model. Application code does not hard-code visual values where the adopted theme provides a role.
 
@@ -216,6 +209,8 @@ The same rule applies to frontend implementation. [`UNTITLED_UI_IMPLEMENTATION.m
 | `--dh-*`, `--app-*`, `--md-*` compatibility layers | Historical/transition machinery still present in code | Do not expand; remove as consumers migrate |
 
 The existing token and scheme tests remain valid compatibility gates while their consumers migrate. They do not establish MD3 or bespoke DHDS as the target. New generic UI must use Untitled/Tailwind source and theme conventions; when a compatibility token is unavoidable, record why and keep the migration path explicit.
+
+Legacy frontend migration is governed by [`UNTITLED_UI_MIGRATION.md`](docs/design/UNTITLED_UI_MIGRATION.md). Preserve product/domain behaviour before deleting old feature documents, styles or components.
 
 ---
 
@@ -371,7 +366,8 @@ DalyHub holds the most private data a person has. Treat it accordingly.
 A change is **Done** only when **all** of the following are true:
 
 - [ ] It implements exactly one [ROADMAP_V2](docs/roadmap/ROADMAP_V2.md) item (or a documented bug/debt fix), and does that one thing completely.
-- [ ] It reuses shared [Design System](docs/design/DESIGN_SYSTEM.md) patterns; any new pattern is added to the Design System in the same PR.
+- [ ] Frontend work follows [`UNTITLED_UI_IMPLEMENTATION.md`](docs/design/UNTITLED_UI_IMPLEMENTATION.md): Application UI first, components second, custom generic UI only by exception.
+- [ ] It reuses shared [Design System](docs/design/DESIGN_SYSTEM.md) patterns; any new DalyHub-specific pattern is added to the Design System in the same PR.
 - [ ] It respects the [architecture rules](#9-architecture-philosophy) (small kernel, module registry, EntityLinks, shared activity, workspace isolation, markdown strategy). Any deviation is captured as a new ADR.
 - [ ] It meets [accessibility](#15-accessibility-requirements) (WCAG 2.2 AA), [performance](#16-performance-expectations), and [security](#17-security-requirements) requirements — verified, not assumed.
 - [ ] It is tested per the [testing philosophy](#14-testing-philosophy), including a regression test for any bug fixed, and it was driven end-to-end.

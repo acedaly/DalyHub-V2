@@ -10,7 +10,7 @@ act on the answer without leaving the page.
 Governed by [`AGENTS.md`](../../AGENTS.md), the layout and conditional-rendering
 contract in [`DESIGN_SYSTEM.md` → The Today screen](../design/DESIGN_SYSTEM.md#the-today-screen),
 and the composition/feel contract in
-[`PRODUCT_EXPERIENCE.md`](../design/PRODUCT_EXPERIENCE.md). This document is the
+[`PRODUCT_EXPERIENCE.md`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records). This document is the
 IMPLEMENTATION note; the design system owns the contract.
 
 > **2026-08 — the screen was replaced.** Today had grown into a metrics dashboard
@@ -824,7 +824,7 @@ and no loader, no route and no measurement changed. The composition did.
 
 Full pass, including the design-language decision and the deliberate departures
 from the reference:
-[`docs/design/UIX_01_PRODUCT_REDESIGN_2026_08.md`](../design/UIX_01_PRODUCT_REDESIGN_2026_08.md).
+[`docs/design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records).
 
 
 ---

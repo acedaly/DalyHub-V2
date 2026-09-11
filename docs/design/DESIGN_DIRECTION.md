@@ -1,647 +1,154 @@
 # DalyHub design direction
 
-> **The rule above all others:** DalyHub should feel like a finished product,
-> not a collection of components. A screen must not visibly announce Untitled
-> UI, Tailwind, React Aria or any other underlying toolkit. The implementation
-> supplies quality; what the owner sees is DalyHub.
+> DalyHub should feel like a finished personal productivity application, not a
+> component catalogue, enterprise admin portal or screenshot reproduction. This
+> document defines product-level direction. Frontend implementation is governed
+> by [`UNTITLED_UI_IMPLEMENTATION.md`](UNTITLED_UI_IMPLEMENTATION.md).
 
-This is the product-level visual and interaction brief for every human and
-coding agent working on DalyHub. It defines the intended experience. The
-frontend implementation is governed by
-[`UNTITLED_UI_IMPLEMENTATION.md`](UNTITLED_UI_IMPLEMENTATION.md), while
-[`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) records DalyHub-specific compositions,
-semantic adaptations and exceptions.
+There is no north-star screenshot. Historical screenshots, audits and visual
+references are not design authority. Future UI work starts from DalyHub product
+requirements, then Untitled UI Application UI examples and components.
 
-> **Implementation statement.** DalyHub's visual and interaction implementation
-> is built primarily from Untitled UI React Pro. DalyHub owns composition and
-> semantics; the product should never visibly announce the library.
+## Experience
 
-If a screenshot, historical implementation note or framework convention
-conflicts with this direction, this direction wins unless the proposed change
-would break functionality, accessibility, truthful data presentation or an
-architecture decision. Existing concept images are evidence of this direction,
-not a substitute for understanding it.
+DalyHub is modern, calm, mature, personal, highly legible,
+information-dense without feeling cramped, restrained, fast to scan and suitable
+for prolonged daily use. It should feel closer to a polished productivity
+application than an enterprise admin portal.
 
-> **Programme status.** The historical DHDS design-convergence programme
-> that delivered this direction — DHDS-01 through DHDS-11, closed by the
-> commercial-quality gate
-> [DHDS-13](DHDS_13_COMMERCIAL_QUALITY_GATE_2026_08.md) — is **complete**. This
-> document remains the standing brief for every user-facing change. It is no
-> longer the input to a numbered redesign phase, and there will not be another
-> one without a materially changed product direction: see
-> [DHDS-13 §18](DHDS_13_COMMERCIAL_QUALITY_GATE_2026_08.md#18-what-happens-after-dhds-13).
-> Future UI work is module-, feature-, bug- and accessibility-specific, tied to
-> actual product work, and follows the Untitled implementation guide.
+The primary loop is:
 
-## What DalyHub is
+1. Scan.
+2. Understand.
+3. Act.
 
-DalyHub is a calm, premium personal operating system: Todoist's clarity,
-Apple's restraint and the useful parts of a modern productivity dashboard. It
-is not enterprise software, a stock component library or a database app with
-nice cards. It is one coherent place for running a life.
-
-**Your life is complicated. DalyHub shouldn't be.**
-
-The primary user returns every day. Optimise for the hundredth use, not the
-first demo. Familiar actions should become almost automatic.
-
-## Personality
-
-Calm. Personal. Intelligent. Connected. Precise. Modern. Fast.
-
-Not corporate. Not playful SaaS. Not sterile minimalism. DalyHub carries enough
-colour, iconography and identity — including the connected D logo and its own
-icon language — to be recognisable without turning every surface into branding.
-
-## Governing experience rule
-
-Every common flow should favour:
-
-**scan → understand → act**
-
-Avoid:
-
-**open → inspect → configure → save → close**
-
-Resolve design decisions in this order:
-
-1. Content
-2. Hierarchy
-3. Interaction
-4. Decoration
-
-When two approaches remain plausible, prefer the one that makes the next useful
-action more obvious, removes a step, preserves context and works better on an
-iPhone.
+The owner returns every day. Optimise for the hundredth use: quiet hierarchy,
+fast capture, direct editing, stable navigation and no manufactured urgency.
 
 ## Visual direction
 
-Clean and dense enough to be useful, never busy. Use strong typography,
-deliberate spacing and alignment before adding a container. Most of the screen
-stays neutral and quiet so colour means something when it appears.
+Use neutral surfaces for most structure and reserve colour for meaning. Purple
+is the brand and primary interaction colour; it should appear in selected
+navigation, primary actions and active controls, not across every card or page
+background.
 
-Avoid:
+Semantic colour retains meaning:
+
+- green = success, completed and positive;
+- red = destructive, error and critical;
+- amber = warning and attention;
+- purple = brand and primary interaction;
+- neutrals = structure, surfaces, borders and text hierarchy.
+
+Avoid glassmorphism, neon/futuristic styling, excessive gradients, excessive
+drop shadows, oversized decorative cards, heavily rounded toy-like UI,
+dashboard-card overload, cramped metadata, arbitrary page-specific styling and
+bespoke visual patterns where Untitled already provides an appropriate solution.
 
-- cards around every section, especially nested rounded containers;
-- excessive pills, chips, badges and permanent action buttons;
-- decorative gradients outside approved brand assets;
-- widgets competing for attention;
-- large empty cards holding very little information;
-- dashboard metrics placed above the work they supposedly explain;
-- page-specific styling that creates a second design system.
-
-Prefer:
-
-- flat or lightly bounded groups of rows;
-- one clear dominant region, or no dominant region when the content itself is
-  sufficient;
-- subtle hairlines, moderate corners and almost no shadow;
-- secondary metadata that recedes but remains legible;
-- one expressive moment per page rather than colour everywhere;
-- consistent alignment from page title through controls and content.
-
-Whitespace is useful only when it clarifies grouping or priority. Large blank
-regions inside sparse cards are not premium; they are wasted space.
-
-## Reference composition
-
-The approved mockups establish a recognisable DalyHub composition. They are not
-pixel-perfect templates, but an implementation that materially departs from
-these proportions must explain why.
-
-### Desktop frame
-
-- A quiet navigation rail occupies roughly 14–16% of a 1440px desktop canvas.
-  It contains the connected D identity, one prominent Capture action, search,
-  grouped destinations and the owner account at the bottom. It is navigation,
-  not a second dashboard.
-- The top utility bar is compact and aligned to the content origin. Search is
-  the dominant utility; help, notifications and creation remain secondary.
-- The working canvas uses a readable maximum width rather than stretching rows
-  across an ultrawide display. On Today, the useful desktop composition is a
-  main action column of approximately two-thirds and a supporting context rail
-  of approximately one-third.
-- The main column owns tasks and the current decision. The context rail owns
-  schedule, habits and light progress context. Supporting content must never
-  interrupt the task sequence merely to balance a grid.
-- Page headers are shallow. Date, title, one sentence of context and one primary
-  action should not consume a quarter of the viewport.
-- Vertical rhythm is compact: related controls sit close together; major
-  regions receive a clear but not theatrical break. Repeated 24–32px gaps
-  between every object are a warning sign.
-
-### Mobile frame
-
-- Mobile is a single-column command surface with no desktop sidebar and no
-  squeezed context rail.
-- The compact header carries the D mark, date/context, owner identity and one
-  creation affordance. It does not repeat the desktop page header verbatim.
-- Bottom navigation contains the daily destinations, with Capture as the clear
-  central action. Labels remain visible; icon-only primary navigation is not
-  acceptable.
-- The first viewport answers “what do I do now?” before showing analytics,
-  history or broad system status.
-- Supporting cards may become a horizontal glance strip only when each card is
-  independently understandable and the strip does not hide a required action.
-- Sheets, drawers and menus respect one-handed reach. Save/confirm actions stay
-  visible above the software keyboard and do not require scrolling to the end
-  of a long form.
-
-### Surface and row measurements
-
-These are target bands, not invitations to hard-code values outside the token
-system:
-
-| Element | Desktop target | Touch target | Principle |
-| --- | --- | --- | --- |
-| Navigation destination | 36–40px visual row | At least 44px hit area | Dense navigation without sacrificing access |
-| Task/list row | 40–48px when single-line | At least 44px hit area | More work visible, no cramped text |
-| Standard control | 36–40px | At least 44px hit area | Compact on pointer, safe on touch |
-| Card corner | 10–14px | Same | Moderately rounded, never toy-like |
-| Card padding | 14–20px | 16–20px | Enough air, no empty stage |
-| Major section gap | 16–24px | 16–20px | Rhythm without fragmentation |
-| Row divider | One quiet hairline | One quiet hairline | Structure without table-grid noise |
-
-Shadows are reserved for objects that physically float above the canvas:
-menus, popovers, drawers and drag previews. Stationary cards use a subtle border
-or a small surface-value change, not both plus a shadow.
-
-## Competitive quality bar
-
-DalyHub competes with mature products, but it should not imitate their skin.
-
-| Reference | Standard to match | What DalyHub must do better |
-| --- | --- | --- |
-| Todoist | Capture speed, task-list clarity, keyboard fluency and low-friction scheduling | Connect daily action to Goals, Projects, People, Meetings and reflection without slowing capture |
-| Notion | Information confidence, flexible content and polished empty/loading states | Provide stronger defaults, less configuration and clearer action hierarchy |
-| Griply | Visible goal progress and linkage between goals, habits and tasks | Avoid gamification clutter and keep daily execution faster |
-| Things | Restraint, typography, calm grouping and delightful detail | Work across a deeper connected life model and web/PWA environments |
-| Apple productivity apps | Platform-quality spacing, focus and touch behaviour | Preserve power-user density and cross-module relationships |
-
-Comparable quality means more than looking polished with seeded data. A screen
-must remain composed with an empty account, realistic long titles, overdue work,
-ten or more rows, dark appearance, 320px width, keyboard focus and coarse touch.
-
-## Interaction model
-
-Todoist is the strongest interaction reference. DalyHub's best interactions are
-fast and reversible:
-
-- adding a task does not feel like completing a form;
-- changing priority, date or project is available inline, through the ONE
-  contextual surface for each (DHDS-09) rather than a per-module control;
-- moving an item does not require navigating through several screens;
-- hover or tap reveals secondary actions instead of displaying them permanently;
-- optimistic mutations offer Undo where practical;
-- keyboard and pointer paths operate on the same underlying action;
-- opening a record preserves the collection, filters and scroll context.
-
-Desktop may expose more context. Mobile is a deliberately recomposed,
-thumb-driven daily interface — never a desktop layout squeezed into a narrow
-viewport. Primary actions must remain reachable and touch targets must retain
-their accessibility floor.
-
-### Repeated-row rule
-
-Every dense row follows the same interaction grammar: primary content owns the
-width; metadata is ordered by the decision it supports; secondary actions wait
-until engagement on a pointer and remain explicit on touch. Hidden actions stay
-keyboard reachable and must not intercept pointer input. A module may specialise
-the lead object (completion, time, avatar, entity mark), but may not rebuild hover,
-focus, touch or forced-colour behaviour locally.
-
-Task metadata is always **when → where → how important** in both DOM and visual
-order. Grouped Task collections use one disclosure/name/count pattern across
-Tasks and Plan. These are product semantics, not screenshot styling; a new task
-surface inherits them before adding module-specific composition.
-
-### Contextual choice (DHDS-09)
-
-> **Stay where you are. Change the thing in context. Continue working.**
-
-The target sentence for every common metadata change is three steps —
-`click value → choose replacement → continue` — not seven:
-`click item → open record → find field → open form → change value → save →
-close → return`.
-
-Six kinds of thing float above the canvas, separated by BEHAVIOUR rather than by
-size, and choosing the wrong one is a defect rather than a preference:
-
-| Surface | It exists to… |
-| --- | --- |
-| Tooltip | explain an unlabelled control, in a few words |
-| Menu | choose a COMMAND from a small closed set |
-| Popover | make a short contextual choice that is not a list |
-| Picker | choose a VALUE from a potentially large set |
-| Sheet | be all of the above, on a phone |
-| Inspector / Drawer | inspect or edit a record without losing the collection |
-| Dialog | interrupt, when interruption is justified |
-
-A tooltip holds no workflow. A menu is not a mini settings panel. An Inspector
-is not the mechanism for changing one piece of metadata. A dialog is reserved
-for a destructive confirmation, an irreversible operation, a conflict, or a
-decision that genuinely needs explicit commitment; ordinary metadata editing
-never opens one.
-
-All of them share one appearance, one placement solver, one option row, one
-layer vocabulary and the DHDS-08 motion grammar. They deliberately do **not**
-share an ARIA pattern — a menu, a listbox, a combobox and a dialog are different
-interactions, and flattening them is how a keyboard-complete product stops being
-one.
-
-Two rules the direction is easiest to break on:
-
-- **Elevation may do real work here, and only here.** A menu, a popover, a sheet
-  or a drag preview may visibly separate from the canvas — with a hairline, a
-  raised surface tone and one restrained shadow. Never a Material slab, a violet
-  aura, glass, a backdrop blur, or a border-plus-shadow-plus-tint-plus-glow
-  combination. A floating surface should be obvious because it is physically
-  above the canvas, not because it is shouting.
-- **Interaction does not require a pill.** A due date, a priority, a Project, a
-  status, an Area and a Goal are metadata; they read as metadata at rest and
-  grow a restrained container on hover *and* on keyboard focus. Turning every
-  clickable value into a rounded coloured capsule is the same prohibition as
-  "no pill for ordinary metadata", arrived at from the other direction.
-
-Desktop anchors a surface to the control that opened it, and the trigger stays
-visibly engaged while it is open — the surface is in the overlay layer, so that
-is the only thing connecting the two. A phone gets the shared bottom sheet: more
-width, thumb reach, larger targets, room for search and a calendar. The same
-domain action underneath, never a second one.
-
-Full taxonomy, keyboard contract, dismissal rules, focus restoration and the
-migrated surfaces:
-[`DHDS_09_FLOATING_SURFACES_AND_CONTEXTUAL_CHOICE_2026_08.md`](DHDS_09_FLOATING_SURFACES_AND_CONTEXTUAL_CHOICE_2026_08.md).
-
-### Direct editing (DHDS-10)
-
-> **If the owner can safely change a small property where they are already
-> looking at it, DalyHub should usually let them change it there.**
-
-DHDS-09 decided what a contextual surface IS. DHDS-10 decides **which values
-open one**, and — the half that is easier to get wrong — which do not.
-
-Every editable property is one of three things:
-
-| Class | Use it when | The interaction |
-| --- | --- | --- |
-| **Immediate toggle** | the choice is binary and reversible | tap → optimistic → Undo where reversal has value. Never a menu for a binary decision |
-| **Contextual choice** | a small enumeration, or one record out of many | press the value → the DHDS-09 surface → choose. Never a record editor |
-| **Inline text** | a short textual property, safely edited in context | a deliberate entry into edit mode → Enter commits, Escape cancels |
-
-**Inline is for a two-second decision; the Inspector is for understanding and
-deeply editing a record.** Use the deeper editor when several dependent fields
-must be configured together, when explanation is required, when destructive
-implications exist, when validation is complicated, when long-form content is
-involved, or when the operation has concurrency implications. A contextual
-surface may end with `Custom…`, `Edit details…` or `Manage…` opening it. The
-point is not "never use forms"; the point is *don't use a form for a two-second
-decision*.
-
-Two rules the direction is easiest to break on, and they pull against each
-other on purpose:
-
-- **Do not require the Inspector to change tomorrow to Friday.** If a row can
-  state a value, the row can change it. The collection stays where it was, the
-  scroll position stays where it was, and the owner stays in context.
-- **Do not turn DalyHub into a spreadsheet.** At rest the interface remains
-  quiet. `Tomorrow · DalyHub · P2` — not `[Tomorrow ▼] [DalyHub ▼] [P2 ▼]`. In
-  a run of metadata the value is drawn and the affordances wait for the row to
-  be engaged with, through the DHDS-08 reveal rather than a per-surface rule.
-  **The page should look like information first and controls second.**
-
-A **status badge** and **editable metadata** are different things: a badge says
-what a record IS, and it does not become a control merely because the value
-behind it is editable. Ordinary metadata is text- and icon-led; priority keeps
-its compact flag; a high-value semantic state may use a restrained badge. Never
-a wall of coloured capsules.
-
-Nothing calculated is directly editable. A Goal's progress derives from its
-measurements and its Projects — the way to change it is to record a measurement
-or complete a milestone, never a manual percentage invented to make a bar
-clickable.
-
-Full grammar, per-module adoption, the keyboard/mobile/refusal contracts, the
-deliberate exceptions and the deferred domain gaps:
-[`DHDS_10_INLINE_MANIPULATION_AND_DIRECT_EDITING_2026_08.md`](DHDS_10_INLINE_MANIPULATION_AND_DIRECT_EDITING_2026_08.md).
-
-### Spatial movement (DHDS-11)
-
-> **Moving something in DalyHub should feel like moving that actual thing — not
-> submitting a form and waiting for the screen to redraw.**
-
-DHDS-10 changes a value where it is stated. DHDS-11 moves an OBJECT through
-space — and its larger half is the restraint: almost nothing in DalyHub is
-draggable, and a page at rest is unchanged by this phase. There are no grips on
-Today, none in Search, none on a Project card, none on a Habit, none on a Note.
-
-**A thing may be dragged only when all six are true**: it has a real destination
-or a real stored order; the mutation the drop performs can be named in one
-sentence; the destination is visible on the screen the drag starts from; a
-non-drag path exists and is at least as complete; the change survives a reload;
-and dragging is genuinely faster or clearer than choosing. If any one is no, the
-DHDS-10 control is the whole answer.
-
-Two things follow, and they are the direction rather than the mechanics:
-
-- **A drag never invents persistence.** A Task's position in a list is not
-  draggable, because the product has no manual ranking model and DHDS-11 will
-  not add a schema to give itself something to drag. What IS spatial is what the
-  domain already supports: a checklist's steps, a Goal's stages, and moving a
-  Task between the buckets of a grouped view — where a bucket is a destination
-  exactly when its key is a value of a stored field.
-- **A semantic move calls the same operation as the choice that performs it.**
-  Dropping a Task on a Project and picking that Project from its menu are one
-  mutation reached two ways. Two behavioural implementations of one domain
-  change is a defect, not a convenience.
-
-The other half of the phase has no gesture in it at all: **object continuity**.
-An object keeps its identity when it changes context. A completed row collapses
-where it sat and hands focus to the row that takes its place, rather than
-vanishing on the next revalidation. A move leaves the scroll, the filters, the
-sort and every untouched group exactly as they were. Continuity in DalyHub is
-stable identity, preserved context and coherent motion — never a heroic
-shared-element animation across the router.
-
-Full grammar, the orderability audit, the per-surface adoption and the
-deliberate non-adoption, the dependency decision, and the desktop / mobile /
-keyboard / reduced-motion / offline contracts:
-[`DHDS_11_DRAG_REORDER_AND_OBJECT_CONTINUITY_2026_08.md`](DHDS_11_DRAG_REORDER_AND_OBJECT_CONTINUITY_2026_08.md).
-
-### Motion grammar (DHDS-08)
-
-> **Motion explains what changed, where something came from, where it went, or
-> what has focus. It is never decoration for its own sake.**
-
-DalyHub should feel responsive, physical and coherent, but never busy. The
-target is Things, Todoist, Craft and Apple productivity software — not playful
-consumer apps, animated marketing sites, stock Material motion, spring-heavy
-interfaces or dashboards whose widgets are always moving. A user should mostly
-stop noticing the animation and simply perceive that the product is
-exceptionally well made.
-
-**Four levels, and every animation belongs to exactly one.** Level 0 no motion —
-text updates, corrections, autosave, background refreshes; *not everything
-deserves animation*. Level 1 interaction feedback — hover, press, focus,
-selected, checked; very fast and restrained. Level 2 contextual reveal — menus,
-popovers, tooltips, inline editors, disclosures, toasts, sheets; these visually
-relate to the control that caused them. Level 3 meaningful structural transition
-— completing, opening contextual depth, the next Today task taking the Now
-position; used sparingly, and never past ~260ms.
-
-**One vocabulary governs it.** Five semantic durations and four curves in
-`tokens.css`; one grammar of named behaviours in `app/styles/motion.css`. A
-surface *names* a motion; it never authors one. A duration, a curve, a distance
-or an entrance written into a module stylesheet is a bug — a second motion system
-inside one module is exactly the divergence this sequence exists to end.
-
-**Non-negotiable.** No route or page transitions; navigation is immediate. No
-spring physics, no bounce, no confetti, no theatrical completion, no hover that
-is a scale transform, no animation added because CSS makes it easy, and no
-animation dependency without compelling evidence the existing stack cannot do
-the job. Interaction feedback must never introduce layout shift: an affordance
-that appears must already occupy its geometry.
-
-**Reduced motion is a positive contract**, not a global multiplier. Structural
-travel is *removed* rather than accelerated; opacity is kept so a surface still
-reads as arriving; and nothing depends on animation to convey meaning —
-completion still completes, panels still open, disclosures still show their
-state, progress still updates.
-
-The full specification, the deliberate static exceptions and the deferred work
-are in
-[`DHDS_08_MOTION_AND_INTERACTION_GRAMMAR_2026_08.md`](DHDS_08_MOTION_AND_INTERACTION_GRAMMAR_2026_08.md).
-
-## System-wide semantics
-
-Priority colour and language are identical everywhere:
-
-| Priority | Colour | Meaning |
-| --- | --- | --- |
-| P1 | Red | Urgent / highest priority |
-| P2 | Orange | High priority |
-| P3 | Blue | Medium priority |
-| P4 | Neutral | Low / default priority |
-
-Colour never carries status alone. It is paired with a word, icon, position or
-shape. Decorative accent colour must not impersonate priority, overdue, warning
-or success.
-
-## Module direction
-
-### Today — the centre of the system
-
-Today is editorial, not a dashboard. It answers, in order: **What matters
-today? What should I do next? Am I moving towards what I care about?**
-
-The expected hierarchy is date and greeting, the current/next action, today's
-short task plan and schedule, then lighter supporting context. Goals, Projects,
-Habits, attention items, reflection and weekly measures are shown only when
-they help make a decision. They must not become an endless equal-weight widget
-grid. Weekly reporting belongs below or behind disclosure, not above today's
-work.
-
-The approved desktop structure is:
-
-1. Compact date, greeting and one-sentence day summary.
-2. A restrained progress summary, only when it helps frame the day.
-3. **Now** — one recommended task with the strongest hierarchy and a Focus
-   action where supported. Never a giant empty hero card.
-4. **Next** — a short, ordered working list with inline completion and quick add.
-5. **Later** — lighter tasks and events that should not compete with Now.
-6. A right rail containing the agenda first, then today's Habits and one compact
-   momentum/progress insight.
-7. Goals, Projects needing attention, reflection and weekly reporting below the
-   decision surface or inside progressive disclosure.
-
-On mobile, Now, Next and Later remain in that order. Agenda becomes an inline
-section after the active task plan. Habits and momentum become compact glance
-surfaces below it. The phone must not show a miniature two-column desktop.
-
-### Tasks — almost utilitarian
-
-Tasks is the least decorated module. One clean list, clear groups, compact
-rows, strong title hierarchy and secondary date/project/recurrence metadata.
-Priority uses a small amount of consistent colour. Row actions appear on demand.
-Quick Add is immediate and forgiving. The list is the benchmark for density
-across every module that renders tasks.
-
-Rows align completion, title, date, project and priority to stable scan axes on
-desktop. Metadata order follows the owner's questions: **when → where → how
-important**. Completed work recedes or collapses. Bulk selection is a mode, not
-permanent checkbox-and-toolbar chrome. Board and calendar views reuse canonical
-task semantics rather than inventing visually unrelated task cards.
-
-### Plan and Schedule — time made legible
-
-Plan connects commitments, capacity and task placement without becoming a
-calendar administration tool. Schedule is a scan-first agenda: time is aligned,
-current and next events are clear, and source/context is secondary. Both should
-make temporal conflicts and unplaced work obvious without filling the page with
-controls.
-
-### Projects and Areas — spatial
-
-Projects may use a restrained gallery because recognition, identity, progress
-and the next action matter together. They should feel actively pursued, not like
-CRUD records. Areas are more permanent and quieter; their row-led presentation
-teaches the taxonomy without explanation. Do not make Areas and Projects
-visually identical merely for component reuse.
-
-A Project gallery item communicates, in order: identity, name, condition,
-meaningful progress and the next action. If no trustworthy progress exists, do
-not fabricate a percentage to fill the card. Project detail opens with outcome,
-status and next action before activity history or settings. Areas use a quieter
-row/list treatment with roll-up counts and momentum; they are contexts, not
-finite work packages.
-
-### Goals — connected progress
-
-Goals are aspirational without becoming motivational theatre. A Goal should
-quickly communicate its current reading, target, trajectory, status and next
-incomplete milestone. Then it shows the Projects, Habits and Tasks driving it.
-The useful model is **Goal ← Projects/Habits ← Tasks/actions**, not a Goal page
-followed by disconnected fields.
-
-The visual signature is a compact metric and trajectory, not a giant percentage
-ring surrounded by empty space. A measurable Goal shows current reading, target,
-direction, status and next incomplete milestone together. An unmeasured Goal
-uses milestone state and linked work honestly instead of displaying “0%”.
-
-### Habits — routines without gamification
-
-Habits should make today's check-ins and weekly cadence obvious. Use completion,
-consistency and history as information, not pressure. No manufactured streak
-urgency, celebration clutter or guilt language. Checking in must be one tap.
-
-### Notes — disappear into the writing
-
-Notes are document-like: minimal chrome, excellent typography, fast linking and
-a comfortable writing measure. Metadata, backlinks and relationships belong in
-a contextual rail or panel rather than polluting the document. The reference is
-closer to Craft or Apple Notes than block-heavy Notion.
-
-### Diary and Reviews — reflective, not administrative
-
-Diary prioritises capture and reading. Reviews guide reflection with clear
-prompts and a visible sense of completion, but should not look like a long
-settings form. Past entries become calm documents; active review controls remain
-secondary to the owner's words.
-
-### Meetings — outcomes over minutes
-
-Meetings should surface agenda, decisions, commitments and follow-up. Structured
-items use compact rows and direct conversion to Tasks. The interface should help
-the owner leave a meeting knowing what changed and what happens next.
-
-### People and Assets — recognisable collections
-
-People feel warm: avatar, relationship, useful context and recent interaction.
-Assets are more structured and information-heavy, with due obligations and risk
-easy to scan. They share DalyHub primitives but not identical density or card
-anatomy. Consistency does not mean every module looks the same.
-
-### Analytics — genuinely visual
-
-Analytics is the expressive zone: strong charts, meaningful comparisons,
-annotations and narrative insight with minimal borders. Prefer “27 tasks
-completed, 18% more than last week” plus a trend and explanation over isolated
-metric cards. It should explain the system back to the owner without pretending
-that every upward number is good.
-
-Every chart requires a question, comparison and readable annotation. Legends,
-axes and tooltips use plain language. Colour series remain distinguishable in
-both appearances and are not confused with P1, overdue, warning or success.
-Four disconnected KPI cards followed by generic charts do not meet this bar.
-
-### Views, Search and Inbox — operational utilities
-
-These surfaces are fast, compact and low-chrome. Filters communicate scope
-without dominating the result set. Empty states explain the next useful action.
-Saved Views feel like lenses over canonical data, never separate copies.
-
-### Settings — quiet and predictable
-
-Settings uses clear groups, plain language and conservative controls. Avoid a
-wall of slabs. Destructive actions are unmistakable and confirmed; ordinary
-changes are immediate where safe. Settings should feel part of DalyHub, not a
-component catalogue.
-
-## The design system underneath
-
-Think in a small set of product primitives rather than assembling every screen
-from Card + Chip + Button + Container:
-
-- **Canvas** — the almost invisible page background;
-- **Surface** — separation used only when content genuinely needs it;
-- **Row** — the fundamental productivity interaction;
-- **Panel** — contextual information and record detail;
-- **Gallery item** — selected collections such as Projects, People and Assets;
-- **Metric** — Goals and Analytics;
-- **Timeline** — Today, Schedule, history and activity;
-- **Editor** — Notes, Diary and rich descriptions.
-
-### Contextual depth surfaces
-
-Drawer, Inspector and Sheet are different behaviours expressed through one
-panel grammar. Every host uses the same title hierarchy: one title, at most one
-short supporting line, a consistently placed close action, one scrolling body
-and an optional pinned commitment region for Save/Confirm actions. Do not place
-a second page header, duplicate title or decorative toolbar inside that frame.
-
-The host determines interaction, not appearance:
-
-- a **Drawer** preserves page context, URL history and stacked record depth;
-- an **Inspector** keeps the page interactive on desktop and supports docked
-  resizing, becoming modal only when the viewport requires it;
-- a **Sheet** handles short transient choices and actions, bottom-anchored on a
-  phone and presented as a centred dialog on larger screens.
-
-Do not show a drag handle on a centred desktop dialog, imitate a mobile gesture
-where none exists or create module-specific panel chrome. Use `PanelHeading`,
-the `.dh-panel-*` anatomy and the shared close/action primitives. Content and
-behaviour may vary; spacing, hierarchy and interaction affordances may not.
-
-Typography and spacing carry most hierarchy. Corners are moderately rounded,
-never cartoonish. Shadows are rare. Borders are subtle. Icons are consistent
-and purposeful.
-
-Generic primitives provide behaviour and accessibility; product components own
-domain meaning. Never bend a generic Button, Card or Field around one module's
-semantics. Never create a private module primitive when a shared product pattern
-already exists.
-
-## Coding-agent acceptance check
-
-Before declaring a UI change complete, verify:
-
-- The screen's primary question is answerable within a few seconds.
-- The next useful action is obvious without reading every panel.
-- Removing any new card, chip or colour would not improve the screen.
-- Repeated rows align and scan consistently.
-- Desktop and mobile were considered as different compositions.
-- Priority, state and entity colour retain their system-wide meanings.
-- The change uses shared tokens and primitives rather than hard-coded values.
-- Empty, loading, error, long-content and realistic-data states still work.
-- Keyboard, focus, touch targets and reduced-motion behaviour remain correct.
-- A representative screenshot was inspected at desktop and phone width.
-- **Any geometry the change ASSERTS was measured, not looked at.** If it claims
-  a gutter, a target, a floor, a reserved column, a truncation or a hit area,
-  read the live box at every width the claim covers and assert on the number.
-
-If the implementation technically passes but still looks like a component
-library demo, it is not finished.
-
-### Why the last bullet exists
-
-[DHDS-13](DHDS_13_COMMERCIAL_QUALITY_GATE_2026_08.md) audited the shipped
-product after five convergence phases and found four P1 defects, **every one of
-which was invisible to the check above it**. A screenshot at 1× shows "P1"; only
-a measurement shows that the "1" is four pixels wider than the box painting it,
-on every task row on every phone. A visual pass shows a violet Capture button;
-only a measurement shows the icon inside it is 0×0 at every tablet width. A page
-looks composed until you subtract its neighbour's gutter from its own and get
-zero.
-
-Inspection finds what is ugly. Measurement finds what is broken. A quality bar
-needs both, and only one of them was written down.
+Prefer strong typography, clear alignment, moderate density, shallow page
+headers, restrained cards, scannable rows/tables, subtle separators, responsive
+composition and a single clear primary action where one exists.
+
+Light and dark modes are first-class. A page that works only in one appearance
+is unfinished.
+
+## Interaction direction
+
+Interaction should stay calm and immediate:
+
+- capture first, enrich later;
+- direct metadata changes happen in context;
+- drawers preserve the surrounding collection for short detail/edit flows;
+- full pages remain valid for writing, reading and deep records;
+- ordinary actions prefer undo over confirmation;
+- destructive or irreversible actions may interrupt;
+- keyboard, pointer and touch paths operate the same product action;
+- mobile is recomposed for reach and priority, not squeezed from desktop.
+
+Task metadata order is **when -> where -> how important** where applicable.
+Rows reveal secondary actions without hiding them from keyboard or touch users.
+Dragging is valid only when the destination is real, persisted and also reachable
+without drag.
+
+## Page strategy
+
+Application shell:
+Use one reusable Untitled-based application shell with desktop sidebar,
+responsive/mobile navigation, active-route state, user/workspace control, global
+search/command access and consistent page spacing.
+
+Today:
+Use Untitled dashboard/Application UI composition for priority tasks, upcoming
+meetings, overdue items, goals/habits, relevant activity and quick capture. Do
+not turn it into a generic analytics dashboard.
+
+Tasks:
+Use Untitled page headers, tabs, search, filter bars, tables/lists, badges,
+dropdowns, drawers, dialogs and command-menu patterns. Prefer drawers for task
+detail/edit where suitable.
+
+Projects / Areas:
+Use shared lists/tables, restrained cards, progress, status, filters, tabs and
+drawers.
+
+Goals:
+Use Untitled metrics, progress, charts, milestone lists, status and activity
+patterns.
+
+Habits:
+Use compact checkable rows, calendar/history views, progress and lightweight
+metrics without gamification.
+
+Notes:
+Prioritise writing/reading space with list-detail composition, search, metadata,
+tags and responsive collapse.
+
+Diary:
+Use content-first, date-led informational layouts.
+
+Meetings:
+Use informational/detail page patterns for title, date/time, location,
+participants, summary, decisions, actions, tasks, notes, transcript and
+attachments.
+
+People:
+Use directory/table patterns, avatars, filters and detail drawers/pages. The
+language is relationship care, not CRM extraction.
+
+Finance:
+Use shared table/metric/chart patterns without creating a separate visual
+language.
+
+Assets:
+Use structured list/table, category/status metadata and detail views.
+
+Life Admin:
+Compose from shared task, reminder, status and informational patterns.
+
+Reviews:
+Use informational layouts plus metrics/progress/activity.
+
+Reports / Insights:
+This is the appropriate place for richer Untitled dashboard/chart composition.
+
+AI Assistant:
+It must still feel like DalyHub and reuse shared Untitled/DalyHub primitives.
+The AI proposes reviewable changes and never mutates autonomously.
+
+Settings:
+Follow Untitled settings examples closely for profile, account, appearance,
+notifications, workspace, members, integrations, security, data and advanced
+settings.
+
+## Acceptance check
+
+Before calling a UI change done:
+
+- Untitled Application UI examples were searched before custom composition.
+- Untitled components were searched before custom primitives.
+- Product behaviour and domain truth survived the migration.
+- The screen works in light and dark mode.
+- The screen works at 393px and 320px when user-facing.
+- Keyboard, touch, focus, reduced-motion and accessible-name behaviour are
+  verified.
+- The result does not depend on a historical screenshot as authority.

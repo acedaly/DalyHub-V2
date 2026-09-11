@@ -294,7 +294,7 @@ It changes no query, no view model, no mutation and no URL contract.
 
 **The 2026-08 iPhone daily-driver pass** (same identifier, the polish pass ON this
 platform — see
-[`MOBILE_01_IPHONE_DAILY_DRIVER_2026_08.md`](../design/MOBILE_01_IPHONE_DAILY_DRIVER_2026_08.md))
+[`MOBILE_01_IPHONE_DAILY_DRIVER_2026_08.md`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records))
 changed three things here, and again no query, view model, mutation or URL:
 
 - **The phone row drops the `waiting-for` fact**, joining priority and repeat in the
@@ -1756,7 +1756,7 @@ several of them moved where an existing command is reached from.
 
 The full pass — including the shell and Today, the design-language decision, the
 deliberate departures from the reference, and the before/after evidence — is
-[`docs/design/UIX_01_PRODUCT_REDESIGN_2026_08.md`](../design/UIX_01_PRODUCT_REDESIGN_2026_08.md).
+[`docs/design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records).
 
 ### Grouping by due state is the DEFAULT
 
@@ -2056,7 +2056,7 @@ left. What changed is the anatomy the owner reads.
 
 The design record — the concept comparison, the ten measured differences it was
 driven by, and the before/after screenshot set — is
-[`docs/design/DS_04_TASKS_REDESIGN_2026_08.md`](../design/DS_04_TASKS_REDESIGN_2026_08.md).
+[`docs/design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records).
 
 ### The components
 
@@ -2186,7 +2186,7 @@ gesture was always an accelerator over affordances that exist elsewhere.
 
 > Delivered 2026-08-18. Accepted as
 > [ADR-103](../decisions/ARCHITECTURE_DECISIONS.md#adr-103-a-checklist-item-is-not-a-task--one-durable-level-of-ordered-steps-inside-one-task-with-dense-integer-order-no-activity-and-no-automatic-completion-in-either-direction).
-> Full record: [`TASKS_13_CHECKLISTS_2026_08.md`](../design/TASKS_13_CHECKLISTS_2026_08.md).
+> Full record: [`TASKS_13_CHECKLISTS_2026_08.md`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records).
 
 A checklist is the ordered steps inside ONE Task. **A checklist item is not a
 Task**, and everything below follows from that.
@@ -2275,7 +2275,7 @@ migration 0045's own comment already named it as one.
 - A template's own checklist rows are NOT `task_checklist_items` and never
   become them: they are copies at instantiation, not the same rows. See
   [ADR-105](../decisions/ARCHITECTURE_DECISIONS.md) and
-  [`PROJECT_02_PROJECT_TEMPLATES_2026_08.md`](../design/PROJECT_02_PROJECT_TEMPLATES_2026_08.md).
+  [`PROJECT_02_PROJECT_TEMPLATES_2026_08.md`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records).
 
 ### Activity
 
@@ -2353,7 +2353,7 @@ single comparable field.
 > (dependencies) and
 > [ADR-107](../decisions/ARCHITECTURE_DECISIONS.md#adr-107-advanced-recurrence-widens-a-closed-vocabulary-and-dependencies-are-occurrence-local--one-successor-authority-a-remembered-grid-and-no-relationship-cloning)
 > (recurrence, and how the two meet). Full record:
-> [`TASKS_12_ADVANCED_RECURRENCE_DEPENDENCIES_2026_08.md`](../design/TASKS_12_ADVANCED_RECURRENCE_DEPENDENCIES_2026_08.md).
+> [`TASKS_12_ADVANCED_RECURRENCE_DEPENDENCIES_2026_08.md`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records).
 
 **Recurrence decides WHEN a Task occurrence exists. A dependency decides WHETHER
 an existing Task can proceed.** The two are separate domain concerns and share no

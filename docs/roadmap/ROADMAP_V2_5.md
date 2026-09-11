@@ -1123,7 +1123,7 @@ themselves in [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md).
 - [ADR-040](../decisions/ARCHITECTURE_DECISIONS.md#adr-040--alignment-a-derived-non-persisted-goaltask-activity-signal-hosted-on-the-real-goals-collection) — alignment, whose ordering STEER-01 re-homes rather than deletes
 - [`V2_4_FOLLOW_02_GOAL_MOVEMENT_2026_08.md`](../product/V2_4_FOLLOW_02_GOAL_MOVEMENT_2026_08.md) — the movement derivation and the four-combination rule STEER-02 extends
 - [`GOALS_MODULE.md`](../development/GOALS_MODULE.md) — the Goals module authority (carries the supersession note until STEER-01/03 rewrite it)
-- [`REDESIGN_04_SPINE_WORKSPACES_2026_08.md`](../design/REDESIGN_04_SPINE_WORKSPACES_2026_08.md) — the workspace decision STEER-01 keeps
+- [`REDESIGN_04_SPINE_WORKSPACES_2026_08.md`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records) — the workspace decision STEER-01 keeps
 - [`REVIEWS_MODULE.md`](../development/REVIEWS_MODULE.md) — the guided Review STEER-03 widens and STEER-05 opens a door to
 - [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md) — what is still owed
 - [`PRODUCT_PRINCIPLES.md`](../product/PRODUCT_PRINCIPLES.md) — the product handbook this theme is derived from

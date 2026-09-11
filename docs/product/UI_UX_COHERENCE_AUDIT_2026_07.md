@@ -6,7 +6,7 @@
 > [Verification](#verification)).
 >
 > This audit is the follow-up to the 2026-07-18 review recorded in
-> [`docs/design/PRODUCT_EXPERIENCE.md`](../design/PRODUCT_EXPERIENCE.md). That review judged the
+> [`docs/design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records). That review judged the
 > *component layer* "premium-grade" but the *assembled frame* "a well-made website hosting
 > excellent components." Since then the sidebar frame, entity identity, record layout, Today,
 > Tasks (TASKS-01), Projects, Areas, Goals, Notes and Diary have all shipped. This audit asks the
@@ -23,7 +23,7 @@
 ### Documentation read
 `AGENTS.md` · `docs/README.md` · `docs/product/PRODUCT_PRINCIPLES.md` · `docs/product/PRODUCT_DEBT.md`
 · `docs/product/IMPLEMENTATION_WORKFLOW.md` · `docs/design/DESIGN_SYSTEM.md` ·
-`docs/design/PRODUCT_EXPERIENCE.md` · `docs/development/ACCESSIBILITY_RESPONSIVE.md` (the
+`docs/design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records` · `docs/development/ACCESSIBILITY_RESPONSIVE.md` (the
 accessibility doc lives under `development/`, not `design/`) · `docs/architecture/ARCHITECTURE_OVERVIEW.md`
 · `docs/decisions/ARCHITECTURE_DECISIONS.md` (ADR-001…043) · `docs/roadmap/ROADMAP_V2.md`.
 
@@ -547,7 +547,7 @@ adjusted so the **overflow menu (structural) lands before the lifecycle work tha
 
 ---
 
-*Related: [`PRODUCT_EXPERIENCE.md`](../design/PRODUCT_EXPERIENCE.md) (the composition contract this audit
+*Related: [`PRODUCT_EXPERIENCE.md`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records) (the composition contract this audit
 extends) · [`PRODUCT_DEBT.md`](PRODUCT_DEBT.md) (confirmed inconsistencies added below DEBT-26) ·
 [`ROADMAP_V2.md`](../roadmap/ROADMAP_V2.md) (new PX-04/PX-05/PX-06 and TASKS-02 homes) ·
 [`DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md).*

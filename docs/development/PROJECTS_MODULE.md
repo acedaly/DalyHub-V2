@@ -1005,7 +1005,7 @@ Measured at 1280×800: working content moved from 860px (below the fold) to 317p
 
 > The full record, including every captured and reset field, the bounds
 > arithmetic and the measured mobile numbers, is
-> [`PROJECT_02_PROJECT_TEMPLATES_2026_08.md`](../design/PROJECT_02_PROJECT_TEMPLATES_2026_08.md).
+> [`PROJECT_02_PROJECT_TEMPLATES_2026_08.md`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records).
 > The decision is
 > [ADR-105](../decisions/ARCHITECTURE_DECISIONS.md#adr-105-a-project-template-is-an-entity-that-is-not-a-spine-record--a-reusable-shape-whose-tasks-are-rows-instantiated-atomically-and-never-synchronised).
 

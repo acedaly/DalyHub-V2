@@ -1238,7 +1238,7 @@ prose visible.
 
 ## UIX-04 — the writing workspace (August 2026)
 
-The Notes module was redesigned as part of [UIX-04](../design/UIX_04_NOTES_DIARY_MEETINGS_2026_08.md).
+The Notes module was redesigned as part of [UIX-04](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records).
 Routes, persistence, the READ projection and every mutation are unchanged; the
 composition is not.
 

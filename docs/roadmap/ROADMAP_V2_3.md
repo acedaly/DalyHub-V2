@@ -67,7 +67,7 @@ it, and the work that still needs a day.**
 Delivered together with SMART-01 and accepted as
 [ADR-101](../decisions/ARCHITECTURE_DECISIONS.md#adr-101-weekly-planning-is-a-projection-not-a-record--the-owners-calendar-week-a-named-band-queue-and-one-declarative-filter-vocabulary-with-two-consumers).
 Full record:
-[`PLAN_01_SMART_01_WEEKLY_PLANNING_2026_08.md`](../design/PLAN_01_SMART_01_WEEKLY_PLANNING_2026_08.md).
+[`PLAN_01_SMART_01_WEEKLY_PLANNING_2026_08.md`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records).
 
 - **It stores nothing.** There is no `PlanningTask`, no week record and no
   migration. The Task's canonical `scheduled_date` IS the plan
@@ -147,7 +147,7 @@ recurring Task with a flag on it.**
 Accepted as
 [ADR-102](../decisions/ARCHITECTURE_DECISIONS.md#adr-102-a-habit-is-a-behaviour-not-a-recurring-task--a-distinct-domain-with-effective-dated-schedules-owner-local-check-ins-and-no-manufactured-streaks).
 Full record:
-[`HABITS_01_HABITS_AND_ROUTINES_2026_08.md`](../design/HABITS_01_HABITS_AND_ROUTINES_2026_08.md);
+[`HABITS_01_HABITS_AND_ROUTINES_2026_08.md`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records);
 module behaviour: [`HABITS_MODULE.md`](../development/HABITS_MODULE.md).
 
 - **The distinction is structural, not a filter.** A Habit is its own domain
@@ -270,7 +270,7 @@ test.
 Accepted as
 [ADR-103](../decisions/ARCHITECTURE_DECISIONS.md#adr-103-a-checklist-item-is-not-a-task--one-durable-level-of-ordered-steps-inside-one-task-with-dense-integer-order-no-activity-and-no-automatic-completion-in-either-direction).
 Full record:
-[`TASKS_13_CHECKLISTS_2026_08.md`](../design/TASKS_13_CHECKLISTS_2026_08.md);
+[`TASKS_13_CHECKLISTS_2026_08.md`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records);
 module behaviour: [`TASKS_MODULE.md`](../development/TASKS_MODULE.md#checklists-tasks-13).
 
 - **The two questions this item asked are both answered, and the first answers
@@ -335,7 +335,7 @@ because the principle behind it did not forbid what the reference asked for.**
 
 Accepted as
 [ADR-104](../decisions/ARCHITECTURE_DECISIONS.md#adr-104-the-planning-week-is-a-board-and-a-habit-may-state-one-proportion--two-decisions-re-taken-on-fresh-measurements-superseding-adr-101-10-and-adr-102-8).
-Full record: [`UX_02_PLAN_HABITS_2026_08.md`](../design/UX_02_PLAN_HABITS_2026_08.md).
+Full record: [`UX_02_PLAN_HABITS_2026_08.md`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records).
 
 - **`/plan` is a week BOARD, and the decision is a re-measurement.** ADR-101 §10
   rejected a column board because "at 1440 a seven-column board leaves ~100px per
@@ -389,7 +389,7 @@ last time's.**
 Accepted as
 [ADR-105](../decisions/ARCHITECTURE_DECISIONS.md#adr-105-a-project-template-is-an-entity-that-is-not-a-spine-record--a-reusable-shape-whose-tasks-are-rows-instantiated-atomically-and-never-synchronised).
 Full record:
-[`PROJECT_02_PROJECT_TEMPLATES_2026_08.md`](../design/PROJECT_02_PROJECT_TEMPLATES_2026_08.md).
+[`PROJECT_02_PROJECT_TEMPLATES_2026_08.md`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records).
 
 Both questions this item left open are now answered on the record:
 
@@ -445,7 +445,7 @@ Accepted as
 and
 [ADR-107](../decisions/ARCHITECTURE_DECISIONS.md#adr-107-advanced-recurrence-widens-a-closed-vocabulary-and-dependencies-are-occurrence-local--one-successor-authority-a-remembered-grid-and-no-relationship-cloning).
 Full record:
-[`TASKS_12_ADVANCED_RECURRENCE_DEPENDENCIES_2026_08.md`](../design/TASKS_12_ADVANCED_RECURRENCE_DEPENDENCIES_2026_08.md);
+[`TASKS_12_ADVANCED_RECURRENCE_DEPENDENCIES_2026_08.md`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records);
 module behaviour: [`TASKS_MODULE.md`](../development/TASKS_MODULE.md#advanced-recurrence-and-dependencies-tasks-12).
 
 - **The vocabulary WIDENED; the kind of thing it is did not.** Four additive
@@ -559,12 +559,12 @@ model.
 
 ## Related documents
 
-- [`TASKS_12_ADVANCED_RECURRENCE_DEPENDENCIES_2026_08.md`](../design/TASKS_12_ADVANCED_RECURRENCE_DEPENDENCIES_2026_08.md) — the TASKS-12 record
-- [`PROJECT_02_PROJECT_TEMPLATES_2026_08.md`](../design/PROJECT_02_PROJECT_TEMPLATES_2026_08.md) — the PROJECT-02 record
-- [`UX_02_PLAN_HABITS_2026_08.md`](../design/UX_02_PLAN_HABITS_2026_08.md) — the UX-02 record
-- [`PLAN_01_SMART_01_WEEKLY_PLANNING_2026_08.md`](../design/PLAN_01_SMART_01_WEEKLY_PLANNING_2026_08.md) — the PLAN-01 + SMART-01 record
-- [`TASKS_13_CHECKLISTS_2026_08.md`](../design/TASKS_13_CHECKLISTS_2026_08.md) — the TASKS-13 record
-- [`HABITS_01_HABITS_AND_ROUTINES_2026_08.md`](../design/HABITS_01_HABITS_AND_ROUTINES_2026_08.md) — the HABITS-01 record
+- [`TASKS_12_ADVANCED_RECURRENCE_DEPENDENCIES_2026_08.md`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records) — the TASKS-12 record
+- [`PROJECT_02_PROJECT_TEMPLATES_2026_08.md`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records) — the PROJECT-02 record
+- [`UX_02_PLAN_HABITS_2026_08.md`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records) — the UX-02 record
+- [`PLAN_01_SMART_01_WEEKLY_PLANNING_2026_08.md`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records) — the PLAN-01 + SMART-01 record
+- [`TASKS_13_CHECKLISTS_2026_08.md`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records) — the TASKS-13 record
+- [`HABITS_01_HABITS_AND_ROUTINES_2026_08.md`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records) — the HABITS-01 record
 - [`HABITS_MODULE.md`](../development/HABITS_MODULE.md) — the Habits module's full behaviour
 - [ADR-107](../decisions/ARCHITECTURE_DECISIONS.md#adr-107-advanced-recurrence-widens-a-closed-vocabulary-and-dependencies-are-occurrence-local--one-successor-authority-a-remembered-grid-and-no-relationship-cloning) — advanced recurrence widens a closed vocabulary, and dependencies are occurrence-local
 - [ADR-106](../decisions/ARCHITECTURE_DECISIONS.md#adr-106-a-task-dependency-is-a-directed-entitylink-not-a-second-join-model--derived-blocked-state-and-cycle--bound-enforcement-inside-the-write) — a Task dependency is a directed EntityLink

@@ -258,7 +258,7 @@ function renderInspector({ key }) {
   Routing an executable command's shortcut through `runOperation` is a small,
   now-unblocked follow-up (kept out of DS-10 to stay one coherent change).
 - **Selection / bulk actions.** The Inspector attaches to the same selection model
-  the future bulk-action bar uses ([PRODUCT_EXPERIENCE #13](../design/PRODUCT_EXPERIENCE.md)).
+  the future bulk-action bar uses ([PRODUCT_EXPERIENCE #13](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records)).
 
 ## Testing
 
