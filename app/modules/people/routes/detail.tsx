@@ -41,6 +41,7 @@ import { PersonRecord } from "../PersonRecord";
 import { serializePerson } from "../person-view";
 import type { PersonMutationResult } from "./mutate";
 import type { Route } from "./+types/detail";
+import { buttonClassName } from "~/shared/ui";
 
 export function meta() {
   return [{ title: "Person · DalyHub" }];
@@ -215,7 +216,10 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
           title="We couldn’t find that person"
           description="They may have been deleted, or the link is out of date."
           primaryAction={
-            <a className="dh-btn dh-btn--primary" href="/people">
+            <a
+              className={buttonClassName({ variant: "primary" })}
+              href="/people"
+            >
               Back to People
             </a>
           }

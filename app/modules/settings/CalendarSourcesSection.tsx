@@ -29,6 +29,7 @@ import type {
   CalendarActionResult,
   CalendarSourceView,
 } from "./routes/calendars";
+import { buttonClassName } from "~/shared/ui";
 
 /** Everything this section renders that only the server can know. */
 export type CalendarSettingsData = {
@@ -235,7 +236,7 @@ function AddCalendarGroup({
           control={
             <button
               type="submit"
-              className="dh-btn dh-btn--filled"
+              className={buttonClassName({ variant: "primary" })}
               disabled={submitting || name.trim() === "" || url.trim() === ""}
               data-testid="calendar-add-submit"
             >
@@ -296,13 +297,13 @@ function CalendarRow({ source }: { readonly source: CalendarSourceView }) {
               <input type="hidden" name="name" value={name} />
               <button
                 type="submit"
-                className="dh-btn dh-btn--filled dh-btn--sm"
+                className={buttonClassName({ variant: "primary", size: "sm" })}
               >
                 Save
               </button>
               <button
                 type="button"
-                className="dh-btn dh-btn--ghost dh-btn--sm"
+                className={buttonClassName({ variant: "subtle", size: "sm" })}
                 onClick={() => {
                   setName(source.name);
                   setRenaming(false);
@@ -317,7 +318,10 @@ function CalendarRow({ source }: { readonly source: CalendarSourceView }) {
                 <input type="hidden" name="id" value={source.id} />
                 <button
                   type="submit"
-                  className="dh-btn dh-btn--outlined dh-btn--sm"
+                  className={buttonClassName({
+                    variant: "secondary",
+                    size: "sm",
+                  })}
                   disabled={busy}
                   data-testid="calendar-refresh"
                 >
@@ -328,7 +332,7 @@ function CalendarRow({ source }: { readonly source: CalendarSourceView }) {
 
               <button
                 type="button"
-                className="dh-btn dh-btn--ghost dh-btn--sm"
+                className={buttonClassName({ variant: "subtle", size: "sm" })}
                 onClick={() => setRenaming(true)}
               >
                 Rename
@@ -344,7 +348,7 @@ function CalendarRow({ source }: { readonly source: CalendarSourceView }) {
                 />
                 <button
                   type="submit"
-                  className="dh-btn dh-btn--ghost dh-btn--sm"
+                  className={buttonClassName({ variant: "subtle", size: "sm" })}
                   disabled={busy}
                   data-testid="calendar-toggle"
                 >
@@ -357,7 +361,7 @@ function CalendarRow({ source }: { readonly source: CalendarSourceView }) {
                 <input type="hidden" name="id" value={source.id} />
                 <button
                   type="submit"
-                  className="dh-btn dh-btn--ghost dh-btn--sm"
+                  className={buttonClassName({ variant: "subtle", size: "sm" })}
                   disabled={busy}
                   data-testid="calendar-remove"
                 >

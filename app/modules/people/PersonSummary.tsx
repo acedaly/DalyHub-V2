@@ -30,7 +30,7 @@ import type { ReactNode } from "react";
 import type { PersonRelationship } from "~/kernel/relationships";
 import { StayInTouchPanel } from "~/shared/relationships";
 import { SummaryCards } from "~/shared/summary-cards";
-import { TagChipList } from "~/shared/ui";
+import { buttonClassName, TagChipList } from "~/shared/ui";
 
 import { PersonAvatar } from "./PersonAvatar";
 import { personCircle, personCircleRank } from "./person-circles";
@@ -119,7 +119,11 @@ export function PersonSummary({
   const primaryActions: ReactNode[] = [];
   if (phone) {
     primaryActions.push(
-      <a key="call" className="dh-btn dh-btn--secondary" href={`tel:${phone}`}>
+      <a
+        key="call"
+        className={buttonClassName({ variant: "secondary" })}
+        href={`tel:${phone}`}
+      >
         Call
       </a>,
     );
@@ -128,7 +132,7 @@ export function PersonSummary({
     primaryActions.push(
       <a
         key="email"
-        className="dh-btn dh-btn--secondary"
+        className={buttonClassName({ variant: "secondary" })}
         href={`mailto:${person.email}`}
       >
         Email
@@ -139,7 +143,7 @@ export function PersonSummary({
     primaryActions.push(
       <a
         key="message"
-        className="dh-btn dh-btn--secondary"
+        className={buttonClassName({ variant: "secondary" })}
         href={`sms:${person.mobile}`}
       >
         Message
@@ -248,7 +252,7 @@ export function PersonSummary({
       <p className="dh-person-summary__edit">
         <button
           type="button"
-          className="dh-btn dh-btn--ghost"
+          className={buttonClassName({ variant: "subtle" })}
           onClick={onEditContact}
         >
           Edit contact details

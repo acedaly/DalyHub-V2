@@ -40,6 +40,7 @@ import {
 import { AiFailure, AiProgress, AiRunDetails } from "./AiPanel";
 import { asGrounded } from "./ai-view";
 import { useAiRequest } from "./use-ai-request";
+import { buttonClassName } from "~/shared/ui";
 
 export interface AiExplainReportProps {
   /**
@@ -123,7 +124,7 @@ export function AiExplainReport({
       <div className="dh-report-explain__actions">
         <button
           type="button"
-          className="dh-btn dh-btn--subtle"
+          className={buttonClassName({ variant: "subtle" })}
           onClick={explain}
           disabled={busy}
         >

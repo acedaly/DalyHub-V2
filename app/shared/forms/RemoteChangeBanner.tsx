@@ -25,6 +25,8 @@
  * and the choice can wait for them.
  */
 
+import { buttonClassName } from "~/shared/ui";
+
 export interface RemoteChangeBannerProps {
   /**
    * The record noun, so the message names what changed ("This note", "This
@@ -69,7 +71,7 @@ export function RemoteChangeBanner({
       <div className="dh-remote-change__actions">
         <button
           type="button"
-          className="dh-btn dh-btn--secondary"
+          className={buttonClassName({ variant: "secondary" })}
           disabled={saving}
           onClick={onAdopt}
         >
@@ -77,7 +79,7 @@ export function RemoteChangeBanner({
         </button>
         <button
           type="button"
-          className="dh-btn dh-btn--ghost"
+          className={buttonClassName({ variant: "subtle" })}
           onClick={onDismiss}
         >
           Keep mine

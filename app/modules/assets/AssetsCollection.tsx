@@ -57,6 +57,7 @@ import {
 import type { SerializedObligationSignal } from "./asset-history-view";
 import type { AssetsCollectionData } from "./assets-collection-data";
 import type { SerializedAssetListItem } from "./asset-view";
+import { buttonClassName } from "~/shared/ui";
 
 const VIEWS: {
   readonly view: AssetView;
@@ -427,7 +428,10 @@ export function AssetsCollectionView({
         />
       }
       primaryAction={
-        <Link to="/new/asset" className="dh-btn dh-btn--primary">
+        <Link
+          to="/new/asset"
+          className={buttonClassName({ variant: "primary" })}
+        >
           <CreateActionLabel>New asset</CreateActionLabel>
         </Link>
       }
@@ -447,7 +451,10 @@ export function AssetsCollectionView({
           title="No Assets yet"
           description="Track the important things you own — vehicles, appliances, licences, subscriptions and more. DalyHub remembers what each one needs next."
           primaryAction={
-            <Link to="/new/asset" className="dh-btn dh-btn--primary">
+            <Link
+              to="/new/asset"
+              className={buttonClassName({ variant: "primary" })}
+            >
               <CreateActionLabel>New asset</CreateActionLabel>
             </Link>
           }

@@ -89,6 +89,7 @@ import {
   type SerializedGoalProjectItem,
 } from "./goal-view";
 import { meterStatusFromTone } from "~/shared/progress";
+import { buttonClassName } from "~/shared/ui";
 
 interface GoalOverviewProps {
   readonly overview: SerializedGoalOverview;
@@ -557,7 +558,10 @@ export function GoalOverview({
                 {contribution.total === 0 ? (
                   <DrawerTrigger
                     drawerKey={NEW_PROJECT_FOR_GOAL_KEY}
-                    className="dh-btn dh-btn--outlined dh-btn--sm"
+                    className={buttonClassName({
+                      variant: "secondary",
+                      size: "sm",
+                    })}
                     data-testid="goal-new-project"
                   >
                     New Project for this Goal

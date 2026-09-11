@@ -30,6 +30,7 @@ import { ownerCalendarIso } from "~/shared/datetime";
 
 import { HabitRecord } from "../HabitRecord";
 import type { Route } from "./+types/detail";
+import { buttonClassName } from "~/shared/ui";
 
 export function meta() {
   return [{ title: "Habit · DalyHub" }];
@@ -121,7 +122,10 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
           title="We couldn’t find that habit"
           description="It may have been deleted, or the link is out of date."
           primaryAction={
-            <a className="dh-btn dh-btn--primary" href="/habits">
+            <a
+              className={buttonClassName({ variant: "primary" })}
+              href="/habits"
+            >
               Back to Habits
             </a>
           }

@@ -54,6 +54,7 @@ import {
   TabPanel,
   Tabs,
 } from "~/shared/ui/untitled/application/tabs/tabs";
+import { buttonClassName } from "~/shared/ui";
 
 /** One selectable view in the switcher: built-in or the owner's own. */
 export interface SavedViewOption {
@@ -451,7 +452,7 @@ export function SavedViewSwitcher({
               <div className={`${classPrefix}__name-actions`}>
                 <button
                   type="button"
-                  className="dh-btn dh-btn--ghost"
+                  className={buttonClassName({ variant: "subtle" })}
                   onClick={() => {
                     setNaming(null);
                     triggerRef.current?.focus();
@@ -461,7 +462,7 @@ export function SavedViewSwitcher({
                 </button>
                 <button
                   type="submit"
-                  className="dh-btn dh-btn--primary"
+                  className={buttonClassName({ variant: "primary" })}
                   disabled={busy}
                   data-testid={`${testIdPrefix}-name-save`}
                 >

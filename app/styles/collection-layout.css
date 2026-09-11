@@ -497,22 +497,22 @@
  * Structure — where it sits, what it opens, how the panel is laid out — is
  * DS-03's. Only the control's own height, radius and vocabulary change here.
  */
+/*
+ * UNTITLED-04 — the paint is gone; the control IS the shared `<Button>`.
+ *
+ * The note above says it is "a `secondary` button in everything but name", and
+ * it has actually been one in the markup since DS-02. What was left here was a
+ * second, unlayered copy of a secondary button's border, radius, background and
+ * type rung, painted straight over the component's — which is how the one
+ * control in every collection header ended up a different radius from every
+ * other button on the same row. Nothing replaces it: Untitled's secondary
+ * already IS a bordered neutral control.
+ *
+ * Structure — where it sits, what it opens, how the panel is laid out — is
+ * DS-03's and is unchanged.
+ */
 .dh-collection-controls__trigger {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--dh-space-2);
   flex: none;
-  min-block-size: var(--dh-control-height);
-  padding-inline: var(--dh-space-3);
-  border: var(--dh-border-width) solid var(--dh-color-border-strong);
-  border-radius: var(--dh-radius-control);
-  background: var(--dh-color-surface);
-  color: var(--dh-color-text);
-  font-family: var(--dh-font-family);
-  font-size: var(--dh-text-label-size);
-  line-height: var(--dh-text-label-line-height);
-  font-weight: var(--dh-text-label-weight);
-  cursor: pointer;
 }
 
 /* The active-filter count: a TEXT badge, so it is legible without colour and

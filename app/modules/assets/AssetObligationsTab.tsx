@@ -37,6 +37,7 @@ import {
   useObligationActions,
 } from "~/shared/obligations";
 import { OBLIGATION_BANDS, obligationBandLabel } from "~/kernel/obligations";
+import { buttonClassName } from "~/shared/ui";
 
 interface AssetObligationsTabProps {
   readonly obligations: readonly SerializedObligation[];
@@ -159,7 +160,7 @@ export function AssetObligationsTab({
         {readOnly || obligations.length === 0 ? null : (
           <button
             type="button"
-            className="dh-btn dh-btn--primary dh-btn--sm"
+            className={buttonClassName({ variant: "primary", size: "sm" })}
             onClick={onAdd}
           >
             Add obligation
@@ -176,7 +177,7 @@ export function AssetObligationsTab({
             readOnly ? undefined : (
               <button
                 type="button"
-                className="dh-btn dh-btn--primary"
+                className={buttonClassName({ variant: "primary" })}
                 onClick={onAdd}
               >
                 Add obligation

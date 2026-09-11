@@ -54,7 +54,7 @@ import { GoalStatTrio, type GoalStat } from "~/shared/goal-progress";
 import { StatusPill } from "~/shared/pill";
 import { ProgressTrack } from "~/shared/progress";
 import { ConfirmationDialog } from "~/shared/settings";
-import { Menu } from "~/shared/ui";
+import { buttonClassName, Menu } from "~/shared/ui";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 
 /**
@@ -316,7 +316,7 @@ function ProgressHeader({
         {progress.type === "milestone" ? null : (
           <button
             type="button"
-            className="dh-btn dh-btn--primary"
+            className={buttonClassName({ variant: "primary" })}
             data-testid="goal-record-measurement"
             onClick={(event) => onRecord(event.currentTarget)}
           >
@@ -325,7 +325,7 @@ function ProgressHeader({
         )}
         <button
           type="button"
-          className="dh-btn dh-btn--ghost"
+          className={buttonClassName({ variant: "subtle" })}
           data-testid="goal-configure-measurement"
           onClick={(event) => onConfigure(event.currentTarget)}
         >
@@ -438,7 +438,7 @@ function TrendSection({
           primaryAction={
             <button
               type="button"
-              className="dh-btn dh-btn--primary"
+              className={buttonClassName({ variant: "primary" })}
               data-testid="goal-record-first"
               onClick={(event) => onRecord(event.currentTarget)}
             >
@@ -652,7 +652,7 @@ function HistoryList({
               <span className="dh-goal-measure__history-actions">
                 <button
                   type="button"
-                  className="dh-btn dh-btn--ghost dh-btn--sm"
+                  className={buttonClassName({ variant: "subtle", size: "sm" })}
                   onClick={(event) =>
                     onRecord(event.currentTarget, measurement)
                   }
@@ -673,7 +673,11 @@ function HistoryList({
                     decorative; the word carries the meaning. */}
                 <button
                   type="button"
-                  className="dh-btn dh-btn--ghost dh-btn--sm dh-goal-measure__remove"
+                  className={buttonClassName({
+                    variant: "subtle",
+                    size: "sm",
+                    className: "dh-goal-measure__remove",
+                  })}
                   onClick={(event) => {
                     setOpener(event.currentTarget);
                     setConfirming(measurement);
@@ -693,7 +697,7 @@ function HistoryList({
       {rows.length > HISTORY_VISIBLE && !expanded ? (
         <button
           type="button"
-          className="dh-btn dh-btn--ghost dh-btn--sm"
+          className={buttonClassName({ variant: "subtle", size: "sm" })}
           onClick={() => setExpanded(true)}
         >
           Show all {rows.length} measurements
@@ -889,7 +893,7 @@ function MilestoneList({
         />
         <button
           type="submit"
-          className="dh-btn dh-btn--secondary"
+          className={buttonClassName({ variant: "secondary" })}
           disabled={busy || draft.trim().length === 0}
         >
           Add
@@ -938,7 +942,7 @@ function UnmeasuredState({
         primaryAction={
           <button
             type="button"
-            className="dh-btn dh-btn--primary"
+            className={buttonClassName({ variant: "primary" })}
             data-testid="goal-configure-measurement"
             onClick={(event) => onConfigure(event.currentTarget)}
           >

@@ -34,6 +34,7 @@ import { Sheet } from "~/shared/sheet";
 
 import type { SerializedGoalProjectItem } from "./goal-view";
 import type { GoalLinkProjectOptionsData } from "./routes/link-projects";
+import { buttonClassName } from "~/shared/ui";
 
 export function GoalProjectChips({
   goalId,
@@ -69,7 +70,7 @@ export function GoalProjectChips({
            */}
           <DrawerTrigger
             drawerKey={NEW_PROJECT_FOR_GOAL_KEY}
-            className="dh-btn dh-btn--outlined dh-btn--sm"
+            className={buttonClassName({ variant: "secondary", size: "sm" })}
             data-testid="goal-chips-new-project"
           >
             <PlusIcon aria-hidden="true" />
@@ -78,7 +79,7 @@ export function GoalProjectChips({
           <button
             type="button"
             ref={openerRef}
-            className="dh-btn dh-btn--outlined dh-btn--sm"
+            className={buttonClassName({ variant: "secondary", size: "sm" })}
             data-testid="goal-link-project"
             onClick={() => setPicking(true)}
           >

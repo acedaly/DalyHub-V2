@@ -31,6 +31,7 @@
  */
 
 import type { SerializedAttachment } from "~/kernel/attachments";
+import { buttonClassName } from "~/shared/ui";
 
 export interface AttachmentRowProps {
   readonly attachment: SerializedAttachment;
@@ -89,7 +90,7 @@ export function AttachmentRow({
 
       <span className="dh-attachment-row__actions">
         <a
-          className="dh-btn dh-btn--ghost dh-btn--sm"
+          className={buttonClassName({ variant: "subtle", size: "sm" })}
           href={attachment.downloadHref}
           // A same-origin authenticated route; the response carries
           // `Content-Disposition: attachment`, so this saves rather than
@@ -103,7 +104,7 @@ export function AttachmentRow({
         {onRemove ? (
           <button
             type="button"
-            className="dh-btn dh-btn--ghost dh-btn--sm"
+            className={buttonClassName({ variant: "subtle", size: "sm" })}
             disabled={busy}
             onClick={(event) => onRemove(attachment, event.currentTarget)}
             data-testid={`${testId}-remove`}

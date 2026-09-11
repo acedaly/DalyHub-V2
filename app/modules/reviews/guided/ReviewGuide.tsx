@@ -54,6 +54,7 @@ import {
   mobileProgressLabel,
   reviewRecordPath,
 } from "./review-guide-view";
+import { buttonClassName } from "~/shared/ui";
 
 export interface ReviewGuideProps {
   readonly review: SerializedReview;
@@ -143,12 +144,15 @@ export function ReviewGuide({
         </p>
         <p className="dh-review-guide__exit">
           <Link
-            className="dh-btn dh-btn--ghost"
+            className={buttonClassName({ variant: "subtle" })}
             to={reviewRecordPath(review.id)}
           >
             Open the full Review
           </Link>
-          <Link className="dh-btn dh-btn--ghost" to="/reviews">
+          <Link
+            className={buttonClassName({ variant: "subtle" })}
+            to="/reviews"
+          >
             Save and exit
           </Link>
         </p>
@@ -238,7 +242,10 @@ export function ReviewGuide({
             </div>
             <button
               type="button"
-              className="dh-btn dh-btn--ghost dh-review-guide__stepper-menu"
+              className={buttonClassName({
+                variant: "subtle",
+                className: "dh-review-guide__stepper-menu",
+              })}
               ref={stepsButtonRef}
               onClick={() => setStepsOpen(true)}
             >
@@ -278,7 +285,7 @@ export function ReviewGuide({
               <input type="hidden" name="step" value={stepId} />
               <input type="hidden" name="target" value={stepId} />
               <button
-                className="dh-btn dh-btn--secondary"
+                className={buttonClassName({ variant: "secondary" })}
                 type="submit"
                 name="intent"
                 value={
@@ -304,7 +311,7 @@ export function ReviewGuide({
             <input type="hidden" name="revision" value={workflowRevision} />
             {previous ? (
               <button
-                className="dh-btn dh-btn--secondary"
+                className={buttonClassName({ variant: "secondary" })}
                 type="submit"
                 name="step"
                 value={previous}
@@ -316,7 +323,7 @@ export function ReviewGuide({
             )}
             {next ? (
               <button
-                className="dh-btn dh-btn--primary"
+                className={buttonClassName({ variant: "primary" })}
                 type="submit"
                 name="step"
                 value={next}

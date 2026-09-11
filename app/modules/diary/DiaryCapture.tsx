@@ -41,6 +41,7 @@ import { entryTypeIcon } from "./diary-icons";
 import { entryTypeOptions } from "./diary-view";
 import { WhenField } from "./WhenField";
 import type { CreateDiaryEntryResult } from "./routes/new";
+import { buttonClassName } from "~/shared/ui";
 
 type Values = {
   readonly entryType: string;
@@ -265,7 +266,10 @@ export function DiaryCapture({ todayKey, onCaptured }: DiaryCaptureProps) {
         <div className="dh-diary-capture__actions">
           <button
             type="button"
-            className="dh-btn dh-btn--ghost dh-diary-capture__more"
+            className={buttonClassName({
+              variant: "subtle",
+              className: "dh-diary-capture__more",
+            })}
             aria-expanded={showDetails}
             aria-controls="dh-diary-capture-details"
             onClick={() => setShowDetails((open) => !open)}

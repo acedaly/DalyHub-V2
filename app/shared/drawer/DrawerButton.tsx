@@ -3,8 +3,8 @@
  *
  * `DrawerTrigger` is the bare anchor: a genuine `href` to the drawer's own URL,
  * intercepted on a plain left-click so the drawer opens in place. Every
- * collection then dressed it by hand with `className="dh-btn dh-btn--primary"`,
- * which is how the product's most prominent control — the one create action on
+ * collection then dressed it by hand with a raw `dh-btn dh-btn--primary`
+ * string, which is how the product's most prominent control — the one create action on
  * a collection — ended up being the one control that never reached the
  * Untitled-backed `Button`.
  *

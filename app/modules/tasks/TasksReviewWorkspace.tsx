@@ -34,6 +34,7 @@ import { TaskQuickEditPanel } from "~/shared/task-record/TaskQuickEditPanel";
 import { taskCompletionOutcome } from "~/shared/task-record/task-completion-outcome";
 
 import type { TasksReviewData } from "./tasks-contract";
+import { buttonClassName } from "~/shared/ui";
 
 export function TasksReviewWorkspace({
   data,
@@ -193,7 +194,10 @@ export function TasksReviewWorkspace({
       subtitle={subtitle}
       primaryAction={
         total === 0 && !data.failed ? undefined : (
-          <Link className="dh-btn dh-btn--secondary" to={backToTasks}>
+          <Link
+            className={buttonClassName({ variant: "secondary" })}
+            to={backToTasks}
+          >
             Back to Tasks
           </Link>
         )
@@ -222,7 +226,10 @@ export function TasksReviewWorkspace({
           title="Inbox is clear"
           description="Every captured task has a home. New captures land here for triage."
           primaryAction={
-            <Link className="dh-btn dh-btn--primary" to="/tasks">
+            <Link
+              className={buttonClassName({ variant: "primary" })}
+              to="/tasks"
+            >
               Back to Tasks
             </Link>
           }
@@ -281,7 +288,7 @@ export function TasksReviewWorkspace({
                   Previous
                 </FormButton>
                 <Link
-                  className="dh-btn dh-btn--ghost"
+                  className={buttonClassName({ variant: "subtle" })}
                   to={`/tasks?system=inbox&drawer=task:${current.id}`}
                 >
                   Open record
@@ -293,7 +300,7 @@ export function TasksReviewWorkspace({
           {position >= total - 1 && data.nextCursor !== null ? (
             <p className="dh-task-review__more">
               <Link
-                className="dh-btn dh-btn--secondary"
+                className={buttonClassName({ variant: "secondary" })}
                 to={`/tasks/review?cursor=${encodeURIComponent(data.nextCursor)}`}
               >
                 Load the next {total === 1 ? "task" : "page"}

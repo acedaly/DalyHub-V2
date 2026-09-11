@@ -33,6 +33,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { MeetingItemKind } from "~/kernel/meetings";
+import { buttonClassName } from "~/shared/ui";
 
 /** What the bar can capture. `note` is the Markdown field; the rest are items. */
 export type MeetingCaptureKind = "note" | MeetingItemKind;
@@ -183,7 +184,10 @@ export function MeetingCaptureBar({
         />
         <button
           type="submit"
-          className="dh-btn dh-btn--primary dh-meeting-capturebar__save"
+          className={buttonClassName({
+            variant: "primary",
+            className: "dh-meeting-capturebar__save",
+          })}
           disabled={busy || value.trim().length === 0}
         >
           Add

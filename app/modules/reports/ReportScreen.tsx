@@ -30,7 +30,7 @@ import { Link, useFetcher } from "react-router";
 import { AiExplainReport } from "~/shared/ai/AiExplainReport";
 import { CollectionLayout } from "~/shared/collection-layout";
 import { EmptyState } from "~/shared/empty-state";
-import { Button, ButtonLink, Input } from "~/shared/ui";
+import { Button, buttonClassName, ButtonLink, Input } from "~/shared/ui";
 
 import { ReportResultView } from "./ReportResultView";
 import type { ReportControl, ReportPageData } from "./reports-view";
@@ -55,7 +55,10 @@ export function ReportScreen(data: ReportPageData) {
             title="This report can’t be opened"
             description={`${data.incompatible} Nothing has been lost: a stored definition is left exactly as it is, byte for byte.`}
             primaryAction={
-              <Link className="dh-btn dh-btn--primary" to="/reports/new">
+              <Link
+                className={buttonClassName({ variant: "primary" })}
+                to="/reports/new"
+              >
                 New report
               </Link>
             }

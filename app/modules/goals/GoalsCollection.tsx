@@ -64,7 +64,7 @@ import { HistoryIcon } from "~/shared/icons";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
 import type { InlineSaveOutcome } from "~/shared/inline-edit";
 import { useCollectionRestore } from "~/shared/record-lifecycle";
-import { ButtonLink } from "~/shared/ui";
+import { buttonClassName, ButtonLink } from "~/shared/ui";
 import { ViewTabs, type ViewTabOption } from "~/shared/view-switcher";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 import type { GoalAlignment, GoalMovement } from "~/shared/alignment";
@@ -439,7 +439,7 @@ function DeletedGoalCard({
       footer={
         <button
           type="button"
-          className="dh-btn dh-btn--outlined dh-btn--sm"
+          className={buttonClassName({ variant: "secondary", size: "sm" })}
           disabled={pending}
           onClick={() => onRestore(goal.id, goal.title)}
         >
@@ -936,7 +936,7 @@ function GoalsCollection({
           primaryAction={
             <DrawerTrigger
               drawerKey={NEW_GOAL_KEY}
-              className="dh-btn dh-btn--primary"
+              className={buttonClassName({ variant: "primary" })}
             >
               Add goal
             </DrawerTrigger>
@@ -977,7 +977,10 @@ function GoalsCollection({
           title={`No Goals are ${GOAL_COLLECTION_VIEW_LABELS[view].toLowerCase()}`}
           description={`This workspace has ${lensCounts!.total === 1 ? "1 Goal" : `${lensCounts!.total} Goals`}, and none of them is in this view.`}
           primaryAction={
-            <a className="dh-btn dh-btn--outlined" href="/goals">
+            <a
+              className={buttonClassName({ variant: "secondary" })}
+              href="/goals"
+            >
               Show all Goals
             </a>
           }

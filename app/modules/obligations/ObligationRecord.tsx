@@ -46,6 +46,7 @@ import { useRecordLifecycle } from "~/shared/record-lifecycle";
 
 import { ObligationActivityTab } from "./ObligationActivityTab";
 import { ObligationFollowUp } from "./ObligationFollowUp";
+import { buttonClassName } from "~/shared/ui";
 
 export interface ObligationRecordProps {
   readonly obligation: SerializedObligation;
@@ -262,14 +263,14 @@ export function ObligationRecord({
             <>
               <button
                 type="button"
-                className="dh-btn dh-btn--primary"
+                className={buttonClassName({ variant: "primary" })}
                 onClick={() => setMode("completing")}
               >
                 Record it as done
               </button>
               <button
                 type="button"
-                className="dh-btn dh-btn--secondary"
+                className={buttonClassName({ variant: "secondary" })}
                 onClick={() => setMode("editing")}
               >
                 Edit
@@ -277,7 +278,7 @@ export function ObligationRecord({
               {obligation.taskId === null ? (
                 <button
                   type="button"
-                  className="dh-btn dh-btn--ghost"
+                  className={buttonClassName({ variant: "subtle" })}
                   disabled={busy}
                   onClick={() => actions.createTask(obligation)}
                 >
@@ -286,7 +287,7 @@ export function ObligationRecord({
               ) : null}
               <button
                 type="button"
-                className="dh-btn dh-btn--ghost"
+                className={buttonClassName({ variant: "subtle" })}
                 disabled={busy}
                 onClick={() => actions.hold(obligation)}
               >
@@ -294,7 +295,7 @@ export function ObligationRecord({
               </button>
               <button
                 type="button"
-                className="dh-btn dh-btn--ghost"
+                className={buttonClassName({ variant: "subtle" })}
                 disabled={busy}
                 onClick={() => actions.dismiss(obligation)}
               >
@@ -312,7 +313,7 @@ export function ObligationRecord({
           ) : (
             <button
               type="button"
-              className="dh-btn dh-btn--primary"
+              className={buttonClassName({ variant: "primary" })}
               disabled={busy}
               onClick={() => actions.reopen(obligation)}
             >

@@ -88,6 +88,7 @@ import {
 } from "./person-circles";
 import { formatPersonDate, type SerializedPersonListItem } from "./person-view";
 import type { PersonMutationResult } from "./routes/mutate";
+import { buttonClassName } from "~/shared/ui";
 
 const NEW_PERSON_KEY = "new-person";
 
@@ -608,7 +609,7 @@ function PeopleCollection({
   const quickAdd = canQuickAdd ? (
     <DrawerTrigger
       drawerKey={NEW_PERSON_KEY}
-      className="dh-btn dh-btn--primary"
+      className={buttonClassName({ variant: "primary" })}
     >
       <CreateActionLabel>New person</CreateActionLabel>
     </DrawerTrigger>
@@ -756,7 +757,7 @@ function PeopleCollection({
           primaryAction={
             <DrawerTrigger
               drawerKey={NEW_PERSON_KEY}
-              className="dh-btn dh-btn--primary"
+              className={buttonClassName({ variant: "primary" })}
             >
               <CreateActionLabel>New person</CreateActionLabel>
             </DrawerTrigger>
@@ -821,7 +822,7 @@ function PeopleCollection({
             hasMore ? (
               <button
                 type="button"
-                className="dh-btn dh-btn--primary"
+                className={buttonClassName({ variant: "primary" })}
                 onClick={loadMore}
                 disabled={loading}
                 aria-busy={loading}

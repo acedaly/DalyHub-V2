@@ -24,6 +24,7 @@ import {
 } from "./AiPanel";
 import { asExtraction, type AiSurfaceState } from "./ai-view";
 import { useAiRequest } from "./use-ai-request";
+import { buttonClassName } from "~/shared/ui";
 
 export interface AiExtractionSurfaceProps {
   /** `meeting-action-extraction` or `note-action-extraction`. */
@@ -164,7 +165,7 @@ export function AiExtractionSurface({
           <AiSendNotice />
           <button
             type="button"
-            className="dh-btn dh-btn--primary"
+            className={buttonClassName({ variant: "primary" })}
             disabled={readOnly}
             onClick={start}
           >

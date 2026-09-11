@@ -98,6 +98,7 @@ import { useDepartingRows } from "~/shared/task-record/use-departing-rows";
 import { useTaskSurfaceActions } from "~/shared/task-record/use-task-surface-actions";
 
 import type { SerializedProjectTask } from "./project-view";
+import { buttonClassName } from "~/shared/ui";
 
 const TASK_STATE_OPTIONS = [
   { value: "open", label: "Open" },
@@ -558,7 +559,7 @@ export function ProjectTasksTab({
         {archived || items.length === 0 ? null : (
           <button
             type="button"
-            className="dh-btn dh-btn--ghost"
+            className={buttonClassName({ variant: "subtle" })}
             data-testid="project-tasks-select"
             aria-pressed={selection.mode}
             onClick={() =>

@@ -89,6 +89,7 @@ import {
 } from "../project-view";
 import type { ProjectMutationResult } from "./mutate";
 import type { Route } from "./+types/detail";
+import { buttonClassName } from "~/shared/ui";
 
 type TaskState = ProjectTaskState;
 
@@ -820,7 +821,10 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
           title="We couldn’t find that project"
           description="It may have been deleted, or the link is out of date."
           primaryAction={
-            <a className="dh-btn dh-btn--primary" href="/projects">
+            <a
+              className={buttonClassName({ variant: "primary" })}
+              href="/projects"
+            >
               Back to Projects
             </a>
           }
@@ -834,7 +838,10 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
         title="Something went wrong"
         description="We couldn’t load this project. Please try again."
         primaryAction={
-          <a className="dh-btn dh-btn--primary" href="/projects">
+          <a
+            className={buttonClassName({ variant: "primary" })}
+            href="/projects"
+          >
             Back to Projects
           </a>
         }

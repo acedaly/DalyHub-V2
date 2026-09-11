@@ -66,6 +66,7 @@ import {
   reviewRecordPath,
   type ReviewGuidePrompt,
 } from "./review-guide-view";
+import { buttonClassName } from "~/shared/ui";
 
 /* -------------------------------------------------------------------------- */
 /* Shared bits                                                                 */
@@ -195,7 +196,10 @@ export function InboxStep({
           title="Inbox is clear"
           description="Every captured Task has a home. New captures land here for triage."
           primaryAction={
-            <Link className="dh-btn dh-btn--secondary" to="/tasks?system=inbox">
+            <Link
+              className={buttonClassName({ variant: "secondary" })}
+              to="/tasks?system=inbox"
+            >
               Open the Inbox
             </Link>
           }
@@ -261,7 +265,7 @@ export function InboxStep({
               Previous
             </FormButton>
             <Link
-              className="dh-btn dh-btn--ghost"
+              className={buttonClassName({ variant: "subtle" })}
               to={`/tasks?system=inbox&drawer=task:${current.id}`}
             >
               Open Task
@@ -302,7 +306,10 @@ export function ProjectsStep({
         title="No Projects to review"
         description="Projects appear here once you have one open, or one that finished during this period."
         primaryAction={
-          <Link className="dh-btn dh-btn--secondary" to="/projects">
+          <Link
+            className={buttonClassName({ variant: "secondary" })}
+            to="/projects"
+          >
             Open Projects
           </Link>
         }
@@ -377,13 +384,13 @@ export function ProjectsStep({
             </p>
             <p className="dh-review-guide__project-actions">
               <Link
-                className="dh-btn dh-btn--ghost"
+                className={buttonClassName({ variant: "subtle" })}
                 to={`/projects/${encodeURIComponent(project.id)}`}
               >
                 Open Project
               </Link>
               <Link
-                className="dh-btn dh-btn--ghost"
+                className={buttonClassName({ variant: "subtle" })}
                 to={`/projects/${encodeURIComponent(project.id)}?tab=settings`}
               >
                 Change status
@@ -808,16 +815,25 @@ export function FocusStep({
            * Completing the Review is deliberately NOT dependent on planning —
            * "complete and leave" stays a first-class ending.
            */}
-          <Link className="dh-btn dh-btn--primary" to="/plan?week=next">
+          <Link
+            className={buttonClassName({ variant: "primary" })}
+            to="/plan?week=next"
+          >
             Plan next week
           </Link>
-          <Link className="dh-btn dh-btn--ghost" to="/today">
+          <Link className={buttonClassName({ variant: "subtle" })} to="/today">
             Open Today
           </Link>
-          <Link className="dh-btn dh-btn--ghost" to="/tasks?system=inbox">
+          <Link
+            className={buttonClassName({ variant: "subtle" })}
+            to="/tasks?system=inbox"
+          >
             Capture a Task
           </Link>
-          <Link className="dh-btn dh-btn--ghost" to="/projects">
+          <Link
+            className={buttonClassName({ variant: "subtle" })}
+            to="/projects"
+          >
             Open Projects
           </Link>
         </p>
@@ -915,7 +931,7 @@ export function CompleteStep({
         <input type="hidden" name="revision" value={revision} />
         {completed ? (
           <button
-            className="dh-btn dh-btn--secondary"
+            className={buttonClassName({ variant: "secondary" })}
             type="submit"
             name="intent"
             value="reopen"
@@ -924,7 +940,7 @@ export function CompleteStep({
           </button>
         ) : (
           <button
-            className="dh-btn dh-btn--primary"
+            className={buttonClassName({ variant: "primary" })}
             type="submit"
             name="intent"
             value="complete"
@@ -941,10 +957,16 @@ export function CompleteStep({
          * the Review neither requires nor triggers planning, and leaving is still
          * a complete ending.
          */}
-        <Link className="dh-btn dh-btn--secondary" to="/plan?week=next">
+        <Link
+          className={buttonClassName({ variant: "secondary" })}
+          to="/plan?week=next"
+        >
           Plan next week
         </Link>
-        <Link className="dh-btn dh-btn--ghost" to={reviewRecordPath(review.id)}>
+        <Link
+          className={buttonClassName({ variant: "subtle" })}
+          to={reviewRecordPath(review.id)}
+        >
           Open the full Review
         </Link>
       </form>

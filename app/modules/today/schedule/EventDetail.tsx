@@ -31,6 +31,7 @@ import { Link, useFetcher, useRevalidator } from "react-router";
 import type { ScheduleEntry } from "~/kernel/calendar";
 
 import type { ScheduleActionResult } from "../routes/schedule";
+import { buttonClassName } from "~/shared/ui";
 
 /** The drawer key an imported occurrence opens under. */
 export const EVENT_DRAWER_PREFIX = "event";
@@ -115,7 +116,7 @@ export function EventDetail({
       <div className="dh-event-detail__actions">
         {entry.meetingUrl === null ? null : (
           <a
-            className="dh-btn dh-btn--outlined"
+            className={buttonClassName({ variant: "secondary" })}
             href={entry.meetingUrl}
             target="_blank"
             // `noopener`/`noreferrer` on a URL that came from a feed DalyHub
@@ -135,7 +136,7 @@ export function EventDetail({
           >
             <button
               type="submit"
-              className="dh-btn dh-btn--filled"
+              className={buttonClassName({ variant: "primary" })}
               disabled={creating}
               data-testid="event-create-meeting"
             >
@@ -145,7 +146,7 @@ export function EventDetail({
           </fetcher.Form>
         ) : (
           <Link
-            className="dh-btn dh-btn--filled"
+            className={buttonClassName({ variant: "primary" })}
             to={`/meeting/${encodeURIComponent(meetingId)}`}
             data-testid="event-open-meeting"
           >

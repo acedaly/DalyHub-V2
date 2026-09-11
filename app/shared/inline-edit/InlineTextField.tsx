@@ -43,6 +43,7 @@ import { useEffect, useId, useRef, type KeyboardEvent } from "react";
 import { InlineEditShell } from "./InlineEditShell";
 import { useInlineEdit } from "./use-inline-edit";
 import type { InlineSaveOutcome } from "./inline-edit-model";
+import { buttonClassName } from "~/shared/ui";
 
 export interface InlineTextFieldProps {
   readonly label: string;
@@ -145,7 +146,7 @@ export function InlineTextField({
       <div className="dh-inline-edit__actions">
         <button
           type="button"
-          className="dh-btn dh-btn--primary dh-btn--sm"
+          className={buttonClassName({ variant: "primary", size: "sm" })}
           disabled={field.pending}
           onClick={() => field.submit()}
         >
@@ -153,7 +154,7 @@ export function InlineTextField({
         </button>
         <button
           type="button"
-          className="dh-btn dh-btn--ghost dh-btn--sm"
+          className={buttonClassName({ variant: "subtle", size: "sm" })}
           disabled={field.pending}
           onClick={field.cancel}
         >

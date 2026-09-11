@@ -26,6 +26,7 @@ import { SettingsGroup, SettingsLayout, SettingsRow } from "~/shared/settings";
 import { TextField } from "~/shared/forms";
 
 import type { CaptureActionResult, CaptureDeviceView } from "./routes/capture";
+import { buttonClassName } from "~/shared/ui";
 
 /** Everything this section renders that only the server can know. */
 export type CaptureSettingsData = {
@@ -255,7 +256,7 @@ function NewDeviceGroup() {
           control={
             <button
               type="submit"
-              className="dh-btn dh-btn--filled"
+              className={buttonClassName({ variant: "primary" })}
               disabled={!canSubmit || submitting}
             >
               {submitting ? "Creating…" : "Create token"}
@@ -312,7 +313,7 @@ function DeviceRow({ device }: { readonly device: CaptureDeviceView }) {
             <input type="hidden" name="id" value={device.id} />
             <button
               type="submit"
-              className="dh-btn dh-btn--outlined"
+              className={buttonClassName({ variant: "secondary" })}
               disabled={revoking}
             >
               {revoking ? "Revoking…" : "Revoke"}

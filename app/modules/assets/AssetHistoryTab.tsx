@@ -26,6 +26,7 @@ import { OverflowMenu } from "~/shared/overflow-menu";
 
 import type { SerializedAssetEvent } from "./asset-history-view";
 import type { AssetHistoryPage, AssetHistoryResult } from "./routes/history";
+import { buttonClassName } from "~/shared/ui";
 
 /** The fast-capture actions, in the order an owner reaches for them (§13). */
 export type QuickEventAction =
@@ -232,7 +233,7 @@ export function AssetHistoryTab({
           <>
             <button
               type="button"
-              className="dh-btn dh-btn--ghost"
+              className={buttonClassName({ variant: "subtle" })}
               onClick={() => onQuickAction(primary.id)}
             >
               {primary.label}
@@ -319,7 +320,10 @@ export function AssetHistoryTab({
                 <p className="dh-asset-history__item-actions">
                   <button
                     type="button"
-                    className="dh-btn dh-btn--ghost dh-btn--sm"
+                    className={buttonClassName({
+                      variant: "subtle",
+                      size: "sm",
+                    })}
                     onClick={() => onEditEvent(event)}
                   >
                     Edit
@@ -327,7 +331,10 @@ export function AssetHistoryTab({
                   </button>
                   <button
                     type="button"
-                    className="dh-btn dh-btn--ghost dh-btn--sm"
+                    className={buttonClassName({
+                      variant: "subtle",
+                      size: "sm",
+                    })}
                     onClick={() => void removeEvent(event)}
                   >
                     Remove
@@ -344,7 +351,7 @@ export function AssetHistoryTab({
         <p className="dh-asset-history__more">
           <button
             type="button"
-            className="dh-btn dh-btn--ghost"
+            className={buttonClassName({ variant: "subtle" })}
             disabled={loading}
             onClick={() => void fetchPage(cursor, category, false)}
           >

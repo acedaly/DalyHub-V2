@@ -81,6 +81,7 @@ import {
 import { useAttendeeSearch } from "../use-attendee-search";
 import type { FollowUpTaskEntry } from "../follow-up-view";
 import type { Route } from "./+types/detail";
+import { buttonClassName } from "~/shared/ui";
 
 /** A bound on how many follow-up Tasks a single meeting record resolves at once. */
 const FOLLOW_UP_CAP = 100;
@@ -948,7 +949,7 @@ function MeetingRecord({
                       control={
                         <button
                           type="button"
-                          className="dh-btn dh-btn--secondary"
+                          className={buttonClassName({ variant: "secondary" })}
                           onClick={() =>
                             void post({
                               intent: m.archivedAt ? "restore" : "archive",
@@ -1206,7 +1207,7 @@ function MeetingAttendees({
               {!readOnly ? (
                 <button
                   type="button"
-                  className="dh-btn dh-btn--ghost"
+                  className={buttonClassName({ variant: "subtle" })}
                   aria-label={`Remove attendee ${attendee.title}`}
                   onClick={() =>
                     void onPost({
@@ -1252,7 +1253,7 @@ function MeetingAttendees({
           />
           <button
             type="submit"
-            className="dh-btn dh-btn--secondary"
+            className={buttonClassName({ variant: "secondary" })}
             disabled={selected.length === 0}
           >
             Add selected

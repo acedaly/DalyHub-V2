@@ -47,6 +47,7 @@ import { DiaryTypeFilter } from "./DiaryTypeFilter";
 import type { SerializedDayGroup } from "./diary-view";
 import { formatDayKeyLong } from "./occurred-time";
 import type { DiaryMode } from "./routes/index";
+import { buttonClassName } from "~/shared/ui";
 
 /** The workspace loader payload (both success and calm-failure shapes). */
 export interface DiaryWorkspaceViewProps {
@@ -435,7 +436,10 @@ function DiaryWorkspaceInner(props: DiaryWorkspaceViewProps) {
           // complementary, not duplicates.
           <button
             type="button"
-            className="dh-btn dh-btn--primary dh-diary-header-create"
+            className={buttonClassName({
+              variant: "primary",
+              className: "dh-diary-header-create",
+            })}
             onClick={openCapture}
           >
             <CreateActionLabel>New diary entry</CreateActionLabel>
@@ -480,7 +484,7 @@ function DiaryWorkspaceInner(props: DiaryWorkspaceViewProps) {
             primaryAction={
               <button
                 type="button"
-                className="dh-btn dh-btn--primary"
+                className={buttonClassName({ variant: "primary" })}
                 onClick={openCapture}
               >
                 <CreateActionLabel>New diary entry</CreateActionLabel>
@@ -497,7 +501,7 @@ function DiaryWorkspaceInner(props: DiaryWorkspaceViewProps) {
             description="No diary entries match the current type. Clear the filter to see more."
             primaryAction={
               <a
-                className="dh-btn dh-btn--secondary"
+                className={buttonClassName({ variant: "secondary" })}
                 href={clearTypeHref(searchParams)}
               >
                 Clear filter

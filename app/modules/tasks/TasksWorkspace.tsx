@@ -60,7 +60,7 @@ import { helpTopicHref } from "~/shared/help";
 import { EntityIcon } from "~/shared/entity";
 import { LoadMore } from "~/shared/load-more";
 import { useFeedback } from "~/shared/feedback";
-import { Button } from "~/shared/ui";
+import { Button, buttonClassName } from "~/shared/ui";
 import { type TaskRowFieldSave } from "~/shared/task-record/TaskRowFields";
 import { TaskRow, type TaskRowProps } from "~/shared/task-record/TaskRow";
 import { TaskTitleEditor } from "~/shared/task-record/TaskTitleEditor";
@@ -1746,7 +1746,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
           primaryAction={
             <DrawerTrigger
               drawerKey={NEW_TASK_KEY}
-              className="dh-btn dh-btn--primary"
+              className={buttonClassName({ variant: "primary" })}
             >
               New task
             </DrawerTrigger>
@@ -1757,7 +1757,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
           // does the same thing as the first.
           secondaryAction={
             <Link
-              className="dh-btn dh-btn--secondary"
+              className={buttonClassName({ variant: "secondary" })}
               to={helpTopicHref("scheduled-vs-due")}
             >
               How tasks work

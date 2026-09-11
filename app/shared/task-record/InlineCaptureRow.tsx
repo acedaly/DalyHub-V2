@@ -47,6 +47,7 @@ import {
 } from "~/shared/task-record/quick-capture";
 import { useTagVocabulary } from "~/shared/tags";
 import { useCompactViewport } from "~/shared/viewport";
+import { buttonClassName } from "~/shared/ui";
 
 /**
  * Where a captured task lands. Structurally the intersection of the two
@@ -313,7 +314,10 @@ export function InlineCaptureRow({
       />
       <button
         type="submit"
-        className="dh-btn dh-btn--secondary dh-tasks-quickadd__submit"
+        className={buttonClassName({
+          variant: "secondary",
+          className: "dh-tasks-quickadd__submit",
+        })}
         disabled={busy || title.trim().length === 0}
       >
         {busy ? "Adding…" : "Add"}
@@ -321,7 +325,10 @@ export function InlineCaptureRow({
       {onOpenFullForm ? (
         <button
           type="button"
-          className="dh-btn dh-btn--ghost dh-tasks-quickadd__more"
+          className={buttonClassName({
+            variant: "subtle",
+            className: "dh-tasks-quickadd__more",
+          })}
           onClick={onOpenFullForm}
         >
           More options

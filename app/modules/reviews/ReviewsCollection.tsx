@@ -48,7 +48,7 @@ import {
   useCollectionLoading,
 } from "~/shared/collection-layout";
 import { EmptyState } from "~/shared/empty-state";
-import { Input } from "~/shared/ui";
+import { buttonClassName, Input } from "~/shared/ui";
 import { helpTopicHref } from "~/shared/help";
 import { EntityIcon } from "~/shared/entity";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
@@ -327,7 +327,10 @@ export function ReviewsCollectionView({
       presentation="grid"
       viewSwitcher={viewSwitcher}
       primaryAction={
-        <Link className="dh-btn dh-btn--primary" to="/reviews/new">
+        <Link
+          className={buttonClassName({ variant: "primary" })}
+          to="/reviews/new"
+        >
           <CreateActionLabel>New review</CreateActionLabel>
         </Link>
       }
@@ -348,7 +351,10 @@ export function ReviewsCollectionView({
           title="No Reviews yet"
           description="Start a weekly, monthly, quarterly, annual or custom review."
           primaryAction={
-            <Link className="dh-btn dh-btn--primary" to="/reviews/new">
+            <Link
+              className={buttonClassName({ variant: "primary" })}
+              to="/reviews/new"
+            >
               <CreateActionLabel>New review</CreateActionLabel>
             </Link>
           }
@@ -357,7 +363,7 @@ export function ReviewsCollectionView({
           // offering the button.
           secondaryAction={
             <Link
-              className="dh-btn dh-btn--secondary"
+              className={buttonClassName({ variant: "secondary" })}
               to={helpTopicHref("reviews")}
             >
               What Reviews are for
@@ -420,7 +426,10 @@ export function ReviewsCollectionView({
                      * PERIOD — the same finding D24 made about the Project
                      * card's status pill. An outline is unmistakably a control
                      * and still lets the date range lead. */
-                    className="dh-btn dh-btn--outlined dh-btn--sm"
+                    className={buttonClassName({
+                      variant: "secondary",
+                      size: "sm",
+                    })}
                     to={`/reviews/${encodeURIComponent(review.id)}/guide`}
                   >
                     {review.authoredSections === 0 ? "Start" : "Continue"}

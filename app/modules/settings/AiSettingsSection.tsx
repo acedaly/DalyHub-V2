@@ -28,6 +28,7 @@ import {
 } from "~/kernel/ai";
 import { SelectField } from "~/shared/forms";
 import { SettingsGroup, SettingsLayout, SettingsRow } from "~/shared/settings";
+import { buttonClassName } from "~/shared/ui";
 
 /** Everything the section renders. Assembled server-side; carries no secret. */
 export interface AiSettingsData {
@@ -86,7 +87,7 @@ export function AiSettingsSection({ data }: { readonly data: AiSettingsData }) {
             <button
               id={ids.controlId}
               type="button"
-              className="dh-btn dh-btn--ghost"
+              className={buttonClassName({ variant: "subtle" })}
               aria-describedby={ids.describedById}
               onClick={() => set("enabled", data.enabled ? "0" : "1")}
             >
@@ -244,7 +245,7 @@ export function AiSettingsSection({ data }: { readonly data: AiSettingsData }) {
             <button
               id={ids.controlId}
               type="button"
-              className="dh-btn dh-btn--ghost"
+              className={buttonClassName({ variant: "subtle" })}
               aria-labelledby={`${ids.labelId} ${ids.controlId}`}
               aria-describedby={ids.describedById}
               onClick={() =>
@@ -296,7 +297,7 @@ export function AiSettingsSection({ data }: { readonly data: AiSettingsData }) {
               <button
                 id={ids.controlId}
                 type="button"
-                className="dh-btn dh-btn--ghost"
+                className={buttonClassName({ variant: "subtle" })}
                 aria-labelledby={`${ids.labelId} ${ids.controlId}`}
                 aria-describedby={ids.describedById}
                 onClick={() =>
@@ -326,7 +327,7 @@ export function AiSettingsSection({ data }: { readonly data: AiSettingsData }) {
               <button
                 id={ids.controlId}
                 type="button"
-                className="dh-btn dh-btn--ghost"
+                className={buttonClassName({ variant: "subtle" })}
                 aria-labelledby={`${ids.labelId} ${ids.controlId}`}
                 aria-describedby={ids.describedById}
                 onClick={() =>
@@ -350,7 +351,7 @@ export function AiSettingsSection({ data }: { readonly data: AiSettingsData }) {
             <button
               id={ids.controlId}
               type="button"
-              className="dh-btn dh-btn--ghost"
+              className={buttonClassName({ variant: "subtle" })}
               aria-labelledby={`${ids.labelId} ${ids.controlId}`}
               aria-describedby={ids.describedById}
               onClick={() =>
@@ -377,7 +378,7 @@ export function AiSettingsSection({ data }: { readonly data: AiSettingsData }) {
             <button
               id={ids.controlId}
               type="button"
-              className="dh-btn dh-btn--ghost"
+              className={buttonClassName({ variant: "subtle" })}
               aria-labelledby={`${ids.labelId} ${ids.controlId}`}
               aria-describedby={ids.describedById}
               onClick={() =>

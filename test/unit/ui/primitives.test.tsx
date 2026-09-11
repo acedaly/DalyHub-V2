@@ -166,12 +166,41 @@ describe("DS-02 Button", () => {
   });
 
   it("exposes the same class list to a non-button element", () => {
-    // `buttonClassName` is the supported escape hatch for a router `<Link>`.
-    // If it drifted from the component, a migrated call site would silently
-    // stop looking like a button.
-    expect(buttonClassName({ variant: "primary", size: "sm" })).toBe(
-      "dh-button dh-button--primary dh-button--sm dh-btn dh-btn--primary dh-btn--sm",
+    // `buttonClassName` is the supported escape hatch for a router `<Link>`, a
+    // `<label>` acting as a file picker and a `DrawerTrigger`. If it drifted
+    // from the component, a migrated call site would silently stop looking like
+    // a button.
+    //
+    // UNTITLED-04 — it asserts the SOURCE rather than a frozen string. The
+    // recipe now comes from the vendored component's own exported `styles`, so
+    // freezing the literal would mean re-freezing it on every Untitled sync;
+    // what must hold is that the escape hatch and `<Button>` reach the same
+    // paint. The hook classes are checked here too because `:not(.dh-button)`
+    // in `ui.css` is what withdraws the legacy paint — without `dh-button` the
+    // element would take BOTH.
+    const classes = buttonClassName({ variant: "primary", size: "sm" }).split(
+      /\s+/,
     );
+    for (const expected of [
+      // Untitled's own primary recipe, from `base/buttons/button`.
+      "bg-brand-solid",
+      "text-white",
+      "hover:bg-brand-solid_hover",
+      // Untitled's `xs` size, which is what DalyHub's `sm` maps to.
+      "px-2.5",
+      "rounded-lg",
+      // The DalyHub hooks.
+      "dh-button",
+      "dh-button--primary",
+      "dh-button--sm",
+      "dh-btn",
+      "dh-btn--primary",
+      "dh-btn--sm",
+    ]) {
+      expect(classes, `buttonClassName is missing ${expected}`).toContain(
+        expected,
+      );
+    }
   });
 
   it("carries the legacy class so a migrated call site keeps module rules", () => {

@@ -79,7 +79,7 @@ import {
   planningEntryMinutes,
 } from "~/kernel/planning";
 import { DrawerProvider, useDrawer, withDrawerPushed } from "~/shared/drawer";
-import { Button } from "~/shared/ui";
+import { Button, buttonClassName } from "~/shared/ui";
 import { TaskGroup, TaskList } from "~/shared/task-record/TaskList";
 import { TaskRow, type TaskRowProps } from "~/shared/task-record/TaskRow";
 import { TaskTitleEditor } from "~/shared/task-record/TaskTitleEditor";
@@ -1357,7 +1357,10 @@ function PlanQueue({
             <div className="dh-plan__place" data-testid="plan-place-bar">
               <button
                 type="button"
-                className="dh-btn dh-btn--primary dh-plan__place-go"
+                className={buttonClassName({
+                  variant: "primary",
+                  className: "dh-plan__place-go",
+                })}
                 disabled={count === 0 || armed === null || placing}
                 data-testid="plan-place-selected"
                 onClick={() => {

@@ -42,13 +42,23 @@
 /* Controls                                                                   */
 /* -------------------------------------------------------------------------- */
 
-.dh-btn {
+/*
+ * UNTITLED-04 — `:not(.dh-button)`, like the rest of the legacy button paint.
+ *
+ * `box-shadow: none` here was the reason a shared `<Button>` had no ring and no
+ * elevation: Untitled draws both its `ring-1 ring-primary ring-inset` border and
+ * its `shadow-xs-skeuomorphic` lift THROUGH `box-shadow`, this stylesheet is
+ * unlayered, and one `none` therefore erased the entire secondary button's edge
+ * everywhere in the product. The radius did the same to Untitled's `rounded-lg`.
+ * See `ui.css`'s button section for the whole bridge.
+ */
+.dh-btn:not(.dh-button) {
   border-radius: var(--dh-radius-sm);
   font-weight: var(--dh-text-label-weight);
   box-shadow: none;
 }
 
-.dh-btn--primary {
+.dh-btn--primary:not(.dh-button) {
   box-shadow: none;
 }
 

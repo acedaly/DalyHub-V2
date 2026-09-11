@@ -30,6 +30,7 @@ import {
   type ProposalRowDraft,
 } from "~/shared/ai";
 import { money } from "~/shared/finance";
+import { buttonClassName } from "~/shared/ui";
 
 export interface FinanceCategorySuggestionsProps {
   /** Availability, resolved server-side by the transactions loader. */
@@ -69,7 +70,10 @@ export function FinanceCategorySuggestions({
             financial content, so it will not offer to. The suggestions DalyHub
             works out itself are unaffected.
           </p>
-          <a className="dh-btn dh-btn--ghost" href="/settings?section=ai">
+          <a
+            className={buttonClassName({ variant: "subtle" })}
+            href="/settings?section=ai"
+          >
             Open AI settings
           </a>
         </div>

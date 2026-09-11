@@ -46,6 +46,7 @@ import type {
 } from "./views-contract";
 import { viewsControlGroups, viewsResetParams } from "./views-controls";
 import { configFromParams } from "./views-url-state";
+import { buttonClassName } from "~/shared/ui";
 
 export interface ViewsWorkspaceProps {
   readonly data: ViewsPageData;
@@ -263,7 +264,10 @@ function ViewsEmptyState({ data }: { readonly data: ViewsPageData }) {
         title="No completed Review yet"
         description="This view compares against the period your last completed Review closed. Complete a Review and it will start answering."
         primaryAction={
-          <Link to="/reviews" className="dh-btn dh-btn--primary">
+          <Link
+            to="/reviews"
+            className={buttonClassName({ variant: "primary" })}
+          >
             Go to Reviews
           </Link>
         }
@@ -283,7 +287,7 @@ function ViewsEmptyState({ data }: { readonly data: ViewsPageData }) {
       title="Nothing matches this view"
       description="No records currently meet these conditions. Change what’s included above, or adjust the filters."
       primaryAction={
-        <Link to="/views" className="dh-btn dh-btn--primary">
+        <Link to="/views" className={buttonClassName({ variant: "primary" })}>
           Reset to Needs attention
         </Link>
       }

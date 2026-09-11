@@ -32,6 +32,7 @@ import type {
   DayContextCandidate,
   DayContextResponse,
 } from "./routes/day-context";
+import { buttonClassName } from "~/shared/ui";
 
 export interface DayContextSuggestionsProps {
   readonly entryId: string;
@@ -133,7 +134,10 @@ export function DayContextSuggestions({
             </span>
             <button
               type="button"
-              className="dh-btn dh-btn--secondary dh-day-context__link"
+              className={buttonClassName({
+                variant: "secondary",
+                className: "dh-day-context__link",
+              })}
               disabled={pendingId === candidate.id}
               onClick={() => void link(candidate)}
               aria-label={`Link ${candidate.title || "record"} to this diary entry`}

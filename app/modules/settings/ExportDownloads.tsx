@@ -23,6 +23,7 @@
 import { useCallback, useRef, useState } from "react";
 
 import { SettingsRow } from "~/shared/settings";
+import { buttonClassName } from "~/shared/ui";
 
 /** One export the owner can take. */
 type ExportFormat = "full" | "obsidian";
@@ -144,7 +145,7 @@ function ExportRow({
       control={
         <button
           type="button"
-          className="dh-btn dh-btn--secondary"
+          className={buttonClassName({ variant: "secondary" })}
           onClick={() => {
             void start();
           }}
