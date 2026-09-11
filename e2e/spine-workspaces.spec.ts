@@ -145,7 +145,14 @@ test.describe("REDESIGN-04 — the Projects collection", () => {
     await expect(
       page
         .getByRole("list", { name: "Projects" })
-        .or(page.getByRole("table", { name: /^Projects,/ })),
+        /*
+         * UNTITLED-04 — `grid`, not `table`. The presentation is Untitled's
+         * `application/table` over React Aria, which exposes an interactive
+         * data grid: the browser's row and column semantics are unchanged and
+         * the caption is the same sentence, but keyboard navigation is now the
+         * grid pattern's rather than a static table's.
+         */
+        .or(page.getByRole("grid", { name: /^Projects,/ })),
     ).toBeVisible();
 
     const first = projectRecords(page).first();
@@ -184,7 +191,8 @@ test.describe("REDESIGN-04 — the Projects collection", () => {
     await page.getByRole("tab", { name: "Table", exact: true }).click();
     await expect(page).toHaveURL(/[?&]present=table/);
 
-    const table = page.getByRole("table");
+    // UNTITLED-04 — `grid`; see the note above.
+    const table = page.getByRole("grid");
     await expect(table).toBeVisible();
     // A real table, so the browser's own row/column semantics apply.
     await expect(
@@ -203,14 +211,20 @@ test.describe("REDESIGN-04 — the Projects collection", () => {
     }
 
     await page.getByRole("tab", { name: "Grid", exact: true }).click();
-    await expect(page.getByRole("table")).toHaveCount(0);
+    await expect(page.getByRole("grid")).toHaveCount(0);
   });
 
   test("keeps the lifecycle tabs, with the mockup's word and the repository's values", async ({
     page,
   }) => {
     await gotoFixture(page, "/projects");
-    const rail = page.getByRole("navigation", { name: "Project views" });
+    /*
+     * UNTITLED-04 — the rail is a `tablist`, not a `navigation` landmark.
+     * Every option is still a real link to the URL that IS that view; what
+     * changed is that the set of them states itself with the ARIA tabs pattern,
+     * which is what Untitled's `application/tabs` builds on.
+     */
+    const rail = page.getByRole("tablist", { name: "Project views" });
     // The reference's word for `open`; the URL contract is untouched.
     await expect(rail.getByRole("tab", { name: "Active" })).toHaveAttribute(
       "href",
@@ -457,7 +471,8 @@ test.describe("REDESIGN-04 — the Goals workspace", () => {
     // one-click Restore, still no way IN to a soft-deleted record.
     await expect(
       page
-        .getByRole("navigation", { name: "Goal views" })
+        // UNTITLED-04 — a `tablist` of links; see the Projects note above.
+        .getByRole("tablist", { name: "Goal views" })
         .or(page.getByRole("group", { name: "Goal views" })),
     ).toBeVisible();
     await expectNoAxeViolations(page);

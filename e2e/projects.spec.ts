@@ -353,7 +353,8 @@ test.describe("PROJ-01 — Projects", () => {
     await expectNoAxeViolations(page);
 
     await gotoFixture(page, "/projects?present=table");
-    await expect(page.getByRole("table")).toBeVisible();
+    // UNTITLED-04 — Untitled's `application/table` exposes a `grid`.
+    await expect(page.getByRole("grid")).toBeVisible();
     await expectNoAxeViolations(page);
   });
 

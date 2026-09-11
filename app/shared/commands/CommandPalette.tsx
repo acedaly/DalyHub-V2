@@ -212,7 +212,10 @@ export default function CommandPalette({
               untitledButtonStyles.common.root,
               untitledButtonStyles.sizes.sm.root,
               untitledButtonStyles.colors.tertiary.root,
-              "dh-command__close min-w-11",
+              // UNTITLED-04 — the product's 44px target on both axes. Untitled's
+              // `sm` button is 40px tall, and this control is reached by thumb
+              // on a phone; `min-w-11` already stated the inline half.
+              "dh-command__close min-h-11 min-w-11",
             )}
             ref={closeButtonRef}
             onClick={onClose}

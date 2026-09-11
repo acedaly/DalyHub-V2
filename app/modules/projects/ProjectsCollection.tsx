@@ -652,7 +652,19 @@ function ProjectsCollection({
           className="flex w-full flex-wrap items-center gap-3 max-md:flex-col max-md:items-stretch"
           data-untitled-source="dashboards-01/02:filter-bar"
         >
-          <div className="-mx-1 min-w-0 flex-1 overflow-x-auto px-1">
+          {/*
+           * UNTITLED-04 — `min-w-0 flex-1`, and NO second scroller.
+           *
+           * `overflow-x-auto` here was a bug with a functional symptom rather
+           * than a visual one: the rail draws its own scroller, so this made a
+           * scroll container inside a scroll container, and focusing a tab on
+           * pointer-down scrolled the OUTER one. React Aria's `usePress`
+           * cancels a press when an ancestor scrolls during it — correctly, it
+           * is how it tells a tap from a flick — so every lifecycle tab on this
+           * collection silently did nothing when clicked with a mouse. Keyboard
+           * and middle-click were unaffected, which is why it survived review.
+           */}
+          <div className="min-w-0 flex-1">
             <ViewTabs
               param="state"
               options={STATE_OPTIONS}

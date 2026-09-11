@@ -146,7 +146,20 @@ export function EmptyState({
           )}
         </UntitledEmptyState.Header>
       ) : null}
-      <UntitledEmptyState.Content>
+      {/*
+       * Upstream's `Content` is a `<main>`, for the same reason `Title` is an
+       * `<h1>`: the component was drawn as a whole PAGE. DalyHub renders empty
+       * states inside a record tab, a collection and a drawer, so it produced a
+       * second `<main>` nested inside the shell's — two axe violations at once
+       * (`landmark-no-duplicate-main` and `landmark-main-is-top-level`), on
+       * every record with an empty tab.
+       *
+       * `role="presentation"` takes the element out of the accessibility tree as
+       * a landmark and changes nothing else: it is a layout box, its contents
+       * are announced exactly as before, and the vendored file — which
+       * `scripts/vendor-untitled.mjs` regenerates — stays untouched.
+       */}
+      <UntitledEmptyState.Content role="presentation">
         {/*
          * Upstream's `Title` is an `<h1>`, which is correct for the standalone
          * page it was drawn for and wrong for an empty state inside a record

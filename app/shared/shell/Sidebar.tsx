@@ -171,7 +171,10 @@ export function Sidebar({
           type="button"
           ref={closeButtonRef}
           onClick={onClose}
-          className="absolute top-4 right-4 flex size-10 items-center justify-center rounded-md text-fg-white/70 outline-focus-ring transition duration-100 ease-linear hover:bg-white/10 hover:text-fg-white focus-visible:outline-2 focus-visible:outline-offset-2"
+          /* UNTITLED-04 — `size-11`, the product's 44px target. This is the one
+           * way out of a sheet that covers the screen, reached by thumb, and it
+           * was drawn at 40px. */
+          className="absolute top-4 right-4 flex size-11 items-center justify-center rounded-md text-fg-white/70 outline-focus-ring transition duration-100 ease-linear hover:bg-white/10 hover:text-fg-white focus-visible:outline-2 focus-visible:outline-offset-2"
         >
           <CloseGlyph aria-hidden="true" className="size-5" />
           <span className="sr-only">Close navigation</span>

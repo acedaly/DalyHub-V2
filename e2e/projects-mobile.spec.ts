@@ -195,7 +195,8 @@ test.describe("PROJ-06 — mobile Projects", () => {
     // `navigation` of links rather than a `group` of segments. The NAME is
     // unchanged ("Project views"), because the one-vocabulary-across-every-
     // collection rule is about the wording, not about the control.
-    const filter = page.getByRole("navigation", { name: "Project views" });
+    // UNTITLED-04 — a `tablist` of links; see `spine-workspaces.spec.ts`.
+    const filter = page.getByRole("tablist", { name: "Project views" });
     await expect(filter).toBeVisible();
     /*
      * "Active", not "Open".

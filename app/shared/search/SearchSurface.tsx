@@ -263,7 +263,9 @@ export default function SearchSurface({
               untitledButtonStyles.common.root,
               untitledButtonStyles.sizes.sm.root,
               untitledButtonStyles.colors.tertiary.root,
-              "dh-search__close min-w-11",
+              // UNTITLED-04 — the product's 44px target on both axes, like the
+              // command palette's. `min-w-11` already stated the inline half.
+              "dh-search__close min-h-11 min-w-11",
             )}
             ref={closeButtonRef}
             onClick={onClose}

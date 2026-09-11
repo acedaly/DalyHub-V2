@@ -274,10 +274,16 @@ test.describe("AREA-02 — Goals", () => {
      * sits beside the derived ones rather than among them, and Deleted stays
      * last as the rail's least-frequent destination.
      */
-    await expect(rail.locator(".dh-viewtabs__tab")).toHaveCount(6);
-    await expect(rail.locator(".dh-viewtabs__tab").last()).toHaveText(
-      "Deleted",
-    );
+    /*
+     * UNTITLED-04 — addressed by ROLE, not by the retired class.
+     *
+     * `.dh-viewtabs__tab` came out with `view-tabs.css` when the rail moved to
+     * Untitled's `application/tabs`. The role is the better hook anyway: it is
+     * what a screen reader and a keyboard user actually get, and it cannot be
+     * satisfied by a `div` that happens to carry the class.
+     */
+    await expect(rail.getByRole("tab")).toHaveCount(6);
+    await expect(rail.getByRole("tab").last()).toHaveText("Deleted");
 
     // Nothing left in the header's view slot — no second rail, no segmented
     // control beside the title.

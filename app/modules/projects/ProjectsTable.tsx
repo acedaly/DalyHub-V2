@@ -119,7 +119,21 @@ export function ProjectsTable({
             label="Updated"
             className="w-[10%] whitespace-nowrap"
           />
-          <Table.Head id="actions" label="" className="w-[4%]" />
+          {/*
+           * The overflow column's header is NAMED, and hidden.
+           *
+           * An empty column header is `empty-table-header` — a real axe finding
+           * on the Projects collection, and a real one for a screen reader: a
+           * grid cell announces its column, so the row's actions were announced
+           * under nothing at all. Untitled's `label` renders visibly, so the
+           * name goes on the element instead and the header stays blank to the
+           * eye, which is what the column wants.
+           */}
+          <Table.Head
+            id="actions"
+            aria-label="Actions"
+            className="w-[4%]"
+          />
         </Table.Header>
         <Table.Body>
           {cards.map((card) => (

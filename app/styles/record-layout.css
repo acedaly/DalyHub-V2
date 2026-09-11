@@ -403,14 +403,26 @@
    * MOBILE-01 (iPhone daily driver) — a short label still gets a target.
    *
    * A two-character tab ("AI" on the Note and Meeting records) measured 27px
-   * across: full height, and barely half the touch floor. Stated on the INLINE
-   * axis only, so a long tab is unchanged and the strip's own scrolling absorbs
-   * the difference. The tab's type, padding and state are Untitled's
-   * (`application/tabs`); this is the one product rule on top of them.
+   * across: full height, and barely half the touch floor. The tab's type,
+   * padding and state are Untitled's (`application/tabs`); this is the one
+   * product rule on top of them.
+   *
+   * UNTITLED-04 — the BLOCK axis joined it. Untitled's underline tab is 32px
+   * tall, and when the strip moved onto `application/tabs` the record's own
+   * height went with the rules that were deleted — so every record tab on a
+   * phone was a 32px target. It is stated only on a coarse pointer, like the
+   * button family's floor: on a fine pointer 32px is Untitled's proportion and
+   * is correct.
    */
   .record-tab {
     min-inline-size: var(--app-touch-target-min);
     justify-content: center;
+  }
+
+  @media (hover: none) {
+    .record-tab {
+      min-block-size: var(--app-touch-target-min);
+    }
   }
 }
 
