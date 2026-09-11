@@ -21,7 +21,10 @@ export function Highlight({ text, ranges }: HighlightProps) {
     <>
       {segments.map((segment, index) =>
         segment.match ? (
-          <mark key={index} className="dh-search__mark">
+          <mark
+            key={index}
+            className="dh-search__mark rounded-xs bg-brand-primary_alt px-0.5 text-brand-secondary"
+          >
             {segment.text}
           </mark>
         ) : (

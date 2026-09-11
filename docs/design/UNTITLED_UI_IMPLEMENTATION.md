@@ -124,6 +124,23 @@ Current Phase 1 source layout:
   and `MobileNav.tsx` composing the desktop and mobile navigation surfaces.
 - The pathless authenticated route boundary is `app/routes/app-shell.tsx`.
 
+Current Phase 1.5 shell primitive boundary:
+
+- `SearchSurface` and `CommandPalette` preserve DalyHub's command/search
+  controllers and product semantics, but their generic modal input, action and
+  result chrome uses Untitled command-menu/button primitives and Tailwind v4
+  token classes.
+- `PaneHeader` is the shared DalyHub page-header composition for migrated pages.
+  It follows Untitled page-header structure while retaining DalyHub slots for
+  title, supporting text, status, metadata, page search, views, secondary
+  actions and one primary action.
+- `app/styles/search.css` is removed. `app/styles/command.css` no longer styles
+  the command/search surfaces; it only supports the shared keyboard-shortcuts
+  help content still used by legacy hosts.
+- The `.dh-pane-header*` selectors in `shell.css` remain temporary compatibility
+  for legacy collection layouts. Do not add new consumers to that CSS contract;
+  migrate pages toward the Untitled/Tailwind composition instead.
+
 ## Theme and tokens
 
 DalyHub uses a purple-led brand theme based on Untitled UI's brand-token

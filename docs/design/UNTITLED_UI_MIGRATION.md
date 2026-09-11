@@ -170,6 +170,69 @@ Temporary compatibility:
   name; the shell therefore keeps DalyHub/product identity as the honest visible
   fallback until a real workspace-display field exists.
 
+## Phase 1.5 baseline: shared shell primitives
+
+Status: implemented as a narrow bridge after the application shell foundation.
+
+Untitled references used:
+
+- Application UI component `command-menu`: reference for the global command and
+  search modal geometry, overlay treatment, command input anatomy, result list
+  density and keyboard-shortcut affordance.
+- Application UI component `page-headers`: reference for the shared DalyHub page
+  header grammar: title, supporting text, optional status/meta, actions, tabs or
+  filters without forcing every slot onto every page.
+- Existing imported Untitled components:
+  `application/command-menus/base-components/command-input`,
+  `base/buttons/button`, `base/buttons/button-utility`, `base/avatar/avatar`,
+  `base/tooltip/tooltip`, `application/app-navigation/base-components/nav-list`,
+  `application/app-navigation/base-components/nav-item`,
+  `application/app-navigation/base-components/nav-account-card` and
+  `application/slideout-menus/slideout-menu`.
+
+Implementation notes:
+
+- `SearchSurface` and `CommandPalette` now use Untitled's command input and
+  button primitives for shell-level presentation while preserving DalyHub's
+  existing controllers, shortcuts, result grouping, command execution, recents,
+  search privacy rules, stale-result inertness and route/drawer destinations.
+- The old `app/styles/search.css` shell stylesheet was removed. Search result
+  hooks remain in markup as stable test/product-semantic hooks, but the generic
+  chrome is now Tailwind/Untitled-token driven.
+- The command-surface section of `app/styles/command.css` was removed. That file
+  now keeps only the shared keyboard-shortcuts reference styles still consumed
+  by the app-wide help sheet and legacy Today drawer.
+- `PaneHeader` now carries the shared Untitled/Tailwind page-header composition
+  in source and keeps its broad slot grammar for migrated pages.
+
+Remaining shell compatibility:
+
+- `PaneHeader` still keeps the `.dh-pane-header*` class family because legacy
+  collection layouts and feature CSS target those selectors. Remove those
+  selectors only when Today/Tasks and the other collection surfaces have adopted
+  Untitled-native header/layout primitives.
+- Search and command surfaces still reuse DalyHub's drawer focus, scroll-lock
+  and inertness hooks to preserve tested focus restoration and background
+  inertness. Replace that compatibility layer only when a React Aria/Untitled
+  overlay can preserve the exact command/search behaviour.
+- `NotificationBell`, global capture and keyboard-help sheets remain
+  product-specific shell compositions. They should migrate underneath to
+  Untitled primitives as their own narrow phases, without changing notification,
+  capture or shortcut semantics.
+- `AppearanceSelector` is still a shared account-menu/Settings form with
+  `.dh-appearance*` and `md-state-layer` styling. It persists real preference
+  data and is intentionally retained until Settings can migrate with the same
+  control, so the account menu and Settings do not diverge.
+
+MCP/catalogue note:
+
+- The Untitled MCP/component catalogue was queried for command menus, page
+  headers, sidebar/mobile navigation and application templates during this
+  phase, but the service returned HTTP 429. The phase therefore relied on the
+  genuine Untitled source already imported into DalyHub plus the official docs
+  pages for command menus, page headers, sidebar navigations, theming, dark mode,
+  components and introduction.
+
 ## Dependencies
 
 - Licensed Untitled UI React Pro source and configured discovery workflow.

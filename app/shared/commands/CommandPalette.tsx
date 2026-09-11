@@ -17,6 +17,7 @@
 
 import { useCallback, useEffect, useId, useRef } from "react";
 import type { KeyboardEvent, MouseEvent } from "react";
+import { TextField as AriaTextField } from "react-aria-components";
 import { useLocation } from "react-router";
 
 import { useBodyScrollLock } from "~/shared/drawer/use-body-scroll-lock";
@@ -31,6 +32,12 @@ import {
   destinationHref,
   type SearchFn,
 } from "~/shared/search";
+import { CommandInput } from "~/shared/ui/untitled/application/command-menus/base-components/command-input";
+import {
+  Button,
+  styles as untitledButtonStyles,
+} from "~/shared/ui/untitled/base/buttons/button";
+import { cx } from "~/shared/ui/untitled/utils/cx";
 
 import { useContextualActions } from "./CommandContextProvider";
 import { formatShortcut } from "./model";
@@ -174,42 +181,57 @@ export default function CommandPalette({
       : null;
 
   return (
-    <div className="dh-command" role="presentation" ref={modalRootRef}>
+    <div
+      className="dh-command fixed inset-0 z-[var(--dh-layer-modal)] flex flex-col items-center overflow-y-auto bg-overlay/70 p-4 text-center backdrop-blur md:pt-16 xl:pt-[clamp(64px,10vh,243px)]"
+      role="presentation"
+      ref={modalRootRef}
+      data-untitled-source="command-menu"
+    >
       <div
-        className="dh-command__scrim dh-motion-scrim"
+        className="dh-command__scrim dh-motion-scrim fixed inset-0 cursor-default border-0 bg-transparent"
         onClick={onClose}
         aria-hidden="true"
       />
       <div
-        className="dh-command__panel dh-motion-lift"
+        className="dh-command__panel dh-motion-lift relative flex max-h-[min(34rem,calc(100vh-2rem))] w-full max-w-160 flex-col overflow-hidden rounded-xl bg-primary text-left align-middle shadow-xl ring-1 ring-secondary_alt sm:max-h-[min(34rem,calc(100vh-4rem))]"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         ref={panelRef}
       >
-        <div className="dh-command__header">
-          <h2 className="dh-command__title" id={titleId}>
+        <div className="dh-command__header flex items-center justify-between gap-3 px-4 pt-3">
+          <h2
+            className="dh-command__title m-0 text-xs font-semibold tracking-wide text-tertiary uppercase"
+            id={titleId}
+          >
             Command palette
           </h2>
           <button
             type="button"
-            className="dh-command__close"
+            className={cx(
+              untitledButtonStyles.common.root,
+              untitledButtonStyles.sizes.sm.root,
+              untitledButtonStyles.colors.tertiary.root,
+              "dh-command__close min-w-11",
+            )}
             ref={closeButtonRef}
             onClick={onClose}
+            aria-label="Close command palette"
           >
-            <span aria-hidden="true">Esc</span>
-            <span className="dh-visually-hidden">Close command palette</span>
+            <span data-text aria-hidden="true" className="px-0.5">
+              Esc
+            </span>
           </button>
         </div>
 
-        <div className="dh-command__inputrow">
-          <span className="dh-command__inputicon" aria-hidden="true">
-            <CommandIcon />
-          </span>
-          <input
+        <AriaTextField
+          aria-label="Search commands and records"
+          className="relative border-b border-secondary p-3"
+        >
+          <CommandInput
             ref={inputRef}
             type="text"
-            className="dh-command__input"
+            className="dh-command__inputrow p-3"
             name="command"
             placeholder="What do you want to do?"
             autoComplete="off"
@@ -223,8 +245,9 @@ export default function CommandPalette({
             value={controller.query}
             onChange={(event) => controller.setQuery(event.target.value)}
             onKeyDown={handleInputKeyDown}
+            shortcutKeys={["⌘", "K"]}
           />
-        </div>
+        </AriaTextField>
 
         <CommandFeedback controller={controller} />
 
@@ -234,8 +257,11 @@ export default function CommandPalette({
             aria-activedescendant drives option navigation. This directly conflicts
             with jsx-a11y/no-noninteractive-tabindex’s heuristic, so it is disabled
             here with intent. */}
-        {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
-        <div className="dh-command__results" tabIndex={0}>
+        {/* eslint-disable jsx-a11y/no-noninteractive-tabindex */}
+        <div
+          className="dh-command__results flex-1 overflow-y-auto p-2"
+          tabIndex={0}
+        >
           <CommandResults
             controller={controller}
             listboxId={listboxId}
@@ -244,8 +270,9 @@ export default function CommandPalette({
             currentLocation={location}
           />
         </div>
+        {/* eslint-enable jsx-a11y/no-noninteractive-tabindex */}
 
-        <div className="dh-command__footer">
+        <div className="dh-command__footer flex items-center justify-between gap-3 border-t border-secondary px-4 py-2 text-xs text-tertiary">
           {/*
            * The count says WHAT it is counting.
            *
@@ -264,7 +291,10 @@ export default function CommandPalette({
               ? `${controller.view.count} ${controller.view.count === 1 ? "result" : "results"}`
               : ""}
           </span>
-          <span className="dh-command__hint" aria-hidden="true">
+          <span
+            className="dh-command__hint whitespace-nowrap max-sm:hidden"
+            aria-hidden="true"
+          >
             ↑↓ to navigate · Enter to run · Esc to close
           </span>
         </div>
@@ -290,30 +320,40 @@ function CommandFeedback({ controller }: { controller: CommandController }) {
   }
   if (execution.phase === "pending") {
     return (
-      <p className="dh-command__feedback" data-tone="pending" role="note">
+      <p
+        className="dh-command__feedback m-0 flex items-center gap-3 border-b border-secondary px-4 py-2 text-xs text-tertiary"
+        data-tone="pending"
+        role="note"
+      >
         Running…
       </p>
     );
   }
   if (execution.phase === "success") {
     return execution.message ? (
-      <p className="dh-command__feedback" data-tone="success" role="note">
+      <p
+        className="dh-command__feedback m-0 flex items-center gap-3 border-b border-success_subtle bg-success-primary px-4 py-2 text-xs text-success-primary"
+        data-tone="success"
+        role="note"
+      >
         {execution.message}
       </p>
     ) : null;
   }
   // error
   return (
-    <p className="dh-command__feedback" data-tone="error" role="note">
-      <span className="dh-command__feedback-text">{execution.message}</span>
+    <p
+      className="dh-command__feedback m-0 flex items-center gap-3 border-b border-error_subtle bg-error-primary px-4 py-2 text-xs text-error-primary"
+      data-tone="error"
+      role="note"
+    >
+      <span className="dh-command__feedback-text min-w-0 flex-1">
+        {execution.message}
+      </span>
       {execution.retryable ? (
-        <button
-          type="button"
-          className="dh-command__retry"
-          onClick={controller.retryExecution}
-        >
+        <Button size="sm" onPress={controller.retryExecution}>
           Retry
-        </button>
+        </Button>
       ) : null}
     </p>
   );
@@ -347,13 +387,9 @@ function CommandResults({
         headingLevel={3}
         description="You can still search records below."
         primaryAction={
-          <button
-            type="button"
-            className="dh-command__retry"
-            onClick={controller.retryCatalogue}
-          >
+          <Button size="sm" onPress={controller.retryCatalogue}>
             Try again
-          </button>
+          </Button>
         }
       />
     ) : null;
@@ -364,13 +400,17 @@ function CommandResults({
     }
     if (!hasQuery) {
       return (
-        <p className="dh-command__idle">
+        <p className="dh-command__idle m-0 p-4 text-sm text-tertiary">
           Type to search commands and records, or press ↓ to browse.
         </p>
       );
     }
     if (searchPhase === "loading") {
-      return <p className="dh-command__idle">Searching…</p>;
+      return (
+        <p className="dh-command__idle m-0 p-4 text-sm text-tertiary">
+          Searching…
+        </p>
+      );
     }
     return (
       <EmptyState
@@ -386,7 +426,10 @@ function CommandResults({
     <>
       {catalogueNote}
       {controller.searchIsPartial ? (
-        <p className="dh-command__partial" role="note">
+        <p
+          className="dh-command__partial m-0 mb-2 rounded-lg bg-warning-primary px-4 py-3 text-sm text-warning-primary"
+          role="note"
+        >
           Some record sources didn’t respond. Showing what we found.
         </p>
       ) : null}
@@ -448,10 +491,20 @@ function CommandGroup({
       ? (getEntityIdentity(section.entityType)?.pluralLabel ?? section.label)
       : section.label;
   return (
-    <div className="dh-command__group" role="group" aria-labelledby={headingId}>
-      <p className="dh-command__grouptitle" id={headingId}>
+    <div
+      className="dh-command__group mb-2"
+      role="group"
+      aria-labelledby={headingId}
+    >
+      <p
+        className="dh-command__grouptitle m-0 flex items-center gap-2 px-3 py-2 text-xs font-semibold tracking-wide text-tertiary uppercase"
+        id={headingId}
+      >
         {label}
-        <span className="dh-command__groupcount" aria-hidden="true">
+        <span
+          className="dh-command__groupcount ml-auto tabular-nums text-tertiary"
+          aria-hidden="true"
+        >
           {section.options.length}
         </span>
       </p>
@@ -520,23 +573,32 @@ function CommandOption({
 
   const body = (
     <>
-      <span className="dh-command__optionbody">
-        <span className="dh-command__optiontitle">
+      <span className="dh-command__optionbody flex min-w-0 flex-1 flex-col gap-px">
+        <span className="dh-command__optiontitle truncate text-sm font-medium text-primary">
           <Highlight text={command.title} ranges={titleMatches} />
         </span>
         {command.subtitle !== undefined ? (
-          <span className="dh-command__optionsubtitle">{command.subtitle}</span>
+          <span className="dh-command__optionsubtitle truncate text-xs text-tertiary">
+            {command.subtitle}
+          </span>
         ) : null}
       </span>
       {/* A visible, non-colour "Unavailable" cue (never opacity/colour alone). */}
       {disabled ? (
-        <span className="dh-command__optionunavailable">Unavailable</span>
+        <span className="dh-command__optionunavailable shrink-0 rounded-full border border-secondary px-2 text-xs font-medium tracking-wide text-tertiary">
+          Unavailable
+        </span>
       ) : null}
       {command.moduleLabel !== undefined ? (
-        <span className="dh-command__optiontype">{command.moduleLabel}</span>
+        <span className="dh-command__optiontype shrink-0 pl-2 text-xs tracking-wide text-tertiary">
+          {command.moduleLabel}
+        </span>
       ) : null}
       {shortcut !== null ? (
-        <kbd className="dh-command__optionshortcut" aria-hidden="true">
+        <kbd
+          className="dh-command__optionshortcut shrink-0 rounded border border-secondary bg-secondary px-1.5 py-0.5 font-mono text-xs text-tertiary"
+          aria-hidden="true"
+        >
           {shortcut}
         </kbd>
       ) : null}
@@ -550,7 +612,7 @@ function CommandOption({
       aria-selected={showActive}
       aria-disabled={disabled || undefined}
       aria-busy={pending || undefined}
-      className="dh-command__option"
+      className="dh-command__option rounded-lg"
       data-active={showActive || undefined}
       data-disabled={disabled || undefined}
       data-pending={pending || undefined}
@@ -559,11 +621,17 @@ function CommandOption({
         // Non-interactive: no button/link, no click, no hover-to-activate — the
         // controller guard is the authoritative boundary, this removes the
         // affordance so pointer/keyboard cannot reach a handler at all.
-        <span className="dh-command__optionstatic">{body}</span>
+        <span className="dh-command__optionstatic flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-inherit opacity-60">
+          {body}
+        </span>
       ) : (
         <button
           type="button"
-          className="dh-command__optionbtn"
+          className={cx(
+            "dh-command__optionbtn flex min-h-11 w-full cursor-pointer items-center gap-3 rounded-lg border-0 bg-transparent px-3 py-2 text-left text-inherit transition duration-100 ease-linear",
+            showActive &&
+              "bg-brand-primary_alt outline-1 -outline-offset-1 outline-brand",
+          )}
           tabIndex={-1}
           onClick={() => onActivate(option)}
           onMouseMove={() => onHover(option.index)}
@@ -610,11 +678,15 @@ function ResultOption({
       id={domId}
       role="option"
       aria-selected={active}
-      className="dh-command__option"
+      className="dh-command__option rounded-lg"
       data-active={active || undefined}
     >
       <a
-        className="dh-command__optionlink"
+        className={cx(
+          "dh-command__optionlink flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-inherit no-underline transition duration-100 ease-linear",
+          active &&
+            "bg-brand-primary_alt outline-1 -outline-offset-1 outline-brand",
+        )}
         href={href}
         tabIndex={-1}
         onClick={(event) => {
@@ -626,19 +698,22 @@ function ResultOption({
         }}
         onMouseMove={() => onHover(option.index)}
       >
-        <span className="dh-command__optionicon" aria-hidden="true">
+        <span
+          className="dh-command__optionicon inline-flex shrink-0"
+          aria-hidden="true"
+        >
           {identity !== null ? (
             <EntityIcon type={identity.type} />
           ) : (
             <InboxIcon />
           )}
         </span>
-        <span className="dh-command__optionbody">
-          <span className="dh-command__optiontitle">
+        <span className="dh-command__optionbody flex min-w-0 flex-1 flex-col gap-px">
+          <span className="dh-command__optiontitle truncate text-sm font-medium text-primary">
             <Highlight text={result.title} ranges={result.titleMatches} />
           </span>
           {result.subtitle !== undefined ? (
-            <span className="dh-command__optionsubtitle">
+            <span className="dh-command__optionsubtitle truncate text-xs text-tertiary">
               <Highlight
                 text={result.subtitle}
                 ranges={result.subtitleMatches}
@@ -647,7 +722,9 @@ function ResultOption({
           ) : null}
         </span>
         {typeLabel !== undefined ? (
-          <span className="dh-command__optiontype">{typeLabel}</span>
+          <span className="dh-command__optiontype shrink-0 pl-2 text-xs tracking-wide text-tertiary">
+            {typeLabel}
+          </span>
         ) : null}
       </a>
     </div>
