@@ -369,8 +369,8 @@ landed on `main` first — kept `088`.)
 
 ## ADR-020: The Application Frame — Sidebar Shell, Pane, Collection Layout and Entity Identity
 
-- **Status.** Accepted (2026-07-19). Implements [PX-02](../roadmap/ROADMAP_V2.md#-px-02--product-frame) and the shell-alignment recommendations of [`PRODUCT_EXPERIENCE.md`](../design/PRODUCT_EXPERIENCE.md) (#1–#5, #9, #11, #14, #15). Composes DS-01…DS-04/DS-07 and refines the FND-09 shell ([ADR-016](#adr-016-cloudflare-access-identity-app-shell-and-registry-driven-routing)); it does not change their contracts.
-- **Context.** After FND-09, DS-01…04 and DS-07 shipped, the *component* layer was premium-grade but the *assembled* product read as "a well-made website hosting excellent components" ([`PRODUCT_EXPERIENCE.md`](../design/PRODUCT_EXPERIENCE.md) Part I): a wrapping top-bar nav that cannot scale to eleven modules, settings chrome (theme, raw email) permanently in the header, a centred document column instead of a workspace pane, no icon/entity-identity system, and no named scaffold for the product's commonest screen (a filtered collection). Every one of these is cheapest to fix **before TODAY-01** pours the first product surface into the frame. DS-01 even defined `--dh-shell-nav-width` that nothing consumed. This ADR settles the durable frame every future module inherits.
+- **Status.** Accepted (2026-07-19). Implements [PX-02](../roadmap/ROADMAP_V2.md#-px-02--product-frame) and the shell-alignment recommendations of [`PRODUCT_EXPERIENCE.md`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records) (#1–#5, #9, #11, #14, #15). Composes DS-01…DS-04/DS-07 and refines the FND-09 shell ([ADR-016](#adr-016-cloudflare-access-identity-app-shell-and-registry-driven-routing)); it does not change their contracts.
+- **Context.** After FND-09, DS-01…04 and DS-07 shipped, the *component* layer was premium-grade but the *assembled* product read as "a well-made website hosting excellent components" ([`PRODUCT_EXPERIENCE.md`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records) Part I): a wrapping top-bar nav that cannot scale to eleven modules, settings chrome (theme, raw email) permanently in the header, a centred document column instead of a workspace pane, no icon/entity-identity system, and no named scaffold for the product's commonest screen (a filtered collection). Every one of these is cheapest to fix **before TODAY-01** pours the first product surface into the frame. DS-01 even defined `--dh-shell-nav-width` that nothing consumed. This ADR settles the durable frame every future module inherits.
 - **Decision.**
   - **§20.1 A sidebar + pane application frame.** `AppShell` ([`app/shared/shell`](../../app/shared/shell)) is a two-column grid `grid-template-columns: var(--dh-shell-nav-width) 1fr`: a **persistent left sidebar** (workspace brand, Search + Command Palette entries, registry-driven primary navigation, a spacer, the user menu) and a **full-height content pane**. The frame composes exactly once and consumes only plain data; modules render *inside* the pane and never build their own shell, provider or z-index layer (PRODUCT_EXPERIENCE Part IV §2). The FND-09 acceptance properties (registry-driven nav, skip link, `aria-current`, keyboard-completeness, the theme mechanism) carry over unchanged — this is a re-arrangement of the same semantic parts, not a rebuild.
   - **§20.2 Document-scroll with a sticky sidebar (not an internal pane scroll).** The **document** remains the scroll container and the sidebar is `position: sticky`, rather than giving the pane its own `overflow` scroll. This deliberately preserves the [DS-03 Drawer](#adr-018-the-shared-drawer--url-driven-history-stacked-focus-isolated) contract — its body-scroll lock and `ScrollRestoration` act on the window/document — while still letting the Pane Header and FilterBar pin via `position: sticky` to the viewport. Width limits live in content types (prose/record widths on their own containers), never on the pane (PRODUCT_EXPERIENCE #2).
@@ -537,7 +537,7 @@ landed on `main` first — kept `088`.)
 ## ADR-025: The global interaction layer — Feedback platform (notifications, undo, background operations) and the shared Inspector
 
 - **Status.** Accepted (2026-07-20). Delivers the Inspector + feedback-states scope of [DS-10](../roadmap/ROADMAP_V2.md#-ds-10--inspector-settings-and-feedback-states) (Settings-layout is split to a follow-up — see Consequences). Builds on [ADR-018](#adr-018-the-shared-drawer--url-driven-history-stacked-focus-isolated) (the DS-03 focus/inert/scroll-lock hooks and the URL-driven open model, both reused), [ADR-022](#adr-022-shared-forms--field-controls--declared-save-model-validation-boundary-and-the-entity-link-picker) (the Inspector edits through DS-06 controls with the autosave coordinator), [ADR-020](#adr-020-the-application-frame--sidebar-shell-pane-collection-layout-and-entity-identity) (the AppShell boundary where the feedback provider mounts, and the entity identity), and [ADR-024 §24.13](#adr-024-command-palette--quick-actions--command-kinds-trusted-catalogue-authenticated-execution-and-one-shared-action) (which explicitly reserved "the DS-10 feedback surface" as the prerequisite for global executable-command dispatch).
-- **Context.** Every earlier DS item deferred a common need: a place to *tell the user what happened*. DS-09 could not dispatch executable command shortcuts globally because there was no pending/success/failure surface outside the palette; [PRODUCT_EXPERIENCE #8](../design/PRODUCT_EXPERIENCE.md) flagged that TODAY-02's first real mutation would ship silent without a toast/undo layer; the [interaction philosophy](../../AGENTS.md#7-interaction-philosophy) mandates "optimistic and reversible… prefer undo over confirmation"; and the DESIGN_SYSTEM's [Inspector](../design/DESIGN_SYSTEM.md#inspector) promised one depth-editing surface every module reuses instead of bespoke edit drawers. The forces: it must be ONE implementation for the whole app, entity-agnostic, calm (no toast spam, no modal overload), keyboard-complete, WCAG 2.2 AA, mobile-adapted, and reuse the existing modal machinery rather than growing a second focus-trap or overlay system.
+- **Context.** Every earlier DS item deferred a common need: a place to *tell the user what happened*. DS-09 could not dispatch executable command shortcuts globally because there was no pending/success/failure surface outside the palette; [PRODUCT_EXPERIENCE #8](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records) flagged that TODAY-02's first real mutation would ship silent without a toast/undo layer; the [interaction philosophy](../../AGENTS.md#7-interaction-philosophy) mandates "optimistic and reversible… prefer undo over confirmation"; and the DESIGN_SYSTEM's [Inspector](../design/DESIGN_SYSTEM.md#inspector) promised one depth-editing surface every module reuses instead of bespoke edit drawers. The forces: it must be ONE implementation for the whole app, entity-agnostic, calm (no toast spam, no modal overload), keyboard-complete, WCAG 2.2 AA, mobile-adapted, and reuse the existing modal machinery rather than growing a second focus-trap or overlay system.
 - **Decision.**
   - **§25.1 One entity-agnostic feedback platform + one Inspector, split model / React / (no server).** [`app/shared/feedback`](../../app/shared/feedback) and [`app/shared/inspector`](../../app/shared/inspector) contain no Task/Project/Today rule, no D1, no workspace selection and no product-repository import. Each is split into a React-FREE model (import-guard tested like DS-05/06/07/08/09) and a React runtime. DS-10 is a pure client interaction layer: it adds **no** migration, **no** persistence, **no** server route and **no** new dependency (the zero-dependency precedent of ADR-018–024 holds).
   - **§25.2 A React-free feedback model.** [`~/shared/feedback/model`](../../app/shared/feedback/model.ts) owns the notification-queue reducer and the background-operation lifecycle reducer as pure, deterministic, clock-free functions over immutable state — mirroring the DS-06 autosave split (a pure reducer plus a timing hook). The queue enforces **intelligent stacking** (a `dedupeKey` coalesces a repeat onto the existing record — count bumps, fields refresh, timer restarts, it moves to front — instead of stacking; the antidote to toast spam), a **bounded stack** (the oldest *auto-dismissing* entry is retired first, so a sticky error is never dropped by a burst), and newest-first order. The operation reducer is the state machine pending → running → success | failure with retry (a new attempt) and removal (cancel/dismiss/auto-clear).
@@ -1722,7 +1722,7 @@ A Codex review of the initial slice raised four P2 correctness gaps; all are fix
 
 - **Status.** Design scope **superseded by [ADR-074](#adr-074-material-design-3-as-the-design-language--one-generated-scheme-no-theme-feature-and-an-alias-layer-as-the-migration-mechanism)** (2026-08-06). Accepted (DS-14 — whole-application visual overhaul). Extends [ADR-061](#adr-061-the-curated-theme-system--five-complete-palettes-over-one-semantic-token-set-persisted-per-owner): the theme registry, its persistence and its semantic-token contract are unchanged; this decides what those tokens *paint*. No theme is added, removed or renamed, and the `theme` CHECK is untouched.
 
-- **Context.** [`DS_14_OVERHAUL_BRIEF.md`](../design/DS_14_OVERHAUL_BRIEF.md) proposes restyling every DalyHub surface to a **card-on-tint** system — a tinted page canvas with cards raised above it — with a serif reading column on prose surfaces and two density presets keyed to surface type. It is deliberately written as constraints rather than adjectives, which means most of it can be adopted or refuted against the repository rather than argued about.
+- **Context.** [`DS_14_OVERHAUL_BRIEF.md`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records) proposes restyling every DalyHub surface to a **card-on-tint** system — a tinted page canvas with cards raised above it — with a serif reading column on prose surfaces and two density presets keyed to surface type. It is deliberately written as constraints rather than adjectives, which means most of it can be adopted or refuted against the repository rather than argued about.
 
   Doing that produced five findings that shape every decision below, so they are stated once, up front, with their measurements.
 
@@ -1802,7 +1802,7 @@ A Codex review of the initial slice raised four P2 correctness gaps; all are fix
 
   6. **The §6 invariants are enforced by an automated test that enumerates the registry, and by nothing else.** Not a review checklist, not a matrix row, not a designer's eye.
 
-     The reason is on the record in this repository. THEME-02's selected-navigation indicator bar was reviewed, shipped, and measured **2.96:1 in Daly Dark and 2.73:1 in Modern Dark** — under the 3:1 a non-text cue carrying state owes — because it was painted with `accent`, a token whose contrast is guaranteed against the *page* surfaces and not against `nav-selected-surface` ([`THEME_ACCEPTANCE_MATRIX.md §8.2`](../design/THEME_ACCEPTANCE_MATRIX.md#what-replaced-this-document)). Review did not catch it; measurement did. DS-14 multiplies exactly that class of pairing — six area accents, a neutral pill, every role pill, a progress fill on a progress track on a card, a focus ring on two different canvases — across seven themes. That is 8 assertion families × 7 themes, and it is not a thing human attention should be spent on.
+     The reason is on the record in this repository. THEME-02's selected-navigation indicator bar was reviewed, shipped, and measured **2.96:1 in Daly Dark and 2.73:1 in Modern Dark** — under the 3:1 a non-text cue carrying state owes — because it was painted with `accent`, a token whose contrast is guaranteed against the *page* surfaces and not against `nav-selected-surface` ([`THEME_ACCEPTANCE_MATRIX.md §8.2`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records)). Review did not catch it; measurement did. DS-14 multiplies exactly that class of pairing — six area accents, a neutral pill, every role pill, a progress fill on a progress track on a card, a focus ring on two different canvases — across seven themes. That is 8 assertion families × 7 themes, and it is not a thing human attention should be spent on.
 
      The test **enumerates `THEME_IDS`** from `theme-preference.ts` (retired by THEME-01; `app/kernel/preferences/appearance.ts` and `color-scheme.ts` now hold the registry), as the existing `test/unit/tokens` suites already do, so an eighth theme is covered the moment it is registered and cannot be registered while failing. Failure messages name the theme id, the token pair and the measured value.
 
@@ -1820,7 +1820,7 @@ A Codex review of the initial slice raised four P2 correctness gaps; all are fix
      code-only rollback to the previous visual state. There is no intermediate
      "foundation removed, module work kept" state to preserve.
 
-  8. **The one value in the brief this ADR does NOT adopt: §2's "two font weights only, 400 and 500".** DalyHub uses `--dh-font-weight-semibold` (600) at **115 call sites** — more than any other weight — and `bold` (700) at 11. More decisively, `e2e/themes.spec.ts:669` (since replaced by `e2e/appearance.spec.ts`) asserts the selected navigation row's *computed* weight is **≥ 600**, and [`THEME_ACCEPTANCE_MATRIX.md §8.2`](../design/THEME_ACCEPTANCE_MATRIX.md#what-replaced-this-document) records that row as passing. Adopting 400/500 means deleting 126 call sites and failing a green assertion that exists because a real defect was found in that exact treatment — a restyle is not entitled to weaken a state cue that is holding a WCAG floor.
+  8. **The one value in the brief this ADR does NOT adopt: §2's "two font weights only, 400 and 500".** DalyHub uses `--dh-font-weight-semibold` (600) at **115 call sites** — more than any other weight — and `bold` (700) at 11. More decisively, `e2e/themes.spec.ts:669` (since replaced by `e2e/appearance.spec.ts`) asserts the selected navigation row's *computed* weight is **≥ 600**, and [`THEME_ACCEPTANCE_MATRIX.md §8.2`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records) records that row as passing. Adopting 400/500 means deleting 126 call sites and failing a green assertion that exists because a real defect was found in that exact treatment — a restyle is not entitled to weaken a state cue that is holding a WCAG floor.
 
      **Decided instead: three weights — 400, 500 and 600 — and `bold` (700) is removed.** This keeps the restraint the rule is reaching for (one weight fewer than today, and the widest gap in the ramp closed), keeps `semibold` available where state is carried by weight, and lets the preloaded variable range stay narrow enough to matter for decision 4's ceiling. The 11 `bold` call sites move to `semibold` in the foundation PR. This is a substitution, so it is stated as one rather than shipped quietly.
 
@@ -2236,7 +2236,7 @@ A Codex review of the initial slice raised four P2 correctness gaps; all are fix
 
 ## ADR-077: Interaction consistency — one state layer, no ripple, one selection control, one switch, and the two shared layouts that were wasting the laptop
 
-**Status.** Accepted (PR #127). Extends [ADR-074](#adr-074-material-design-3-as-the-design-language--one-generated-scheme-no-theme-feature-and-an-alias-layer-as-the-migration-mechanism) and [ADR-076](#adr-076-the-shared-writing-surface-refined-in-place-and-inline-editing-as-one-state-machine-over-focused-server-intents); closes findings 3, 6, 8 and 9 of the [August 2026 UX & interaction audit](../design/M3_UX_INTERACTION_AUDIT_2026_08.md). Findings 4 and 5 — the navigation rail and the permanent drawer — remain open and are deliberately untouched.
+**Status.** Accepted (PR #127). Extends [ADR-074](#adr-074-material-design-3-as-the-design-language--one-generated-scheme-no-theme-feature-and-an-alias-layer-as-the-migration-mechanism) and [ADR-076](#adr-076-the-shared-writing-surface-refined-in-place-and-inline-editing-as-one-state-machine-over-focused-server-intents); closes findings 3, 6, 8 and 9 of the [August 2026 UX & interaction audit](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records). Findings 4 and 5 — the navigation rail and the permanent drawer — remain open and are deliberately untouched.
 
 **Context.** PRs #120–#126 converted DalyHub to Material Design 3 and fixed the control-level *defects* a user meets. What was left was consistency debt plus two layout faults that no amount of styling hides: on an ordinary laptop a short record title wrapped with hundreds of pixels of empty header beside it, and a Note's caret opened near the horizontal middle of a wide editor.
 
@@ -3013,7 +3013,7 @@ Separately, the roadmap's SET-03 promised an owner-facing *Account & security* s
 
 ## ADR-092: The DalyHub design system becomes the governing design language — a product-owned semantic layer, an explicit density model, and MD3 demoted to machinery
 
-> **Frontend implementation status:** Superseded by [ADR-125](#adr-125-untitled-ui-react-pro-is-dalyhubs-primary-frontend-implementation-system) for current generic component source, theme and frontend implementation. The product-specific UX decisions recorded here remain historical context where the current direction explicitly preserves them.
+> **Frontend implementation status:** Superseded by [ADR-125](#adr-125-untitled-ui-react-pro-is-dalyhubs-frontend-implementation-authority) for current generic component source, theme and frontend implementation. The product-specific UX decisions recorded here remain historical context where the current direction explicitly preserves them.
 
 **Status:** Accepted · **Date:** 2026-08-14 · **Item:** DS-01 (design-system foundation)
 
@@ -3021,11 +3021,11 @@ Separately, the roadmap's SET-03 promised an owner-facing *Account & security* s
 
 - **Context.** ADR-074 was right about the problem it solved. Seven hand-authored palettes over ~220 bespoke tokens, a private radius vocabulary and a design-system document describing a language nobody else speaks was a permanent tax, and adopting a specified, accessibility-tested language removed it. The audit for DS-01 confirms the engineering held: there is no runtime UI dependency, colour is generated and byte-checked, contrast is asserted across five schemes in both appearances, and the state layer, the control baseline and the empty state have each been consolidated to one implementation.
 
-  What did not hold is the *authority*. UIX-06 had already corrected `AGENTS.md` §6 to say DalyHub is not a Material application, and [`DALYHUB_DESIGN_SYSTEM.md`](../design/DALYHUB_DESIGN_SYSTEM.md) records thirty-two numbered departures — a card with no border and no resting shadow, a pill reserved for one action, a 216px permanent drawer, a 60px phone bar, a one-line 45px task row, writing surfaces with no box. Thirty-two departures is not a product following a specification; it is a product that has its own and has not said so at the top of a page. Meanwhile every one of those decisions is expressed in Material's vocabulary, so "what colour is a DalyHub surface?" has only a Material answer, and a new surface is still authored by asking what M3 would do and then subtracting.
+  What did not hold is the *authority*. UIX-06 had already corrected `AGENTS.md` §6 to say DalyHub is not a Material application, and [`DALYHUB_DESIGN_SYSTEM.md`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records) records thirty-two numbered departures — a card with no border and no resting shadow, a pill reserved for one action, a 216px permanent drawer, a 60px phone bar, a one-line 45px task row, writing surfaces with no box. Thirty-two departures is not a product following a specification; it is a product that has its own and has not said so at the top of a page. Meanwhile every one of those decisions is expressed in Material's vocabulary, so "what colour is a DalyHub surface?" has only a Material answer, and a new surface is still authored by asking what M3 would do and then subtracting.
 
   Two concrete gaps make that costly rather than merely untidy. **There is no density model**: ADR-074 decision 6 retired DS-14's presets on the reasoning that density is "a decision a designer can make per component", which is precisely the shape [AGENTS.md §9.8](../../AGENTS.md#98-shared-over-bespoke-and-one-authoritative-token-layer) rules out for a design value — a desktop task list, a menu and a filter bar agree on density today only because their authors read the same document. And **there is no shared `Button`**: `.dh-btn` is a class string at 76+ literal call sites, which is why `base.css` names it in five repeated state-layer selector lists.
 
-- **Decision 1 — the DalyHub design system is the specification; Material Design 3 is implementation machinery and historical inspiration.** [`DALYHUB_DESIGN_SYSTEM.md`](../design/DALYHUB_DESIGN_SYSTEM.md) is the authority for what DalyHub looks like and why. M3 remains cited, and its machinery remains in use — the tonal-palette algorithm, the typescale, the shape and elevation scales, the state layer, the motion tokens, the accessibility contract — but it no longer settles a design question. Where the two disagree, DalyHub wins and the reason is recorded as a numbered departure, exactly as the existing thirty-two are. Material's *specification* is no longer a source of truth that has to be departed from; the departures list becomes what it always described — the record of decisions already taken.
+- **Decision 1 — the DalyHub design system is the specification; Material Design 3 is implementation machinery and historical inspiration.** [`DALYHUB_DESIGN_SYSTEM.md`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records) is the authority for what DalyHub looks like and why. M3 remains cited, and its machinery remains in use — the tonal-palette algorithm, the typescale, the shape and elevation scales, the state layer, the motion tokens, the accessibility contract — but it no longer settles a design question. Where the two disagree, DalyHub wins and the reason is recorded as a numbered departure, exactly as the existing thirty-two are. Material's *specification* is no longer a source of truth that has to be departed from; the departures list becomes what it always described — the record of decisions already taken.
 
 - **Decision 2 — a fourth token layer, `--dh-*`, owned by the product, sitting ON TOP of the other three.** It is the layer a component reaches for from DS-02 onward: colour, space, radius, borders, elevation, focus, typography, motion and density, all named for the job rather than for the mechanism. Four rules, each asserted by `test/unit/tokens/dalyhub-tokens.test.ts`:
   1. **No authored values.** Every declaration is `var()` onto an existing token. A hex in this layer would be a second source of truth beside the generator, invisible to `scheme:check` and covered by no contrast test.
@@ -3047,7 +3047,7 @@ Separately, the roadmap's SET-03 promised an owner-facing *Account & security* s
 
   This reverses ADR-074 decision 6 on density and keeps the rest of it (one typeface, no serif). ADR-074's `data-density` was retired for real reasons — DS-14's presets carried their own component rules and only some components understood them. This one carries eight values, and the "exactly these eight, and nothing but density" clauses are what make the difference structural rather than a promise.
 
-- **Decision 5 — no new primitive dependency, in DS-01 or DS-02.** Radix, React Aria, Base UI and shadcn were each evaluated against [`OPEN_SOURCE_POLICY.md`](../governance/OPEN_SOURCE_POLICY.md)'s checklist and all four declined, per component, in [`DS_01_DESIGN_SYSTEM_FOUNDATION_2026_08.md` §7](../design/DS_01_DESIGN_SYSTEM_FOUNDATION_2026_08.md#7-the-primitive-library-decision). The decisive argument is not that the code already exists; it is that **the existing implementations encode product decisions a library cannot know**. Radix Select would replace the element and cost D31's platform picker, free keyboard behaviour, assistive-technology semantics and no-JS submit; Radix's layer model has no equivalent of ADR-087's anchored-above-modal rung, which exists because a Drawer opens editors; neither knows about ADR-076's server-authoritative inline editing. Adopting one would mean writing adapters to restore behaviour DalyHub has. shadcn is additionally a copy-in generator over Tailwind, which ADR-074 rejected on the grounds that a utility framework moves design decisions into markup — the opposite of a token layer. **Reconsider only when a specific, named component defeats the existing machinery**, and record that component in the PR.
+- **Decision 5 — no new primitive dependency, in DS-01 or DS-02.** Radix, React Aria, Base UI and shadcn were each evaluated against [`OPEN_SOURCE_POLICY.md`](../governance/OPEN_SOURCE_POLICY.md)'s checklist and all four declined, per component, in [`DS_01_DESIGN_SYSTEM_FOUNDATION_2026_08.md` §7](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records). The decisive argument is not that the code already exists; it is that **the existing implementations encode product decisions a library cannot know**. Radix Select would replace the element and cost D31's platform picker, free keyboard behaviour, assistive-technology semantics and no-JS submit; Radix's layer model has no equivalent of ADR-087's anchored-above-modal rung, which exists because a Drawer opens editors; neither knows about ADR-076's server-authoritative inline editing. Adopting one would mean writing adapters to restore behaviour DalyHub has. shadcn is additionally a copy-in generator over Tailwind, which ADR-074 rejected on the grounds that a utility framework moves design decisions into markup — the opposite of a token layer. **Reconsider only when a specific, named component defeats the existing machinery**, and record that component in the PR.
 
 - **Decision 6 — generic and product component boundaries are stated, and directory placement follows them.** A generic component knows interaction, layout and tokens, and nothing about Areas, Goals, Projects, Tasks, People, priorities, overdue dates, health or capture. A product component knows the domain and composes generic ones. A product rule may not live in a generic component; a generic component may not import from a module. Two existing placements breach this and are named as debt rather than moved in DS-01: `ConfirmationDialog` and `DangerousAction` are generic and live in `app/shared/settings/`.
 
@@ -3307,7 +3307,7 @@ Separately, the roadmap's SET-03 promised an owner-facing *Account & security* s
 
 - **Decision 8 — every glyph an owner can choose, and every entity default, is DalyHub's own stroke drawing.** `app/shared/icons/entity-glyphs.tsx` holds all 101, at one weight on a 24-unit grid. The application FRAME keeps Material Symbols. Inside the rebuilt tile a filled symbol reads as a solid blob of the record's hue, which is the look the tile exists to leave behind; and a grid where chosen records were stroked and unchosen ones were filled was the most visible tell remaining after the tile itself was fixed.
 
-- **Consequences.** *Easy:* adding a seventeenth slot is a change to the generator and the kernel list and nothing else — no stylesheet knows how many there are. *Easy:* every identity surface added from now on gets the record's colour by inheriting, without opting in. *Easy:* an unchosen record is provably untouched, in a test rather than a screenshot. *Hard:* `setIcon` became `setIdentity` across two kernel contracts, two D1 adapters, four routes and their tests — mechanical, but wide. *Hard:* `colour_slot` had to be threaded through the same read paths `icon_key` already travelled; it is read in the SAME query from the SAME detail row, so it costs no extra read and cannot become an N+1. *Accepted:* `area-accent-*` stays generated for `people.css`, `analytics.css` and `ScheduleList`, which are not record identity and were outside this pass's scope; `areaAccentForRank` survives as a shim that resolves through `identityForRank`, so the number and the name can never disagree. Listed in `docs/md3-inventory.md`. *Accepted:* `red` and `rose` are the ramp's closest pair and are hard to tell apart in dark; recorded in `PRODUCT_DEBT.md`.
+- **Consequences.** *Easy:* adding a seventeenth slot is a change to the generator and the kernel list and nothing else — no stylesheet knows how many there are. *Easy:* every identity surface added from now on gets the record's colour by inheriting, without opting in. *Easy:* an unchosen record is provably untouched, in a test rather than a screenshot. *Hard:* `setIcon` became `setIdentity` across two kernel contracts, two D1 adapters, four routes and their tests — mechanical, but wide. *Hard:* `colour_slot` had to be threaded through the same read paths `icon_key` already travelled; it is read in the SAME query from the SAME detail row, so it costs no extra read and cannot become an N+1. *Accepted:* `area-accent-*` stayed generated for `people.css`, `analytics.css` and `ScheduleList`, which were not record identity and were outside this pass's scope; `areaAccentForRank` survived as a shim that resolved through `identityForRank`, so the number and the name could never disagree. The old MD3 inventory was removed during the Untitled UI documentation reset. *Accepted:* `red` and `rose` are the ramp's closest pair and are hard to tell apart in dark; recorded in `PRODUCT_DEBT.md`.
 
 - **Alternatives considered.** *Widen the derived fold to all sixteen* (rejected by decision 6 — it silently repaints every existing record). *Store an index rather than a name* (rejected by decision 2 — a reorder becomes a data corruption). *Allow a custom hex* (rejected: no contrast guarantee, no dark counterpart, no way to repaint the ramp later; and explicitly out of scope). *Keep the `container`/`on-container` quartet and just change the values* (rejected: this is what REDESIGN-04 did, and the owner still recognised the construction — the pairing IS the Material look). *Give each component its own sixteen-slot mapping* (rejected: it is the six-slot problem multiplied, in five stylesheets). *Two separate mutations for colour and icon* (rejected by decision 5). *Redraw the whole application icon set in the stroke idiom* (rejected as out of scope: the frame's glyphs are chrome the owner never chooses, and one honest split beats a half-finished sweep).
 
@@ -3398,7 +3398,7 @@ The question is real. The gallery is the right first impression of a workspace w
 [ADR-059](#adr-059-the-tasks-collection-contract--one-declarative-view-configuration-server-side-filtering-and-grouping-and-saved-views-as-validated-configuration) (the declarative view configuration),
 [ADR-082](#adr-082-one-saved-view-system-two-kinds--the-tasks-declarative-configuration-generalised-into-a-cross-module-query-contract) (one saved-view system, keyed by kind) and
 [ADR-086](#adr-086-optimistic-presentation-on-task-lists-with-server-authoritative-reconciliation-and-announcement) (presentation may lead the server; claims of success may not).
-Full record: [`PLAN_01_SMART_01_WEEKLY_PLANNING_2026_08.md`](../design/PLAN_01_SMART_01_WEEKLY_PLANNING_2026_08.md).
+Full record: [`PLAN_01_SMART_01_WEEKLY_PLANNING_2026_08.md`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records).
 
 **Context.** V2.2 ends at execution. The Weekly Review is retrospective and says
 so in as many words — *"Nothing is scheduled or changed for you"* — which is right
@@ -3520,7 +3520,7 @@ every other collection may use and none is changed by.
 [ADR-022 §22.7](#adr-022-shared-forms--field-controls--declared-save-model-validation-boundary-and-the-entity-link-picker) (dates are wall-calendar strings read in the owner's timezone),
 [ADR-062](#adr-062-intentional-unassigned-tasks-inbox-semantics-and-calendar-recurrence) and [ADR-085](#adr-085-the-tasks-daily-driver--the-matrix-removed-editing-moved-onto-the-row-bulk-made-structural-and-recurrence-given-a-second-scheduling-mode) (structured TASK recurrence, which this deliberately does not reuse) and
 [ADR-101](#adr-101-weekly-planning-is-a-projection-not-a-record--the-owners-calendar-week-a-named-band-queue-and-one-declarative-filter-vocabulary-with-two-consumers) (the owner's calendar week).
-Full record: [`HABITS_01_HABITS_AND_ROUTINES_2026_08.md`](../design/HABITS_01_HABITS_AND_ROUTINES_2026_08.md).
+Full record: [`HABITS_01_HABITS_AND_ROUTINES_2026_08.md`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records).
 
 **Context.** DalyHub already stores structured Task recurrence, so the cheap
 answer to "add habits" was a flag on a Task and a saved view over it. That answer
@@ -3651,7 +3651,7 @@ nothing, because notification sends belong to the NOTIFY ledger architecture.
 [ADR-029](#adr-029-task-waiting--additive-state-a-reserved-entitylink-and-a-derived-first-class-display-state) (completion as one atomic domain operation),
 [ADR-062](#adr-062-intentional-unassigned-tasks-inbox-semantics-and-calendar-recurrence) and [ADR-085](#adr-085-the-tasks-daily-driver--the-matrix-removed-editing-moved-onto-the-row-bulk-made-structural-and-recurrence-given-a-second-scheduling-mode) (structured Task recurrence and its successor), and
 [ADR-102](#adr-102-a-habit-is-a-behaviour-not-a-recurring-task--a-distinct-domain-with-effective-dated-schedules-owner-local-check-ins-and-no-manufactured-streaks) (the previous item, which kept its domain boundary the same way).
-Full record: [`TASKS_13_CHECKLISTS_2026_08.md`](../design/TASKS_13_CHECKLISTS_2026_08.md).
+Full record: [`TASKS_13_CHECKLISTS_2026_08.md`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records).
 
 **Context.** Some Tasks are genuinely one commitment with several steps —
 *prepare the camper for the trip* is one thing to have done, and four things to
@@ -3802,7 +3802,7 @@ rows, stable ordering, deterministic per-row ids and no component-local state.
 unchanged — in particular ADR-101 §1 (planning stores nothing), §2 (`/plan` has no
 mutation authority) and §9 (no drag-and-drop), and ADR-102 §1 (a Habit is its own
 domain) and §10 (Planning gets read-only Habit context).
-Full record: [`UX_02_PLAN_HABITS_2026_08.md`](../design/UX_02_PLAN_HABITS_2026_08.md).
+Full record: [`UX_02_PLAN_HABITS_2026_08.md`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records).
 
 **Context.** UX-02 rebuilds `/plan` and `/habits` to two approved visual
 references (`Mockup 7.png`, `Mockup 8.png`). Both references contradict a decision
@@ -3914,7 +3914,7 @@ does not actually forbid once it is read precisely.
 **Consequences.** Two ADRs are amended rather than replaced, and the amendment is
 narrow in both: planning still stores nothing, `/plan` still has no mutation
 authority of its own, a Habit still generates no Task, and streaks are still
-absent and still asserted. `docs/design/UX_02_PLAN_HABITS_2026_08.md` carries every
+absent and still asserted. `docs/design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records` carries every
 measurement quoted above and the command that reproduces it
 (`node scripts/ux-02-shot.mjs --measure 1`). The card presentation lives in the
 shared task-row stylesheet, so any future surface with a narrow column may adopt
@@ -4071,7 +4071,7 @@ UUID. Both carry regression tests.
 
 The full record, including every field copied and reset, the bounds arithmetic,
 the offline boundary and the measured mobile numbers, is
-[`PROJECT_02_PROJECT_TEMPLATES_2026_08.md`](../design/PROJECT_02_PROJECT_TEMPLATES_2026_08.md).
+[`PROJECT_02_PROJECT_TEMPLATES_2026_08.md`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records).
 
 ---
 
@@ -4186,7 +4186,7 @@ so nothing was special-cased there.
 
 The full record — the deletion table, the surface-by-surface behaviour, the
 measured mobile numbers and the offline boundary — is
-[`TASKS_12_ADVANCED_RECURRENCE_DEPENDENCIES_2026_08.md`](../design/TASKS_12_ADVANCED_RECURRENCE_DEPENDENCIES_2026_08.md).
+[`TASKS_12_ADVANCED_RECURRENCE_DEPENDENCIES_2026_08.md`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records).
 
 ---
 
@@ -4285,7 +4285,7 @@ came back from a restore as a fixed schedule. That is a pre-existing data-loss
 defect found and fixed here, with regression coverage.
 
 The full record is
-[`TASKS_12_ADVANCED_RECURRENCE_DEPENDENCIES_2026_08.md`](../design/TASKS_12_ADVANCED_RECURRENCE_DEPENDENCIES_2026_08.md).
+[`TASKS_12_ADVANCED_RECURRENCE_DEPENDENCIES_2026_08.md`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records).
 
 ---
 
@@ -4423,7 +4423,7 @@ Three decisions follow, and each of them is a decision about what NOT to build.
    visible on the screen the drag starts from; a non-drag path must exist and be
    at least as complete; the change must survive a reload; and dragging must be
    faster or clearer than choosing. The gate is published in
-   [`DHDS_11_…`](../design/DHDS_11_DRAG_REORDER_AND_OBJECT_CONTINUITY_2026_08.md)
+   [`DHDS_11_…`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records)
    §2 and in [`DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md), so a future agent
    answers "can I make this draggable?" from the documentation rather than from
    taste.
@@ -4499,7 +4499,7 @@ point: **DalyHub has far fewer grips than a product of its kind, and every one o
 them tells the truth.**
 
 The full record is
-[`DHDS_11_DRAG_REORDER_AND_OBJECT_CONTINUITY_2026_08.md`](../design/DHDS_11_DRAG_REORDER_AND_OBJECT_CONTINUITY_2026_08.md).
+[`DHDS_11_DRAG_REORDER_AND_OBJECT_CONTINUITY_2026_08.md`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records).
 
 ---
 
@@ -7514,85 +7514,99 @@ until the off-Cloudflare copy exists and has been restored from once.
   (rejected: "deletion unsupported" as an unexplained gap is exactly the
   ambiguity the V3 boundary must not carry — a boundary is a decision, not
   necessarily a button).
-# ADR-125: Untitled UI React Pro is DalyHub's primary frontend implementation system
+# ADR-125: Untitled UI React Pro is DalyHub's frontend implementation authority
 
-**Status:** Accepted (2026-09-10)
+**Status:** Accepted (2026-09-11)
 
 ## Context
 
-DalyHub accumulated substantial bespoke CSS, a custom design-system
-implementation, duplicated interaction machinery and a large documentation
-burden. Repeated convergence passes also left accessibility and commercial
-polish dependent on local implementation discipline. The product still needs
-its own semantics: the Area → Goal → Project → Task model, Today, Capture,
-calm density, contextual editing, mobile priorities and relationship language
-are not supplied by a component catalogue.
+DalyHub accumulated substantial bespoke CSS, custom design-system documents,
+duplicated interaction machinery, Material/MD3/DHDS vocabulary and screenshot
+archives that could teach future agents the wrong frontend system. The product
+still needs its own domain semantics: the Area -> Goal -> Project -> Task model,
+Today, Capture, calm density, contextual editing, mobile priorities,
+relationship language and AI proposal boundary are not supplied by any component
+catalogue.
 
-The repository now has working Untitled UI React Pro adoption across the shell,
-shared interactions, Today and Tasks. The adopted stack is React, TypeScript,
-Tailwind CSS v4, React Aria and Untitled source components. The current
-checkpoints are `31597964`, `fedf27a6`, `b61058ea` and `737842f3`.
+The reset therefore separates authority: DalyHub product/domain requirements
+remain authoritative, while the presentation layer gets one construction system.
 
 ## Decision
 
-Adopt Untitled UI React Pro as DalyHub's default frontend implementation and
-component source, with Tailwind CSS v4 and React Aria as its styling and
-behaviour foundations. Use the Untitled MCP as the first discovery path for
-generic components, application patterns, page examples and icons. Selected
-Untitled source enters the DalyHub tree and is maintained as application source.
+DalyHub's presentation layer will be progressively rebuilt around Untitled UI
+React Pro, Untitled Application UI patterns, Tailwind CSS v4 and React Aria
+while preserving existing backend/domain architecture.
 
-DalyHub retains authority over product semantics, composition, information
-hierarchy, workflows, identity, density, semantic colour, mobile priorities and
-domain-specific interaction. Generic Untitled-derived primitives remain free of
-domain rules; DalyHub compositions such as `TaskRow`, `TodaySchedule` and
-`QuickCapture` carry those rules above the primitive.
+The frontend authority hierarchy is:
 
-The normal workflow is: understand the product need, search Untitled via MCP,
-inspect relevant components and page examples, select/adapt source, compose
-DalyHub behaviour, then verify accessibility, responsive behaviour and product
-semantics. Build a bespoke generic primitive only when Untitled has no suitable
-solution or the product requires behaviour that would be materially worse or
-more fragile if forced into the generic implementation.
+1. DalyHub domain and behavioural requirements.
+2. Untitled UI Application UI page patterns.
+3. Untitled UI React components.
+4. Untitled UI tokens, Tailwind CSS v4 conventions and React Aria interaction
+   patterns.
+5. DalyHub-specific compositions/extensions.
+6. Custom components only where no suitable Untitled solution exists.
+
+Future frontend work must search Untitled Application UI examples first, search
+full-page examples where applicable, search the component catalogue, inspect
+already-imported Untitled source, read relevant Untitled UI React documentation,
+then import/copy genuine Untitled implementation where appropriate. Untitled is
+the construction system, not merely inspiration and not a look to manually
+recreate.
+
+DalyHub uses a purple-led brand theme based on Untitled UI's brand-token
+architecture. Purple is for primary/selected/brand interactions; neutral
+surfaces carry most structure. Green, red and amber retain their semantic
+meanings.
 
 ## Consequences
 
-Positive consequences include a broader professionally designed vocabulary,
-consistent React Aria behaviour, a stronger accessibility baseline, fewer
-duplicated controls, faster future frontend work, and useful complete page
-references for complex surfaces.
+Reasons:
 
-Costs include migration work, Tailwind becoming a primary styling mechanism,
-maintenance responsibility for imported source, the risk of generic SaaS
-appearance when examples are copied blindly, and retirement or reclassification
-of old DHDS/Material implementation documentation. Existing generated Material
-tokens and legacy CSS remain compatibility machinery while consumers migrate;
-they are not permanent architectural peers.
+- mature component ecosystem;
+- extensive Application UI catalogue;
+- full page examples;
+- accessibility foundations;
+- responsive patterns;
+- source ownership;
+- reduced custom CSS;
+- reduced AI design drift;
+- maintainability;
+- faster frontend development.
 
-Intentional retained DalyHub components are valid when they carry product
-behaviour such as asynchronous search, Inbox-specific behaviour, mobile safe
-areas or focus restoration. The current calendar similarly uses Untitled/React
-Aria interaction while DalyHub owns scheduling semantics.
+Consequences:
+
+- significant legacy frontend becomes migration debt;
+- old and new UI may temporarily coexist;
+- tightly coupled feature logic may need extraction;
+- exact visual continuity with the legacy UI is not required;
+- custom UI should become exceptional;
+- Material, MD3, DHDS and old bespoke design-system documents/assets are not
+  active authority;
+- backend, database, migrations, Cloudflare infrastructure, API contracts and
+  business logic are intentionally preserved during the frontend reset.
 
 ## Rejected alternatives
 
-- **Continue the bespoke DHDS implementation:** rejected because it preserves
-  duplicated machinery and makes consistent accessibility and polish expensive.
-- **Replace the product with a Metronic or other complete template:** rejected
-  because page composition would dictate product semantics and create generic
-  SaaS identity.
-- **Undertake another complete frontend rewrite:** rejected because the current
-  migration already provides stable shell and interaction foundations; adoption
-  should proceed consumer by consumer.
-- **Use Untitled only as occasional inspiration:** rejected because it leaves
-  the same local reinvention and consistency problem the purchase is intended
-  to solve.
+- **Continuing incremental legacy CSS repair:** rejected because it keeps the
+  old system alive and leaves polish dependent on local reinvention.
+- **Maintaining DHDS:** rejected because DalyHub no longer needs a second
+  generic design system beside Untitled.
+- **Continuing Material/MD3:** rejected because it conflicts with the chosen
+  Untitled/Tailwind/React Aria implementation stack.
+- **Mixing multiple design systems:** rejected because it increases drift and
+  makes future AI-generated frontend work less predictable.
+- **Manually recreating an Untitled-like look:** rejected because genuine
+  Untitled source and documentation are available.
+- **Rewriting the backend at the same time:** rejected because the existing
+  backend/domain architecture is not the problem this decision addresses.
 
 ## Authority after this decision
 
 [`PRODUCT_PRINCIPLES.md`](../product/PRODUCT_PRINCIPLES.md) owns product
 purpose. [`DESIGN_DIRECTION.md`](../design/DESIGN_DIRECTION.md) owns product
 UX and visual direction. [`UNTITLED_UI_IMPLEMENTATION.md`](../design/UNTITLED_UI_IMPLEMENTATION.md)
-owns frontend implementation. [`DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md)
-owns DalyHub-specific compositions and adaptations. DHDS, DS and Material
-implementation programmes are historical records unless a later decision says
-otherwise.
+owns frontend implementation. [`UNTITLED_UI_MIGRATION.md`](../design/UNTITLED_UI_MIGRATION.md)
+owns migration sequence, debt and removal criteria. [`DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md)
+owns DalyHub-specific compositions and adaptations. Historical screenshots and
+deleted design programme files are not authority; git history is the archive.

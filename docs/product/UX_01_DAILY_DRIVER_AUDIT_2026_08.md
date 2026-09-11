@@ -7,7 +7,7 @@
 > This is an audit record, not a redesign proposal. Every finding is a divergence
 > from something DalyHub already decided — [`AGENTS.md`](../../AGENTS.md), the
 > [Design System](../design/DESIGN_SYSTEM.md), the
-> [Product Experience](../design/PRODUCT_EXPERIENCE.md) spec or the
+> [Product Experience](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records) spec or the
 > [accessibility baseline](../development/ACCESSIBILITY_RESPONSIVE.md) — or a
 > capability the product claims and does not have.
 
@@ -23,14 +23,14 @@ Read in full before any code was changed:
 | [`docs/roadmap/ROADMAP_V2.md`](../roadmap/ROADMAP_V2.md) | Item status, the remaining sequence, and what previous polish passes (PX-04/05/06, POLISH-01, THEME-01) already closed. |
 | [`docs/product/PRODUCT_DEBT.md`](PRODUCT_DEBT.md) | The full register, DEBT-01 → DEBT-59, so nothing here re-reports known debt as new. |
 | [`docs/design/DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md) | The shared patterns each finding is measured against. |
-| [`docs/design/PRODUCT_EXPERIENCE.md`](../design/PRODUCT_EXPERIENCE.md) | The screen-level grammar (pane header, one primary action, empty states). |
+| [`docs/design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records) | The screen-level grammar (pane header, one primary action, empty states). |
 | [`docs/development/ACCESSIBILITY_RESPONSIVE.md`](../development/ACCESSIBILITY_RESPONSIVE.md) | The WCAG 2.2 AA baseline and the responsive/touch-target contract. |
 | [`docs/product/UI_UX_COHERENCE_AUDIT_2026_07.md`](UI_UX_COHERENCE_AUDIT_2026_07.md) | The previous audit, so this one reports the delta rather than repeating it. |
 | [`docs/product/UX_01_IMPLEMENTATION_NOTE_2026_07_28.md`](UX_01_IMPLEMENTATION_NOTE_2026_07_28.md) | What the earlier UX-01 slice did and explicitly did not do. |
 | [`docs/product/PRODUCT_PRINCIPLES.md`](PRODUCT_PRINCIPLES.md) | The "how it should feel" test each finding is judged by. |
 | [`docs/decisions/ARCHITECTURE_DECISIONS.md`](../decisions/ARCHITECTURE_DECISIONS.md) | ADR-016/021/023/024/029/043/045/053/059/064 — so a "fix" never contradicts an accepted decision. |
 | [`docs/architecture/ARCHITECTURE_OVERVIEW.md`](../architecture/ARCHITECTURE_OVERVIEW.md) | The module/kernel boundary any cross-module read must respect. |
-| [`docs/design/THEME_ACCEPTANCE_MATRIX.md`](../design/THEME_ACCEPTANCE_MATRIX.md) | The five-theme contract new presentation must satisfy. |
+| [`docs/design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records) | The five-theme contract new presentation must satisfy. |
 | [`docs/development/*`](../development/) | Every module implementation note: Today, Tasks, Projects, Areas, Goals, Notes, Meetings, People, Assets, Diary, Reviews, Settings, Help/About, plus Shared Forms, Shared Search, Command Palette, Activity Timeline, Relationships, App Shell, Modules, Data Kernel. |
 
 Code read module by module: `app/shared/*` (shell, card, collection-layout,

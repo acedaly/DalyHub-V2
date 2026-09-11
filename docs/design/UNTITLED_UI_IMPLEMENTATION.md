@@ -1,190 +1,527 @@
 # Untitled UI React Pro implementation guide
 
-> **Current frontend implementation authority.** DalyHub owns the product,
-> its language and its workflows. Untitled UI React Pro supplies the default
-> implementation system. This guide is subordinate to DalyHub product and UX
-> decisions, and supersedes historical DHDS/Material implementation programmes.
+> **Single frontend implementation authority.** DalyHub's presentation layer is
+> built from Untitled UI React Pro, Untitled Application UI patterns, Tailwind CSS
+> v4 and React Aria. DalyHub owns product/domain behaviour. Do not restore
+> Material, MD3, DHDS or another bespoke design system.
 
-## 1. Authority
+This guide governs frontend construction. It does not rewrite backend,
+database, migration, Cloudflare, API or business-logic architecture.
 
-Use the documents in this order:
+## Authority hierarchy
 
-1. [`PRODUCT_PRINCIPLES.md`](../product/PRODUCT_PRINCIPLES.md) decides what
-   DalyHub is.
-2. [`DESIGN_DIRECTION.md`](DESIGN_DIRECTION.md) decides how the product should
-   feel, behave and compose information.
-3. This guide decides how those decisions are implemented in the frontend.
-4. [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) records DalyHub-specific compositions,
-   semantic adaptations and interaction exceptions.
-5. The [architecture decisions](../decisions/ARCHITECTURE_DECISIONS.md) decide
-   cross-cutting technical boundaries.
+Resolve frontend decisions in this order:
 
-Untitled must not make DalyHub look like an Untitled template. DalyHub decides
-the information hierarchy, nouns, priorities, density, mobile composition and
-workflows; Untitled provides a high-quality, accessible implementation base.
+1. DalyHub domain and behavioural requirements.
+2. Untitled UI Application UI page patterns.
+3. Untitled UI React components.
+4. Untitled UI tokens, Tailwind CSS v4 conventions and React Aria interaction
+   patterns.
+5. DalyHub-specific compositions and semantic extensions.
+6. Custom components only where no suitable Untitled solution exists.
 
-## 2. Stack
+[`PRODUCT_PRINCIPLES.md`](../product/PRODUCT_PRINCIPLES.md) owns what DalyHub
+is. [`DESIGN_DIRECTION.md`](DESIGN_DIRECTION.md) owns the product-level feel and
+composition rules. This file owns implementation. [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md)
+records DalyHub-specific compositions and exceptions above Untitled primitives.
+[`UNTITLED_UI_MIGRATION.md`](UNTITLED_UI_MIGRATION.md) records migration debt,
+sequence and removal criteria.
 
-The adopted frontend stack is:
+Untitled UI is the construction system, not visual inspiration. A screen should
+look and behave like DalyHub, but its generic controls, page structures,
+overlays, forms and responsive patterns should come from Untitled wherever
+possible.
 
-- React 19
-- TypeScript 5.9
-- Tailwind CSS v4
-- React Aria and React Aria Components
-- Untitled UI React Pro source components and Untitled Icons
+## Untitled-first sourcing workflow
 
-Exact versions live in `package.json` and the lockfile. Do not copy patch
-versions into general product documentation.
+For every frontend requirement:
 
-Untitled components are source components, not an opaque runtime library. When
-selected, source enters this repository and can be inspected, adapted, tested
-and maintained by DalyHub. Keep generic adaptations reasonably close to the
-upstream structure. Put DalyHub rules in compositions above the primitive.
+1. State the DalyHub product need and the data/behaviour that must survive.
+2. Search Untitled Application UI examples first.
+3. Search the Untitled component catalogue.
+4. Search already-imported Untitled source in this repository.
+5. Search existing DalyHub compositions.
+6. Reuse the closest source.
+7. Compose product behaviour above the generic primitive.
+8. Extend carefully only when the product requires it.
+9. Create custom UI only if the previous steps do not solve the requirement.
 
-## 3. MCP-first workflow
+Do not create custom buttons, inputs, selects, dropdowns, menus, tables, badges,
+tooltips, modals, drawers, tabs, avatars, pagination controls, date pickers or
+command menus when Untitled UI provides an appropriate implementation.
 
-Searching Untitled UI Pro is part of design implementation, not an optional
-inspiration step. This applies to humans, Claude, Codex and every other coding
-agent.
+Useful upstream entry points are the Untitled UI React Pro docs, component
+catalogue, Application UI catalogue, theming docs, dark-mode docs, CLI/MCP docs
+and icon docs. Search complete page examples as aggressively as individual
+controls; DalyHub should benefit from Untitled's finished application patterns.
 
-For a new visual or interaction pattern:
+## Untitled UI reference-first implementation
 
-1. Define the user need and DalyHub product semantics.
-2. Search the licensed Untitled catalogue through the configured MCP using
-   natural language.
-3. Inspect multiple relevant components when the choice is not obvious.
-4. Search the application examples and page templates, not only isolated
-   controls.
-5. Search Untitled Icons before importing or inventing an icon.
-6. Select the closest implementation and install its source through the
-   supported Untitled workflow.
-7. Compose DalyHub semantics above it.
-8. Test keyboard, screen reader, touch, responsive, reduced-motion and product
-   behaviour.
-9. Build custom UI only when no suitable Untitled solution exists or the
-   product genuinely requires specialised behaviour.
+Untitled UI Pro is available directly to implementation agents. Agents MUST use
+the actual library and documentation during frontend work.
 
-Useful upstream references are the [introduction](https://www.untitledui.com/react/docs/introduction),
-[installation](https://www.untitledui.com/react/docs/installation),
-[theming](https://www.untitledui.com/react/docs/theming),
-[dark mode](https://www.untitledui.com/react/docs/dark-mode),
-[typography](https://www.untitledui.com/react/docs/typography),
-[CLI](https://www.untitledui.com/react/docs/cli),
-[MCP integration](https://www.untitledui.com/react/integrations/mcp),
-[icons](https://www.untitledui.com/react/docs/icons),
-[base components](https://www.untitledui.com/react/components), and
-[application UI](https://www.untitledui.com/react/application-ui).
+For each page, feature surface or substantial component:
 
-## 4. Untitled first, custom second
+1. Search Untitled UI Application UI examples.
+2. Search full-page examples where applicable.
+3. Search the component catalogue.
+4. Inspect existing Untitled components already imported into DalyHub.
+5. Read the relevant Untitled UI React documentation.
+6. Prefer importing/copying the genuine Untitled implementation over recreating
+   it.
+7. Adapt that source to DalyHub domain data and behaviour.
+8. Preserve Untitled accessibility, responsive behaviour, component composition
+   and token usage where practical.
+9. Create bespoke UI only where an appropriate Untitled pattern does not exist.
 
-Before adding a generic button, input, checkbox, menu, popover, dialog, drawer,
-select, combobox, date picker, tooltip, toast, table, empty state or loading
-pattern, search Untitled first. Building a second generic component library
-beside Untitled is a design-system defect.
+The documentation starting point is:
 
-| Generic implementation | DalyHub composition |
-| --- | --- |
-| Button, Input, Textarea | QuickCapture, form actions |
-| Checkbox, Radio, Toggle | TaskRow selection and completion semantics |
-| Menu, Dropdown, Select, Combobox | Project and priority editing |
-| Popover, Dialog, Drawer, Sheet | Contextual editing and record inspection |
-| Calendar, DatePicker | DalyHub scheduling presets and date semantics |
-| Empty, Loading, Alert, Notification | Today and collection states |
-| Table, Tabs, Section/Page headers | Finance, settings and later module compositions |
+https://www.untitledui.com/react/docs/introduction
 
-Generic components do not know about Areas, Goals, Projects, Tasks, priorities
-or overdue dates. Product components do. Examples include `TaskRow`,
-`GoalProgress`, `ProjectGalleryItem`, `QuickCapture` and `TodaySchedule`.
+Relevant documentation should be consulted throughout implementation, including
+as applicable: introduction, installation, CLI, MCP, theming, dark mode,
+typography, icons, components, Application UI, dashboard examples, settings
+examples and accessibility/React Aria behaviour.
 
-## 5. Theme and identity
+Do not rely on memory of Untitled UI or reproduce its appearance manually when
+the actual source and documentation are available.
 
-Untitled's Tailwind theme and semantic CSS variables are the target styling
-architecture. DalyHub maps its identity onto that system:
+For substantial frontend changes, the implementation summary should identify:
 
-- brand colour is restrained and used for meaningful action and identity;
-- neutrals carry most surfaces, borders and text hierarchy;
-- semantic status communicates success, warning, error and attention without
-  turning every state into a badge;
-- priority remains P1 red, P2 orange, P3 blue and P4 neutral;
-- overdue is a task record state, not a generic application error;
-- module/entity colour is used only where it improves recognition;
-- focus, borders, text and surfaces remain semantic and appearance-aware.
+- Untitled UI page examples used;
+- Untitled UI components used;
+- relevant documentation consulted;
+- DalyHub-specific extensions/custom components;
+- reason for any significant deviation from Untitled UI.
 
-The repository still contains compatibility tokens and generated Material-era
-machinery. They are migration debt, not a reason to add new consumers. New
-generic styling should use Untitled/Tailwind conventions; add a DalyHub-specific
-semantic extension only when the product needs one and document it here.
+## Source ownership
 
-## 6. Dark mode, type, spacing and shape
+Organise frontend source conceptually into four layers:
 
-Use semantic theme roles so light and dark values are defined by the theme
-context, not duplicated in component-specific selectors. DalyHub's persisted
-system/light/dark preference remains the appearance authority; do not copy an
-upstream persistence mechanism into the SSR-safe DalyHub appearance system.
+| Layer | Owns | Rule |
+| --- | --- | --- |
+| Untitled-derived primitives/components | Generic controls, overlays, forms, tables, menus, navigation pieces, application examples and icons | Keep close to upstream source and React Aria behaviour. |
+| Shared layouts/application shell | The reusable DalyHub shell, page frames, spacing, navigation, command/search entry points and workspace/user controls | Compose from Untitled Application UI patterns. |
+| DalyHub-specific compositions | `TaskRow`, `QuickCapture`, `TodaySchedule`, `GoalProgress`, record headers, entity metadata, domain-specific empty states | Carry product nouns, hierarchy, status and mutation semantics. |
+| Feature/domain logic | Loaders, actions, repositories, services, kernels, codecs and business rules | Preserve existing architecture; do not move logic merely to restyle UI. |
 
-Untitled typography, spacing, radius and shadow conventions are the default.
-DalyHub may depart where density, scanability, mobile reach or product identity
-requires it. A departure belongs in [`DESIGN_DIRECTION.md`](DESIGN_DIRECTION.md)
-or this guide, not in an unexplained one-off stylesheet.
+Adapt exact paths to existing repository conventions. Do not duplicate Untitled
+source across features. When a primitive becomes shared, put it in the shared
+source layer and migrate consumers to it.
 
-## 7. Icons
+Current Phase 1 source layout:
 
-Use [Untitled Icons](https://www.untitledui.com/react/docs/icons) as the default
-application icon vocabulary and search the MCP before importing an icon. Keep
-true DalyHub brand assets, including the connected D, as product assets. Do not
-introduce another generic icon set for convenience.
+- Untitled-derived source lives under `app/shared/ui/untitled/`, including
+  `base/buttons`, `base/avatar`, `base/dropdown`, `application/modals`,
+  `application/slideout-menus` and `application/table`.
+- Tailwind v4 and Untitled theme entry live in
+  `app/styles/untitled/untitled.css`.
+- The vendored Untitled theme input is
+  `app/styles/untitled/theme.source.css`; the DalyHub-adapted generated output
+  is `app/styles/untitled/theme.css`.
+- The reusable authenticated shell lives in `app/shared/shell/AppShell.tsx`,
+  with `Sidebar.tsx`, `DesktopTopBar.tsx`, `MobileTopBar.tsx`, `BottomNav.tsx`
+  and `MobileNav.tsx` composing the desktop and mobile navigation surfaces.
+- The pathless authenticated route boundary is `app/routes/app-shell.tsx`.
 
-## 8. Accessibility and responsive composition
+Current Phase 1.5 shell primitive boundary:
 
-React Aria behaviour is part of the implementation, not decoration. Preserve
-keyboard interaction, focus visibility and restoration, screen-reader names,
-overlay dismissal, touch handling, disabled semantics, reduced motion and forced
-colours. Extend the primitive when DalyHub needs product behaviour; do not strip
-its semantics to simplify CSS.
+- `SearchSurface` and `CommandPalette` preserve DalyHub's command/search
+  controllers and product semantics, but their generic modal input, action and
+  result chrome uses Untitled command-menu/button primitives and Tailwind v4
+  token classes.
+- `PaneHeader` is the shared DalyHub page-header composition for migrated pages.
+  It follows Untitled page-header structure while retaining DalyHub slots for
+  title, supporting text, status, metadata, page search, views, secondary
+  actions and one primary action.
+- `app/styles/search.css` is removed. `app/styles/command.css` no longer styles
+  the command/search surfaces; it only supports the shared keyboard-shortcuts
+  help content still used by legacy hosts.
+- The `.dh-pane-header*` selectors in `shell.css` remain temporary compatibility
+  for legacy collection layouts. Do not add new consumers to that CSS contract;
+  migrate pages toward the Untitled/Tailwind composition instead.
 
-Mobile is a deliberate composition, not a squeezed desktop. Use Untitled
-responsive patterns while preserving DalyHub priorities: action before context,
-safe areas, touch-sized targets, software-keyboard-safe sheets and no hover-only
-workflow. Check 393px and 320px for new interaction surfaces.
+## Theme and tokens
 
-## 9. Full-page examples
+DalyHub uses the **Branded Plum** direction through Untitled UI's brand-token
+architecture. Purple is for primary, selected and brand interactions; it is not
+paint for every surface.
 
-Use Untitled Pro dashboards, settings pages, data-management screens and
-application examples heavily as composition references. They are useful for
-page framing, section hierarchy, forms, navigation, tables, state handling and
-responsive structure. They do not supply DalyHub's product model. Never paste a
-SaaS dashboard and replace its labels; rebuild the composition around DalyHub's
-question, entities and calm interaction rules.
+### Branded Plum
 
-## 10. Intentional exceptions
+Branded Plum is DalyHub's default visual identity: deep aubergine/plum
+application navigation around a neutral working canvas, with restrained purple
+accents inside the content. It should read as mature, calm and personal, not
+bright magenta, candy purple, a gaming palette or a purple wash over every
+surface.
 
-An exception is justified by product behaviour, not personal preference. The
-current retained shared components are examples:
+- The persistent desktop sidebar is the primary brand field. It uses the dark
+  end of the generated Untitled `brand-*` ramp, Untitled on-brand foreground
+  roles, subtle translucent separators and quiet selected/hover overlays.
+- Mobile navigation uses the same Branded Plum relationship through Untitled's
+  slideout/navigation primitives. The compact mobile top bar and bottom
+  navigation may remain neutral; their primary and selected controls use the
+  same generated brand roles.
+- Main canvases, page headers, cards, panels, tables, dropdowns, search and
+  command surfaces remain predominantly Untitled neutrals. Page titles and body
+  text are not purple by default.
+- Light appearance pairs the deep plum navigation with a white or near-white
+  neutral canvas. Dark appearance pairs an even quieter near-black plum
+  navigation with Untitled's charcoal/neutral dark surfaces; it is designed
+  through semantic dark-mode variables, not colour inversion.
+- Purple is reserved for primary actions, links, focus, selected controls and
+  brand-appropriate progress. Green remains success/completed, red remains
+  destructive/error/critical, amber remains warning/attention, and neutrals
+  remain structure.
+- The complete ramp is generated in `app/styles/untitled/theme.css` from the
+  central Branded Plum anchor in `scripts/generate-untitled-theme.mjs`, while
+  preserving Untitled's ramp shape. Components consume Untitled semantic roles
+  and Tailwind utilities; do not scatter plum hex values or add page palettes.
+- Branded Plum is an adaptation of Untitled UI, not a separate DalyHub design
+  system. No historical screenshot, temporary review capture or mock-up defines
+  its implementation.
 
-- `Picker` and `Menu` still carry DalyHub asynchronous search and Inbox-specific
-  behaviour in relevant consumers;
-- `Sheet` retains DalyHub mobile safe-area and focus-restoration behaviour;
-- task selection composes an Untitled/React Aria checkbox with DalyHub's range
-  selection and completion semantics;
-- the React Aria/Untitled calendar supplies interaction behaviour while DalyHub
-  owns Today/Tomorrow/next-week presets, ISO dates, owner-day semantics, no-date
-  behaviour, Monday-first presentation and immediate commit.
+The shell treatment was selected from Untitled UI React Pro Application UI
+`dashboards-01/03` and `sidebar-sections-subheadings`, plus the public
+`mobile-header`, `nav-item` and `nav-account-card` source. Future changes must
+search the current Pro catalogue and documentation again rather than treating
+those identifiers as an image to reproduce.
 
-These are adaptations or retained product compositions, not permission to
-create unrelated generic alternatives. Record new exceptions beside the
-composition and update this guide when they become reusable patterns.
+Colour roles:
 
-## 11. Migration status
+- purple: brand, primary action, selected navigation and active controls;
+- neutrals: structure, backgrounds, cards, borders, text hierarchy and most
+  repeated UI;
+- green: success, completed and positive states;
+- red: destructive, error and critical states;
+- amber: warning and attention states.
 
-The current migration checkpoints are:
+Light and dark modes are both first-class. Use semantic theme roles so
+appearance changes are resolved by the theme, not by page-specific selectors.
+Do not hard-code visual values where Untitled/Tailwind semantic roles exist.
 
-- `31597964` — application shell;
-- `fedf27a6` — shared interactions;
-- `b61058ea` — Today and task selection;
-- `737842f3` — task interaction convergence.
+Relevant official sources for the current theme implementation are
+[Theming](https://www.untitledui.com/react/docs/theming),
+[Dark mode](https://www.untitledui.com/react/docs/dark-mode),
+[Sidebar navigations](https://www.untitledui.com/react/components/sidebar-navigations)
+and the [appearance settings example](https://www.untitledui.com/react/components/settings-pages/settings-06).
 
-The shell, shared controls, Today, task selection, calendar/date interaction,
-contextual task editing and Quick Add-related surfaces now use substantial
-Untitled/React Aria source. Compatibility CSS and older generic machinery still
-remain and should be removed by `migrate → verify → delete` when consumers are
-fully displaced. The next product migration is Projects → Areas → Goals.
+Existing `--dh-*`, `--app-*` and `--md-*` compatibility layers are migration
+machinery. They may remain while old consumers exist, but new generic UI should
+not expand them. Add DalyHub semantic extensions only for product meaning that
+Untitled does not provide, such as priority, overdue, owner-day scheduling or
+entity identity.
+
+## Styling rules
+
+DalyHub's visual direction is modern, calm, mature, personal, highly legible,
+information-dense without feeling cramped, restrained, fast to scan and suitable
+for prolonged daily use. It should feel closer to a polished productivity
+application than an enterprise admin portal.
+
+Avoid glassmorphism, neon or futuristic styling, excessive gradients, excessive
+drop shadows, oversized decorative cards, heavily rounded toy-like UI,
+dashboard-card overload, cramped metadata, arbitrary page-specific styling and
+bespoke visual patterns where Untitled already has an appropriate solution.
+
+Use Untitled/Tailwind spacing, radius, type, focus, shadow and state conventions
+as defaults. Depart only for DalyHub density, scanability, mobile reach,
+domain-specific semantics or source compatibility during migration. Document
+repeatable departures in this guide or [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md).
+
+## Page composition
+
+Use Untitled Application UI examples for shell, dashboards, settings, lists,
+tables, filters, forms, drawers and detail pages. Do not paste a generic SaaS
+dashboard and swap labels; rebuild around DalyHub's nouns and questions.
+
+Composition rules:
+
+- One reusable application shell provides desktop sidebar, responsive/mobile
+  navigation, active-route state, user/workspace control, global search/command
+  access and consistent page spacing.
+- Page headers are shallow and useful: title, context, primary action and
+  relevant controls.
+- Repeated entities use lists/tables when scanability matters; cards are
+  restrained and reserved for genuinely card-shaped content.
+- Drawers/inspectors preserve collection context for record detail/edit when the
+  work is short or contextual; full pages remain valid for reading, writing and
+  deep records.
+- Empty, loading and error states use Untitled state patterns plus DalyHub's
+  next-useful-action language.
+- Mobile is recomposed, not squeezed: touch targets, safe areas, software
+  keyboard behaviour and action order matter more than desktop symmetry.
+
+## Page/module mapping
+
+Use these directions when migrating modules:
+
+| Surface | Untitled direction | DalyHub-specific requirements |
+| --- | --- | --- |
+| Application shell | Sidebar layouts, mobile navigation, command/search entry points, account/workspace controls | One shell, active route state, consistent spacing, owner/workspace context. |
+| Today | Dashboard/Application UI composition | Priority tasks, upcoming meetings, overdue items, goals/habits, relevant activity and quick capture; never a generic analytics dashboard. |
+| Tasks | Page headers, tabs, search, filter bars, lists/tables, badges, dropdowns, drawers, dialogs and command-menu patterns | Task rows keep completion, selection, scheduling, priority, project and blocked semantics. Prefer drawers for task detail/edit where suitable. |
+| Projects / Areas | Lists/tables, restrained cards, progress, status, filters, tabs and drawers | Preserve Area -> Goal -> Project -> Task hierarchy and rollups. |
+| Goals | Metrics, progress, charts, milestone lists, status and activity patterns | Progress remains truthful and connected to Projects, Tasks, Habits and activity without gamification. |
+| Habits | Compact checkable rows, calendar/streak-like history views, progress and lightweight metrics | Habits are behaviours, never recurring Tasks; no manufactured streak urgency. |
+| Notes | List-detail composition, search, metadata, tags and responsive collapse | Prioritise reading/writing space and exact Markdown preservation. |
+| Diary | Content-first, date-led informational layouts | Reflection is chronological and calm, not administrative. |
+| Meetings | Informational/detail page patterns | Title, date/time, location, participants, summary, decisions, actions, tasks, notes, transcript and attachments. Outcomes over minutes. |
+| People | Directory/table patterns, avatars, filters and detail drawers/pages | Relationship history and care language; never a sales pipeline. |
+| Finance | Shared table/metric/chart patterns | No separate visual language; preserve privacy and truthful money semantics. |
+| Assets | Structured list/table, category/status metadata and detail views | Real-world status, obligations, maintenance and value facts stay distinct. |
+| Life Admin | Shared task, reminder, status and informational patterns | Obligation semantics remain one model whether or not tied to an Asset. |
+| Reviews | Informational layouts plus metrics/progress/activity | Reflection and review progress without guilt mechanics. |
+| Reports / Insights | Richer dashboard/chart composition | This is the appropriate home for heavier visual analytics. |
+| AI Assistant | Shared Untitled/DalyHub primitives | Proposes reviewable changes; never mutates autonomously. |
+| Settings | Untitled settings examples | Profile, account, appearance, notifications, workspace, members, integrations, security, data and advanced settings. |
+
+## Accessibility and React Aria
+
+React Aria semantics are part of the implementation contract. Preserve keyboard
+operation, focus visibility, focus restoration, screen-reader names, overlay
+dismissal, disabled semantics, touch behaviour, reduced motion and forced
+colours. Do not strip accessibility behaviour to simplify styling.
+
+Every control has an accessible name. Icon-only controls need labels/tooltips
+where appropriate. Mobile and coarse-pointer modes keep accessible target sizes.
+Async state, validation and destructive outcomes must be announced clearly.
+
+## Responsive rules
+
+Start from Untitled responsive Application UI patterns and apply DalyHub's
+priority order:
+
+- action before context;
+- collection context preserved through drawers or route state;
+- no hover-only workflow;
+- no horizontal overflow at 320px;
+- no desktop sidebar on phone;
+- sheets and forms remain usable with the software keyboard;
+- desktop density never costs touch accessibility on coarse pointers.
+
+Check 393px and 320px for new interaction surfaces.
+
+## Custom component policy
+
+Custom generic UI is exceptional. It is allowed only when:
+
+- Untitled has no suitable component or Application UI pattern;
+- forcing the product into an Untitled primitive would materially harm
+  accessibility, responsiveness or domain truth;
+- an existing DalyHub composition carries real product behaviour that should be
+  preserved during migration;
+- a compatibility shim is required to migrate consumers incrementally.
+
+When creating or retaining custom UI, name the reason in code or docs, keep the
+API narrow, test the behaviour, and record reusable exceptions in
+[`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md). The existence of old Material/MD3/DHDS
+source is not a reason to keep building on it.
+
+## DalyHub-specific exceptions
+
+Current valid exceptions include:
+
+- asynchronous pickers and search-backed selectors that carry DalyHub data
+  semantics;
+- task completion/selection/range-selection behaviour;
+- owner-day scheduling presets and calendar semantics;
+- mobile safe-area and focus-restoration behaviour;
+- Markdown editing and preview behaviour tied to exact-source preservation;
+- domain status such as overdue, blocked, waiting, archived, completed and
+  relationship history.
+
+These exceptions live above Untitled primitives where possible. They do not
+authorise another generic design system.
+
+## Today Phase 2 implementation baseline
+
+Today is the first feature surface rebuilt on the shared Untitled shell. Its
+composition follows the Untitled Application UI dashboard/page grammar without
+copying a generic analytics dashboard: the page header is the shared
+`PaneHeader`, the daily work is a dominant task-list section, and schedule,
+attention, goals, habits, reflection and review remain secondary sections whose
+presence is driven by real DalyHub data.
+
+References selected and verified:
+
+- Official Application UI catalogue topics: `Dashboards 01`, `Dashboards 02`,
+  `Metrics`, `Progress indicators`, `Activity feeds`, `Card headers`, `Section
+  headers`, `Page headers`, `Calendars` and `Empty states`.
+- Genuine source already vendored in this repository:
+  `application/command-menus`, `application/empty-state`,
+  `application/loading-indicator`, `application/date-picker`,
+  `application/section-headers`, `base/buttons`, `base/badges`,
+  `base/progress-indicators`, `base/checkbox` and `application/app-navigation`.
+- MCP searches for Today dashboard/application examples and components were
+  attempted after CLI Pro authentication, but the configured endpoint returned
+  HTTP 429 / Cloudflare 1015. No catalogue result or screenshot was treated as
+  authority; the implementation uses only verified local Untitled source and
+  official documentation.
+
+Today-specific composition is limited to mapping existing task, schedule,
+goal, habit, reflection and review facts into the shared page grammar. The
+Today screen owns no generic primitive, no new data read and no new mutation
+path. The local `today.css` file now contains only Tailwind v4 `@apply`
+composition rules for its responsive grid, section spacing and DalyHub-specific
+semantic rows; generic control styling comes from Untitled-backed shared
+components.
+
+The source and documentation workflow used for this phase was:
+
+1. Authenticate the Pro CLI with `npx untitledui@latest login`.
+2. Attempt the Untitled MCP/catalogue searches.
+3. Inspect the genuine local source and its provenance headers.
+4. Consult the official [Introduction](https://www.untitledui.com/react/docs/introduction),
+   [Theming](https://www.untitledui.com/react/docs/theming),
+   [Dark mode](https://www.untitledui.com/react/docs/dark-mode),
+   [Components](https://www.untitledui.com/react/docs/introduction#components),
+   [Page headers](https://www.untitledui.com/react/docs/introduction#page-headers),
+   [Progress indicators](https://www.untitledui.com/react/docs/introduction#progress-indicators),
+   [Activity feeds](https://www.untitledui.com/react/docs/introduction#activity-feeds),
+   [Calendars](https://www.untitledui.com/react/docs/introduction#calendars) and
+   [Empty states](https://www.untitledui.com/react/docs/introduction#empty-states)
+   documentation topics.
+5. Compose DalyHub behavior above those primitives and verify the real route.
+
+No screenshot is a design authority for Today. Temporary review screenshots,
+if captured by a future agent, must remain outside the repository's design
+assets and must never be referenced as implementation guidance.
+
+## Tasks Phase 3 implementation baseline
+
+Tasks is the first data-dense feature migration after Today. Its presentation
+uses the Untitled Application UI grammar for page headers, tables/list hybrids,
+filter bars, tabs, dropdown actions, drawers, forms, empty states and
+pagination, while the existing DalyHub task projection and mutation routes
+remain authoritative.
+
+### Untitled references selected and verified
+
+The authenticated Pro catalogue was queried during this phase. The selected
+page foundation is `dashboards-01/02`, whose Application UI template provides a
+sidebar application layout, table, filter-bar, select and pagination pattern.
+`dashboards-01/09` was also inspected as a reference for dense status-heavy
+data and selection controls. Component searches returned and the bundle
+resolved successfully for:
+
+- `table`;
+- `filters-menu`;
+- `project-details-menu`;
+- `command-menu-actions`.
+
+The genuine local source used by the Tasks surface is already vendored under
+`app/shared/ui/untitled/`, including:
+
+- `application/table` for the available accessible table grammar;
+- `application/slideout-menus` for the drawer/slideout interaction model;
+- `application/command-menus` for command actions;
+- `application/tabs`, `application/date-picker` and `application/empty-state`;
+- `base/buttons`, `base/checkbox`, `base/dropdown`, `base/input`,
+  `base/select`, `base/badges` and `base/tooltip`.
+
+Tasks uses the existing `TaskList` product composition rather than forcing
+task rows into a generic table: the product row includes inline completion,
+date, parent and priority editing, touch gestures, selection replacement,
+waiting/blocked semantics and optional drop destinations. Those are DalyHub
+domain behaviours above the Untitled primitives, not a reason to create a
+second generic table system.
+
+### Reference-first workflow and documentation consulted
+
+The Pro CLI session was re-authenticated with `npx untitledui@latest login`.
+The catalogue and component bundle calls succeeded with `has_pro_access: true`.
+Official documentation consulted during implementation:
+
+- [Introduction](https://www.untitledui.com/react/docs/introduction), including
+  the source-code model, Tailwind CSS v4 and React Aria foundations;
+- [Theming](https://www.untitledui.com/react/docs/theming), for the purple
+  `--color-brand-*` token architecture;
+- [Dark mode](https://www.untitledui.com/react/docs/dark-mode), for token-based
+  light/dark appearance behaviour;
+- [Buttons](https://www.untitledui.com/react/components/buttons),
+  [Checkboxes](https://www.untitledui.com/react/components/checkboxes),
+  [Filter bars](https://www.untitledui.com/react/components/filter-bars),
+  [Drawers](https://www.untitledui.com/react/components/drawers),
+  [Tables](https://www.untitledui.com/react/components/tables) and
+  [Tabs](https://www.untitledui.com/react/components/tabs).
+
+### DalyHub-specific compositions and custom UI policy
+
+`TaskRow`, `TaskList`, `TaskBulkActionBar`, `TaskRecordDrawer`, recurrence,
+dependency and checklist sections, inline task fields, offline feedback and
+the saved-view/filter state are retained or composed above Untitled source.
+They carry task completion, optimistic/offline writes, recurrence successor
+rules, directed dependencies, checklist persistence, selection/range
+selection, keyboard focus and canonical route behaviour. Recurrence and
+dependency editors are legitimate domain-specific compositions because
+Untitled has no DalyHub task model; their controls still use the shared
+Untitled-backed form/select/checkbox/drawer primitives.
+
+This phase creates no new generic button, input, select, table, menu, drawer,
+badge or dialog primitive. The Tasks create action uses the shared genuine
+Untitled-backed `Button`; collection search and the filter trigger use the same
+button/input sources; and active filter indicators and task status use the
+genuine Untitled `Badge` source. Existing legacy class names remain only as
+temporary layout/test hooks for unmigrated consumers and are not new design
+authority.
+
+No screenshot, historical visual audit or legacy Material/MD3/DHDS stylesheet
+is an implementation reference for Tasks.
+
+## Untitled UI Reference-First Implementation
+
+Untitled UI Pro is available directly to implementation agents. Agents MUST
+use the actual library and documentation during frontend work. The official
+starting point is the [React introduction](https://www.untitledui.com/react/docs/introduction).
+
+For each page, feature surface or substantial component, agents must search
+Application UI examples, full-page examples where applicable, the component
+catalogue, existing imported Untitled source and the relevant React
+documentation. Prefer importing or copying the genuine implementation, then
+adapt it to DalyHub data and behaviour while preserving Untitled accessibility,
+responsive composition and token usage. Bespoke UI is permitted only when no
+suitable Untitled pattern exists.
+
+Consult the relevant [introduction](https://www.untitledui.com/react/docs/introduction),
+[installation](https://www.untitledui.com/react/docs/installation), [CLI](https://www.untitledui.com/react/docs/cli),
+[MCP](https://www.untitledui.com/react/docs/mcp), [theming](https://www.untitledui.com/react/docs/theming),
+[dark mode](https://www.untitledui.com/react/docs/dark-mode), typography, icons,
+components, Application UI, dashboard, settings and React Aria accessibility
+documentation throughout implementation. Do not rely on memory or manually
+reproduce an Untitled appearance when the actual source is available.
+
+Substantial frontend implementation summaries must identify the Untitled page
+examples and components used, documentation consulted, DalyHub-specific
+extensions/custom components, and reasons for significant deviations.
+
+## Tasks Phase 3B completion record
+
+The authenticated Pro catalogue was available for this pass (`has_pro_access:
+true`). Exact references inspected were Application UI `dashboards-01/02` for
+the sidebar/table/filter/pagination grammar and `dashboards-01/09` for dense
+status-heavy selection tables. Component references were `table`,
+`filters-menu`, `project-details-menu` and `command-menu-actions`.
+
+| Tasks surface | Untitled source/reference | DalyHub adaptation | Legacy remaining |
+|---|---|---|---|
+| Page header | Application UI page-header grammar; shared `PaneHeader` | Task title, view context and actions | Shared header compatibility classes |
+| Main collection | `table` inspected; semantic list composition retained | Inline editing, gestures, selection, blocked/waiting and persisted ordering | `task-list.css` layout rules |
+| Search | `base/input` via shared `Input` | Existing URL/search state | Collection compatibility selectors |
+| Filters | `filters-menu`; shared button/popover/sheet sources | Existing filter reducer, URL state and mobile behavior | Collection filter layout CSS |
+| Active filters | `base/badges` via genuine `Badge` | Existing removable filter links | Chip spacing hooks |
+| Status | `base/badges` via genuine `Badge` | DalyHub status labels and tones | Row state layout hook |
+| Selection/bulk | `base/checkbox`, buttons and menu sources | Existing range/select-all and atomic mutations | Bulk toolbar layout CSS |
+| Row actions | `project-details-menu` / dropdown patterns | Existing task actions | Product row positioning |
+| Drawer | `application/slideout-menus` inspected; shared boundary retained | URL-backed record stack and focus restoration | `task-drawer.css` |
+| Task form | Untitled-backed inputs, selects, date picker and buttons | Existing validation and domain fields | Form layout selectors |
+| Recurrence | Untitled inputs/selects/buttons | DalyHub recurrence and successor rules | Domain editor layout |
+| Dependencies/checklist | Untitled checkbox/input/menu primitives | Directed links and checklist persistence/order | Domain section layout |
+| Empty/loading/error | `application/empty-state` and loading sources | Existing no-result, offline and error semantics | Shared task state classes |
+| Pagination | Untitled pagination inspected | Cursor/keyset `LoadMore` retained to preserve behavior | Load-more layout hook |
+| Board/mobile | Application UI responsive grammar and shared primitives | Existing board sectors and mobile detail behavior | Board/task compatibility styles |
+
+The main list and drawer are DalyHub compositions above genuine Untitled
+primitives, not a second generic UI library. Forcing generic table or slideout
+markup into the record would remove task semantics rather than migrate
+presentation. No new generic primitive or visual token layer was introduced.

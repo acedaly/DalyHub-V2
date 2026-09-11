@@ -11,8 +11,8 @@
  * Two DalyHub adaptations are applied, and are the only differences from
  * upstream:
  *
- *   BRAND    The ramp is re-anchored on DalyHub's `--accent` (#5b4bd6), keeping
- *            Untitled's perceptual lightness ladder. One identity, not two.
+ *   BRAND    The ramp is re-anchored on DalyHub's Branded Plum
+ *            (#693f75), keeping Untitled's perceptual lightness ladder.
  *   DARK     Untitled's `.dark-mode` class is replaced by DalyHub's own two
  *            conditions — `[data-appearance='dark']`, and `prefers-color-scheme:
  *            dark` where the owner has not pinned light (APPEARANCE-01). One
@@ -544,24 +544,24 @@
 
 @layer base {
     /*
-     * BRAND — DalyHub's accent, wearing Untitled's ramp shape.
+     * BRAND — DalyHub's Branded Plum, wearing Untitled's ramp shape.
      *
      * Declared after the `@theme` block rather than inside it so the substitution
      * is legible as a substitution: everything above is upstream, this is ours.
      */
     :root {
-    --color-brand-25: rgb(249 250 255);
-    --color-brand-50: rgb(245 246 255);
-    --color-brand-100: rgb(234 236 255);
-    --color-brand-200: rgb(213 217 255);
-    --color-brand-300: rgb(185 188 255);
-    --color-brand-400: rgb(145 145 251);
-    --color-brand-500: rgb(120 114 239);
-    --color-brand-600: rgb(91 75 214);
-    --color-brand-700: rgb(78 55 197);
-    --color-brand-800: rgb(64 50 159);
-    --color-brand-900: rgb(53 45 127);
-    --color-brand-950: rgb(38 29 100);
+    --color-brand-25: rgb(253 250 254);
+    --color-brand-50: rgb(248 244 249);
+    --color-brand-100: rgb(240 233 242);
+    --color-brand-200: rgb(224 210 228);
+    --color-brand-300: rgb(201 178 207);
+    --color-brand-400: rgb(165 131 175);
+    --color-brand-500: rgb(139 100 151);
+    --color-brand-600: rgb(105 63 117);
+    --color-brand-700: rgb(95 53 107);
+    --color-brand-800: rgb(81 48 90);
+    --color-brand-900: rgb(69 44 76);
+    --color-brand-950: rgb(56 34 62);
     }
 
     /*

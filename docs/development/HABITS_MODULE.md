@@ -8,7 +8,7 @@ Project's progress. What it measures is CONSISTENCY.
 Accepted via
 [ADR-102](../decisions/ARCHITECTURE_DECISIONS.md#adr-102-a-habit-is-a-behaviour-not-a-recurring-task--a-distinct-domain-with-effective-dated-schedules-owner-local-check-ins-and-no-manufactured-streaks).
 Full programme record:
-[`HABITS_01_HABITS_AND_ROUTINES_2026_08.md`](../design/HABITS_01_HABITS_AND_ROUTINES_2026_08.md).
+[`HABITS_01_HABITS_AND_ROUTINES_2026_08.md`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records).
 
 ## Where a Habit sits
 

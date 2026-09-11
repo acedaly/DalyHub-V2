@@ -72,6 +72,8 @@
 
 import type { ReactNode } from "react";
 
+import { cx } from "~/shared/ui/untitled/utils/cx";
+
 import { useSetMobileTopBar } from "./mobile-top-bar-context";
 
 export type PaneHeaderProps = {
@@ -145,9 +147,13 @@ export function PaneHeader({
   className,
 }: PaneHeaderProps) {
   const Heading = `h${headingLevel}` as const;
-  const classes = ["dh-pane-header", `dh-pane-header--${density}`, className]
-    .filter(Boolean)
-    .join(" ");
+  const classes = cx(
+    "dh-pane-header flex w-full max-w-[var(--dh-shell-content-max-width)] flex-wrap items-end justify-between gap-x-4 gap-y-3 bg-transparent px-[var(--dh-shell-gutter)]",
+    density === "compact"
+      ? "dh-pane-header--compact py-4 pb-2"
+      : "dh-pane-header--identity items-start py-5 pb-4",
+    className,
+  );
 
   // MOBILE-01 — a phone screen says which COLLECTION it is showing, not the
   // workspace name it would otherwise repeat everywhere. Only the pane's own
@@ -158,50 +164,84 @@ export function PaneHeader({
   useSetMobileTopBar({ title: publishedToMobileBar ? title : null });
 
   return (
-    <div className={classes}>
-      <div className="dh-pane-header__lead">
+    <div
+      className={classes}
+      data-untitled-source="page-header"
+      data-dh-header-density={density}
+    >
+      <div className="dh-pane-header__lead flex min-w-0 flex-1 items-center gap-3">
         {icon}
-        <div className="dh-pane-header__titles">
+        <div
+          className={cx(
+            "dh-pane-header__titles min-w-0",
+            density === "compact" && "flex items-baseline gap-3",
+          )}
+        >
           {eyebrow ? (
-            <p className="dh-pane-header__eyebrow">{eyebrow}</p>
+            <p className="dh-pane-header__eyebrow m-0 mb-1 text-xs font-semibold tracking-wide text-tertiary uppercase">
+              {eyebrow}
+            </p>
           ) : null}
           {/* `data-published` marks the title the PHONE top bar is already
            * showing. At phone widths the CSS hides this copy VISUALLY but leaves
            * it in the document, because the bar renders its title as a `p` — so
            * removing this heading would leave the screen with no `h1` at all.
            * One visible title, one heading outline. */}
-          <div className="dh-pane-header__headline">
+          <div className="dh-pane-header__headline flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
             <Heading
               id={titleId}
-              className="dh-pane-header__title"
+              className="dh-pane-header__title m-0 text-display-xs font-semibold text-primary"
               data-published={publishedToMobileBar ? "true" : undefined}
             >
               {title}
             </Heading>
             {status ? (
-              <span className="dh-pane-header__status">{status}</span>
+              <span className="dh-pane-header__status inline-flex items-center">
+                {status}
+              </span>
             ) : null}
           </div>
           {subtitle ? (
-            <p className="dh-pane-header__subtitle">{subtitle}</p>
+            <p
+              className={cx(
+                "dh-pane-header__subtitle text-sm text-tertiary tabular-nums",
+                density === "compact" ? "m-0" : "mt-1 mb-0",
+              )}
+            >
+              {subtitle}
+            </p>
           ) : null}
-          {meta ? <div className="dh-pane-header__meta">{meta}</div> : null}
+          {meta ? (
+            <div className="dh-pane-header__meta mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-tertiary tabular-nums">
+              {meta}
+            </div>
+          ) : null}
         </div>
       </div>
 
-      {search ? <div className="dh-pane-header__search">{search}</div> : null}
+      {search ? (
+        <div className="dh-pane-header__search flex min-w-0 flex-1 basis-48 items-center justify-end">
+          {search}
+        </div>
+      ) : null}
 
       {viewSwitcher ? (
-        <div className="dh-pane-header__views">{viewSwitcher}</div>
+        <div className="dh-pane-header__views flex min-w-0 items-center">
+          {viewSwitcher}
+        </div>
       ) : null}
 
       {secondaryActions || primaryAction ? (
-        <div className="dh-pane-header__actions">
+        <div className="dh-pane-header__actions flex flex-none flex-wrap items-center justify-end gap-x-3 gap-y-2">
           {secondaryActions ? (
-            <div className="dh-pane-header__secondary">{secondaryActions}</div>
+            <div className="dh-pane-header__secondary flex items-center gap-2">
+              {secondaryActions}
+            </div>
           ) : null}
           {primaryAction ? (
-            <div className="dh-pane-header__primary">{primaryAction}</div>
+            <div className="dh-pane-header__primary flex flex-none items-center">
+              {primaryAction}
+            </div>
           ) : null}
         </div>
       ) : null}

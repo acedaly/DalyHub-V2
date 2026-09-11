@@ -1,20 +1,19 @@
 /**
- * PX-02 application frame, with the MOBILE-01 phone shell.
+ * Phase 1 Untitled application shell.
  *
- * The premium application shell that replaces FND-09's website-like top bar
- * (PRODUCT_EXPERIENCE #1, #2): a persistent left sidebar owning identity and
- * navigation, and a full-height content pane with its own scroll. Layout is
- * `grid-template-columns: var(--app-shell-navigation-width) 1fr` — the sidebar width token
- * DS-01 already defined and nothing consumed until now.
+ * One reusable frame hosts every authenticated route while feature pages migrate:
+ * a persistent Untitled-inspired desktop sidebar, a compact mobile top bar, a
+ * phone bottom bar, and an Untitled React Aria slideout for complete mobile
+ * navigation. The full-height content pane renders the route Outlet unchanged.
  *
  * - Desktop/laptop/tablet: the sidebar is a persistent rail; the pane scrolls
  *   independently so Pane Headers and filter bars can pin (PRODUCT_EXPERIENCE #11).
  *   MOBILE-01 changes NOTHING here.
- * - Phone (MOBILE-01): the rail is hidden and navigation becomes a persistent
+ * - Phone: the rail is hidden and navigation becomes a persistent
  *   BOTTOM bar within thumb reach — `Today · Tasks · Add · Projects · More` —
  *   derived from the registry (see `mobile-navigation.ts`). "More" opens the same
- *   complete navigation sheet the hamburger used to (MobileNav), so every module
- *   stays one tap away and there is no second module list. A compact top bar keeps
+ *   complete Untitled slideout navigation sheet, so every module stays one tap
+ *   away and there is no second module list. A compact top bar keeps
  *   the route title, a contextual Back and Search.
  *
  * The shell also mounts, exactly once each: the shared Quick Capture provider (so
@@ -339,7 +338,13 @@ export function AppShell({
     setNavOpener(opener);
     setNavOpen(true);
   }, []);
-  const closeMoreNavigation = useCallback(() => setNavOpen(false), []);
+  const closeMoreNavigation = useCallback(() => {
+    const opener = navOpener;
+    setNavOpen(false);
+    if (opener && typeof window !== "undefined") {
+      window.requestAnimationFrame(() => opener.focus());
+    }
+  }, [navOpener]);
 
   return (
     <FeedbackProvider>
@@ -489,7 +494,6 @@ export function AppShell({
                       appearance={appearance}
                       navigation={navigation}
                       settingsHref="/settings"
-                      opener={navOpener}
                       onClose={closeMoreNavigation}
                       onOpenSearch={openSearch}
                       onOpenCommand={openCommand}

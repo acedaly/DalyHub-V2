@@ -28,6 +28,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFetcher } from "react-router";
+import { Button } from "~/shared/ui";
 
 import { addCalendarDays, isCalendarDate } from "~/kernel/datetime";
 import { MAX_PLAN_BATCH_SIZE, TIME_SECTORS } from "~/kernel/tasks";
@@ -257,13 +258,9 @@ export function TaskBulkActionBar({
           one change stays fast and atomic. Deselect {overBy} to continue.
         </p>
         <div className="dh-tasks-bulk__actions">
-          <button
-            type="button"
-            className="dh-btn dh-btn--secondary"
-            onClick={onCleared}
-          >
+          <Button variant="secondary" size="sm" onClick={onCleared}>
             Clear selection
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -285,22 +282,22 @@ export function TaskBulkActionBar({
           permanently destroyed.
         </p>
         <div className="dh-tasks-bulk__actions">
-          <button
-            type="button"
-            className="dh-btn dh-btn--danger"
+          <Button
+            variant="danger"
+            size="sm"
             disabled={busy}
             onClick={() => run({ intent: "delete" })}
           >
             Delete {count} {noun}
-          </button>
-          <button
-            type="button"
-            className="dh-btn dh-btn--secondary"
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
             disabled={busy}
             onClick={() => setConfirmDelete(false)}
           >
             Keep them
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -313,38 +310,38 @@ export function TaskBulkActionBar({
       </p>
       <div className="dh-tasks-bulk__actions">
         {viewingDeleted ? (
-          <button
-            type="button"
-            className="dh-btn dh-btn--primary"
+          <Button
+            variant="primary"
+            size="sm"
             disabled={busy}
             onClick={() => run({ intent: "restore" })}
           >
             Restore
-          </button>
+          </Button>
         ) : (
           <>
             {anyOpen ? (
-              <button
-                type="button"
-                className="dh-btn dh-btn--secondary"
+              <Button
+                variant="secondary"
+                size="sm"
                 disabled={busy}
                 onClick={() => run({ intent: "complete" })}
               >
                 Complete
-              </button>
+              </Button>
             ) : null}
             {/* Reopen is offered ONLY when the selection actually contains completed
                 work — a control that cannot apply to anything selected is worse than
                 a missing one (brief §14). */}
             {anyCompleted ? (
-              <button
-                type="button"
-                className="dh-btn dh-btn--secondary"
+              <Button
+                variant="secondary"
+                size="sm"
                 disabled={busy}
                 onClick={() => run({ intent: "reopen" })}
               >
                 Reopen
-              </button>
+              </Button>
             ) : null}
 
             <BulkMenu
@@ -429,15 +426,15 @@ export function TaskBulkActionBar({
               }}
             />
 
-            <button
-              type="button"
-              className="dh-btn dh-btn--secondary"
+            <Button
+              variant="secondary"
+              size="sm"
               aria-expanded={showMore}
               disabled={busy}
               onClick={() => setShowMore((open) => !open)}
             >
               More
-            </button>
+            </Button>
 
             {showMore ? (
               <>
@@ -462,47 +459,42 @@ export function TaskBulkActionBar({
                     })
                   }
                 />
-                <button
-                  type="button"
-                  className="dh-btn dh-btn--secondary"
+                <Button
+                  variant="secondary"
+                  size="sm"
                   disabled={busy}
                   onClick={() =>
                     run({ intent: "set_commitment", commitment: "someday" })
                   }
                 >
                   Someday / Maybe
-                </button>
-                <button
-                  type="button"
-                  className="dh-btn dh-btn--secondary"
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
                   disabled={busy}
                   onClick={() =>
                     run({ intent: "set_commitment", commitment: "active" })
                   }
                 >
                   Make active
-                </button>
-                <button
-                  type="button"
-                  className="dh-btn dh-btn--danger-quiet"
+                </Button>
+                <Button
+                  variant="danger"
+                  size="sm"
                   disabled={busy}
                   onClick={() => setConfirmDelete(true)}
                 >
                   Delete…
-                </button>
+                </Button>
               </>
             ) : null}
           </>
         )}
 
-        <button
-          type="button"
-          className="dh-btn dh-btn--ghost"
-          disabled={busy}
-          onClick={onCleared}
-        >
+        <Button variant="subtle" size="sm" disabled={busy} onClick={onCleared}>
           Done
-        </button>
+        </Button>
       </div>
       {status ? (
         <p className="dh-tasks-bulk__status" role="status">
@@ -624,17 +616,17 @@ export function TaskSelectionPrompt({
         </p>
       ) : null}
       <div className="dh-tasks-bulk__actions">
-        <button
-          type="button"
-          className="dh-btn dh-btn--secondary"
+        <Button
+          variant="secondary"
+          size="sm"
           disabled={loadedCount === 0}
           onClick={() => onSelectAll(selectableIds)}
         >
           Select all {selectableIds.length}
-        </button>
-        <button type="button" className="dh-btn dh-btn--ghost" onClick={onDone}>
+        </Button>
+        <Button variant="subtle" size="sm" onClick={onDone}>
           Done
-        </button>
+        </Button>
       </div>
     </div>
   );

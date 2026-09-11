@@ -4,17 +4,34 @@ Before making any changes, read and follow:
 
 - `AGENTS.md`
 - `docs/design/DESIGN_DIRECTION.md`
-- `docs/design/DESIGN_SYSTEM.md`
 - `docs/design/UNTITLED_UI_IMPLEMENTATION.md`
+- `docs/design/UNTITLED_UI_MIGRATION.md`
+- `docs/design/DESIGN_SYSTEM.md`
 
 These DalyHub documents are authoritative for product behaviour, architecture and visual direction.
 
-`DESIGN_DIRECTION.md` and `PRODUCT_PRINCIPLES.md` decide DalyHub's product
+`PRODUCT_PRINCIPLES.md` and `DESIGN_DIRECTION.md` decide DalyHub's product
 semantics. [`UNTITLED_UI_IMPLEMENTATION.md`](docs/design/UNTITLED_UI_IMPLEMENTATION.md)
-decides how the frontend adopts Untitled UI React Pro. The Untitled UI guidance
-below describes how to correctly use the library; it does not override DalyHub's
-product design or architecture. Historical DHDS/Material documents are records,
-not current implementation instructions.
+is the single frontend implementation authority:
+
+1. Search Untitled UI Application UI examples.
+2. Search full-page examples where applicable.
+3. Search the component catalogue.
+4. Inspect existing Untitled components already imported into DalyHub.
+5. Read the relevant Untitled UI React documentation.
+6. Prefer importing/copying genuine Untitled implementation over recreating it.
+7. Adapt that source to DalyHub domain data and behaviour.
+
+Do not rely on memory of Untitled UI, do not manually reproduce its appearance
+when source/docs are available, do not restore Material/MD3/DHDS, and do not
+create another design system. Preserve DalyHub product behaviour during
+migration. The Untitled UI guidance below explains how to use the library; it
+does not override DalyHub's product design or architecture.
+
+Branded Plum is the active shell identity: use the generated Untitled brand
+ramp for deep plum navigation and restrained primary/selected/focus accents,
+while keeping page canvases and overlays neutral in both appearances. Do not
+derive the theme from screenshots or create a parallel DalyHub palette.
 
 ---
 

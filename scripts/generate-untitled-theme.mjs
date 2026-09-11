@@ -23,10 +23,10 @@
  *      generator on purpose — CSS has no mixin, and `tokens.css` duplicates for
  *      exactly this reason.
  *
- *   2. THE BRAND RAMP IS REPLACED with one anchored on DalyHub's own accent.
+ *   2. THE BRAND RAMP IS REPLACED with one anchored on DalyHub's Branded Plum.
  *      Untitled's ramp SHAPE is preserved perceptually — each step keeps its
  *      OKLCH lightness relationship to the 600 step — while hue and chroma move
- *      onto `--accent` (#5b4bd6). Untitled supplies the machinery; DalyHub
+ *      onto the product's plum anchor. Untitled supplies the machinery; DalyHub
  *      supplies the identity, which is the whole theme strategy in one line.
  *
  * Usage:
@@ -42,9 +42,6 @@ const SOURCE = fileURLToPath(
 );
 const OUTPUT = fileURLToPath(
   new URL("../app/styles/untitled/theme.css", import.meta.url),
-);
-const TOKENS = fileURLToPath(
-  new URL("../app/styles/tokens.css", import.meta.url),
 );
 const PROVENANCE = JSON.parse(
   readFileSync(
@@ -117,23 +114,16 @@ const parseHex = (hex) => {
 /* ── Inputs ───────────────────────────────────────────────────────────────── */
 
 const source = readFileSync(SOURCE, "utf8");
-const tokens = readFileSync(TOKENS, "utf8");
 
 /**
- * DalyHub's accent, read from `tokens.css` rather than restated here, so the
- * generator cannot drift from the value the product actually paints.
+ * DalyHub's one Untitled brand anchor.
+ *
+ * This deliberately lives beside the ramp generator rather than in the legacy
+ * `tokens.css`: Untitled/Tailwind is the active frontend theme authority, while
+ * the older accent remains compatibility data for unmigrated feature CSS. New
+ * shell and component code consumes the generated `brand-*` and semantic roles.
  */
-function readAccent(name) {
-  const match = tokens.match(
-    new RegExp(`^\\s*--${name}:\\s*(#[0-9a-fA-F]{6});`, "m"),
-  );
-  if (!match) {
-    throw new Error(`Could not read --${name} from tokens.css`);
-  }
-  return match[1];
-}
-
-const ACCENT = readAccent("accent");
+const BRAND_ANCHOR = "#693f75";
 
 /** The steps Untitled publishes, plus the 25 the DalyHub ramp adds. */
 const STEPS = [25, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950];
@@ -177,7 +167,7 @@ function readUpstreamBrandRamp() {
 function buildBrandRamp() {
   const upstream = readUpstreamBrandRamp();
   const anchor = rgbToOklch(upstream.get(600));
-  const target = rgbToOklch(parseHex(ACCENT));
+  const target = rgbToOklch(parseHex(BRAND_ANCHOR));
 
   const lightnesses = new Map(
     STEPS.map((step) => {
@@ -264,8 +254,8 @@ const BANNER = `/*
  * Two DalyHub adaptations are applied, and are the only differences from
  * upstream:
  *
- *   BRAND    The ramp is re-anchored on DalyHub's \`--accent\` (${ACCENT}), keeping
- *            Untitled's perceptual lightness ladder. One identity, not two.
+ *   BRAND    The ramp is re-anchored on DalyHub's Branded Plum
+ *            (${BRAND_ANCHOR}), keeping Untitled's perceptual lightness ladder.
  *   DARK     Untitled's \`.dark-mode\` class is replaced by DalyHub's own two
  *            conditions — \`[data-appearance='dark']\`, and \`prefers-color-scheme:
  *            dark\` where the owner has not pinned light (APPEARANCE-01). One
@@ -286,7 +276,7 @@ ${themeBlock}
 
 @layer base {
     /*
-     * BRAND — DalyHub's accent, wearing Untitled's ramp shape.
+     * BRAND — DalyHub's Branded Plum, wearing Untitled's ramp shape.
      *
      * Declared after the \`@theme\` block rather than inside it so the substitution
      * is legible as a substitution: everything above is upstream, this is ours.
@@ -328,6 +318,6 @@ if (process.argv.includes("--check")) {
 } else {
   writeFileSync(OUTPUT, output);
   console.log(
-    `Wrote app/styles/untitled/theme.css — brand ramp anchored on ${ACCENT}.`,
+    `Wrote app/styles/untitled/theme.css — brand ramp anchored on ${BRAND_ANCHOR}.`,
   );
 }

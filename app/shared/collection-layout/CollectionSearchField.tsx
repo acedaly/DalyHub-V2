@@ -44,6 +44,7 @@
 import { useId, useRef, useState } from "react";
 
 import { SearchIcon, CloseIcon } from "~/shared/icons";
+import { Input } from "~/shared/ui";
 
 export type CollectionSearchFieldProps = {
   /** The current query text. */
@@ -107,14 +108,12 @@ export function CollectionSearchField({
         <label className="dh-visually-hidden" htmlFor={inputId}>
           {label}
         </label>
-        <span className="dh-csearch__icon" aria-hidden="true">
-          <SearchIcon />
-        </span>
-        <input
+        <Input
           id={inputId}
           ref={inputRef}
           className="dh-csearch__input"
           type="search"
+          leading={<SearchIcon />}
           value={value}
           placeholder={placeholder ?? label}
           onChange={(event) => onChange(event.currentTarget.value)}

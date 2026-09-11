@@ -767,7 +767,7 @@ the mutation contracts they document are unchanged.
 
 ## UIX-04 — the week strip (August 2026)
 
-Redesigned as part of [UIX-04](../design/UIX_04_NOTES_DIARY_MEETINGS_2026_08.md).
+Redesigned as part of [UIX-04](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records).
 The domain, the routes, the `occurred_at` chronology and every mutation are
 unchanged.
 

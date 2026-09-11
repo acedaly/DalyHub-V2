@@ -990,6 +990,7 @@ export function TaskRecordDrawer({
   if (loadError) {
     return (
       <EmptyState
+        structure="untitled"
         title="We couldn’t load this task"
         description="Something went wrong. Please try again."
         primaryAction={
@@ -1012,6 +1013,7 @@ export function TaskRecordDrawer({
   if ("error" in data) {
     return (
       <EmptyState
+        structure="untitled"
         title="We couldn’t find that task"
         description="It may have been deleted, or the link is out of date."
       />

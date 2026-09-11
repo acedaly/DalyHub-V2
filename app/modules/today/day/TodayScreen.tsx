@@ -162,6 +162,8 @@ import {
   type DayTask,
 } from "./day-view";
 import { useTaskSurfaceActions } from "~/shared/task-record/use-task-surface-actions";
+import { Button } from "~/shared/ui";
+import { PaneHeader } from "~/shared/shell/PaneHeader";
 import {
   type AttentionItem,
   type AttentionKind,
@@ -1319,7 +1321,7 @@ export function TodayScreen({
   const hasDay = buckets.overdue.length > 0 || buckets.today.length > 0;
 
   return (
-    <div className="dh-today">
+    <div className="dh-today min-w-0">
       {/*
        * The header block is PAGE CONTENT on the canvas — the greeting is the
        * screen's heading, not a widget with a label above it. It states who and
@@ -1372,20 +1374,18 @@ export function TodayScreen({
        * was a full-width primary button sitting between the greeting and the
        * first task.
        */}
-      <header className="dh-today__head">
-        <div className="dh-today__identity">
-          <p className="dh-today__date">{data.dateLong}</p>
-          <h1 className="dh-today__greeting">{greeting}</h1>
-          <p className="dh-today__status" aria-live="polite">
-            {attentionSummary}
-          </p>
-        </div>
-        {/* CAL-02 — the three daily surfaces. It survives TODAY-11 because the
-            Schedule panel's week strip navigates the SCHEDULE's day, while
-            Tomorrow and Next 7 days carry tomorrow's TASKS and seven days of
-            task counts — which a strip over one panel cannot. */}
-        <DayNav active="today" />
-      </header>
+      <PaneHeader
+        eyebrow="Today"
+        title={greeting}
+        subtitle={data.dateLong}
+        meta={<span aria-live="polite">{attentionSummary}</span>}
+        viewSwitcher={
+          /* CAL-02 — these are DalyHub's day views, composed into the shared
+             Untitled page-header grammar rather than given a Today-only header. */
+          <DayNav active="today" />
+        }
+        className="dh-today__head"
+      />
 
       {/*
        * ── ONE GRID ─────────────────────────────────────────────────────────
@@ -1426,7 +1426,7 @@ export function TodayScreen({
        * it rather than doing it a second, different way in a media query.
        */}
       <div
-        className="dh-today__grid"
+        className="dh-today__grid grid min-w-0 gap-4"
         data-now-context={
           nowTask !== null && nextMeeting !== null
             ? "both"
@@ -1929,20 +1929,18 @@ function AddTaskButton({
   const ref = useRef<HTMLButtonElement>(null);
   if (capture === null) return null;
   return (
-    <button
+    <Button
       type="button"
       ref={ref}
-      className="dh-btn dh-btn--ghost"
+      variant="subtle"
+      icon={<PlusIcon />}
       data-testid={testId}
       onClick={() => {
         if (ref.current) capture.openCapture("task", ref.current);
       }}
     >
-      <span className="dh-btn__icon" aria-hidden="true">
-        <PlusIcon />
-      </span>
       Add task
-    </button>
+    </Button>
   );
 }
 
@@ -2152,9 +2150,10 @@ function GoalProgressSection({
                   {onUpdateGoal &&
                   goal.progress.measured &&
                   goal.progress.type !== "milestone" ? (
-                    <button
+                    <Button
                       type="button"
-                      className="dh-btn dh-btn--ghost dh-btn--sm"
+                      variant="subtle"
+                      size="sm"
                       data-testid="today-goal-update"
                       onClick={(event) =>
                         onUpdateGoal(goal, event.currentTarget)
@@ -2162,7 +2161,7 @@ function GoalProgressSection({
                     >
                       {goalCheckInLabel(goal.progress.type, goal.progress.unit)}
                       <span className="dh-visually-hidden">{` for ${goal.title}`}</span>
-                    </button>
+                    </Button>
                   ) : null}
                 </li>
               );

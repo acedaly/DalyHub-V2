@@ -764,7 +764,7 @@ the V2 record stays closed.*
   or spacing scales, or add a Today widget the product does not already have. It is a
   visual-system and theme change applied to the existing product.
 - **Evidence.**
-  [`THEME_ACCEPTANCE_MATRIX.md → section 8`](../design/THEME_ACCEPTANCE_MATRIX.md#what-replaced-this-document)
+  [`THEME_ACCEPTANCE_MATRIX.md → section 8`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records)
   records what was verified and how, including the screenshot pass in
   `docs/design/assets/theme-02-2026-08/` (the folder was not committed; the matrix
   records what the captures showed).
@@ -1431,7 +1431,7 @@ They are small and well-understood; none of them blocks the V2 release.*
   column on prose surfaces and two density presets keyed to *surface type* rather
   than to module. Delivered **without adding a theme, without a new user-facing
   switch, and without changing what any module does**.
-- **The brief is the scope.** [`DS_14_OVERHAUL_BRIEF.md`](../design/DS_14_OVERHAUL_BRIEF.md)
+- **The brief is the scope.** [`DS_14_OVERHAUL_BRIEF.md`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records)
   states the direction as eight checkable constraints, the token set, the elevation
   contract, the density presets, the typography budget, the theme invariant
   specification, the surface classification, the absence-state rule, the accessibility

@@ -42,18 +42,18 @@ function SearchEntry({
     <button
       type="button"
       onClick={onOpen ? (event) => onOpen(event.currentTarget) : undefined}
-      className="group/entry flex min-h-11 w-full cursor-pointer items-center gap-2 rounded-md p-2 outline-focus-ring transition duration-100 ease-linear hover:bg-primary_hover focus-visible:outline-2 focus-visible:outline-offset-2"
+      className="group/entry flex min-h-11 w-full cursor-pointer items-center gap-2 rounded-md p-2 outline-focus-ring transition duration-100 ease-linear hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2"
     >
       <Icon
         aria-hidden="true"
-        className="size-5 shrink-0 text-fg-quaternary transition-inherit-all group-hover/entry:text-fg-quaternary_hover"
+        className="size-5 shrink-0 text-fg-white/70 transition-inherit-all group-hover/entry:text-fg-white"
       />
-      <span className="flex-1 text-left text-sm font-semibold text-secondary transition-inherit-all group-hover/entry:text-secondary_hover">
+      <span className="flex-1 text-left text-sm font-semibold text-secondary_on-brand transition-inherit-all group-hover/entry:text-primary_on-brand">
         {label}
       </span>
       <kbd
         aria-hidden="true"
-        className="hidden rounded border border-secondary px-1.5 py-0.5 font-mono text-xs text-quaternary sm:inline-block"
+        className="hidden rounded border border-white/15 px-1.5 py-0.5 font-mono text-xs text-tertiary_on-brand sm:inline-block"
       >
         {hint}
       </kbd>

@@ -37,7 +37,10 @@ export function SearchSignals({
     return null;
   }
   return (
-    <span className="dh-search__signals" aria-label="Result signals">
+    <span
+      className="dh-search__signals mt-1 flex min-w-0 flex-wrap gap-1"
+      aria-label="Result signals"
+    >
       {signals.map((signal) => {
         if (
           signal.kind === "priority" &&
@@ -48,7 +51,7 @@ export function SearchSignals({
             <PriorityIndicator
               key={signal.id}
               priority={signal.value as TaskPriority}
-              className="dh-search__signal"
+              className="dh-search__signal max-w-full"
             />
           );
         }
@@ -66,14 +69,14 @@ export function SearchSignals({
                 label: signal.label,
                 tone: urgencyTone(signal),
               }}
-              className="dh-search__signal"
+              className="dh-search__signal max-w-full"
             />
           );
         }
         return (
           <span
             key={signal.id}
-            className="dh-search__signal dh-search__signal--generic"
+            className="dh-search__signal dh-search__signal--generic inline-flex min-h-5.5 max-w-full items-center rounded-md border border-secondary bg-secondary px-2 text-xs font-medium text-tertiary"
             data-tone={signal.tone ?? "neutral"}
             aria-label={signal.accessibleLabel ?? signal.label}
           >

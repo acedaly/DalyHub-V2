@@ -3,8 +3,9 @@
 // @ react-router 8.0.0, MIT, retrieved 2026-07-17.
 // Changes: the document shell renders DalyHub's own head — manifest, icons,
 // preloaded UI font and the `theme-color` pair — and restores scroll by path
-// rather than by history entry (ADR-018). Styling stays plain CSS; the design
-// system is Material Design 3 (ADR-074).
+// rather than by history entry (ADR-018). Styling now routes migrated frontend
+// surfaces through Untitled UI React/Tailwind v4 while legacy CSS remains as a
+// compatibility layer until each consumer moves.
 //
 // APPEARANCE-01 resolves the owner's appearance preference here and writes it to
 // `<html data-appearance>` during SSR, so the first byte already carries the right
@@ -93,10 +94,10 @@ export function shouldRevalidate(args: ShouldRevalidateFunctionArgs): boolean {
 /**
  * PWA-01 — the browser/OS chrome colour.
  *
- * The generated `--md-app-color-surface-page` for each scheme, imported from the
- * same `scheme.ts` the stylesheet is generated alongside, because `theme-color`
- * is read by the browser BEFORE any stylesheet is parsed and cannot reference a
- * CSS custom property.
+ * The generated app surface colour for each scheme, imported from the same
+ * `scheme.ts` the compatibility stylesheet is generated alongside, because
+ * `theme-color` is read by the browser BEFORE any stylesheet is parsed and
+ * cannot reference a CSS custom property.
  *
  * `system` is the one preference that genuinely defers to the device, so it is the
  * one that emits a `prefers-color-scheme` PAIR — which is also what keeps the
@@ -216,7 +217,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           href="/manifest.webmanifest"
           crossOrigin="use-credentials"
         />
-        {/* M3-01 — the one UI family, preloaded.
+        {/* The one UI family, preloaded.
          *
          * Roboto Flex paints every piece of text in the product, chrome and
          * prose alike, so it is on the critical path of every page.

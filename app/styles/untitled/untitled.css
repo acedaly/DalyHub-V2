@@ -49,7 +49,7 @@
 /*
  * TYPEFACE — DalyHub's, not Untitled's.
  *
- * Untitled's theme asks for Inter. DalyHub self-hosts Instrument Sans as its one
+ * Untitled's theme asks for Inter. DalyHub self-hosts Roboto Flex as its one
  * UI family (DS-14) and publishes it as `--font`; `tokens.css` is imported later
  * in `app.css`, which is fine because a `var()` resolves at use time, not at
  * declaration time. Overriding here rather than in the generated theme keeps the
@@ -60,11 +60,11 @@
  */
 @theme {
   --font-body:
-    var(--font, "Instrument Sans"), system-ui, -apple-system,
-    BlinkMacSystemFont, "Segoe UI", sans-serif;
+    var(--font, "Roboto Flex"), system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
   --font-display:
-    var(--font, "Instrument Sans"), system-ui, -apple-system,
-    BlinkMacSystemFont, "Segoe UI", sans-serif;
+    var(--font, "Roboto Flex"), system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
   --font-mono: var(
     --font-mono-stack,
     ui-monospace,

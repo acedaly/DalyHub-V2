@@ -53,8 +53,8 @@
  *
  * The `dh-nav*` class names and the ~200 lines of `shell.css` behind them are
  * gone. Rows are `RailNavItem` (Untitled's `NavItemBase` anatomy), and the group
- * heading is Untitled's section-label treatment — `text-xs font-semibold
- * text-quaternary`, NOT upstream's `uppercase`. Five uppercase captions stacked
+ * heading is Untitled's section-label treatment — `text-xs font-semibold`
+ * with the on-brand tertiary role, NOT upstream's `uppercase`. Five uppercase captions stacked
  * down a 276px column read as shouting in a product whose whole brief is calm,
  * and the words are already short enough to scan.
  *
@@ -91,9 +91,8 @@ export type PrimaryNavigationProps = {
    */
   readonly collapsible?: boolean;
   /**
-   * Which surface the rows are drawn on. The recessed rail and the phone sheet
-   * are different tones, so "the current row, one step up" is a different colour
-   * in each — see `RailNavItem`.
+   * Which Branded Plum navigation surface the rows are drawn on. The distinction
+   * remains because desktop rows may evolve independently from touch rows.
    */
   readonly surface?: "rail" | "sheet";
 };
@@ -167,7 +166,7 @@ export function PrimaryNavigation({
                 className={
                   collapsed
                     ? "sr-only"
-                    : "block px-2 pb-1 text-xs font-semibold text-quaternary"
+                    : "block px-2 pb-1 text-xs font-semibold text-tertiary_on-brand"
                 }
               >
                 {heading}

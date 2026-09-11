@@ -66,19 +66,18 @@ describe("UNTITLED-02 the rail", () => {
     expect(row).not.toContain('surface === "sheet" ? "min-h-11" : "h-9"');
   });
 
-  it("is recessed under the page canvas, in Untitled's surface vocabulary", () => {
+  it("uses Branded Plum while the page canvas remains neutral", () => {
     /*
-     * AGENTS.md §6 D35: the rail sits UNDER its own canvas rather than on it,
-     * because it is a different surface from the page it frames. Untitled's
-     * reference sidebar does the opposite — a `bg-primary` card inset from the
-     * viewport with a ring and a shadow — so this is the one place the shell
-     * deliberately departs from the component it adopted, and the departure has
-     * to be pinned or the next re-sync quietly reverses it.
+     * Branded Plum concentrates identity in the navigation and leaves the
+     * workspace on Untitled's neutral `bg-primary`. Pin both halves so a future
+     * theme pass cannot paint every surface purple or quietly neutralise the rail.
      */
     const rail = sourceCode("Sidebar.tsx");
-    expect(rail).toContain("bg-secondary");
+    const frame = sourceCode("AppShell.tsx");
+    expect(rail).toContain("bg-brand-950");
+    expect(frame).toContain("bg-primary");
     expect(rail, "the rail draws one hairline, not an elevation").toContain(
-      "border-r border-secondary",
+      "border-r border-white/10",
     );
     expect(
       rail,
@@ -123,17 +122,11 @@ describe("UNTITLED-02 the rail", () => {
     );
   });
 
-  it("marks the selected destination with a treatment that CONTRASTS with the rail", () => {
+  it("marks the selected destination with Untitled's quiet on-brand overlay", () => {
     /*
-     * Untitled's nav item assumes it sits on `bg-primary` and marks the current
-     * row `bg-secondary`. The rail is itself `bg-secondary`, so adopting that
-     * pairing unchanged paints the current row in the exact colour it sits on —
-     * which is what the first render of this shell did, leaving `/today` with no
-     * "you are here" anchor at all.
-     *
-     * Asserted as the two surfaces being DIFFERENT rather than as specific
-     * colours, so the treatment can be retuned but the two can never collapse
-     * into each other again.
+     * The real Untitled mobile-header source uses translucent white states over
+     * a branded surface. Both navigation forms share that grammar and retain
+     * `aria-current`, so selection never relies on colour alone.
      */
     const row = sourceCode("RailNavItem.tsx");
     const rail = /rail:\s*\{([\s\S]*?)\}/.exec(row);
@@ -145,11 +138,8 @@ describe("UNTITLED-02 the rail", () => {
     const sheetSelected = /selected:\s*"([^"]*)"/.exec(sheet![1])?.[1];
     expect(railSelected).toBeTruthy();
     expect(sheetSelected).toBeTruthy();
-    expect(
-      railSelected,
-      "a selected row on the recessed rail must not be the rail's own colour",
-    ).not.toBe(sheetSelected);
-    expect(railSelected).toContain("bg-primary");
+    expect(railSelected).toContain("bg-white/10");
+    expect(sheetSelected).toContain("bg-white/10");
   });
 
   it("conveys the current destination semantically, not by colour alone", () => {
@@ -388,18 +378,11 @@ describe("UNTITLED-02 the shell composes Untitled primitives", () => {
  * ── Three assertions UNTITLED-02 retired, and why ───────────────────────────
  *
  * "paints itself from the rail vocabulary, not from the page's" and "overrides
- * the focus ring's colour for the whole region" both existed because the rail
- * was a region whose colour did NOT follow the appearance — near-black under a
- * white page — so it needed its own `--dh-color-rail-*` family and its own focus
- * ring, or a component reaching for `--dh-color-text` out of habit painted
- * near-black on near-black.
- *
- * That condition is gone. The rail is now one tone away from the pane, both
- * following the appearance, both drawn from the one surface vocabulary every
- * other surface uses. There is no second colour system left for a component to
- * pick the wrong half of, so there is nothing for those two tests to catch — and
- * the recessed relationship they were really protecting is asserted directly by
- * "is recessed under the page canvas" above.
+ * the focus ring's colour for the whole region" both existed for the retired
+ * `--dh-color-rail-*` compatibility family. Branded Plum uses Untitled's one
+ * generated brand ramp plus its on-brand semantic foregrounds instead. The
+ * relationship that matters now — branded navigation beside a neutral canvas —
+ * is asserted directly above without reviving a parallel token system.
  *
  * "restates the selected destination under forced colours" is retired for a
  * related reason: it existed because the rail's selected rule was a TWO-class

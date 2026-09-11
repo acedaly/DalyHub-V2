@@ -554,8 +554,9 @@ slot — 2.875rem below 30rem), a source accent mark where a Task's completion
 circle stands, then the title with one quiet supporting line under it. Long titles
 truncate with an ellipsis; the full title is in the row's accessible name and on
 the detail sheet. All-day items have no time slot at all. Verified at
-320/375/390/430 with no horizontal overflow (`e2e/calendar.spec.ts`), and captured
-in [`docs/design/assets/cal-01-2026-08/`](../design/assets/cal-01-2026-08).
+320/375/390/430 with no horizontal overflow (`e2e/calendar.spec.ts`). The old
+design evidence captures were removed during the Untitled UI documentation reset;
+git history remains the archive.
 
 **Built to MOBILE-01's conventions**, which landed on `main` while this was in
 progress:
@@ -818,12 +819,10 @@ calendar and Today e2e specs.
 
 ### Retained evidence
 
-Sixteen captures in
-[`docs/design/assets/cal-01-2026-08/`](../design/assets/cal-01-2026-08) — Today at
-320/375/390/430 and 1440 in both appearances, one non-default colour scheme, the
-event detail on a phone and a laptop, Tomorrow, Next 7 days and Settings. All over
-the synthetic fixture day; regenerate with `e2e/seed-calendar-evidence.mts` +
-`e2e/calendar-shots.mjs`.
+The old design evidence captures were removed during the Untitled UI
+documentation reset. The retained evidence is the product contract above plus
+the executable coverage in `e2e/calendar.spec.ts`; git history remains the
+archive for the former screenshot set.
 
 ---
 

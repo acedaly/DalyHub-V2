@@ -71,7 +71,7 @@ that prompted them records the condition for starting V2.4 — *"the full harden
 sequence complete"* — as **met on 2026-08-20**.
 
 The broad design programme is closed too.
-[DHDS-13](../design/DHDS_13_COMMERCIAL_QUALITY_GATE_2026_08.md), the
+[DHDS-13](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records), the
 commercial-quality gate, scored the product **B — nearly commercial**, fixed four
 P1 and eight P2 defects it found by *measuring* the running application, and ended
 with an instruction rather than a plan:
@@ -1164,7 +1164,7 @@ created, and no finding became a roadmap item merely because it existed.**
 
 - [`ROADMAP_V2_5.md`](ROADMAP_V2_5.md) — the successor programme, where new work goes
 - [`ROADMAP_V2_3.md`](ROADMAP_V2_3.md) — the closed V2.3 programme this succeeds
-- [`DHDS_13_COMMERCIAL_QUALITY_GATE_2026_08.md`](../design/DHDS_13_COMMERCIAL_QUALITY_GATE_2026_08.md) — the commercial-quality gate, its B verdict, its open findings and the measurement rule this programme inherits
+- [`DHDS_13_COMMERCIAL_QUALITY_GATE_2026_08.md`](../design/UNTITLED_UI_MIGRATION.md#preserved-requirements-from-removed-design-records) — the commercial-quality gate, its B verdict, its open findings and the measurement rule this programme inherits
 - [`DALYHUB_WHOLE_APP_BUG_AUDIT_2026_08.md`](../product/DALYHUB_WHOLE_APP_BUG_AUDIT_2026_08.md) · [`DALYHUB_WHOLE_APP_REPAIR_2026_08.md`](../product/DALYHUB_WHOLE_APP_REPAIR_2026_08.md) — the audit that set the precondition for starting V2.4, and the repair that met it
 - [ADR-110](../decisions/ARCHITECTURE_DECISIONS.md#adr-110-follow-through-is-derived-from-the-activity-stream-never-stored--one-period-account-no-adherence-score-and-no-snapshot-table-for-a-plan-or-a-goal) — the decision this programme is built on
 - [ADR-101](../decisions/ARCHITECTURE_DECISIONS.md#adr-101-weekly-planning-is-a-projection-not-a-record--the-owners-calendar-week-a-named-band-queue-and-one-declarative-filter-vocabulary-with-two-consumers) — Weekly Planning is a projection, not a record

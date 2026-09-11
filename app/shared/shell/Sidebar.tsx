@@ -23,17 +23,14 @@
  *
  * ── UNTITLED-02 — the composition is Untitled UI's ──────────────────────────
  *
- * Adapted from Untitled's `sidebar-sections-subheadings`: a single scrolling
- * column with grouped, sub-headed destinations and an account block pinned to the
- * bottom. Three DalyHub departures from that reference, each deliberate:
+ * Adapted from Untitled UI React Pro `dashboards-01/03` and its
+ * `sidebar-sections-subheadings`: a single scrolling column with grouped,
+ * sub-headed destinations and an account block pinned to the bottom.
  *
- *   1. THE RAIL IS RECESSED, not floating. Untitled draws a white card inset
- *      from the viewport with a ring and a shadow. AGENTS.md §6 D35 is explicit
- *      that DalyHub's rail sits UNDER its own canvas — near-white beneath a
- *      white page — because it is a different surface from the page it frames,
- *      not an object resting on it. So it is `bg-secondary` against the pane's
- *      `bg-primary`, flush and full-height, with one hairline. It is also what
- *      "stationary surfaces should not rely on elevation" means in practice.
+ *   1. THE RAIL IS THE BRAND SURFACE, not a floating card. Branded Plum keeps
+ *      Untitled's flush full-height application-sidebar grammar but gives it a
+ *      deep `brand-950` ground, on-brand foreground roles and one translucent
+ *      hairline. The working canvas beside it stays neutral.
  *
  *   2. CAPTURE KEEPS THE PRIMARY CONTROL. Untitled's reference puts a search
  *      glyph beside the logo and nothing else. Capture is one of DalyHub's
@@ -45,6 +42,10 @@
  *      avatar, a name, an email and a dismiss button — four elements and a
  *      border to say one thing. `UserMenu` is a single row that opens the real
  *      menu, which is what the account actually needs to be.
+ *
+ * Source: https://www.untitledui.com/react/components/sidebar-navigations,
+ * Untitled UI React Pro dashboards-01/03, purchased Pro license, retrieved
+ * 2026-09-11. Changes: DalyHub grouped routes, capture and Branded Plum surface.
  *
  * It composes shared parts only and holds no business logic. The `navId` is
  * parameterised so the persistent and overlay instances never collide on a DOM id.
@@ -141,7 +142,7 @@ export function Sidebar({
         isRail
           ? cx(
               /*
-               * Recessed under the pane's canvas, flush and full-height. See (1).
+               * The deep brand surface is flush and full-height. See (1).
                *
                * STICKY, not `fixed` — and it must NOT be a scroll container.
                * The document is the scroll container (so the Drawer's body-scroll
@@ -159,10 +160,10 @@ export function Sidebar({
               // Below `md` there is no rail at all — the phone's bottom bar
               // navigates, and "More" opens this same component as a sheet.
               "max-md:hidden",
-              "sticky top-0 z-20 h-dvh border-r border-secondary bg-secondary",
+              "sticky top-0 z-20 h-dvh border-r border-white/10 bg-brand-950",
               collapsed ? "px-3 py-4" : "px-4 py-5",
             )
-          : "min-h-full bg-primary px-4 py-4",
+          : "min-h-full bg-brand-950 px-4 py-4",
       )}
     >
       {onClose ? (
@@ -170,7 +171,7 @@ export function Sidebar({
           type="button"
           ref={closeButtonRef}
           onClick={onClose}
-          className="absolute top-4 right-4 flex size-10 items-center justify-center rounded-md text-fg-quaternary outline-focus-ring transition duration-100 ease-linear hover:bg-primary_hover hover:text-fg-quaternary_hover focus-visible:outline-2 focus-visible:outline-offset-2"
+          className="absolute top-4 right-4 flex size-10 items-center justify-center rounded-md text-fg-white/70 outline-focus-ring transition duration-100 ease-linear hover:bg-white/10 hover:text-fg-white focus-visible:outline-2 focus-visible:outline-offset-2"
         >
           <CloseGlyph aria-hidden="true" className="size-5" />
           <span className="sr-only">Close navigation</span>
@@ -235,12 +236,13 @@ export function Sidebar({
        * is pinned to the bottom of a column and the panel opens upward from it,
        * which was already the shape this menu was built for. The rail and the
        * sheet differ only in the width around it. */}
-      <div className="mt-auto border-t border-secondary pt-4">
+      <div className="mt-auto border-t border-white/10 pt-4">
         <UserMenu
           email={email}
           appearance={appearance}
           settingsHref={settingsHref}
           collapsible={isRail}
+          surface="brand"
         />
       </div>
     </nav>

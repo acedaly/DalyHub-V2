@@ -15,6 +15,7 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef } from "react";
 import type { KeyboardEvent, MouseEvent } from "react";
+import { TextField as AriaTextField } from "react-aria-components";
 import { useLocation, useNavigate } from "react-router";
 
 import { EmptyState } from "~/shared/empty-state";
@@ -23,6 +24,12 @@ import { HistoryIcon, InboxIcon, SearchIcon } from "~/shared/icons";
 import { useBodyScrollLock } from "~/shared/drawer/use-body-scroll-lock";
 import { useDrawerFocus } from "~/shared/drawer/use-drawer-focus";
 import { useInertBackground } from "~/shared/drawer/use-inert-background";
+import { CommandInput } from "~/shared/ui/untitled/application/command-menus/base-components/command-input";
+import {
+  Button,
+  styles as untitledButtonStyles,
+} from "~/shared/ui/untitled/base/buttons/button";
+import { cx } from "~/shared/ui/untitled/utils/cx";
 
 import { Highlight } from "./HighlightText";
 import { SearchSignals } from "./SearchSignals";
@@ -225,42 +232,57 @@ export default function SearchSurface({
   );
 
   return (
-    <div className="dh-search" role="presentation" ref={modalRootRef}>
+    <div
+      className="dh-search fixed inset-0 z-[var(--dh-layer-modal)] flex flex-col items-center overflow-y-auto bg-overlay/70 p-4 text-center backdrop-blur md:pt-16 xl:pt-[clamp(64px,10vh,243px)]"
+      role="presentation"
+      ref={modalRootRef}
+      data-untitled-source="command-menu"
+    >
       <div
-        className="dh-search__scrim dh-motion-scrim"
+        className="dh-search__scrim dh-motion-scrim fixed inset-0 cursor-default border-0 bg-transparent"
         onClick={onClose}
         aria-hidden="true"
       />
       <div
-        className="dh-search__panel dh-motion-lift"
+        className="dh-search__panel dh-motion-lift relative flex max-h-[min(32rem,calc(100vh-2rem))] w-full max-w-160 flex-col overflow-hidden rounded-xl bg-primary text-left align-middle shadow-xl ring-1 ring-secondary_alt sm:max-h-[min(32rem,calc(100vh-4rem))]"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         ref={panelRef}
       >
-        <div className="dh-search__header">
-          <h2 className="dh-search__title" id={titleId}>
+        <div className="dh-search__header flex items-center justify-between gap-3 px-4 pt-3">
+          <h2
+            className="dh-search__title m-0 text-xs font-semibold tracking-wide text-tertiary uppercase"
+            id={titleId}
+          >
             Search
           </h2>
           <button
             type="button"
-            className="dh-search__close md-state-layer"
+            className={cx(
+              untitledButtonStyles.common.root,
+              untitledButtonStyles.sizes.sm.root,
+              untitledButtonStyles.colors.tertiary.root,
+              "dh-search__close min-w-11",
+            )}
             ref={closeButtonRef}
             onClick={onClose}
+            aria-label="Close search"
           >
-            <span aria-hidden="true">Esc</span>
-            <span className="dh-visually-hidden">Close search</span>
+            <span data-text aria-hidden="true" className="px-0.5">
+              Esc
+            </span>
           </button>
         </div>
 
-        <div className="dh-search__inputrow">
-          <span className="dh-search__inputicon" aria-hidden="true">
-            <SearchIcon />
-          </span>
-          <input
+        <AriaTextField
+          aria-label="Search everything"
+          className="relative border-b border-secondary p-3"
+        >
+          <CommandInput
             ref={inputRef}
             type="text"
-            className="dh-search__input"
+            className="dh-search__inputrow p-3"
             name="search"
             placeholder="Search everything…"
             autoComplete="off"
@@ -274,14 +296,18 @@ export default function SearchSurface({
             value={controller.query}
             onChange={(event) => handleQueryChange(event.target.value)}
             onKeyDown={handleInputKeyDown}
+            shortcutKeys={["/"]}
           />
-        </div>
+        </AriaTextField>
 
         {/* tabIndex keeps the scroll region axe-clean when results overflow
             (WCAG scrollable-region-focusable); the combobox input keeps focus.
             Conflicts with jsx-a11y/no-noninteractive-tabindex, disabled with intent. */}
-        {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
-        <div className="dh-search__results" tabIndex={0}>
+        {/* eslint-disable jsx-a11y/no-noninteractive-tabindex */}
+        <div
+          className="dh-search__results flex-1 overflow-y-auto p-2"
+          tabIndex={0}
+        >
           <SearchResults
             controller={controller}
             listboxId={listboxId}
@@ -292,12 +318,16 @@ export default function SearchSurface({
             currentLocation={location}
           />
         </div>
+        {/* eslint-enable jsx-a11y/no-noninteractive-tabindex */}
 
-        <div className="dh-search__footer">
+        <div className="dh-search__footer flex items-center justify-between gap-3 border-t border-secondary px-4 py-2 text-xs text-tertiary">
           <span className="dh-search__count" aria-hidden="true">
             {buildVisibleSummary(controller)}
           </span>
-          <span className="dh-search__hint" aria-hidden="true">
+          <span
+            className="dh-search__hint whitespace-nowrap max-sm:hidden"
+            aria-hidden="true"
+          >
             ↑↓ to navigate · Enter to open · Esc to close
           </span>
         </div>
@@ -363,13 +393,9 @@ function SearchResults({
         headingLevel={3}
         description="Something went wrong reaching your results."
         primaryAction={
-          <button
-            type="button"
-            className="dh-search__retry"
-            onClick={controller.retry}
-          >
+          <Button size="sm" onPress={controller.retry}>
             Try again
-          </button>
+          </Button>
         }
       />
     );
@@ -405,14 +431,21 @@ function SearchResults({
   // Loading with no prior results yet — a calm searching hint, not an empty
   // listbox (which would read as "no results").
   if (phase === "loading" && groups.length === 0) {
-    return <p className="dh-search__idle">Searching…</p>;
+    return (
+      <p className="dh-search__idle m-0 p-4 text-sm text-tertiary">
+        Searching…
+      </p>
+    );
   }
 
   // ready, or loading with prior results kept visible as stale content.
   return (
     <>
       {controller.isPartial ? (
-        <p className="dh-search__partial" role="note">
+        <p
+          className="dh-search__partial m-0 mb-2 rounded-lg bg-warning-primary px-4 py-3 text-sm text-warning-primary"
+          role="note"
+        >
           Some sources didn’t respond. Showing what we found.
         </p>
       ) : null}
@@ -425,7 +458,10 @@ function SearchResults({
          * because a rule the owner can only discover by owning the excluded
          * data is not a rule they have been told.
          */
-        <p className="dh-search__note" role="note">
+        <p
+          className="dh-search__note m-0 px-4 pt-4 pb-2 text-sm text-tertiary"
+          role="note"
+        >
           Your most recently worked-on records. Diary entries are never listed
           here — search for one to find it.
         </p>
@@ -444,17 +480,26 @@ function SearchResults({
           const groupHeadingId = `${listboxId}-${group.id}`;
           return (
             <div
-              className="dh-search__group"
+              className="dh-search__group mb-2"
               key={group.id}
               role="group"
               aria-labelledby={groupHeadingId}
             >
-              <p className="dh-search__grouptitle" id={groupHeadingId}>
-                <span className="dh-search__groupicon" aria-hidden="true">
+              <p
+                className="dh-search__grouptitle m-0 flex items-center gap-2 px-3 py-2 text-xs font-semibold tracking-wide text-tertiary uppercase"
+                id={groupHeadingId}
+              >
+                <span
+                  className="dh-search__groupicon inline-flex text-xs"
+                  aria-hidden="true"
+                >
                   {icon}
                 </span>
                 {label}
-                <span className="dh-search__groupcount" aria-hidden="true">
+                <span
+                  className="dh-search__groupcount ml-auto tabular-nums text-tertiary"
+                  aria-hidden="true"
+                >
                   {group.results.length}
                 </span>
               </p>
@@ -528,26 +573,31 @@ function SearchOption({
 
   const body = (
     <>
-      <span className="dh-search__optionicon" aria-hidden="true">
+      <span
+        className="dh-search__optionicon inline-flex shrink-0"
+        aria-hidden="true"
+      >
         {identity !== null ? (
           <EntityIcon type={identity.type} />
         ) : (
           <InboxIcon />
         )}
       </span>
-      <span className="dh-search__optionbody">
-        <span className="dh-search__optiontitle">
+      <span className="dh-search__optionbody flex min-w-0 flex-1 flex-col gap-px">
+        <span className="dh-search__optiontitle truncate text-sm font-medium text-primary">
           <Highlight text={result.title} ranges={result.titleMatches} />
         </span>
         {result.subtitle !== undefined ? (
-          <span className="dh-search__optionsubtitle">
+          <span className="dh-search__optionsubtitle truncate text-xs text-tertiary">
             <Highlight text={result.subtitle} ranges={result.subtitleMatches} />
           </span>
         ) : null}
         <SearchSignals signals={result.signals} />
       </span>
       {typeLabel !== undefined ? (
-        <span className="dh-search__optiontype">{typeLabel}</span>
+        <span className="dh-search__optiontype ml-auto shrink-0 pl-2 text-xs tracking-wide text-tertiary">
+          {typeLabel}
+        </span>
       ) : null}
     </>
   );
@@ -557,14 +607,18 @@ function SearchOption({
       id={domId}
       role="option"
       aria-selected={interactive ? active : false}
-      className="dh-search__option"
+      className="dh-search__option rounded-lg"
       data-active={(interactive && active) || undefined}
     >
       {interactive ? (
         // A real link: plain click opens in-app; modified/middle-click follows the
         // href (new tab). Only CURRENT results are links.
         <a
-          className="dh-search__optionlink"
+          className={cx(
+            "dh-search__optionlink flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-inherit no-underline transition duration-100 ease-linear",
+            active &&
+              "bg-brand-primary_alt outline-1 -outline-offset-1 outline-brand",
+          )}
           href={href}
           tabIndex={-1}
           onClick={(event) => onClick(event, result)}
@@ -575,7 +629,10 @@ function SearchOption({
       ) : (
         // Stale results (a new query is loading) render as inert text — no href,
         // so neither a plain click nor a modified-click can open them.
-        <span className="dh-search__optionlink" aria-disabled="true">
+        <span
+          className="dh-search__optionlink flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-inherit opacity-70"
+          aria-disabled="true"
+        >
           {body}
         </span>
       )}
