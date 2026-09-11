@@ -170,6 +170,13 @@ body {
  * inherits. A host that must clip the layer (a fully-rounded pill) sets its own
  * `overflow: hidden`.
  *
+ * ── UNTITLED-04 — `.dh-command__close` LEFT the list ────────────────────────
+ * It was the one host in it that no stylesheet defined, which
+ * `test/unit/tokens/state-layer.test.ts` has been failing on: a dead selector
+ * that silently receives no states. The control is painted by Untitled's button
+ * recipe at the call site now (`CommandPalette`), so it has hover, pressed and
+ * focus of its own and needs no entry here.
+ *
  * ── UNTITLED-04 — `.dh-btn:not(.dh-button)`, not `.dh-btn` ──────────────────
  * The shared `<Button>` emits BOTH names (see `ui.css`): `.dh-button` because it
  * is the component, `.dh-btn` because thirteen module stylesheets carry layout
@@ -198,7 +205,6 @@ body {
   .dh-md-editor__mode-toggle,
   .dh-inline-edit__trigger,
   .dh-inline-edit__edit,
-  .dh-command__close,
   .dh-filter-btn--ghost
 ) {
   position: relative;
@@ -215,7 +221,6 @@ body {
   .dh-md-editor__mode-toggle,
   .dh-inline-edit__trigger,
   .dh-inline-edit__edit,
-  .dh-command__close,
   .dh-filter-btn--ghost
 )::after {
   /*
@@ -259,7 +264,6 @@ body {
     .dh-md-editor__mode-toggle,
     .dh-inline-edit__trigger,
     .dh-inline-edit__edit,
-    .dh-command__close,
     .dh-filter-btn--ghost
   ):hover::after {
   opacity: var(--dh-state-hover-opacity);
@@ -285,7 +289,6 @@ body {
     .dh-md-editor__mode-toggle,
     .dh-inline-edit__trigger,
     .dh-inline-edit__edit,
-    .dh-command__close,
     .dh-filter-btn--ghost
   ):focus-visible::after {
   opacity: var(--dh-state-focus-opacity);
@@ -305,7 +308,6 @@ body {
     .dh-md-editor__mode-toggle,
     .dh-inline-edit__trigger,
     .dh-inline-edit__edit,
-    .dh-command__close,
     .dh-filter-btn--ghost
   ):active::after {
   opacity: var(--dh-state-pressed-opacity);
@@ -325,7 +327,6 @@ body {
     .dh-md-editor__mode-toggle,
     .dh-inline-edit__trigger,
     .dh-inline-edit__edit,
-    .dh-command__close,
     .dh-filter-btn--ghost
   ):is(:disabled, [aria-disabled="true"])::after {
   opacity: 0;
