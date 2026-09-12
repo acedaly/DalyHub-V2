@@ -25,6 +25,62 @@
  */
 
 /* -------------------------------------------------------------------------- */
+/* The Untitled-backed chart layer (UNTITLED-08)                               */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * `ChartFrame` and the charts above it are drawn entirely by Untitled semantic
+ * roles through Tailwind utilities and Recharts props — there is no paint here
+ * and there must not be, or a chart would be styled by two systems again.
+ *
+ * What IS here is the one thing neither Untitled nor Recharts can express,
+ * because it is a media state rather than a token: FORCED COLOURS. In that mode
+ * the user agent replaces every author colour with a system colour, and an SVG
+ * whose strokes came from `var(--color-…)` collapses to nothing. A chart that
+ * vanishes is worse than no chart, so the marks are re-stated in the system
+ * palette — the series and its dots as text, everything that is a REFERENCE as
+ * grey, which keeps the same "measured is the subject, references are context"
+ * hierarchy the colours carry everywhere else.
+ *
+ * Recharts' own class names are the hooks because Recharts owns that markup;
+ * they are stable public API (`recharts-line-curve`, `recharts-area-area`, …).
+ */
+@media (forced-colors: active) {
+  .dh-chart .recharts-area-curve,
+  .dh-chart .recharts-line-curve,
+  .dh-chart .recharts-dot {
+    stroke: CanvasText;
+  }
+
+  /* The gradient under the series has no meaning of its own; in a two-colour
+     rendering it is only noise over the grid. */
+  .dh-chart .recharts-area-area {
+    fill: none;
+  }
+
+  .dh-chart .recharts-cartesian-grid line,
+  .dh-chart .recharts-reference-line line {
+    stroke: GrayText;
+  }
+
+  .dh-chart .recharts-cartesian-axis-tick-value {
+    fill: CanvasText;
+  }
+}
+
+/*
+ * Printing. The plot is client-rendered, so a print of a page that never
+ * hydrated has the words and no picture — which is why the summary is required
+ * rather than optional. Where it HAS rendered, the plot must not be broken
+ * across a page break, and the caption must stay with it.
+ */
+@media print {
+  .dh-chart {
+    break-inside: avoid;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
 /* TrendLine                                                                   */
 /* -------------------------------------------------------------------------- */
 

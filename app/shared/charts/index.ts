@@ -1,15 +1,74 @@
 /**
- * M3-01 — the shared chart primitives.
+ * The shared chart layer.
  *
- * Hand-rolled SVG, no charting dependency: each is a small typed component that
- * takes a data array and paints it with the design system's own chart tokens, so
- * every visualisation in DalyHub is correct in both appearances by construction
- * and none of them ships a runtime library.
+ * ── UNTITLED-08 — the architecture, and which half of it you want ───────────
  *
- * Every one carries `role="img"` and a generated text summary, because a chart
- * genuinely conveys information rather than decorating a number stated beside
- * it (AGENTS.md §15).
+ * DalyHub's genuine CHARTING is now Untitled UI's, over Recharts:
+ *
+ *     recharts
+ *       ↓
+ *     ~/shared/ui/untitled/application/charts/charts-base   (vendored Untitled)
+ *       ↓
+ *     ~/shared/charts/untitled/                             (the DalyHub adapter)
+ *       ↓
+ *     domain charts — MeasurementTrend, and the ones that follow it
+ *
+ * The adapter owns what Untitled does not supply and a personal operating system
+ * cannot do without: a required text form of every series, a plot that never
+ * renders on a Worker, a live readout for keyboard stepping, and one file naming
+ * the theme roles every plot is painted with. Reach for `ChartFrame` when adding
+ * a new chart; do not compose Recharts directly in a module.
+ *
+ * ── What remains hand-rolled, and why that is not chart debt ────────────────
+ *
+ * The five primitives below are NOT charts in the sense above. Each is a small
+ * indicator drawn as SVG because a charting runtime would be heavier than the
+ * mark it draws and would add nothing: a ring is a percentage, a sparkline is a
+ * shape inside a table cell, `CategoryBars` is a labelled list with a bar per
+ * row. None has an axis, a tooltip, a legend or a plot area, and every one of
+ * them is readable with the SVG removed. Migrating them would be
+ * re-implementing progress bars in Recharts.
+ *
+ * `TrendLine` is the exception and the debt: it IS a chart — axis, references, a
+ * projection, an interactive readout — and `MeasurementTrend` replaces it for
+ * Goals. Its remaining consumers (Analytics, Reports, Reviews) are recorded in
+ * `UNTITLED_UI_MIGRATION.md` and follow.
+ *
+ * Every primitive here carries `role="img"` and a generated text summary,
+ * because a chart conveys information rather than decorating a number stated
+ * beside it (AGENTS.md §15).
  */
+
+/* ── The Untitled-backed chart layer ──────────────────────────────────────── */
+
+export {
+  ChartFrame,
+  ChartKeyItem,
+  type ChartFrameProps,
+  type ChartRenderContext,
+} from "./untitled/ChartFrame";
+export {
+  CHART_AXIS_COLOR,
+  CHART_DASH,
+  CHART_GRID_COLOR,
+  CHART_HEIGHT,
+  CHART_HEIGHT_COMPACT,
+  CHART_MARGIN,
+  CHART_PROJECTION_COLOR,
+  CHART_REFERENCE_COLOR,
+  CHART_SERIES_COLOR,
+  CHART_STROKE_WIDTH,
+  CHART_TICK,
+} from "./untitled/chart-theme";
+export {
+  MeasurementTrend,
+  type MeasurementTrendPoint,
+  type MeasurementTrendProjection,
+  type MeasurementTrendProps,
+  type MeasurementTrendReference,
+} from "./untitled/MeasurementTrend";
+
+/* ── The hand-drawn indicators ────────────────────────────────────────────── */
 
 export { ProgressRing, type ProgressRingProps } from "./ProgressRing";
 export {
