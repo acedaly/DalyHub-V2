@@ -428,7 +428,13 @@ test.describe("AREA-01 — Areas", () => {
     });
     expect(corner.topLabel).toMatch(/^Open /);
 
-    await page.touchscreen.tap(corner.x, corner.y);
+    /*
+     * `mouse.click` rather than `touchscreen.tap`: the suite's browser context
+     * does not enable `hasTouch`, and the card's own 320px test clicks for the
+     * same reason. What is being proved is which element receives the pointer
+     * at that coordinate, which is the same either way.
+     */
+    await page.mouse.click(corner.x, corner.y);
     await expect(page).toHaveURL(/\/areas\/[^/?#]+$/);
   });
 

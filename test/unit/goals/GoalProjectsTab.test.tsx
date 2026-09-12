@@ -7,7 +7,7 @@ import {
   within,
 } from "@testing-library/react";
 import { useState } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { GoalProjectsTab } from "~/modules/goals/GoalProjectsTab";
 import type { SerializedGoalProjectItem } from "~/modules/goals/goal-view";
