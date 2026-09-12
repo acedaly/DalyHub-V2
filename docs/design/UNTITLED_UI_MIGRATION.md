@@ -674,15 +674,29 @@ survived.
 ### Deliberate decisions worth recording
 
 **The chart stays DalyHub's, and that is a rejection rather than an omission.**
-Untitled's `application/charts-base` is public rather than Pro, so it was
+~~Untitled's `application/charts-base` is public rather than Pro, so it was
 genuinely available — and it is a Recharts composition, and Recharts is not a
 dependency of this product. Adding one to a Cloudflare Workers SSR bundle to
 redraw a chart that already carries behaviour Untitled's has no equivalent for
 — one tab stop with arrow-key stepping and a `role="status"` readout, a target
 and a baseline told apart by DASH PATTERN rather than hue, and a required-path
 projection drawn only when all three of its facts exist — would cost bundle
-weight and accessibility to gain house style. The brief's own rule applies: a
-chart earns its place by answering a question, not by being beautiful.
+weight and accessibility to gain house style.~~ The brief's own rule still
+applies: a chart earns its place by answering a question, not by being
+beautiful. The rejection does not.
+
+**REVERSED by UNTITLED-11 and [ADR-126](../decisions/ARCHITECTURE_DECISIONS.md#adr-126-a-chart-is-an-untitled-recharts-plot-on-one-shared-foundation--the-phase-7-rejection-reversed-on-measurement-and-the-behaviour-untitled-had-no-equivalent-for-kept).**
+"Recharts is not a dependency" was a statement about the repository rather than
+a measurement, and the accessibility half was an argument against Recharts'
+DEFAULT, not against the library: `accessibilityLayer` supplies the same single
+tab stop with arrow-key stepping, and the readout, the dash-pattern references
+and the conditional projection are DalyHub's composition on top — they sit in
+`ChartFrame` and `MeasurementTrend` now and are stated ONCE rather than per
+chart. The weight was then measured: MIT, code-split, about 380 KB raw in
+`assets/charts-*.js`, reaching nobody who does not open a surface with a chart.
+What the original decision never priced was the duplication it preserved —
+every hand-drawn plot re-deriving its own scales, ticks and domain, and
+disagreeing. The Goal trend is `MeasurementTrend` on the shared foundation.
 
 **The history table's columns follow the CONTAINER, not the viewport.** This
 workspace is also the right-hand pane of the `/goals` master–detail, which at a
@@ -724,23 +738,117 @@ headings for one list.
 
 ### Next
 
-1. Settings — record Settings tabs draw the shared settings groups inside a
+Superseded by
+[UNTITLED-11's list](#next-1). Items 6 (`IconButton`) and the `.dh-input` half
+of item 7 are CLOSED by that pass.
+
+## UNTITLED-11 — Habits, charts, Today and the last two shared primitives
+
+The per-surface inventory (Untitled source, how it is used, what stays custom
+and why) is in
+[`UNTITLED_UI_IMPLEMENTATION.md`](UNTITLED_UI_IMPLEMENTATION.md#untitled-11-completion-record--habits-charts-today-and-the-shared-primitives).
+This records what MOVED and what is left behind.
+
+### What moved
+
+| Surface | Untitled source | Before → after | Kept deliberately |
+| --- | --- | --- | --- |
+| Habits collection | `application/table`, `base/checkbox`, `base/dropdown`, `application/empty-state` | A hand-painted list beside a rail of standing figures became ONE bounded card: header, standing band, table, divided footer. The rail is deleted, not restyled | The check-in is still one tap from the collection — the structure changed to protect that, not in spite of it |
+| Habit record | `application/table` band anatomy, `application/section-headers` via the `section-heading` override, the chart foundation | Four loose regions became a standing band, a twelve-week adherence chart, a four-week dot grid, notes and schedule history | `SectionHeading level={2}` — upstream hard-codes `h3`, which fails axe under a record's `h1` |
+| Habit creation and editing | `base/input`, `base/select`, `base/checkbox`, `base/button-group` geometry | Bare controls and `.dh-input` became the genuine recipe | `ToggleGroupField` stays a real radio group inside a form that posts |
+| Goal trend chart | `application/charts-base` via `MeasurementTrend` | A hand-drawn SVG whose axis read 93.4 / 88.6 / 82.6 kg became a Recharts plot on the shared foundation, with a `niceDomain()` that owns the question | The `role="status"` readout, the dash-pattern references and the conditional projection — all transferred, none lost |
+| Habit adherence chart | `application/charts-base` via `PeriodicAdherence` | New: twelve weeks of completed and shortfall counts | Counts, never a ratio without its denominator |
+| Today | `application/table` card anatomy, the shared Task row, the shared `ProgressRow` | A twelve-column grid whose auto-placement gave every panel its own row — and left a ~700px hole beside the day — became two real columns, action-led | DOM order is reading order is tab order; there is no CSS `order` |
+| `IconButton` | `base/buttons/button-utility`'s exported `styles` | The last primitive in `~/shared/ui` painting itself, and the last full state-layer host | A required accessible name, the coarse-pointer touch floor, `pressed`, `danger`, DalyHub's `Tooltip` |
+| `Input` / `Textarea` / `Select` | `base/input`'s recipe | `:is(.dh-control, .dh-input)` in `ui.css` painted every field over the legacy `--surface` / `--border-strong` family; modules had started reaching past the component to `InputBase` to escape it | ONE element rather than upstream's `Group`, so no consumer's markup moves |
+
+### Stylesheets cut
+
+- `habits.css` — 1,093 → 456 lines. The dot's states and the forced-colours
+  block survived; the rest was paint Untitled now owns.
+- `ui.css` — the whole `.dh-icon-button*` block deleted, and the
+  `:is(.dh-control, .dh-input)` paint block with it. Only the select chevron's
+  inset and the coarse-pointer `min-block-size` remain.
+- `base.css` — `.dh-icon-button` removed from all six state-layer host lists.
+- `premium.css` — `.dh-input` and `.dh-combobox__input` removed from the
+  radius/background rule. This is the SECOND time that unlayered file has been
+  found repainting a migrated control (it broke the button's ring in Phase 5).
+- `forms.css` — the `.dh-input[readonly]` dashed border replaced by Untitled's
+  quiet ground, which a ring can express and a dashed border cannot.
+- `today.css` — the twelve-column grid replaced by `display: contents` at phone
+  width and one two-column grid from `lg`.
+
+### Defects the migration surfaced, and what they were
+
+Each of these was a real product defect that the paint had been hiding, not a
+regression introduced by the move:
+
+- **`defaultValue` was silently discarded on `Input`.** React Aria's `TextField`
+  wrapper owns the value of the control inside it. Visible on
+  `/design/primitives`, where the invalid, disabled and read-only demos all
+  rendered empty. Nothing in the product hit it because product fields are
+  controlled — which is exactly how a defect like that survives. The wrapper is
+  gone; the states read `aria-invalid`, `:disabled` and `[readonly]` off the
+  control.
+- **Every `<select>` in the product rendered on the read-only ground.**
+  Tailwind's `read-only:` variant maps to CSS `:read-only`, which a `<select>`
+  satisfies ALWAYS. Now `[&[readonly]]:`.
+- **The combobox clear button rendered outside its field.** `base.css`'s
+  state-layer host list sets `position: relative` on its hosts; both selectors
+  were one class and both unlayered, so file order decided it. Fixed by making
+  the rule two classes deep rather than by adding weight.
+- **The Habits "today" column was silently clipped** in a 55px cell, because
+  percentage widths under `table-fixed` do not reserve what they promise. Fixed
+  rem widths, and the column drops below `@sm` with its fact moving to the row's
+  second line.
+
+### Chart debt, with a named owner
+
+`TrendLine` is NOT deleted. It still draws three surfaces, and each needs its own
+data-correctness pass before it moves — a chart migrated without one is a
+correctness risk wearing a new coat:
+
+| Surface | File | What it draws | Why it did not move now |
+| --- | --- | --- | --- |
+| Analytics | `app/modules/analytics` | Completion and throughput series | Its series are derived differently from a Goal's readings; the axis and the bound need their own pass |
+| Reports | `app/modules/reports` | A saved report's result series | A report result carries its own currency and bound (ADR-121), which the shared frame does not yet express |
+| Reviews | `app/modules/reviews` | Period comparison | Depends on the Analytics pass above |
+
+`app/styles/charts.css` retains only the `TrendLine` rules those three need,
+plus the forced-colours and print blocks that apply to any `.dh-chart`. When the
+last caller moves, the file and the component go together.
+
+### Pre-existing failures, re-checked rather than inherited
+
+Phase 7's list was re-run against this branch rather than carried forward:
+
+- `visual-system.spec.ts` "leads with page content, then the day with its
+  context beside it" — this one was THIS pass's, not pre-existing: it read
+  beside-ness off `.dh-today__grid > .dh-today__panel`, a selector the column
+  wrappers made empty. The contract it pins is unchanged and is now measured on
+  the columns themselves.
+- `today.spec.ts` and `today-focus.spec.ts` — both were red on selectors that no
+  longer exist (`.dh-today__date`, `.dh-taskrow__title`). Repaired, not
+  inherited.
+- `goal-measurement.spec.ts:319` — still the same honest disagreement Phase 7
+  recorded: `expectMinTouchTarget` reads 32px at a desktop viewport against a
+  44px floor the product deliberately guarantees only on a coarse pointer. The
+  assertion asks for a guarantee the product does not make; it is the test that
+  is wrong, and it is left for the pass that owns that helper.
+
+### Next
+
+1. The three `TrendLine` surfaces above, in the order Analytics → Reviews →
+   Reports.
+2. Settings — record Settings tabs draw the shared settings groups inside a
    record panel (a frame inside a frame) on Areas and Projects alike, and
-   `tone="danger"` paints a reversible Archive group as destructive. Both are
-   properties of `~/shared/settings` rather than of either module.
-2. Goals — a Project inside a Goal record still carries no HEALTH, so its row
-   has no signal column. Identity was closed by Phase 7; health needs the
-   per-Project fact set a bounded page must not read per row.
-3. Diary — the day navigator and the timeline.
-4. People, Assets, Reviews, Obligations, Finance — their row/table structures.
-   (Their controls, empty states, switchers and now their buttons are migrated;
-   what is left is the row/table composition.)
-5. Meeting record — the notebook and agenda sections are still domain
-   compositions on legacy styling.
-6. `IconButton` — the last primitive in `~/shared/ui` not built on Untitled, and
-   still a full state-layer host.
+   `tone="danger"` paints a reversible Archive group as destructive.
+3. Goals — a Project inside a Goal record still carries no HEALTH.
+4. Diary — the day navigator and the timeline.
+5. People, Assets, Reviews, Obligations, Finance — their row/table structures.
+6. Meeting record — the notebook and agenda sections.
 7. Remove the inert legacy class names once their tests address product hooks
-   instead, and with them the `.dh-btn` hook and the thirteen module rules that
-   need it.
+   instead, and with them the `.dh-btn` hook, the thirteen module rules that
+   need it, and the `.dh-input` / `.dh-control` layout bridges.
 8. `.dh-btn--danger-quiet` in `tasks.css` has no consumer in `app/` — verify and
    delete.

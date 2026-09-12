@@ -7610,3 +7610,105 @@ owns frontend implementation. [`UNTITLED_UI_MIGRATION.md`](../design/UNTITLED_UI
 owns migration sequence, debt and removal criteria. [`DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md)
 owns DalyHub-specific compositions and adaptations. Historical screenshots and
 deleted design programme files are not authority; git history is the archive.
+
+## ADR-126: A chart is an Untitled Recharts plot on ONE shared foundation — the Phase-7 rejection reversed on measurement, and the behaviour Untitled had no equivalent for kept
+
+- **Status.** Accepted (2026-09-12, UNTITLED-11). It REVERSES the chart decision
+  recorded by the Goals migration
+  ([ADR-125](#adr-125-untitled-ui-react-pro-is-dalyhubs-frontend-implementation-authority)
+  is the standing authority it is decided under; the rejection itself was
+  recorded in `UNTITLED_UI_MIGRATION.md`, `UNTITLED_UI_IMPLEMENTATION.md` and
+  `GOALS_MODULE.md`, each of which now carries the reversal beside the original
+  reasoning rather than in place of it). The Goal trend is migrated; the
+  remaining `TrendLine` call sites are recorded as debt with a named owner
+  rather than left unstated.
+
+- **Context.** The Goals migration looked at Untitled's `application/charts-base`,
+  found it genuinely available (public rather than Pro), and rejected it on two
+  grounds: Recharts is not a dependency of this product, and DalyHub's
+  hand-written `TrendLine` already carried accessibility behaviour Untitled's
+  composition has no equivalent for — ONE tab stop with arrow-key stepping and a
+  `role="status"` readout rather than a focus target per reading, a target and a
+  baseline told apart by DASH PATTERN rather than by hue, and a required-path
+  projection drawn only when all three of its facts exist.
+
+  Both grounds were true when they were written. Neither survived measurement.
+
+  1. **"Recharts is not a dependency" is a statement about the repository, not
+     about cost.** It was never measured. Measured: the Recharts tree is MIT
+     (with ISC and one BSD-3-Clause package beneath `victory-vendor`), it
+     code-splits cleanly onto the routes that draw a plot, and the Worker's own
+     upload gzips to 3,230 KiB with it — the chart chunk is about 380 KB raw,
+     isolated in `assets/charts-*.js`, and reaches nobody who does not open a
+     surface with a chart on it. A cost that is real but bounded and lazy is a
+     different fact from an unmeasured cost assumed to be prohibitive.
+  2. **The accessibility argument was an argument against a DEFAULT, not
+     against the library.** Recharts' `accessibilityLayer` gives exactly the
+     single tab stop with arrow-key stepping the custom plot was praised for.
+     The `role="status"` readout, the dash-pattern references and the
+     conditional projection are DalyHub's composition ON TOP of a plotting
+     library, and they transfer to Recharts without loss — they are in
+     `ChartFrame` and `MeasurementTrend` now, stated once rather than per chart.
+  3. **The real cost was never the dependency; it was the DUPLICATION.** Each
+     custom plot re-derived its own scales, its own tick selection, its own
+     "nice" domain and its own responsive behaviour, and they disagreed. The
+     Goal trend's y-axis showed 93.4 / 88.6 / 82.6 kg because nothing in the
+     product owned the question of what a readable tick is.
+
+- **Decision.**
+
+  1. **If Untitled provides a chart implementation for the shape, use it —
+     dependency and all.** Untitled UI React's charts are Recharts compositions;
+     adopting Untitled's implementation system means adopting the library it is
+     implemented in. `recharts` 3.10.1 is a direct runtime dependency, recorded
+     in `THIRD_PARTY_NOTICES.md` with its transitive licences.
+
+  2. **There is ONE chart foundation, and every plot in the product is built on
+     it.** `~/shared/charts/untitled` holds it: `chart-theme.ts` is the only
+     place a plot's paint is named, and `ChartFrame` owns the frame — the
+     reserved block size, the client-only mount, the legend slot, the reduced-
+     motion signal, and the `role="status"` readout. A chart that names its own
+     colour or draws its own frame is a defect, not a variant.
+
+  3. **A chart's TEXT EQUIVALENT is required, not optional.** `ChartFrame` takes
+     `summary` as a required prop. A plot whose content exists only as geometry
+     is not shippable, and the type system is where that is enforced rather than
+     in review.
+
+  4. **The paint is semantic roles and one identity token.** A series is
+     `--dh-chart-series`, which is the brand ramp by default and the record's
+     identity hue under `[data-identity]`. Grid, axis and reference colours are
+     Untitled's border, text and foreground roles. Appearance switching, the
+     generated Branded Plum ramp, forced colours and print therefore all follow
+     with nothing to keep in step.
+
+  5. **A quantity is drawn as a quantity.** Adherence is a stacked bar of
+     completed and shortfall COUNTS, never a ratio without its denominator
+     (ADR-104), and its ticks are integers because half a check-in does not
+     exist.
+
+  6. **The Goal trend is migrated, and the rest is stated debt.** `TrendLine`
+     still draws Analytics, Reports and Reviews. It is not deleted while it has
+     callers, and `UNTITLED_UI_MIGRATION.md` names those three surfaces as the
+     remaining work rather than leaving a half-migrated chart layer implied.
+
+- **Consequences.** A chart is now cheap to add correctly and awkward to add
+  incorrectly: the foundation supplies the axes, the tooltip, the legend and the
+  readout, and the only thing a new plot states is which facts it draws. The
+  Worker carries a lazily-loaded plotting library it did not carry before, which
+  is the price, and it is recorded rather than absorbed. Reversing a recorded
+  decision also sets the precedent this file should want: a rejection stands
+  until it is MEASURED, and "we do not have that dependency" is not a
+  measurement.
+
+- **Alternatives considered.** *Keeping `TrendLine` and adopting Untitled's
+  chart grammar by hand* (rejected: it is the third time this product would have
+  hand-drawn a plotting library, and the tick defect above is what hand-drawing
+  costs). *Adopting Recharts without a shared foundation* (rejected: the
+  duplication is the actual problem, and a dependency that lets every surface
+  re-answer the same questions makes it worse rather than better). *Migrating
+  every chart in one change* (rejected: Analytics, Reports and Reviews each need
+  their own data-correctness pass, and a chart migrated without one is a
+  correctness risk wearing a new coat — they are debt with a named owner
+  instead). *Leaving the Goal chart half-migrated* (rejected outright: a surface
+  with one migrated band and one legacy band is worse than either end state).
