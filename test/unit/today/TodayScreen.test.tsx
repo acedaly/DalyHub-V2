@@ -361,11 +361,23 @@ describe("TODAY-12: decision-first command centre", () => {
         },
       }),
     );
-    const grid = container.querySelector(".dh-today__grid")!;
-    const children = [...grid.children];
+    /*
+     * UNTITLED-10 — asserted on DOCUMENT order, not on grid-child index.
+     *
+     * The contract is unchanged and is the one that matters: the week's
+     * reporting follows the day's work in the reading order and therefore in
+     * the tab order. What changed is that the grid's direct children are now the
+     * two COLUMN wrappers rather than the panels themselves — the panels are one
+     * level deeper — so an index into `grid.children` found neither and compared
+     * -1 with -1. `compareDocumentPosition` asks the question the test means.
+     */
+    const plan = screen.getByTestId("today-plan");
+    const summary = screen.getByTestId("today-summary");
+    expect(container).toContainElement(plan);
+    expect(container).toContainElement(summary);
     expect(
-      children.indexOf(screen.getByTestId("today-summary")),
-    ).toBeGreaterThan(children.indexOf(screen.getByTestId("today-plan")));
+      plan.compareDocumentPosition(summary) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 });
 
@@ -677,9 +689,18 @@ describe("the day timeline", () => {
     );
     expect(beforeGrid).toHaveLength(1); // the one heading area
 
-    // The first decision is the Now task; reporting follows the work.
-    expect(grid.children[0]?.className).toContain("dh-today__now");
-    expect(grid.children[1]?.className).toContain("dh-today__timeline");
+    /*
+     * The first decision is the Now task, and the plan follows it.
+     *
+     * UNTITLED-10 — asserted on the first two PANELS in document order rather
+     * than on `grid.children[0..1]`. The grid's direct children are the two
+     * column wrappers now, so the old indices addressed the wrappers; the
+     * `blocks` assertion above already proves the whole reading order, and this
+     * pins the two that matter most.
+     */
+    const panels = [...grid.querySelectorAll<HTMLElement>(".dh-today__panel")];
+    expect(panels[0]?.className).toContain("dh-today__now");
+    expect(panels[1]?.className).toContain("dh-today__timeline");
     const firstRow = container.querySelector(".dh-today__now .dh-taskrow");
     expect(firstRow?.textContent).toContain("Late");
   });
