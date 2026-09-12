@@ -369,8 +369,34 @@ test.describe("GOAL-02 — Today", () => {
       .locator(".dh-today__goal")
       .filter({ has: page.getByRole("progressbar") })
       .first();
-    await expect(row).toContainText(/kg/);
-    await expect(row).toContainText("Target 70 kg");
+    /*
+     * UNTITLED-11 — the tile's UNIT is read off the tile, not assumed to be kg.
+     *
+     * These two lines were `/kg/` and `"Target 70 kg"`, which asserted the Goal
+     * this test creates — through a locator that selects whichever measurable
+     * Goal the RANKING chose, exactly as the comment above says it should. The
+     * two only ever agreed by accident, and Today drawing two tiles rather than
+     * four ended the accident: `todayGoalRank` deliberately demotes a Goal that
+     * was just checked in (it is no longer waiting for one), so the Goal this
+     * test just measured is the one least likely to be drawn.
+     *
+     * So the assertions are what the comment always claimed: a measurable tile
+     * carries a value, its target in the same unit, a percentage, a state word
+     * and one action — whichever Goal it is.
+     */
+    const targetLine = /Target\s+([\d.,]+)\s*(\S+?)(?:\d|$)/.exec(
+      (await row.innerText()).replace(/\n/g, ""),
+    );
+    expect(
+      targetLine,
+      `no "Target <value> <unit>" on the chosen tile: ${await row.innerText()}`,
+    ).not.toBeNull();
+    const unit = targetLine![2]!;
+    // The value and the target are stated in the SAME unit — the rule ADR-104
+    // exists for, checked on whichever Goal is drawn.
+    await expect(row).toContainText(
+      new RegExp(`[\\d.,]+\\s*${unit.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`),
+    );
     /*
      * Today states the percentage and the state WORD, not the remainder.
      *
@@ -393,18 +419,28 @@ test.describe("GOAL-02 — Today", () => {
 
     // The one action Today offers for a Goal — the same shared check-in sheet.
     const update = row.getByTestId("today-goal-update");
-    await expect(update).toContainText("Log weight");
+    // "Log weight", "Log distance", "Log savings" — the verb is the product's,
+    // the noun is the Goal's measurement.
+    await expect(update).toContainText(/^Log \S/);
     await expectMinTouchTarget(update);
     await update.click();
     const sheet = page.getByTestId("goal-check-in-sheet");
     await expect(sheet).toBeVisible();
-    await sheet.getByRole("textbox", { name: /^Measurement/ }).fill("78.6");
+    /*
+     * A reading a fraction away from the target, so it is a legal value for
+     * whichever Goal was chosen and reads back verbatim. It used to be the
+     * literal 78.6, which only made sense for a Goal measured in kilograms.
+     */
+    const reading = (Number(targetLine![1]!.replace(/,/g, "")) - 0.4).toFixed(
+      1,
+    );
+    await sheet.getByRole("textbox", { name: /^Measurement/ }).fill(reading);
     await page.getByTestId("goal-check-in-save").click();
     await expect(sheet).toHaveCount(0);
     // The new reading reaches Today without leaving it. The assertion is on the
     // SECTION rather than a fixed row, because recording a measurement changes
     // that Goal's rank and the ranking may legitimately reorder the list.
-    await expect(goals).toContainText("78.6 kg");
+    await expect(goals).toContainText(`${reading} ${unit}`);
     // Same reason as above: the glance readout states the value and the
     // percentage, and leaves the remainder to the record.
     await expect(goals).toContainText(/\d+%/);

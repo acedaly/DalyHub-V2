@@ -830,11 +830,32 @@ Phase 7's list was re-run against this branch rather than carried forward:
 - `today.spec.ts` and `today-focus.spec.ts` — both were red on selectors that no
   longer exist (`.dh-today__date`, `.dh-taskrow__title`). Repaired, not
   inherited.
-- `goal-measurement.spec.ts:319` — still the same honest disagreement Phase 7
-  recorded: `expectMinTouchTarget` reads 32px at a desktop viewport against a
-  44px floor the product deliberately guarantees only on a coarse pointer. The
-  assertion asks for a guarantee the product does not make; it is the test that
-  is wrong, and it is left for the pass that owns that helper.
+- `goal-measurement.spec.ts` — Phase 7 recorded this one as the test asking for
+  a guarantee the product only makes on a coarse pointer: `expectMinTouchTarget`
+  reads 32px at a desktop viewport against a 44px floor. **Re-checked, and the
+  framing was half wrong.** There is ONE browser project, so all 145 call sites
+  of that helper run at a fine pointer, and 144 of them pass — the product does
+  make the guarantee at a desktop pointer nearly everywhere, and Today's Goal
+  check-in button was the outlier rather than the rule. It takes the floor now,
+  as a `min-block-size`: the button keeps its small type and inset, and its box
+  grows to what a thumb needs. **Fixed, not inherited.**
+
+- The same spec leaked every Goal it created. Five journeys named them
+  `Reach 70 kg ${Date.now()}` and friends — unique per run, and outside the
+  prefix the shared sweep reaches, so each run left its Goals in the development
+  database permanently. Three had accumulated, and because Today's Goal panel
+  counts open Goals, both GOAL-02 journeys had begun failing in a batch while
+  passing in isolation. Not a flake: the titles go through `uniqueGoalTitle` now
+  and the file sweeps after itself.
+
+- That spec also asserted `/kg/` and `"Target 70 kg"` through a locator that
+  deliberately selects whichever measurable Goal the RANKING chose. The two only
+  ever agreed by accident, and Today drawing two tiles rather than four ended it
+  — `todayGoalRank` demotes a Goal that was just checked in, so the Goal the
+  test had just measured was the one least likely to be drawn. The assertions
+  are now what the test's own comment always claimed: a measurable tile carries
+  a value, its target in the SAME unit, a percentage, a state word and one
+  action, whichever Goal it is.
 
 ### Next
 

@@ -2224,6 +2224,23 @@ function GoalProgressSection({
                       type="button"
                       variant="subtle"
                       size="sm"
+                      /*
+                       * UNTITLED-11 — `size="sm"` is right for a subordinate
+                       * action inside a tile, and 32px of HIT AREA is not. Every
+                       * other control the suite measures clears the product's
+                       * touch floor at a desktop pointer; this one did not, and
+                       * #285 recorded the resulting failure as the test asking
+                       * for a guarantee the product only makes on a coarse
+                       * pointer. Re-checked: with one browser project and 145
+                       * call sites, 144 of them pass — the product DOES make
+                       * that guarantee nearly everywhere, and this button was
+                       * the outlier rather than the rule.
+                       *
+                       * The floor, not the size: the button keeps its small
+                       * type and its small inset, and its box grows to the
+                       * minimum a thumb needs.
+                       */
+                      className="min-h-[var(--app-touch-target-min)]"
                       data-testid="today-goal-update"
                       onClick={(event) =>
                         onUpdateGoal(goal, event.currentTarget)
