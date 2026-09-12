@@ -55,7 +55,7 @@ export function GoalActivityTab({ goalId, reloadKey }: GoalActivityTabProps) {
   );
 
   return (
-    <div className="dh-goal-activity">
+    <div className="dh-goal-activity min-w-0">
       <h2 className="dh-visually-hidden">Activity</h2>
       <Timeline
         loadPage={loadPage}

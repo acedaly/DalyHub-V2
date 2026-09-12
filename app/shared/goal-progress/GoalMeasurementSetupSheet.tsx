@@ -21,6 +21,27 @@
  * checked without understanding it. The explicit override exists only for the
  * genuinely ambiguous case — an equal baseline and target — and is otherwise
  * kept out of the way.
+ *
+ * ── UNTITLED-07 — the two bespoke controls this sheet owned ────────────────
+ *
+ * The strategy chooser was four `<label>`s around bare `<input type="radio">`s
+ * with `appearance: none` on the input and the whole selected-card treatment —
+ * border, tint, radius, focus-within ring — hand-drawn in `goals.css`. The unit
+ * suggestions were a row of `<button>`s with a second hand-drawn selected
+ * state. Both are standard controls Untitled already ships:
+ *
+ *   - the chooser is `base/radio-buttons`' `RadioGroup` + `RadioButton`, whose
+ *     React Aria group gives the same one-Tab-stop / arrow-key behaviour the
+ *     native fieldset did, with the dot, the label and the hint drawn by the
+ *     library. DalyHub adds only the CARD around each option (the bounded
+ *     Untitled boundary plus a `data-selected` ring), because four described
+ *     strategies read as four choices rather than as a list;
+ *   - the units are `base/button-group`'s `ButtonGroup` + `ButtonGroupItem`, a
+ *     React Aria `ToggleButtonGroup` — which is exactly what a row of
+ *     `aria-pressed` buttons was approximating by hand.
+ *
+ * The touch floor is unchanged: `(hover: none)` raises every control to 44px
+ * from the shared density token, and neither Untitled control opts out of it.
  */
 
 import { useId, useState } from "react";
@@ -44,6 +65,14 @@ import {
   type SubmitOutcome,
 } from "~/shared/forms";
 import { Sheet } from "~/shared/sheet";
+import {
+  ButtonGroup,
+  ButtonGroupItem,
+} from "~/shared/ui/untitled/base/button-group/button-group";
+import {
+  RadioButton,
+  RadioGroup,
+} from "~/shared/ui/untitled/base/radio-buttons/radio-buttons";
 
 import { formatMeasurementValue } from "./goal-progress-view";
 
@@ -98,7 +127,6 @@ export function GoalMeasurementSetupSheet({
   onSubmit,
 }: GoalMeasurementSetupSheetProps) {
   const formId = useId();
-  const unitListId = useId();
   const [type, setType] = useState<GoalMeasurementType | null>(
     (initial?.measurementType as GoalMeasurementType | undefined) ?? null,
   );
@@ -203,39 +231,44 @@ export function GoalMeasurementSetupSheet({
         {/*
           A real radio group, not a row of buttons: arrow keys move between
           options, one Tab stop covers the set, and the chosen strategy is
-          announced. The M3-Expressive treatment is entirely in CSS over these
-          native semantics (`goals.css`).
+          announced. It is Untitled's `base/radio-buttons` over React Aria's
+          `RadioGroup`, so that behaviour is the library's rather than the
+          browser default this sheet used to restyle.
+
+          The `data-testid` goes on the OPTION, where it was, so
+          `goal-fixtures.ts` and `goal-measurement.spec.ts` keep addressing the
+          same thing; React Aria puts the real `<input>` inside the option, and
+          a click on the option activates it.
         */}
-        <fieldset className="dh-measure-choices">
-          <legend className="dh-measure-choices__legend">
+        <RadioGroup
+          className="dh-measure-choices flex flex-col gap-2"
+          aria-label="Measurement type"
+          value={type ?? ""}
+          onChange={(next) => setType(next as GoalMeasurementType)}
+        >
+          <span className="dh-measure-choices__legend text-sm font-medium text-secondary">
             Measurement type
-          </legend>
+          </span>
           {GOAL_MEASUREMENT_TYPES.map((option) => (
-            <label
+            <RadioButton
               key={option}
-              className="dh-measure-choice"
+              value={option}
+              label={GOAL_MEASUREMENT_TYPE_LABELS[option]}
+              hint={GOAL_MEASUREMENT_TYPE_DESCRIPTIONS[option]}
+              /*
+               * The CARD around each option is DalyHub's, and the one thing this
+               * control genuinely needs beyond upstream: four described
+               * strategies with two lines each read as four CHOICES when they
+               * are bounded and as a paragraph list when they are not. It is
+               * Untitled's own card boundary and its `bg-active` selected
+               * surface — not a new treatment, just applied to a radio.
+               */
+              className="dh-measure-choice cursor-pointer rounded-xl bg-primary p-3 ring-1 ring-secondary transition duration-100 ease-linear hover:bg-primary_hover data-[selected=true]:bg-active data-[selected=true]:ring-brand"
               data-selected={type === option ? "true" : undefined}
-            >
-              <input
-                type="radio"
-                name="measurementType"
-                value={option}
-                checked={type === option}
-                onChange={() => setType(option)}
-                data-testid={`goal-measurement-type-${option}`}
-              />
-              {/* The label text is a DIRECT child of the label element: nesting
-                  it one level deeper is what stops both linters and some
-                  assistive tech from finding the control's name. */}
-              <span className="dh-measure-choice__label">
-                {GOAL_MEASUREMENT_TYPE_LABELS[option]}
-              </span>
-              <span className="dh-measure-choice__description">
-                {GOAL_MEASUREMENT_TYPE_DESCRIPTIONS[option]}
-              </span>
-            </label>
+              data-testid={`goal-measurement-type-${option}`}
+            />
           ))}
-        </fieldset>
+        </RadioGroup>
 
         {/* Only the chosen strategy's own fields appear. */}
         {type === "target_value" || type === "accumulation" ? (
@@ -255,25 +288,30 @@ export function GoalMeasurementSetupSheet({
               focused, unreachable by touch on several mobile browsers, and
               silently ignored by some assistive tech. Each is a 44px target.
             */}
-            <div
-              className="dh-measure-units"
-              role="group"
+            <ButtonGroup
+              className="dh-measure-units flex-wrap"
               aria-label="Common units"
-              id={unitListId}
+              selectionMode="single"
+              selectedKeys={
+                GOAL_MEASUREMENT_UNIT_SUGGESTIONS.includes(unitField.value)
+                  ? [unitField.value]
+                  : []
+              }
+              onSelectionChange={(keys) => {
+                const [first] = [...keys];
+                if (typeof first === "string") unitField.onChange(first);
+              }}
             >
               {GOAL_MEASUREMENT_UNIT_SUGGESTIONS.map((unit) => (
-                <button
+                <ButtonGroupItem
                   key={unit}
-                  type="button"
+                  id={unit}
                   className="dh-measure-unit"
-                  data-selected={unitField.value === unit ? "true" : undefined}
-                  aria-pressed={unitField.value === unit}
-                  onClick={() => unitField.onChange(unit)}
                 >
                   {unit}
-                </button>
+                </ButtonGroupItem>
               ))}
-            </div>
+            </ButtonGroup>
             {copy?.baseline ? (
               <TextField
                 label={copy.baseline}
@@ -292,7 +330,10 @@ export function GoalMeasurementSetupSheet({
               />
             ) : null}
             {direction !== null && !ambiguous ? (
-              <p className="dh-measure-inference" role="status">
+              <p
+                className="dh-measure-inference m-0 text-sm text-tertiary"
+                role="status"
+              >
                 {direction === "decrease"
                   ? `Progress means going down, from ${formatMeasurementValue(
                       baselineNumber,
@@ -305,7 +346,10 @@ export function GoalMeasurementSetupSheet({
               </p>
             ) : null}
             {ambiguous ? (
-              <p className="dh-measure-inference" role="status">
+              <p
+                className="dh-measure-inference m-0 text-sm text-tertiary"
+                role="status"
+              >
                 The starting value and the target are the same, so there is
                 nothing to measure yet. Change one of them.
               </p>
@@ -314,14 +358,14 @@ export function GoalMeasurementSetupSheet({
         ) : null}
 
         {type === "milestone" ? (
-          <p className="dh-measure-inference">
+          <p className="dh-measure-inference m-0 text-sm text-tertiary">
             Progress comes from the stages you complete. Add them on the Goal
             after saving — each counts equally unless you give it a weight.
           </p>
         ) : null}
 
         {type === "manual" ? (
-          <p className="dh-measure-inference">
+          <p className="dh-measure-inference m-0 text-sm text-tertiary">
             You will set the percentage yourself. Use this when an outcome
             genuinely cannot be counted — anything you can count is worth
             counting instead.

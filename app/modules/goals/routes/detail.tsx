@@ -702,7 +702,7 @@ function GoalDetail(props: Awaited<ReturnType<typeof loader>>) {
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   if (isRouteErrorResponse(error) && error.status === 404) {
     return (
-      <div className="dh-goal-not-found">
+      <div className="dh-goal-not-found min-w-0">
         <EmptyState
           icon={<EntityIcon type="goal" />}
           title="We couldn’t find that Goal"

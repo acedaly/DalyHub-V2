@@ -961,7 +961,10 @@ function GoalsCollection({
        * twentieth of the space.
        */}
       {summary ? (
-        <p className="dh-goals-alignment-summary" role="status">
+        <p
+          className="dh-goals-alignment-summary m-0 mb-4 text-sm [overflow-wrap:anywhere] text-tertiary"
+          role="status"
+        >
           {summary}
         </p>
       ) : null}

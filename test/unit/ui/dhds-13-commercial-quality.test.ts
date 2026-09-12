@@ -227,10 +227,18 @@ describe("DHDS-13 — landmarks stay navigable", () => {
     expect(workspace).not.toMatch(
       /<section className="dh-goalspace__panel" aria-labelledby/,
     );
-    expect(workspace).toMatch(/<div className="dh-goalspace__panel">/);
-    // The heading stays — the outline is what a screen-reader user walks.
-    expect(workspace).toMatch(
-      /<h2 id=\{headingId\} className="dh-visually-hidden">/,
-    );
+    expect(workspace).toMatch(/<div className="dh-goalspace__panel/);
+    /*
+     * The heading stays — the outline is what a screen-reader user walks.
+     *
+     * UNTITLED-07 made it VISIBLE. It was `dh-visually-hidden` on the reasoning
+     * that the collection's own `h1` two lines above already says "Goals", which
+     * held while the list was the whole screen; in a two-panel workspace it left
+     * the master half unnamed while the detail half carried a title, a tab rail
+     * and four bands, so the eye read the left column as a fragment of the
+     * right. What this test is actually about — that the panel is not a SECOND
+     * landmark called Goals — is asserted above and is unchanged.
+     */
+    expect(workspace).toMatch(/<h2 id=\{headingId\} className="text-md/);
   });
 });

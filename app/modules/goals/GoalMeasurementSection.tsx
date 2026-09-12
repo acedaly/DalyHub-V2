@@ -45,6 +45,15 @@ export type GoalMeasurementSectionProps = {
   readonly measurements: readonly SerializedGoalMeasurement[];
   readonly milestones: readonly SerializedGoalMilestone[];
   readonly todayIso: string;
+  /**
+   * UNTITLED-07 — whether the workspace draws its own bounded Untitled card.
+   *
+   * The Goal record's `feature` region is deliberately unstyled, so the
+   * workspace is the card there. The `/goals` detail pane IS a card, so the
+   * workspace draws bands inside it instead. Passed straight through; this
+   * component owns the mutations, not the surface.
+   */
+  readonly surface?: "card" | "plain";
 };
 
 export function GoalMeasurementSection({
@@ -55,6 +64,7 @@ export function GoalMeasurementSection({
   measurements,
   milestones,
   todayIso,
+  surface,
 }: GoalMeasurementSectionProps) {
   const revalidator = useRevalidator();
   const { notifySuccess, notifyError } = useFeedback();
@@ -272,6 +282,7 @@ export function GoalMeasurementSection({
     <>
       <GoalMeasurementPanel
         goalTitle={goalTitle}
+        surface={surface}
         progress={progress}
         measurements={measurements}
         milestones={milestones}

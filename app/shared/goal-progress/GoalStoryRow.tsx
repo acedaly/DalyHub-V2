@@ -156,7 +156,9 @@ export function GoalStoryRow({
         context={context.length > 0 ? context : null}
         signal={
           signals.length > 0 ? (
-            <span className="dh-goal-row__signals">{signals}</span>
+            <span className="dh-goal-row__signals flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+              {signals}
+            </span>
           ) : null
         }
         /*
