@@ -32,7 +32,7 @@ import {
   type NoteDraft,
   type TaskDraft,
 } from "./ai-view";
-import { buttonClassName } from "~/shared/ui";
+import { buttonClassName, inputClassName } from "~/shared/ui";
 
 /** A link the owner may accept. Only allowlisted targets ever appear. */
 interface LinkDraft {
@@ -188,7 +188,7 @@ export function AiExtractionReview({
                   <span className="dh-ai-review__label">Title</span>
                   <input
                     type="text"
-                    className="dh-input"
+                    className={inputClassName()}
                     value={draft.title}
                     maxLength={200}
                     onChange={(event) =>
@@ -202,7 +202,7 @@ export function AiExtractionReview({
                     <span className="dh-ai-review__label">Due</span>
                     <input
                       type="date"
-                      className="dh-input"
+                      className={inputClassName()}
                       value={draft.dueDate}
                       onChange={(event) =>
                         patch(draft.index, { dueDate: event.target.value })
@@ -213,7 +213,7 @@ export function AiExtractionReview({
                     <span className="dh-ai-review__label">Scheduled</span>
                     <input
                       type="date"
-                      className="dh-input"
+                      className={inputClassName()}
                       value={draft.scheduledDate}
                       onChange={(event) =>
                         patch(draft.index, {
@@ -300,7 +300,7 @@ export function AiExtractionReview({
                   <span className="dh-ai-review__label">Title</span>
                   <input
                     type="text"
-                    className="dh-input"
+                    className={inputClassName()}
                     value={note.title}
                     maxLength={LIMITS.noteTitle}
                     onChange={(event) =>
@@ -312,7 +312,9 @@ export function AiExtractionReview({
                 <label className="dh-ai-review__field">
                   <span className="dh-ai-review__label">Note</span>
                   <textarea
-                    className="dh-input dh-ai-review__body"
+                    className={inputClassName({
+                      className: "dh-ai-review__body",
+                    })}
                     value={note.body}
                     rows={8}
                     maxLength={LIMITS.noteBody}

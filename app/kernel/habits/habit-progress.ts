@@ -128,6 +128,30 @@ export interface HabitWeekProgress {
 /** How many days a Habit's own "recent consistency" reading looks back. */
 export const HABIT_RECENT_WINDOW_DAYS = 28;
 
+/**
+ * UNTITLED-09 — how many whole owner-calendar weeks the record's ADHERENCE
+ * series covers.
+ *
+ * A separate constant from {@link HABIT_RECENT_WINDOW_DAYS}, deliberately: the
+ * four-week window is a READING ("27 of 27 expected check-ins") that every Habit
+ * surface prints and that a change here would silently redefine. This is the
+ * span of a chart, and it answers a question four weeks cannot — *is my
+ * consistency improving?* — which needs enough periods to have a shape.
+ *
+ * Twelve: a season. Long enough for a trend to be a trend rather than a run of
+ * luck, short enough to stay one bounded range read, and short enough to draw at
+ * 320px without the bars becoming hairlines.
+ */
+export const HABIT_ADHERENCE_WEEKS = 12;
+
+/** One whole owner week of the adherence series. */
+export interface HabitWeeklyAdherence {
+  readonly startIso: string;
+  readonly endIso: string;
+  readonly expected: number;
+  readonly completed: number;
+}
+
 /** The bounded consistency reading: expected against completed, and nothing else. */
 export interface HabitConsistency {
   readonly fromIso: string;
@@ -449,6 +473,65 @@ export function evaluateHabitConsistency(
   }
 
   return { fromIso, toIso: upperBound, expected, completed };
+}
+
+/**
+ * UNTITLED-09 — the record's ADHERENCE SERIES: one whole week at a time.
+ *
+ * What the week asked for, and what happened — as two integers per week, never
+ * as a ratio. The chart that draws it stacks them (done, then what was left of
+ * the expectation), so the picture is made of the same counts the words state
+ * and there is no percentage anywhere in it. That is ADR-104's rule applied to a
+ * chart rather than to a figure: a bar whose height is a proportion has no
+ * denominator on the page, and a bar whose height is a COUNT carries its own.
+ *
+ * Each week is evaluated by {@link evaluateHabitConsistency} over that week
+ * alone, so every rule the four-week reading follows holds here too and cannot
+ * drift: the schedule that governed each week is the one that counts, a
+ * count-based week is excluded until it is over rather than pro-rated, and no
+ * day after the owner's today is ever expected.
+ *
+ * The CURRENT week is asked for, and what comes back depends on the schedule —
+ * which is the evaluator's rule rather than this function's, and is right:
+ * a day-scheduled week counts only the days that have already happened (the same
+ * partial reading the row's "4 of 7 this week" states), while a count-based week
+ * contributes nothing until it is over, because half a weekly target is a number
+ * nobody chose. A count-based Habit's series therefore ends at the last COMPLETE
+ * week, and the band above the chart is where the week in progress is read.
+ *
+ * Weeks before the Habit existed contribute `expected: 0`; the surface draws no
+ * bar for them rather than a bar of zero, because a Habit that did not exist did
+ * not fail.
+ */
+export function buildHabitWeeklyAdherence(
+  facts: HabitFacts,
+  context: HabitCalendarContext,
+  weeks: number = HABIT_ADHERENCE_WEEKS,
+): readonly HabitWeeklyAdherence[] {
+  const bounded = Math.max(1, Math.min(weeks, MAX_HABIT_CONSISTENCY_WEEKS));
+  const thisWeek = habitWeek(context.todayIso, context.firstDayOfWeek);
+  const series: HabitWeeklyAdherence[] = [];
+
+  for (let back = bounded - 1; back >= 0; back -= 1) {
+    const week = habitWeek(
+      addPlanningDays(thisWeek.startIso, -7 * back),
+      context.firstDayOfWeek,
+    );
+    const reading = evaluateHabitConsistency(
+      facts,
+      context,
+      week.startIso,
+      week.endIso,
+    );
+    series.push({
+      startIso: week.startIso,
+      endIso: week.endIso,
+      expected: reading.expected,
+      completed: reading.completed,
+    });
+  }
+
+  return series;
 }
 
 /**

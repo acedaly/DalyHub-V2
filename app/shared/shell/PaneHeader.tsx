@@ -174,7 +174,16 @@ export function PaneHeader({
         <div
           className={cx(
             "dh-pane-header__titles min-w-0",
-            density === "compact" && "flex items-baseline gap-3",
+            /*
+             * `flex-wrap`, so the SUBTITLE moves to its own line before the
+             * TITLE starts wrapping inside itself.
+             *
+             * Without it the row cannot break, so flexbox shrinks the title
+             * instead and a heading breaks mid-phrase while its supporting line
+             * sits beside it with room to spare — "Good morning, / Local" at
+             * 1024 on Today. The title is the thing that should keep its line.
+             */
+            density === "compact" && "flex flex-wrap items-baseline gap-x-3",
           )}
         >
           {eyebrow ? (

@@ -62,9 +62,26 @@
   box-shadow: none;
 }
 
-.dh-input,
+/*
+ * UNTITLED-11 — `.dh-input` LEFT this rule, for exactly the reason the note
+ * above gives for `.dh-btn`.
+ *
+ * The shared text control is painted by Untitled's `base/input` recipe now,
+ * which draws its box with `rounded-lg` and an INSET RING. This stylesheet is
+ * unlayered, so a `border-radius` here silently reverted every field in the
+ * product to the legacy 6px corner — measured on `/design/primitives`, where a
+ * migrated input computed `border-radius: 6px` against the 8px it asked for.
+ * The same defect this file already caused once for the button's ring.
+ *
+ * `.dh-combobox__input` left with it, for the same reason: it is the combobox's
+ * own `<input>` and now carries `inputClassName()` too, so the legacy corner
+ * here made the search field of a Select sit at 6px beside an 8px text field in
+ * the same form — visible on the New Habit page, where the two are adjacent.
+ *
+ * The two that stay are boxes that WRAP a control rather than being one, and
+ * have not been migrated: `.dh-select-trigger` and `.dh-tags`.
+ */
 .dh-select-trigger,
-.dh-combobox__input,
 .dh-tags {
   border-radius: var(--dh-radius-sm);
   background: var(--dh-color-surface);

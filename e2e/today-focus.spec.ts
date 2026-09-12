@@ -129,7 +129,19 @@ async function canonicalTodayTitles(page: Page): Promise<readonly string[]> {
   await expect(page.getByRole("heading", { name: "Tasks" })).toBeVisible();
   // The collection streams behind a skeleton; wait for the list, not a timer.
   await expect(taskRows(page).first()).toBeVisible();
-  return (await page.locator(".dh-taskrow__title").allInnerTexts())
+  /*
+   * UNTITLED-10 repaired this rather than inheriting its failure.
+   *
+   * It read `.dh-taskrow__title`, which the `/tasks` collection stopped
+   * rendering when it moved to the Untitled `application/table` presentation:
+   * the class survives only on the LIST row (`TaskRow`'s flat arm), so the
+   * helper returned an empty array and the two tests that depend on it had been
+   * red against a page that agrees with Today perfectly well. `task-row-open` is
+   * the hook BOTH presentations carry, which is what this assertion needed all
+   * along — a test about agreement between two surfaces must not be coupled to
+   * which of two layouts one of them happens to be drawing.
+   */
+  return (await page.getByTestId("task-row-open").allInnerTexts())
     .map((text) => text.trim())
     .filter((title) => title.startsWith(STAMP));
 }

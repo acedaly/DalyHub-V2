@@ -37,6 +37,7 @@
 
 import {
   buildHabitHistory,
+  buildHabitWeeklyAdherence,
   evaluateHabitConsistency,
   evaluateHabitToday,
   evaluateHabitWeek,
@@ -48,6 +49,7 @@ import {
   type HabitFacts,
   type HabitHistoryDayState,
   type HabitTodayKind,
+  type HabitWeeklyAdherence,
 } from "~/kernel/habits";
 
 /* -------------------------------------------------------------------------- */
@@ -148,6 +150,16 @@ export interface SerializedHabit {
 export interface SerializedHabitRecord extends SerializedHabit {
   readonly history: readonly SerializedHabitHistoryDay[];
   readonly consistency: SerializedHabitConsistency;
+  /**
+   * UNTITLED-09 — twelve whole owner weeks, oldest first, each as the two
+   * integers the week asked for and got.
+   *
+   * Never a ratio. The chart that draws it stacks the counts, so the picture is
+   * made of the same numbers the words state and there is no percentage in it
+   * (ADR-104). A week before the Habit existed carries `expected: 0` and is
+   * drawn as nothing rather than as a bar of zero.
+   */
+  readonly adherence: readonly HabitWeeklyAdherence[];
   /** Every past cadence, newest first, so the record can say what changed when. */
   readonly scheduleHistory: readonly {
     readonly id: string;
@@ -383,6 +395,7 @@ export function serializeHabitRecord(
   const consistency = evaluateHabitConsistency(facts, calendar, windowFromIso);
   return {
     ...base,
+    adherence: buildHabitWeeklyAdherence(facts, calendar),
     history: buildHabitHistory(facts, calendar, windowFromIso).map((day) => ({
       dateIso: day.dateIso,
       state: day.state,

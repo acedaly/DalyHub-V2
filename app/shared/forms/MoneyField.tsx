@@ -34,6 +34,7 @@
 import { deriveFieldIds } from "./field-ids";
 import type { BaseControlProps } from "./control-props";
 import { Field } from "./Field";
+import { inputClassName } from "~/shared/ui";
 
 export interface MoneyFieldProps extends BaseControlProps<string> {
   /** The ISO-4217 code the amount is in. Always present, never inferred. */
@@ -94,7 +95,9 @@ export function MoneyField({
           <div className="dh-money-field__controls">
             <input
               id={control.id}
-              className="dh-input dh-money-field__amount"
+              className={inputClassName({
+                className: "dh-money-field__amount",
+              })}
               type="text"
               /* The decimal keypad, on every one of these, at last. */
               inputMode="decimal"
@@ -114,7 +117,9 @@ export function MoneyField({
             />
             <input
               id={currencyId}
-              className="dh-input dh-money-field__currency"
+              className={inputClassName({
+                className: "dh-money-field__currency",
+              })}
               type="text"
               value={currencyCode}
               maxLength={3}

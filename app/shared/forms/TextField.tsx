@@ -80,7 +80,12 @@ export function TextField({
           {multiline ? (
             <Textarea
               id={control.id}
-              className="dh-input dh-input--multiline"
+              /*
+               * UNTITLED-11 — no `dh-input` here any more. `Textarea` emits it
+               * itself now (as the LAYOUT bridge the module stylesheets name),
+               * so passing it again would put the same class in the attribute
+               * twice and imply this field is painted from two places.
+               */
               value={value}
               rows={rows}
               maxLength={maxLength}
@@ -99,7 +104,6 @@ export function TextField({
           ) : (
             <Input
               id={control.id}
-              className="dh-input"
               type={type}
               value={value}
               maxLength={maxLength}

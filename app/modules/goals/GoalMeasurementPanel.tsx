@@ -42,21 +42,25 @@
  * | The bar | `base/progress-indicators` via `ProgressTrack` | The one linear indicator in the product |
  * | The state | `base/badges` via `UntitledStatusBadge` | "Ahead", "Needs attention" |
  * | The acts | `base/buttons` via the shared `Button` | "Log weight", "Edit measurement" |
- * | The history | `application/table`'s cell, head and row classes | Date · Value · Change · Note, with a row menu |
+ * | The chart | `application/charts-base` over Recharts, via `~/shared/charts` | The measured series, the target on the same scale, and the required path |
+| The history | `application/table`'s cell, head and row classes | Date · Value · Change · Note, with a row menu |
  * | Row actions | `base/dropdown` via the shared `Menu` | Correct this reading / Remove, one control instead of two |
  * | Stages | `base/checkbox`, `base/badges`, `base/input` | The checklist, its weights and its add row |
  * | Empty states | `application/empty-state` | "Not measured yet", "No progress logged yet" |
  *
  * Three things are deliberately NOT Untitled and each has a reason:
  *
- *   - **The chart is DalyHub's `TrendLine`.** Untitled's `application/charts-base`
- *     is a Recharts composition, and Recharts is not a dependency of this
- *     product. Adding one to a Cloudflare Workers SSR bundle to redraw a chart
- *     that already carries behaviour Untitled's has no equivalent for — one tab
- *     stop with arrow-key stepping and a `role="status"` readout, a target and a
- *     baseline distinguished by DASH PATTERN rather than hue, and a required-path
- *     projection that is drawn only when all three of its facts exist — would
- *     cost bundle weight and accessibility to gain house style.
+ *   - ~~**The chart is DalyHub's `TrendLine`.**~~ REVERSED by UNTITLED-08. That
+ *     decision traded a visibly homemade chart for a dependency saved, and the
+ *     product owner has reversed the trade. The plot is now `MeasurementTrend`,
+ *     composed from Untitled's own `application/charts-base` over Recharts. The
+ *     accessibility this note worried about was not traded: Recharts'
+ *     `accessibilityLayer` supplies the single tab stop and the arrow-key
+ *     stepping natively, the readout is `ChartFrame`'s live region, the dash
+ *     patterns are unchanged, and the required-path projection is still drawn
+ *     only when all three of its facts exist. The bundle cost is real and is
+ *     recorded in `UNTITLED_UI_MIGRATION.md`; the plot is client-only, so the
+ *     Worker never evaluates it.
  *   - **The milestone list keeps `SortableList`.** Untitled has no sortable
  *     list; the drag, the keyboard move and the whole-order write are DalyHub's
  *     domain behaviour. The row's CONTROLS inside it are Untitled's.
@@ -70,7 +74,7 @@ import {
   GOAL_MILESTONE_TITLE_MAX_LENGTH,
   type GoalProgressEvaluation,
 } from "~/kernel/goals";
-import { TrendLine } from "~/shared/charts";
+import { MeasurementTrend } from "~/shared/charts";
 import { EmptyState } from "~/shared/empty-state";
 import { useFeedback } from "~/shared/feedback";
 import { GoalIcon } from "~/shared/icons";
@@ -555,21 +559,25 @@ function TrendSection({
     );
   }
 
-  const values = measurements.map((measurement) => measurement.value);
   const first = measurements[0]!;
   const last = measurements[measurements.length - 1]!;
 
   /*
-   * UIX-03 — the axis range describes the PLOTTED domain, not merely the
-   * readings.
+   * The series in words, and the plot's accessible name.
    *
-   * The chart scales to include the target (see `TrendLine`), so labelling the
-   * axis "79.3 kg – 85 kg" while the plot actually spans down to 70 kg would
-   * make the one piece of text on the chart contradict the drawing beside it.
+   * UIX-03's rule survives the chart's replacement and is now enforced by the
+   * chart itself rather than by a label beside it: the vertical scale includes
+   * the target, so the axis a reader sees and the sentence they read cannot
+   * disagree about how far there is to go.
    */
-  const domain = [...values];
-  if (progress.target !== null) domain.push(progress.target);
-  if (progress.baseline !== null) domain.push(progress.baseline);
+  const summary = goalTrendSummaryText(
+    progress,
+    measurements.map((measurement) => ({
+      value: measurement.value,
+      measuredOn: measurement.measuredOn,
+    })),
+    (iso) => formatCalendarDate(iso) ?? iso,
+  );
 
   /*
    * The dotted path to the target, drawn ONLY when it is true.
@@ -589,9 +597,10 @@ function TrendSection({
       ? {
           date: progress.targetDate,
           value: progress.target,
-          label: `Target ${formatMeasurementValue(progress.target, progress.unit)} by ${
-            formatCalendarDate(progress.targetDate) ?? progress.targetDate
-          }.`,
+          label: `Required to reach ${formatMeasurementValue(
+            progress.target,
+            progress.unit,
+          )} by ${formatCalendarDate(progress.targetDate) ?? progress.targetDate}`,
         }
       : null;
 
@@ -611,27 +620,39 @@ function TrendSection({
        */}
       <SectionLabel.Root
         title="Trend"
-        description={`Every reading, with the target on the same scale.`}
+        description="Every reading, with the target on the same scale."
       />
-      <TrendLine
+      {/*
+       * UNTITLED-08 — Untitled UI's own chart, over Recharts.
+       *
+       * Every semantic the bespoke `TrendLine` carried survives the move: the
+       * readings, the target ON THE SAME SCALE (so the distance still to cover
+       * is visible rather than cropped out), the required path drawn only when
+       * all three of its facts exist, the unit on every value, and the sentence
+       * that states the whole series in words. What changes is that a real value
+       * axis, a real grid, an in-plot target label and Untitled's tooltip
+       * replace a stretched 100×100 SVG with its axis printed underneath it.
+       */}
+      <MeasurementTrend
         data-testid="goal-trend-chart"
         points={points}
-        summary={goalTrendSummaryText(
-          progress,
-          measurements.map((measurement) => ({
-            value: measurement.value,
-            measuredOn: measurement.measuredOn,
-          })),
-          (iso) => formatCalendarDate(iso) ?? iso,
-        )}
+        summary={summary}
+        /*
+         * The visible caption is the SHORT form. The full sentence — which
+         * names the first and last readings, the count and the direction — is
+         * the plot's accessible name and stays in the document, visually
+         * hidden, so nothing is taken from anyone.
+         */
+        caption={`${measurements.length} readings between ${
+          formatCalendarDate(first.measuredOn) ?? first.measuredOn
+        } and ${formatCalendarDate(last.measuredOn) ?? last.measuredOn}.`}
         target={
           progress.target === null
             ? null
             : {
                 value: progress.target,
-                label: `Target ${formatMeasurementValue(progress.target, progress.unit)}.`,
-                // Pinned to the rule itself, so the dashed line is named where
-                // it is drawn rather than in a sentence three lines below.
+                // Named ON the rule, so the dashed line is identified where it
+                // is drawn rather than in a sentence three lines below it.
                 tag: `Target ${formatMeasurementValue(progress.target, progress.unit)}`,
               }
         }
@@ -640,8 +661,8 @@ function TrendSection({
          *
          * Only when it is a value the owner actually configured. When the
          * baseline is merely the earliest READING it is already the line's own
-         * first point, and drawing a rule through it would be a reference line
-         * that says nothing the data has not already said.
+         * first point, and drawing a rule through it would be a reference that
+         * says nothing the data has not already said.
          */
         baseline={
           progress.baseline === null ||
@@ -649,30 +670,12 @@ function TrendSection({
             ? null
             : {
                 value: progress.baseline,
-                label: `Started at ${formatMeasurementValue(progress.baseline, progress.unit)}.`,
                 tag: `Start ${formatMeasurementValue(progress.baseline, progress.unit)}`,
               }
         }
-        describePoint={(point) =>
-          `${formatMeasurementValue(point.value, progress.unit)} on ${
-            formatCalendarDate(point.date) ?? point.date
-          }`
-        }
         projection={projection}
-        startLabel={formatCalendarDate(first.measuredOn) ?? first.measuredOn}
-        /*
-         * The axis's end is where the PLOT ends. With a projection drawn, that
-         * is the target date rather than the last reading — labelling it
-         * otherwise would make the one piece of text on the axis contradict the
-         * line above it.
-         */
-        endLabel={
-          projection
-            ? (formatCalendarDate(projection.date) ?? projection.date)
-            : (formatCalendarDate(last.measuredOn) ?? last.measuredOn)
-        }
-        lowLabel={formatMeasurementValue(Math.min(...domain), progress.unit)}
-        highLabel={formatMeasurementValue(Math.max(...domain), progress.unit)}
+        formatValue={(value) => formatMeasurementValue(value, progress.unit)}
+        formatDate={(iso) => formatCalendarDate(iso) ?? iso}
       />
     </div>
   );

@@ -33,7 +33,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { MeetingItemKind } from "~/kernel/meetings";
-import { buttonClassName } from "~/shared/ui";
+import { buttonClassName, inputClassName } from "~/shared/ui";
 
 /** What the bar can capture. `note` is the Markdown field; the rest are items. */
 export type MeetingCaptureKind = "note" | MeetingItemKind;
@@ -174,7 +174,9 @@ export function MeetingCaptureBar({
         <input
           id="dh-meeting-capture-input"
           ref={inputRef}
-          className="dh-input dh-meeting-capturebar__input"
+          className={inputClassName({
+            className: "dh-meeting-capturebar__input",
+          })}
           type="text"
           value={value}
           placeholder={active.placeholder}

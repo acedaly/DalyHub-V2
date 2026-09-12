@@ -56,7 +56,7 @@ import {
   type InlineSaveOutcome,
 } from "~/shared/inline-edit";
 import { RecordLayout } from "~/shared/record-layout";
-import { Button, ConfirmationDialog, Menu } from "~/shared/ui";
+import { Button, ConfirmationDialog, inputClassName, Menu } from "~/shared/ui";
 
 import { CreateFromTemplateForm } from "./CreateFromTemplateForm";
 import type { TemplateMutationResult } from "./routes/template-mutate";
@@ -722,7 +722,7 @@ function AddRow({
     <div className="dh-template-add">
       <input
         ref={inputRef}
-        className="dh-input"
+        className={inputClassName()}
         type="text"
         aria-label={label}
         aria-describedby={messageId}

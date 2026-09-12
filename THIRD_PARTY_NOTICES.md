@@ -103,6 +103,59 @@ The vendored Untitled starter components are MIT under the local source
 README; Untitled UI React Pro page examples and other Pro-only materials remain
 subject to the purchased Pro agreement.
 
+### Charts (UNTITLED-11) — Recharts
+
+Untitled UI React's chart components are built on **Recharts**, and
+[ADR-126](docs/decisions/ARCHITECTURE_DECISIONS.md#adr-126-a-chart-is-an-untitled-recharts-plot-on-one-shared-foundation--the-phase-7-rejection-reversed-on-measurement-and-the-behaviour-untitled-had-no-equivalent-for-kept)
+adopts them in place of DalyHub's hand-written SVG plots. It is a direct
+runtime dependency, code-split onto the routes that draw a plot rather than
+loaded on the shell. The package and its entire transitive tree are
+permissively licensed, verified from the installed package metadata on
+**2026-09-12** and pinned in `pnpm-lock.yaml`.
+
+| Package    | Version | Runtime/dev | Licence | Source |
+| ---------- | ------: | ----------- | ------- | --- |
+| `recharts` |  3.10.1 | runtime     | MIT     | [Recharts](https://github.com/recharts/recharts) |
+
+Transitive packages pulled in by the above, all **MIT**: `@reduxjs/toolkit`
+2.12.0, `clsx` 2.1.1, `decimal.js-light` 2.5.1, `es-toolkit` 1.52.0,
+`eventemitter3` 5.0.4, `immer` 11.1.18, `react-redux` 9.3.0, `reselect` 5.2.0,
+`tiny-invariant` 1.3.3, `use-sync-external-store` 1.7.0, `victory-vendor`
+37.3.6.
+
+`victory-vendor` re-exports the d3 scale and shape maths Recharts computes its
+geometry with. Those are **ISC** except `d3-ease`, which is **BSD-3-Clause** —
+both permissive and both allowed by default under the Open Source Policy:
+`d3-array` 3.2.4, `d3-color` 3.1.0, `d3-ease` 3.0.1, `d3-format` 3.1.2,
+`d3-interpolate` 3.0.1, `d3-path` 3.1.0, `d3-scale` 4.0.2, `d3-shape` 3.2.0,
+`d3-time` 3.1.0, `d3-time-format` 4.1.0, `d3-timer` 3.0.1, `internmap` 2.0.3.
+
+No package in this group declares a copyleft or missing licence.
+
+```
+MIT License
+
+Copyright (c) 2015 recharts
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
 ### Live Markdown editor (NOTES-05) — CodeMirror 6
 
 The writing-first Note editor (`~/shared/markdown-editor`, [ADR-044](docs/decisions/ARCHITECTURE_DECISIONS.md#adr-044-the-writing-first-live-markdown-editor--adopting-codemirror-6-as-an-authoring-surface-over-the-unchanged-fnd-08-source-and-render-pipeline))

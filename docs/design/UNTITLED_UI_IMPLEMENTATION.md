@@ -817,7 +817,7 @@ the bar), `informational-01/13` (the record page shape) and `dashboards-01/06`
 | Progress bar | `base/progress-indicators` via the `labelled-progress-bar` override | The one linear indicator in the product | The override's name, valuetext, tone and forced-colours handling |
 | Acts | `base/buttons` via `Button` / `buttonClassName` | "Log weight", "Edit measurement", "Add goal", the chips' actions | — |
 | Pace band | Untitled tokens and the in-card band rule | Recent, required and projected pace | Which figures the evaluator will produce |
-| Trend chart | — | — | DalyHub's `TrendLine` — see the rejection below |
+| Trend chart | `application/charts-base` via `MeasurementTrend` on the shared chart foundation | Measured readings, the required path, the target and the baseline | The frame, the `role="status"` readout, the dash-pattern references and the conditional projection — all in `ChartFrame` / `MeasurementTrend` |
 | Reading history | `application/table`'s cell/head/row classes, `base/dropdown` via `Menu` | Date / Value / Change / Note, with one row menu | A semantic `<table>`, not React Aria's grid: not sortable, not selectable, and a keyboard grid between the owner and five dates costs more than it gives |
 | Stages | `base/checkbox`, `base/input`, `base/dropdown` | The checklist, its add row and its item menu | `SortableList` — Untitled has no sortable list, and the drag, the keyboard move and the whole-order write are domain behaviour |
 | Measurement chooser | `base/radio-buttons` | Four described strategies, in the sheet and in New Goal | The CARD around each option, so four two-line strategies read as four choices |
@@ -828,12 +828,23 @@ the bar), `informational-01/13` (the record page shape) and `dashboards-01/06`
 
 ### Rejected, and why
 
-- **`application/charts-base`** (public, so genuinely available). A Recharts
+- ~~**`application/charts-base`** (public, so genuinely available). A Recharts
   composition; Recharts is not a dependency of this product. Adding one to a
   Workers SSR bundle to redraw a chart that already carries a single tab stop
   with arrow-key stepping, a `role="status"` readout, references told apart by
   dash pattern rather than hue, and a projection drawn only when all three of
-  its facts exist, would cost bundle weight and accessibility for house style.
+  its facts exist, would cost bundle weight and accessibility for house style.~~
+  **REVERSED by UNTITLED-11 and [ADR-126](../decisions/ARCHITECTURE_DECISIONS.md#adr-126-a-chart-is-an-untitled-recharts-plot-on-one-shared-foundation--the-phase-7-rejection-reversed-on-measurement-and-the-behaviour-untitled-had-no-equivalent-for-kept).** Both halves of that reasoning
+  failed measurement. The weight is real but bounded and lazy — the chart chunk
+  is about 400 KB raw, code-split onto the routes that draw a plot — and the
+  accessibility argument was against Recharts' DEFAULT rather than against the
+  library: `accessibilityLayer` gives the same single tab stop with arrow-key
+  stepping, and the readout, the dash-pattern references and the conditional
+  projection are DalyHub's composition on top, which transferred without loss.
+  What the rejection did not price was the DUPLICATION: every custom plot
+  re-derived its own scales, ticks and domain, and they disagreed — the Goal
+  trend's axis read 93.4 / 88.6 / 82.6 kg because nothing owned the question of
+  what a readable tick is. The chart is `MeasurementTrend` now.
 - **`base/progress-circles`.** A ring would be a second, rounder way of saying
   what the bar already says, and the Goals brief rules out "meaningless rings
   everywhere" by name.
@@ -868,3 +879,147 @@ the bar), `informational-01/13` (the record page shape) and `dashboards-01/06`
 
 No screenshot, historical visual audit or legacy Material/MD3/DHDS stylesheet is
 an implementation reference for Goals.
+
+---
+
+## UNTITLED-11 completion record — Habits, charts, Today and the shared primitives
+
+### Pro research, and what it actually returned
+
+The authenticated connector reports `has_pro_access: true` and was searched
+before anything was built, for every pattern in this pass: `chart`, `line
+chart`, `bar chart`, `metrics`, `habit`, `tracker`, `streak`, `checklist`,
+`checkbox list table row`, `table`, `toggle group`, `segmented control`,
+`icon button`, `button utility`, `input`, `text input`, `dashboard`, `today`,
+`activity feed`, `calendar week`, `progress`, `empty state`. Pro entries come
+back as metadata plus a screenshot URL and the `npx untitledui add` command;
+`get_component` on a Pro entry answers with the lock and that command rather
+than with source.
+
+The CLI is still unauthenticatable in this container — `npx untitledui@latest
+login` completes an OAuth callback to a localhost port a headless remote cannot
+reach — so Pro source came from the vendored tree under
+`app/shared/ui/untitled/`, exactly as in every phase since Phase 4. One
+component was NOT in that tree and is `access: "public"`:
+`application/charts-base`. Its genuine source was fetched from Untitled's own
+public component API (`POST https://www.untitledui.com/react/api/components`
+with `{"components":["application/charts-base"],"version":"8"}`) and vendored at
+`app/shared/ui/untitled/application/charts/charts-base.tsx`. Its provenance
+header says so, names the ONE hand-applied patch (`payload.toReversed()` →
+`[...payload].reverse()`, because the app's `lib` is ES2022), and
+`scripts/vendor-untitled.mjs` records it in `API_SOURCED` so the orphan sweep
+does not delete a file the Pro delivery does not contain.
+
+Screenshots studied rather than names merely listed: `metrics` (Pro — the
+figure/label/delta band), `charts-base`'s own examples, the
+`notification-settings-checkbox-menu` and `labels-menu` slideouts (Pro — the
+checkbox-row rhythm), and the `dashboards-01` / `dashboards-02` dashboard
+templates for the action-led arrangement Today needed.
+
+### Habits
+
+| Habits surface | Untitled source | How it is used | Custom remaining, and why |
+| --- | --- | --- | --- |
+| Collection frame | Shared `CollectionLayout` over `application/tabs` | Title, lens rail, empty and error states | — |
+| The one bounded card | `application/table` (`TableCard.Root` + its header anatomy) | Header, standing band, table body, divided footer | The rail that used to sit beside it is deleted, not restyled |
+| Standing band | Untitled's in-card band rule and its divider roles | Three figures: due today, kept this week, at risk | ADR-104 — every figure states its denominator, and the denominator is `sr-only` at phone width rather than absent |
+| Habit table | `application/table`'s cell / head / row classes, inside `@container/habits` | Name, cadence, today, this week, streak, next due, row menu | A semantic `<table>`, NOT React Aria's grid: a keyboard grid puts a mode switch between the owner and the page's primary act, which is the check-in. Same precedent as the Goal reading history |
+| Check-in control | Not Untitled's — the product's own shared completion control | One tap per day, from the collection, with no detail page in the way | D7 — completion is the 20px rounded square and selection the 18px square, and a check-in is the SAME act the Task row's control performs. Adopting Untitled's checkbox here would give one product two completion controls |
+| Week strip | Untitled's surface and border roles | Seven day cells, with an `aria-hidden` letter head | A `<ul>` on one `grid grid-cols-7`, stated once so the head and the body cannot drift |
+| Row menu | `base/dropdown` via the shared `Menu` | Edit, archive, delete | Product items, tones and focus restoration |
+| Record header | `application/section-headers` via the `section-heading` override | The habit's name, cadence and acts | The override adds `level` — upstream's `SectionLabel.Root` hard-codes `h3`, which fails axe under a record's `h1` |
+| Record summary | `application/table` band anatomy + the chart foundation | Standing band, twelve-week adherence, four-week dot grid, notes, schedule history | `HabitSummaryTab` composes them; the FACTS are DalyHub's |
+| Adherence chart | `application/charts-base` via `PeriodicAdherence` | Twelve weeks of completed and shortfall COUNTS | Integer ticks — half a check-in does not exist |
+| Creation and editing | `base/input`, `base/select`, `base/checkbox`, `base/button-group` | The whole New/Edit form | `ToggleGroupField` — see the rejection below |
+| Empty states | `application/empty-state` | No habits, nothing due, an archived lens with no rows | `size="inline"` at record level |
+
+`habits.css` went from 1,093 lines to 553: the dot's states, the four-week
+grid and the forced-colours block are what survived. Everything else was paint
+Untitled now owns.
+
+### Charts
+
+| Chart surface | Untitled source | How it is used | Custom remaining, and why |
+| --- | --- | --- | --- |
+| The foundation | `application/charts-base` (vendored from the public component API) | `ChartLegendContent`, `ChartTooltipContent`, `ChartActiveDot`, `selectEvenlySpacedItems` | One patch, recorded in the file header and in `PATCHES` |
+| The frame | Untitled's card and text roles | `ChartFrame` — reserved block size, client-only mount, legend slot, reduced-motion signal, `role="status"` readout | `summary` is a REQUIRED prop: a plot whose content exists only as geometry is not shippable |
+| The paint | Untitled's border, text and foreground roles | `chart-theme.ts` is the ONE place a plot's colour, dash, tick, height and margin are named | `--dh-chart-series` — the brand ramp by default, the record's identity hue under `[data-identity]` |
+| Goal trend | Recharts `ComposedChart` under the foundation | `MeasurementTrend` — measured area, dashed required path, target and baseline reference lines | `niceDomain()`, time-spaced x ticks, and a projection drawn only when all three of its facts exist |
+| Habit adherence | Recharts `BarChart` under the foundation | `PeriodicAdherence` — completed and shortfall, stacked | Counts, never a ratio without its denominator (ADR-104) |
+
+The decision to adopt Untitled's charts at all — and to reverse Phase 7's
+rejection — is [ADR-126](../decisions/ARCHITECTURE_DECISIONS.md#adr-126-a-chart-is-an-untitled-recharts-plot-on-one-shared-foundation--the-phase-7-rejection-reversed-on-measurement-and-the-behaviour-untitled-had-no-equivalent-for-kept).
+
+### Today
+
+| Today surface | Untitled source | How it is used | Custom remaining, and why |
+| --- | --- | --- | --- |
+| Page head | Untitled's page-header text roles | Greeting and date, as PAGE CONTENT with no card around it | The greeting is domain copy that changes with the hour |
+| The two columns | Untitled's card and surface roles | An action column and a context column, each a flex column | Two independent columns, NOT a twelve-column grid: auto-placement gave every panel its own row and left a ~700px hole. DOM order is reading order is tab order — there is no CSS `order` |
+| Now / Next pair | `application/table` card anatomy | An explicit pair that becomes one column when either is absent | A half-width panel with nothing beside it reads as a fragment |
+| The day | `application/table` card anatomy, the shared Task row | Overdue, due, scheduled — one grammar with `/tasks` | The bucket vocabulary is the product's |
+| Habits on Today | The shared week strip and dot | Compact and subordinate: today's due habits only | Deliberately not the collection's band |
+| Goal context | The shared `ProgressRow` | At most two Goals, then a door | `TODAY_GOAL_VISIBLE = 2` — one meaningful signal beats four widgets |
+| Supporting panels | `application/table` card anatomy, `application/empty-state` | Schedule, reflection, attention, continue, review door | Each states what it is for and links out rather than expanding |
+
+`today.css` no longer carries a twelve-column grid: it is `display: contents`
+at phone width and one `grid-cols-[minmax(0,2fr)_minmax(0,1fr)]` from `lg`.
+
+### The shared primitives
+
+| Primitive | Untitled source | How it is used | Custom remaining, and why |
+| --- | --- | --- | --- |
+| `IconButton` | `base/buttons/button-utility`'s own exported `styles` | Composed with upstream's geometry, the same device `buttonClassName` uses | A REQUIRED accessible name (upstream takes `tooltip` and uses it as the label, so a button without one has no name), the coarse-pointer touch floor, `pressed`, `danger`, and DalyHub's `Tooltip` with its shortcut notation |
+| `iconButtonClassName()` | The same source | For an element that cannot BE the component — a menu trigger forwarding a React Aria prop set, a `<label>` acting as a file picker | — |
+| `Input` / `Textarea` | `base/input`'s own recipe | Radius, `bg-primary`, `shadow-xs`, inset ring, `ring-2 ring-brand` focus, `ring-error_subtle` invalid, `text-placeholder` | ONE element rather than upstream's `Group` wrapper: about twenty module stylesheets carry LAYOUT rules keyed on `.dh-input`, and a wrapper would make them size the inner control instead of the box. The recipe transfers without loss because Untitled's box is an inset ring, not a border |
+| `inputClassName()` | The same source | The ~20 bare `<input className="dh-input">` call sites | `dh-input` / `dh-control` are still EMITTED as layout bridges, and carry no paint |
+| `Select` | The same recipe | `inputClassName({ className: "dh-control--select …" })` | Only the chevron inset remains in CSS |
+
+### Rejected, and why
+
+- **Untitled's `ToggleButtonGroup` for the Habits cadence field.** It is a React
+  Aria selection collection whose value is the selection; `ToggleGroupField` is
+  a real radio group inside a form that posts, with a name and a required arm.
+  Swapping it would trade form semantics for geometry, so the GEOMETRY was taken
+  (`optionClassName()` composes Untitled utilities) and the semantics kept.
+- **React Aria's grid for the Habits table.** Rejected for the reason in the
+  table above: grid navigation puts a mode switch between the keyboard and the
+  page's primary action.
+- **Untitled's `metrics`** (Pro, not in the vendored tree). Its grammar — figure,
+  label, delta — is what the standing bands express, through the vendored card
+  and band sources. It was studied through the connector's screenshot; its
+  source is unavailable here and was not recreated from the picture.
+- **A streak-led Habits collection.** The brief rules it out by name, and it is
+  also wrong: a streak is a consequence of keeping a habit, not the reason to.
+  Streak is one column among seven.
+- **Four KPI cards at the top of Today.** Today is where the day is WORKED. A
+  band of figures above the work is analytics wearing a dashboard's clothes.
+- **Untitled's `Group`-wrapped `InputBase` shape.** See the primitives table.
+
+### Dependency report
+
+| Package | Version | Licence | Why | Weight | SSR | Cloudflare |
+| --- | --- | --- | --- | --- | --- | --- |
+| `recharts` | 3.10.1 | MIT | Untitled UI React's charts are Recharts compositions; adopting the implementation means adopting the library | Code-split to `build/client/assets/charts-*.js`, about 400 KB raw, on the routes that draw a plot only | `ChartFrame` mounts client-only and reserves its block size, so the server renders the frame and the readout and the plot arrives without layout shift | `wrangler deploy --dry-run` succeeds; total upload 13,400 KiB / 3,250 KiB gzipped |
+
+Transitive licences (MIT, with ISC and one BSD-3-Clause beneath
+`victory-vendor`) are enumerated in
+[`THIRD_PARTY_NOTICES.md`](../../THIRD_PARTY_NOTICES.md).
+
+### Documentation consulted
+
+[Introduction](https://www.untitledui.com/react/docs/introduction),
+[Theming](https://www.untitledui.com/react/docs/theming),
+[Dark mode](https://www.untitledui.com/react/docs/dark-mode),
+[CLI](https://www.untitledui.com/react/docs/cli),
+[MCP](https://www.untitledui.com/react/docs/mcp),
+[Tables](https://www.untitledui.com/react/components/tables),
+[Inputs](https://www.untitledui.com/react/components/inputs),
+[Buttons](https://www.untitledui.com/react/components/buttons),
+[Checkboxes](https://www.untitledui.com/react/components/checkboxes),
+[Button groups](https://www.untitledui.com/react/components/button-groups),
+[Empty states](https://www.untitledui.com/react/components/empty-states) and
+[Section headers](https://www.untitledui.com/react/components/section-headers).
+
+No screenshot, historical visual audit or legacy Material/MD3/DHDS stylesheet is
+an implementation reference for any surface in this pass.

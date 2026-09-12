@@ -72,8 +72,22 @@ test.describe("Today — the day surface", () => {
 
     await expect(page).toHaveURL(/\/today$/);
     await expect(greeting(page)).toBeVisible();
-    // The date is stated once, under the greeting, as page content.
-    await expect(page.locator(".dh-today__date")).toHaveCount(1);
+    /*
+     * The date is stated ONCE, under the greeting, as page content.
+     *
+     * UNTITLED-10 repaired this assertion rather than inheriting its failure.
+     * It read `.dh-today__date`, a Today-only class that stopped existing when
+     * the page adopted the shared `PaneHeader` — so the test had been red
+     * against a page that renders the date correctly, which is worse than no
+     * test. The contract is unchanged and is asserted against the header slot
+     * that now carries it, scoped to Today's own header so "once" still means
+     * once on this page.
+     */
+    const header = page.locator(".dh-today__head");
+    await expect(header.locator(".dh-pane-header__subtitle")).toHaveCount(1);
+    await expect(header.locator(".dh-pane-header__subtitle")).toHaveText(
+      /\d{1,2}\s+\w+\s+\d{4}/,
+    );
   });
 
   test("renders the day and the rail as two tonal regions", async ({

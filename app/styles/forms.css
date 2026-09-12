@@ -280,10 +280,23 @@
   border-color: var(--dh-color-danger);
 }
 
-/* Read-only keeps normal text on a quiet surface and says so with a dashed
-   edge — visually and semantically distinct from disabled, which is inert. */
-.dh-input[readonly] {
-  border-style: dashed;
+/*
+ * UNTITLED-11 — the read-only CUE moved into the control.
+ *
+ * It was a dashed BORDER, and the migrated control has no border: Untitled's
+ * `base/input` draws its box with an inset ring, which cannot be dashed. The
+ * distinction the rule existed to make — read-only is legible and inert-looking
+ * but not disabled — is carried by `read-only:bg-secondary` on the control
+ * itself, against `disabled:opacity-50`, so the two states still look different
+ * from each other and from an editable field. `aria-readonly` is what actually
+ * says which one it is.
+ *
+ * Only the cursor stays here, and only for `.dh-select-trigger` — the one box
+ * in this file that wraps a control rather than being one and has not been
+ * migrated. The combobox's own input carries `inputClassName()` and gets the
+ * read-only treatment from it.
+ */
+.dh-select-trigger[aria-readonly="true"] {
   cursor: default;
 }
 
@@ -507,7 +520,23 @@
   padding-inline-end: var(--app-space-8);
 }
 
-.dh-combobox__clear {
+/*
+ * UNTITLED-11 — `.dh-combobox__field >`, and the extra class is load-bearing.
+ *
+ * This button carries `md-state-layer`, and `base.css`'s state-layer host list
+ * declares `position: relative` on every host so the layer has something to be
+ * absolute inside. Both stylesheets are unlayered and both selectors are one
+ * class, so the later file simply won — and the clear control of EVERY Select in
+ * the product was laid out in the flow instead of inside its field, hanging off
+ * the right edge of the box. Measured on `/habits/new`: the field's right edge
+ * at x=1152 with the button's at x=1148, entirely outside the 613px input.
+ *
+ * Found while migrating the field it sits in. The descendant combinator makes
+ * this rule two classes, so it wins on specificity rather than on file order,
+ * which is the difference between a fix and a coincidence. `absolute` gives the
+ * state layer its containing block just as `relative` would.
+ */
+.dh-combobox__field > .dh-combobox__clear {
   position: absolute;
   inset-inline-end: var(--app-space-1);
   display: inline-flex;

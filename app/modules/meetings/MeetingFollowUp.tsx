@@ -32,7 +32,7 @@ import {
   meetingItemKindLabel,
   type FollowUpTaskEntry,
 } from "./follow-up-view";
-import { buttonClassName } from "~/shared/ui";
+import { buttonClassName, inputClassName } from "~/shared/ui";
 
 type SerializedMeetingItem = SerializedMeeting["items"][number];
 
@@ -242,7 +242,7 @@ export function MeetingItemsSection({
             <span className="dh-field__label">New {label}</span>
             <input
               name="body"
-              className="dh-input"
+              className={inputClassName()}
               value={body}
               onChange={(event) => setBody(event.target.value)}
               required

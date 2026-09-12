@@ -59,7 +59,19 @@ export {
 
 /* ── Data entry ───────────────────────────────────────────────────────────── */
 
-export { Input, Textarea, type InputProps, type TextareaProps } from "./Input";
+export {
+  Input,
+  Textarea,
+  /**
+   * The class list for a text control, for an element that cannot BE `Input` —
+   * a bare `<input>` a module renders itself, a control a third-party library
+   * owns. The same device `buttonClassName` is, and the reason `.dh-input` no
+   * longer carries paint in any stylesheet.
+   */
+  inputClassName,
+  type InputProps,
+  type TextareaProps,
+} from "./Input";
 export { Select, type SelectProps } from "./Select";
 export { Checkbox, type CheckboxProps } from "./Checkbox";
 /**

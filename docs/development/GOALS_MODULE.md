@@ -1891,13 +1891,19 @@ argument ADR-038 §38.7 made about Area momentum.
 
 ## What was rejected
 
-- **Untitled's chart source** (`application/charts-base`, public rather than
+- ~~**Untitled's chart source** (`application/charts-base`, public rather than
   Pro, so genuinely available). It is a Recharts composition and Recharts is not
   a dependency of this product. `TrendLine` already carries what Untitled's has
   no equivalent for: ONE tab stop with arrow-key stepping and a `role="status"`
   readout instead of a focus target per reading, a target and a baseline told
   apart by DASH PATTERN rather than hue, and a required-path projection drawn
-  only when all three of its facts exist.
+  only when all three of its facts exist.~~ **REVERSED by UNTITLED-11 and
+  [ADR-126](../decisions/ARCHITECTURE_DECISIONS.md#adr-126-a-chart-is-an-untitled-recharts-plot-on-one-shared-foundation--the-phase-7-rejection-reversed-on-measurement-and-the-behaviour-untitled-had-no-equivalent-for-kept).** Recharts' `accessibilityLayer` gives the same single tab
+  stop with arrow-key stepping; the readout, the dash-pattern references and the
+  conditional projection are DalyHub's composition on top and transferred to
+  `ChartFrame` / `MeasurementTrend` without loss. The dependency's weight was
+  measured rather than assumed: MIT, code-split, about 400 KB raw on the routes
+  that draw a plot. The Goal trend is `MeasurementTrend` now.
 - **A progress RING** (`base/progress-circles`). It would be a second, rounder
   way of saying what the bar already says.
 - **`application/progress-steps` for milestones.** Stages are

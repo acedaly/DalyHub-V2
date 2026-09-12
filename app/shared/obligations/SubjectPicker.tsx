@@ -28,7 +28,7 @@ import { EntityIcon, isEntityType } from "~/shared/entity";
 import { Field } from "~/shared/forms";
 import { useCombobox } from "~/shared/forms/use-combobox";
 import { OptionContent } from "~/shared/floating";
-import { buttonClassName } from "~/shared/ui";
+import { buttonClassName, inputClassName } from "~/shared/ui";
 
 /** One candidate subject, as the module's search route returns it. */
 export interface ObligationSubjectOption {
@@ -158,7 +158,7 @@ export function SubjectPicker({
               <input
                 id={control.id}
                 ref={inputRef}
-                className="dh-input"
+                className={inputClassName()}
                 type="text"
                 value={query}
                 placeholder="Search your records…"

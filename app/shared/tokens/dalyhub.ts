@@ -177,6 +177,19 @@ export const DALYHUB_IDENTITY_TOKEN_NAMES = [
   "dh-identity-edge",
   /** Pill fills and progress tracks. */
   "dh-identity-soft",
+  /**
+   * UNTITLED-08 — the series colour of an Untitled-backed CHART.
+   *
+   * A fifth name rather than a fifth use of `dh-identity`, because the two
+   * differ in exactly one respect and it is the one that matters: with no
+   * identity in scope this resolves to BRAND, not to the neutral container. A
+   * chart drawn in muted grey reads as disabled; a record with no identity still
+   * has a product to belong to.
+   *
+   * The default and the `[data-identity]` override both live in `tokens.css`
+   * beside the ramp they are derived from; `chart-theme.ts` is the only consumer.
+   */
+  "dh-chart-series",
 ] as const;
 
 /** The 4px spacing scale, under DalyHub's own name. */

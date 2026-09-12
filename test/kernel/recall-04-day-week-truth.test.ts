@@ -670,7 +670,7 @@ describe("Today's Goal figures state their bound", () => {
      * attention-first. It now names its own set, the way Analytics has always
      * named the set behind its bounded Goal tile.
      */
-    expect(card?.note).toBe("of the 4 measurable goals shown here");
+    expect(card?.note).toBe("of the 4 measurable goals Today read");
     expect(card?.chart).toMatchObject({ kind: "meter" });
   });
 });

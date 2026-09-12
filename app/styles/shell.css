@@ -553,7 +553,20 @@
 /* Responsive: collapse the rail into the phone shell below `md`.              */
 /* -------------------------------------------------------------------------- */
 
-@media (max-width: 48rem) {
+/*
+ * BELOW `md`, not AT it.
+ *
+ * `MobileTopBar` is `md:hidden`, and Tailwind's `md` is `min-width: 48rem` — so
+ * at EXACTLY 768 the phone bar is already gone while `max-width: 48rem` still
+ * matched, and the rule below hid the pane header's title on the strength of a
+ * bar that was not being drawn. The result was one width, 768 precisely, at
+ * which every route in the product showed no visible title at all. Found by
+ * capturing Today at the tablet width the responsive contract names.
+ *
+ * 47.9375rem is 767.9px: the largest width below Tailwind's `md`, so the two
+ * boundaries meet exactly rather than overlapping by a pixel.
+ */
+@media (max-width: 47.9375rem) {
   /* The phone top bar already shows the route title, so the pane header's copy
    * of it is hidden VISUALLY and kept in the document — the bar's title is a
    * paragraph, and a screen with no `h1` is worse than a repeated one. The

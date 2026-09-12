@@ -57,7 +57,7 @@ import {
 import type { SerializedObligationSignal } from "./asset-history-view";
 import type { AssetsCollectionData } from "./assets-collection-data";
 import type { SerializedAssetListItem } from "./asset-view";
-import { buttonClassName } from "~/shared/ui";
+import { buttonClassName, inputClassName } from "~/shared/ui";
 
 const VIEWS: {
   readonly view: AssetView;
@@ -360,7 +360,7 @@ export function AssetsCollectionView({
         <span className="dh-visually-hidden">Search assets</span>
         <input
           type="search"
-          className="dh-input"
+          className={inputClassName()}
           placeholder="Search assets…"
           defaultValue={data.query}
           onChange={(e) => setParam("q", e.currentTarget.value)}
@@ -383,7 +383,7 @@ export function AssetsCollectionView({
         <span className="dh-visually-hidden">Filter by tag</span>
         <input
           type="text"
-          className="dh-input"
+          className={inputClassName()}
           defaultValue={data.filters.tag ?? ""}
           onChange={(e) => setParam("tag", e.currentTarget.value)}
           aria-label="Filter by tag"

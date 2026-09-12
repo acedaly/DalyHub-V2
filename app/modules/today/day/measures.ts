@@ -208,8 +208,14 @@ export function todayMeasures(input: {
     const denominator = `${measured.length} measurable ${
       measured.length === 1 ? "goal" : "goals"
     }`;
+    /*
+     * UNTITLED-11 — "shown here" became untrue when the panel above started
+     * DRAWING two of the set it counts. It always meant "the set Today read",
+     * which is what it now says — and which is the Analytics wording this
+     * comment already cited.
+     */
     const note = goalsBounded
-      ? `of the ${denominator} shown here`
+      ? `of the ${denominator} Today read`
       : `of ${denominator}`;
     const valueText = `${onTrack} ${note} on track`;
     measures.push({

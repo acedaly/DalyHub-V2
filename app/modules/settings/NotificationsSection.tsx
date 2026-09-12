@@ -34,7 +34,7 @@ import type {
   NotificationActionResult,
   NotificationSettingsView,
 } from "./routes/notifications";
-import { buttonClassName } from "~/shared/ui";
+import { buttonClassName, inputClassName } from "~/shared/ui";
 
 /** Everything this section renders that only the server can know. */
 export type NotificationSettingsData = {
@@ -253,7 +253,7 @@ function DigestTimeGroup({
           <input
             type="time"
             aria-label="Digest send time"
-            className="dh-input"
+            className={inputClassName()}
             value={sendTime}
             data-testid="notification-send-time"
             disabled={!settings.enabled}

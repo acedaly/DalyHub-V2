@@ -53,7 +53,7 @@ import {
   linkTabClassName,
   linkTabRailClassName,
 } from "~/shared/ui/untitled/overrides/link-tab-rail";
-import { buttonClassName } from "~/shared/ui";
+import { buttonClassName, inputClassName } from "~/shared/ui";
 
 /** One selectable view in the switcher: built-in or the owner's own. */
 export interface SavedViewOption {
@@ -442,7 +442,7 @@ export function SavedViewSwitcher({
                 ref={nameInputRef}
                 name="name"
                 type="text"
-                className="dh-input"
+                className={inputClassName()}
                 defaultValue={naming.initial}
                 maxLength={80}
                 required

@@ -25,6 +25,22 @@
  *   - selection is never carried by colour alone: a selected option is drawn
  *     with a filled ground AND a tick, and its `aria-checked` state is the
  *     native one.
+ *
+ * ── UNTITLED-09 — where its paint comes from now ────────────────────────────
+ *
+ * The option was drawn by `.dh-toggle-group*` in **`habits.css`** — a MODULE
+ * stylesheet painting a control that is explicitly shared, so the next module to
+ * use it would have had to import Habits' stylesheet to get a weekday picker.
+ * Those rules are deleted and the paint is Untitled semantic roles through
+ * Tailwind utilities, so the control follows the appearance switch and the
+ * generated Branded Plum ramp with nothing to keep in step.
+ *
+ * It is deliberately NOT Untitled's `base/button-group` `ToggleButtonGroup`.
+ * That is a React Aria group of toggle BUTTONS carrying `aria-pressed`, laid out
+ * as a segmented, non-wrapping strip; this control is a set of real CHECKBOXES
+ * that wrap onto a second row and hold the touch floor, which is what makes
+ * seven weekdays usable at 320px. The geometry is Untitled's; the semantics are
+ * the ones the choice actually has.
  */
 
 import { composeDescribedBy, deriveFieldIds } from "./field-ids";
@@ -90,6 +106,26 @@ export function ToggleGroupField({
     .filter(Boolean)
     .join(" ");
 
+  /*
+   * One option, in Untitled's control geometry: the pill radius, the secondary
+   * hairline, the primary surface, and the brand solid when selected. The
+   * minimum block size is DalyHub's touch floor rather than Untitled's desktop
+   * height — density never costs hit area (AGENTS.md §15).
+   */
+  const optionClassName = (checked: boolean) =>
+    [
+      "relative inline-flex min-h-[var(--app-touch-target-min)] min-w-12 cursor-pointer",
+      "items-center justify-center rounded-full px-3 text-sm ring-1 select-none",
+      "transition duration-100 ease-linear",
+      "has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus-ring",
+      checked
+        ? "bg-brand-solid font-semibold text-white ring-transparent forced-colors:bg-[Highlight] forced-colors:text-[HighlightText]"
+        : "bg-primary text-secondary ring-primary hover:ring-brand",
+      disabled || readOnly ? "cursor-not-allowed opacity-50" : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+
   return (
     <div
       className={rootClassName}
@@ -115,18 +151,20 @@ export function ToggleGroupField({
       </div>
 
       <div className="dh-field__control">
-        <div className="dh-toggle-group">
+        <div className="dh-toggle-group flex flex-wrap gap-2">
           {options.map((option, index) => {
             const checked = value.includes(option.value);
             return (
               <label
                 key={option.value}
-                className="dh-toggle-group__option"
+                className={`dh-toggle-group__option ${optionClassName(checked)}`}
                 data-checked={checked || undefined}
               >
+                {/* The real control, covering its own label: the whole pill is
+                    the target, and the state a screen reader reads is native. */}
                 <input
                   type="checkbox"
-                  className="dh-toggle-group__input"
+                  className="absolute inset-0 m-0 size-full cursor-pointer opacity-0 outline-none"
                   id={index === 0 ? baseId : `${baseId}-${option.value}`}
                   checked={checked}
                   disabled={disabled || readOnly}
@@ -138,7 +176,11 @@ export function ToggleGroupField({
                   }
                   onBlur={() => onBlur?.(value)}
                 />
-                <span className="dh-toggle-group__face" aria-hidden="true">
+                <span className="pointer-events-none" aria-hidden="true">
+                  {/* Selection is never the fill alone: a tick appears with it,
+                      so forced colours and a colour-blind reader both still see
+                      which days are on. */}
+                  {checked ? "✓ " : null}
                   {option.label}
                 </span>
                 <span className="dh-visually-hidden">

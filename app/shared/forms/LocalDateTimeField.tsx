@@ -1,5 +1,6 @@
 import type { BaseControlProps } from "./control-props";
 import { Field } from "./Field";
+import { inputClassName } from "~/shared/ui";
 
 export interface LocalDateTimeFieldProps extends BaseControlProps<string> {
   readonly maxLength?: number;
@@ -35,7 +36,7 @@ export function LocalDateTimeField({
       {(control) => (
         <input
           id={control.id}
-          className="dh-input"
+          className={inputClassName()}
           type="datetime-local"
           value={value}
           disabled={control.disabled}

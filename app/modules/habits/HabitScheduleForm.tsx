@@ -139,10 +139,28 @@ export function HabitScheduleForm({
   const kind = form.values.scheduleKind;
 
   return (
+    /*
+     * UNTITLED-09 — a READING MEASURE, not the panel's width.
+     *
+     * The record panel is ~1100px at 1440, and the fields filled it: an
+     * 1100px-wide select whose longest option is "3 times a week". Untitled's
+     * own settings examples hold a form to a comfortable measure and leave the
+     * rest of the panel alone, which is also what makes the label, the control
+     * and the help text read as one field rather than as three full-width bands.
+     */
     <Form
       aria-label="Habit schedule"
       busy={form.isSubmitting}
       onSubmit={form.handleSubmit}
+      /*
+       * `structure="untitled"` as well as the measure, and the pair is not
+       * optional: `.dh-form` in `forms.css` declares `max-width: 100%` and that
+       * stylesheet is UNLAYERED, so it beats any Tailwind `max-w-*` whatever the
+       * specificity — the exact cascade defect PRs #283 and #285 each found once.
+       * The Untitled structure drops the legacy class and lets the utility win.
+       */
+      structure="untitled"
+      className="max-w-xl"
     >
       <p className="dh-habit-schedule__note">
         A change applies <strong>from today</strong>. Every earlier day keeps

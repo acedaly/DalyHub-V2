@@ -43,7 +43,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { execFileSync } from "node:child_process";
-import { dirname, join, relative, resolve } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -151,6 +151,28 @@ const MANIFEST = [
 ];
 
 /**
+ * API-SOURCED — vendored Untitled files this script does NOT own, because they
+ * did not come from a checkout.
+ *
+ * `app/shared/ui/untitled/application/charts/charts-base.tsx` was retrieved from
+ * Untitled's PUBLIC component API (`POST
+ * https://www.untitledui.com/react/api/components`, component `charts-base`),
+ * which serves the genuine source of every component Untitled publishes openly —
+ * exactly what `npx untitledui@latest add charts-base` installs. That route was
+ * used because this environment has no licensed Untitled checkout and the CLI
+ * cannot be authenticated here: `untitledui login` completes its OAuth callback
+ * to a localhost port a headless container cannot reach.
+ *
+ * Its header therefore names the API and the retrieval date rather than a
+ * checkout revision, because that is where it actually came from (AGENTS.md §11).
+ * The file is listed here rather than in `MANIFEST` so the checkout walk neither
+ * regenerates it nor deletes it as an orphan. Move it into `MANIFEST` — the path
+ * is already the one it occupies in the Untitled `src/` tree — the first time
+ * this script is run against a real licensed checkout.
+ */
+const API_SOURCED = new Set(["application/charts/charts-base.tsx"]);
+
+/**
  * PATCHES — narrow, named edits applied after copying.
  *
  * Each one exists because upstream cannot compile as-is inside DalyHub, and each
@@ -160,6 +182,19 @@ const MANIFEST = [
  * thing is being vendored.
  */
 const PATCHES = [
+  {
+    file: "components/application/charts/charts-base.tsx",
+    reason:
+      "Upstream's legend calls `payload.toReversed()`, an ES2023 array method. " +
+      'DalyHub\'s application tsconfig declares `lib: ["DOM", "DOM.Iterable", ' +
+      '"ES2022"]`, so the call does not typecheck. `[...payload].reverse()` is ' +
+      "the same non-mutating reversal at the library level the rest of the " +
+      "application compiles against. This file is currently API_SOURCED, so the " +
+      "patch is applied by hand in the vendored copy and recorded here for the " +
+      "first re-vendor from a licensed checkout.",
+    from: "payload = reversed ? payload?.toReversed() : payload;",
+    to: "payload = reversed && payload ? [...payload].reverse() : payload;",
+  },
   {
     file: "components/application/command-menus/parseHotkeys.ts",
     reason:
@@ -450,6 +485,8 @@ function sweep(dir) {
     }
     if (!path.endsWith(".tsx") && !path.endsWith(".ts")) continue;
     if (written.has(path)) continue;
+    // Vendored, but not from the checkout this script walks. See `API_SOURCED`.
+    if (API_SOURCED.has(relative(DEST, path).split(sep).join("/"))) continue;
     if (
       !readFileSync(path, "utf8").startsWith("// Vendored from Untitled UI")
     ) {

@@ -149,13 +149,25 @@ describe("a measurable Goal", () => {
 
   it("gives the chart a text equivalent stating the series", () => {
     renderPanel({ measurements: series });
-    const chart = within(screen.getByTestId("goal-trend-chart")).getByRole(
-      "img",
-    );
-    const label = chart.getAttribute("aria-label") ?? "";
-    expect(label).toContain("3 measurements");
-    expect(label).toContain("81.6 kg");
-    expect(label).toContain("79 kg");
+    /*
+     * UNTITLED-08 — the text equivalent is asserted on the FIGURE, not on the
+     * plot.
+     *
+     * The chart is now Untitled's over Recharts, and Recharts lays out by
+     * measuring its container — which in a jsdom-shaped environment is 0×0, so
+     * no plot is drawn here and there would be no `role="img"` to read an
+     * `aria-label` off. That is exactly why `ChartFrame` requires the summary
+     * and renders it as a real `<figcaption>`: the contract this test defends is
+     * "the chart is never the only way to read the series", and asserting it on
+     * the words rather than on the picture is a STRONGER reading of it. The
+     * picture's own `aria-label` is the same string, and the browser suite
+     * checks that it renders (`e2e/goals-outcomes.spec.ts`).
+     */
+    const figure = screen.getByTestId("goal-trend-chart");
+    const text = figure.textContent ?? "";
+    expect(text).toContain("3 measurements");
+    expect(text).toContain("81.6 kg");
+    expect(text).toContain("79 kg");
   });
 
   it("lists every reading with its change from the one before", () => {

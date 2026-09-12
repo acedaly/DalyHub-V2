@@ -23,6 +23,7 @@
  */
 
 import {
+  HABIT_ADHERENCE_WEEKS,
   HABIT_RECENT_WINDOW_DAYS,
   MAX_HABIT_CONSISTENCY_WEEKS,
   evaluateHabitConsistency,
@@ -119,12 +120,21 @@ export async function readHabitPage(
 }
 
 /**
- * ONE Habit with its four-week history window.
+ * ONE Habit, with the completions every reading on its record is derived from.
  *
- * The window is deliberately bounded and deliberately SHORT: four weeks is long
- * enough to see a pattern and short enough that the strip fits a 320px phone
- * without becoming a contribution graph. It starts at the beginning of an owner
- * calendar week so the strip's columns line up under weekday headings.
+ * ── UNTITLED-09 widened the READ, and nothing else ──────────────────────────
+ *
+ * It used to fetch four weeks, which is the span of the day GRID and of the
+ * "recent consistency" reading. The record now also draws a twelve-week
+ * adherence series, because four weeks can show a pattern but cannot answer
+ * whether consistency is IMPROVING.
+ *
+ * One read still, and the same shape of read: `listCompletionsInRange` is a
+ * bounded range over `(workspace, completed_on, habit)`, so a longer range is
+ * the same index walk over more rows — for one Habit, at most one row per day.
+ * Every DERIVED window is unchanged: the grid still starts four weeks back and
+ * the consistency reading still covers exactly {@link HABIT_RECENT_WINDOW_DAYS}
+ * days, so no figure the product already prints changes meaning.
  */
 export async function readHabitRecord(
   scope: WorkspaceScope,
@@ -136,7 +146,7 @@ export async function readHabitRecord(
   const windowFromIso = habitWindowStart(calendar);
   const completions = await scope.habits.listCompletionsInRange({
     habitIds: [habit.id],
-    fromIso: windowFromIso,
+    fromIso: habitAdherenceWindowStart(calendar),
     toIso: calendar.todayIso,
   });
   return serializeHabitRecord(
@@ -147,10 +157,18 @@ export async function readHabitRecord(
   );
 }
 
-/** The first day of the record's history window: four whole owner weeks back. */
+/** The first day of the record's history GRID: four whole owner weeks back. */
 export function habitWindowStart(calendar: HabitCalendarContext): string {
   const thisWeek = habitWeek(calendar.todayIso, calendar.firstDayOfWeek);
   return addPlanningDays(thisWeek.startIso, -(HABIT_RECENT_WINDOW_DAYS - 7));
+}
+
+/** The first day the record READS: twelve whole owner weeks back. */
+export function habitAdherenceWindowStart(
+  calendar: HabitCalendarContext,
+): string {
+  const thisWeek = habitWeek(calendar.todayIso, calendar.firstDayOfWeek);
+  return addPlanningDays(thisWeek.startIso, -7 * (HABIT_ADHERENCE_WEEKS - 1));
 }
 
 /**

@@ -8328,6 +8328,33 @@
   --dh-identity-soft: var(--dh-color-surface-quiet);
 }
 
+/*
+ * UNTITLED-08 — the CHART SERIES colour.
+ *
+ * A chart takes the record's own identity hue, so a Health & Fitness Goal's
+ * trend is the same green as its mark everywhere else. It cannot be written as
+ * `var(--dh-identity, <brand>)` at the call site, because the rule above defines
+ * `--dh-identity` on bare `:root` as the NEUTRAL container — the property is
+ * therefore always set and the fallback never fires, which drew a chart on a
+ * record with no identity in muted grey instead of in brand.
+ *
+ * So the BRAND default is declared here and a real `[data-identity]` overrides
+ * it below, which is what that attribute means everywhere else in the product:
+ * present only when a record genuinely has an identity. It lives beside the
+ * identity ramp rather than in `charts.css` because it is derived from that ramp
+ * and because `--dh-*` is defined in exactly one file.
+ *
+ * `~/shared/charts/untitled/chart-theme.ts` is the only consumer; Recharts takes
+ * its strokes and fills as strings, so a `var()` reaches SVG attributes intact.
+ */
+:root {
+  --dh-chart-series: var(--color-utility-brand-600);
+}
+
+[data-identity] {
+  --dh-chart-series: var(--dh-identity);
+}
+
 [data-identity="violet"] {
   --dh-identity: var(--identity-violet);
   --dh-identity-tint: var(--identity-violet-tint);
