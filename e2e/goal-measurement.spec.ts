@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { ownerDayPlus } from "./calendar-dates";
+import { cleanupAllTestGoals, uniqueGoalTitle } from "./goal-fixtures";
 
 import {
   expectMinTouchTarget,
@@ -82,11 +83,27 @@ async function logMeasurement(page: Page, value: string, measuredOn: string) {
   await expect(sheet).toHaveCount(0);
 }
 
+/*
+ * Every Goal this spec creates is SWEPT.
+ *
+ * The five journeys below used to name their Goals `Reach 70 kg ${Date.now()}`
+ * and friends — unique, so no two runs collided, and outside the
+ * `GOAL_FIXTURE_TITLE_PREFIX` the shared sweep reaches, so every run left its
+ * Goals in the development database permanently. Three had accumulated by the
+ * time this was found, and Today's own Goal panel counts open Goals: run this
+ * file often enough and it breaks the assertions in it. The titles go through
+ * `uniqueGoalTitle` now, which keeps the per-run uniqueness and puts them where
+ * the sweep can see them.
+ */
+test.afterAll(() => {
+  cleanupAllTestGoals();
+});
+
 test.describe("GOAL-02 — measurable Goals", () => {
   test("create a measurable Goal, record progress, and see honest figures", async ({
     page,
   }) => {
-    const title = `Reach 70 kg ${Date.now()}`;
+    const title = uniqueGoalTitle("reach-70kg");
     const goalUrl = await createMeasurableGoal(page, title);
 
     // 1. A configured Goal with nothing recorded invites a first measurement —
@@ -275,7 +292,7 @@ test.describe("GOAL-02 — measurable Goals", () => {
     test("check in from a phone without horizontal scrolling", async ({
       page,
     }) => {
-      const title = `Phone goal ${Date.now()}`;
+      const title = uniqueGoalTitle("phone");
       await createMeasurableGoal(page, title);
 
       const record = page.getByTestId("goal-record-measurement").first();
@@ -306,7 +323,7 @@ test.describe("GOAL-02 — measurable Goals", () => {
   test("the Goal record fits every phone width the contract names", async ({
     page,
   }) => {
-    const title = `Width goal ${Date.now()}`;
+    const title = uniqueGoalTitle("width");
     await createMeasurableGoal(page, title);
     await logMeasurement(page, "83.0", "2026-07-05");
     await logMeasurement(page, "79.0", "2026-08-09");
@@ -324,7 +341,7 @@ test.describe("GOAL-02 — Today", () => {
   test("shows measurable Goal progress and the 7-day workload trend", async ({
     page,
   }) => {
-    const title = `Today goal ${Date.now()}`;
+    const title = uniqueGoalTitle("today");
     await createMeasurableGoal(page, title);
     await logMeasurement(page, "83.0", "2026-07-05");
     await logMeasurement(page, "79.0", ownerToday());
@@ -419,7 +436,7 @@ test.describe("GOAL-02 — Today", () => {
      * this journey assert nothing at all on a day the fixture happened to be
      * empty, and the 500 ms sleep that stood in for a signal.
      */
-    const title = `GOAL02 trend ${Date.now()}`;
+    const title = uniqueGoalTitle("trend");
     const created = await postSameOrigin(request, "/tasks/new", {
       form: { title, dueDate: ownerToday() },
     });
