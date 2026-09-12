@@ -91,6 +91,25 @@ export type GoalProjectItem = {
   readonly archivedAt: Date | null;
   readonly taskTotal: number;
   readonly taskCompleted: number;
+  /**
+   * IDENTITY-01 — the Project's OWN chosen glyph, when it has one.
+   *
+   * UNTITLED-07 closes the deferral Phase 6 recorded: this projection carried
+   * no identity, so the SAME Project drew its real mark in the Projects
+   * collection and in its Area record, and a neutral grey one inside a Goal.
+   * A Project displayed inside a Goal has to be recognisably the same record.
+   */
+  readonly iconKey: string | null;
+  /** The Project's OWN chosen colour slot, when it has one. */
+  readonly colourSlot: string | null;
+  /**
+   * The Project's stable identity RANK — `ROW_NUMBER()` over Project creation
+   * order, 0-based, which is the fallback when no slot was chosen.
+   *
+   * The expression is character-for-character `d1-project-repository.ts`'s, so
+   * two repositories cannot disagree about which colour a Project is.
+   */
+  readonly colourRank: number | null;
 };
 
 export type GoalChildrenInput = {

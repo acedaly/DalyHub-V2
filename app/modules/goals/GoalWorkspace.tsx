@@ -35,6 +35,22 @@
  * drawn as one, so it is not a second bar and not a loud badge. It is the
  * `AlignmentIndicator` on the selected Goal's pane, and the row's own
  * accessible name carries it in words.
+ *
+ * ── UNTITLED-07 — the list is a PANEL, not a run of rows in a box ──────────
+ *
+ * The master half was a bordered box with rows in it and a text link at the
+ * bottom: no header, so a screen with two cards side by side gave the reader
+ * nothing to tell them apart by, and the one action that closes the list was a
+ * `<button>` painted by `goals.css` with its own height, its own hover and its
+ * own focus ring.
+ *
+ * It is Untitled's table-card anatomy now — `application/table`'s
+ * `TableCard.Root` boundary (drawn by `GoalWorkspaceLayout`), its
+ * `TableCard.Header` (a title, a count badge and a trailing slot, over a
+ * `border-b border-secondary`), the divided body, and a divided FOOTER holding
+ * the action. That is the same grammar the migrated Projects, Areas and Tasks
+ * collections already carry, which is the point: the Goals workspace stopped
+ * being the one collection in the product with a bespoke frame.
  */
 
 import { useId } from "react";
@@ -46,6 +62,8 @@ import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 import { LoadMore } from "~/shared/load-more";
 import { PlusIcon } from "~/shared/icons";
+import { UntitledStatusBadge } from "~/shared/pill";
+import { buttonClassName } from "~/shared/ui";
 import { ViewTabs } from "~/shared/view-switcher";
 import { GoalStoryRow } from "~/shared/goal-progress";
 
@@ -92,10 +110,10 @@ export function GoalWorkspaceLayout({
        * card grammar, the same boundary the migrated collection tables, entity
        * cards and record panels carry.
        */}
-      <div className="dh-goalspace__list rounded-xl bg-primary shadow-xs ring-1 ring-secondary">
+      <div className="dh-goalspace__list overflow-hidden rounded-xl bg-primary shadow-xs ring-1 ring-secondary">
         {list}
       </div>
-      <div className="dh-goalspace__detail rounded-xl bg-primary shadow-xs ring-1 ring-secondary">
+      <div className="dh-goalspace__detail overflow-hidden rounded-xl bg-primary shadow-xs ring-1 ring-secondary">
         {detail}
       </div>
     </div>
@@ -121,29 +139,48 @@ export function GoalWorkspaceList({
 }) {
   const headingId = useId();
   return (
-    <div className="dh-goalspace__panel">
+    <div className="dh-goalspace__panel flex min-w-0 flex-col">
       {/*
-       * A real heading, not an `aria-label`.
-       *
-       * Each row's title is an `h3` (so a row nests correctly under the pane's
-       * own headings), and an `h3` with no `h2` above it is a broken heading
-       * order — a genuine axe failure, caught by the E2E sweep. It is visually
-       * hidden because the collection's own `h1` two lines above already says
-       * "Goals" to a sighted reader; a screen-reader user gets the outline.
-       *
-       * ── DHDS-13 — a `div`, and it was a NAMED `<section>` ──────────────────
-       * A `<section>` with an accessible name is a `region` LANDMARK, so
-       * pointing this one at the heading below gave `/goals` two landmarks both
-       * called "Goals" — the collection's own region and this one. axe reported
-       * it (`landmark-unique`, the single automated violation left anywhere in
-       * the product) and it is a real defect: landmark navigation is a menu of
-       * destinations, and two identical entries make it useless. The heading
-       * stays, so the outline a screen-reader user walks is unchanged; only the
-       * duplicate landmark goes.
+       * Untitled's `TableCard.Header`: the title, a count badge beside it and
+       * the hairline beneath. It is written out rather than imported because
+       * upstream's takes a plain `string` title and this one has to BE the
+       * region's heading — see the note on the `h2` below.
        */}
-      <h2 id={headingId} className="dh-visually-hidden">
-        Goals
-      </h2>
+      <div className="flex shrink-0 items-center gap-2 border-b border-secondary px-4 py-3">
+        {/*
+         * A real heading, not an `aria-label`.
+         *
+         * Each row's title is an `h3` (so a row nests correctly under the pane's
+         * own headings), and an `h3` with no `h2` above it is a broken heading
+         * order — a genuine axe failure, caught by the E2E sweep.
+         *
+         * ── DHDS-13 — a `div`, and it was a NAMED `<section>` ──────────────────
+         * A `<section>` with an accessible name is a `region` LANDMARK, so
+         * pointing this one at the heading below gave `/goals` two landmarks both
+         * called "Goals" — the collection's own region and this one. axe reported
+         * it (`landmark-unique`, the single automated violation left anywhere in
+         * the product) and it is a real defect: landmark navigation is a menu of
+         * destinations, and two identical entries make it useless. The heading
+         * stays, so the outline a screen-reader user walks is unchanged; only the
+         * duplicate landmark goes.
+         *
+         * ── UNTITLED-07 — and it is VISIBLE now ───────────────────────────────
+         * It was `dh-visually-hidden`, on the reasoning that the collection's own
+         * `h1` two lines above already says "Goals". That held while the list was
+         * the whole screen; in a two-panel workspace it left the master half with
+         * no name at all while the detail half carried a title, a tab rail and
+         * four bands — so the eye read the left column as a fragment of the right
+         * one. A panel header is what tells a reader the two are siblings.
+         */}
+        <h2 id={headingId} className="text-md font-semibold text-primary">
+          Goals
+        </h2>
+        {goals.length > 0 ? (
+          <UntitledStatusBadge tone="neutral" type="modern">
+            {String(goals.length)}
+          </UntitledStatusBadge>
+        ) : null}
+      </div>
       <ProgressRowList label="Goals" data-testid="goals-list">
         {goals.map((goal) => (
           /*
@@ -190,7 +227,9 @@ export function GoalWorkspaceList({
       ) : null}
 
       {/*
-       * §5.1 — `+ Add goal` closes the list, exactly as the reference draws it.
+       * `+ Add goal` closes the list, in its own divided footer — Untitled's
+       * table-card footer band, the same one the migrated collections draw their
+       * pagination in.
        *
        * The mockup wins on the entry point; the architecture wins on the shape.
        * A Goal has no existence outside an Area (AREA-02 / ADR-040 lineage), so
@@ -198,15 +237,26 @@ export function GoalWorkspaceList({
        * and posts through the same trusted endpoint the Area record's own
        * "New Goal" uses. One more door into the same room — not a second
        * creation system.
+       *
+       * It is the shared Untitled-backed button's own paint through
+       * `buttonClassName`, so a `DrawerTrigger` — which cannot BE a `<button>`
+       * component — gets the identical control from the identical source.
+       * `goals.css` used to draw it as a bespoke full-width text row.
        */}
-      <DrawerTrigger
-        drawerKey="new-goal"
-        className="dh-goalspace__add"
-        data-testid="goal-add"
-      >
-        <PlusIcon aria-hidden="true" />
-        Add goal
-      </DrawerTrigger>
+      <div className="mt-auto shrink-0 border-t border-secondary px-4 py-2.5">
+        <DrawerTrigger
+          drawerKey="new-goal"
+          className={buttonClassName({
+            variant: "subtle",
+            size: "sm",
+            className: "dh-goalspace__add",
+          })}
+          data-testid="goal-add"
+        >
+          <PlusIcon aria-hidden="true" />
+          Add goal
+        </DrawerTrigger>
+      </div>
     </div>
   );
 }

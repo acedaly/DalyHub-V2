@@ -37,6 +37,14 @@
 import { useState } from "react";
 
 import {
+  ButtonGroup,
+  ButtonGroupItem,
+} from "~/shared/ui/untitled/base/button-group/button-group";
+import {
+  RadioButton,
+  RadioGroup,
+} from "~/shared/ui/untitled/base/radio-buttons/radio-buttons";
+import {
   GOAL_MEASUREMENT_TYPES,
   GOAL_MEASUREMENT_TYPE_DESCRIPTIONS,
   GOAL_MEASUREMENT_TYPE_LABELS,
@@ -262,33 +270,33 @@ export function NewGoalForm({
         the answer changes what the form is — and because it is the sentence
         that teaches what a DalyHub Goal is for.
       */}
-      <fieldset className="dh-measure-choices">
-        <legend className="dh-measure-choices__legend">
+      {/*
+        UNTITLED-07 — the SAME chooser the measurement sheet draws, from the
+        same Untitled source (`base/radio-buttons`). The two surfaces ask the
+        identical question about the identical vocabulary, and drawing it twice
+        by hand is how they came to be two slightly different controls.
+      */}
+      <RadioGroup
+        className="dh-measure-choices flex flex-col gap-2"
+        aria-label="How will you measure this Goal?"
+        value={measurementType ?? ""}
+        onChange={(next) => setMeasurementType(next as GoalMeasurementType)}
+      >
+        <span className="dh-measure-choices__legend text-sm font-medium text-secondary">
           How will you measure this Goal?
-        </legend>
+        </span>
         {GOAL_MEASUREMENT_TYPES.map((option) => (
-          <label
+          <RadioButton
             key={option}
-            className="dh-measure-choice"
+            value={option}
+            label={GOAL_MEASUREMENT_TYPE_LABELS[option]}
+            hint={GOAL_MEASUREMENT_TYPE_DESCRIPTIONS[option]}
+            className="dh-measure-choice cursor-pointer rounded-xl bg-primary p-3 ring-1 ring-secondary transition duration-100 ease-linear hover:bg-primary_hover data-[selected=true]:bg-active data-[selected=true]:ring-brand"
             data-selected={measurementType === option ? "true" : undefined}
-          >
-            <input
-              type="radio"
-              name="measurementType"
-              value={option}
-              checked={measurementType === option}
-              onChange={() => setMeasurementType(option)}
-              data-testid={`new-goal-measurement-${option}`}
-            />
-            <span className="dh-measure-choice__label">
-              {GOAL_MEASUREMENT_TYPE_LABELS[option]}
-            </span>
-            <span className="dh-measure-choice__description">
-              {GOAL_MEASUREMENT_TYPE_DESCRIPTIONS[option]}
-            </span>
-          </label>
+            data-testid={`new-goal-measurement-${option}`}
+          />
         ))}
-      </fieldset>
+      </RadioGroup>
 
       {measurementType === "target_value" ||
       measurementType === "accumulation" ? (
@@ -301,24 +309,26 @@ export function NewGoalForm({
             showOptionalCue
             {...unitField}
           />
-          <div
-            className="dh-measure-units"
-            role="group"
+          <ButtonGroup
+            className="dh-measure-units flex-wrap"
             aria-label="Common units"
+            selectionMode="single"
+            selectedKeys={
+              GOAL_MEASUREMENT_UNIT_SUGGESTIONS.includes(unitField.value)
+                ? [unitField.value]
+                : []
+            }
+            onSelectionChange={(keys) => {
+              const [first] = [...keys];
+              if (typeof first === "string") unitField.onChange(first);
+            }}
           >
             {GOAL_MEASUREMENT_UNIT_SUGGESTIONS.map((unit) => (
-              <button
-                key={unit}
-                type="button"
-                className="dh-measure-unit"
-                data-selected={unitField.value === unit ? "true" : undefined}
-                aria-pressed={unitField.value === unit}
-                onClick={() => unitField.onChange(unit)}
-              >
+              <ButtonGroupItem key={unit} id={unit} className="dh-measure-unit">
                 {unit}
-              </button>
+              </ButtonGroupItem>
             ))}
-          </div>
+          </ButtonGroup>
           {copy?.baseline ? (
             <TextField
               label={copy.baseline}
@@ -338,7 +348,10 @@ export function NewGoalForm({
           ) : null}
           {/* The inference, stated back — the owner never picks a direction. */}
           {direction !== null && baselineNumber !== targetNumber ? (
-            <p className="dh-measure-inference" role="status">
+            <p
+              className="dh-measure-inference m-0 text-sm text-tertiary"
+              role="status"
+            >
               {direction === "decrease"
                 ? "Progress means this number going down."
                 : "Progress means this number going up."}
@@ -348,14 +361,14 @@ export function NewGoalForm({
       ) : null}
 
       {measurementType === "milestone" ? (
-        <p className="dh-measure-inference">
+        <p className="dh-measure-inference m-0 text-sm text-tertiary">
           Add the stages on the Goal after creating it — progress comes from the
           ones you complete.
         </p>
       ) : null}
 
       {measurementType === "manual" ? (
-        <p className="dh-measure-inference">
+        <p className="dh-measure-inference m-0 text-sm text-tertiary">
           You will set the percentage yourself. Anything that can be counted is
           worth counting instead.
         </p>

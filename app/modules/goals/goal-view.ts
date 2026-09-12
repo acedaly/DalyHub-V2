@@ -125,6 +125,16 @@ export type SerializedGoalProjectItem = {
   readonly archivedAt: string | null;
   readonly taskTotal: number;
   readonly taskCompleted: number;
+  /**
+   * UNTITLED-07 — the Project's own identity, so a Project inside a Goal wears
+   * the same mark it wears in the Projects collection and in its Area record.
+   *
+   * Phase 6 deferred this with the note "extending that projection is Goals'
+   * migration, not this one"; this is that migration.
+   */
+  readonly iconKey: string | null;
+  readonly colourSlot: string | null;
+  readonly colourRank: number | null;
 };
 
 export type SerializedGoalListItem = {
@@ -216,6 +226,9 @@ export function serializeGoalProjectItem(
     archivedAt: item.archivedAt ? item.archivedAt.toISOString() : null,
     taskTotal: item.taskTotal,
     taskCompleted: item.taskCompleted,
+    iconKey: item.iconKey,
+    colourSlot: item.colourSlot,
+    colourRank: item.colourRank,
   };
 }
 

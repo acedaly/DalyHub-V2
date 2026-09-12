@@ -234,6 +234,24 @@ function toProjectSummary(
       : null,
     signal: null,
     context: null,
+    /*
+     * UNTITLED-07 — the Project's OWN identity, so the row's mark here is the
+     * mark the Projects collection and the Area record already draw for it.
+     *
+     * Phase 6 deferred this ("`SerializedGoalProjectItem` carries no identity
+     * or health, so a Project drawn inside a GOAL record has a neutral mark…
+     * extending that projection is Goals' migration, not this one"). The
+     * projection now carries it, from the `project_details` join that read was
+     * already making plus the rank expression `d1-project-repository.ts` uses.
+     *
+     * HEALTH is still absent, and that stays a decision rather than an
+     * oversight: a Project's health needs its per-Project fact set, and a
+     * bounded page inside a record must not start reading one per row — the
+     * same boundary Areas' collection holds.
+     */
+    iconKey: project.iconKey,
+    colourSlot: project.colourSlot,
+    colourRank: project.colourRank,
     muted: project.archivedAt !== null,
   };
 }

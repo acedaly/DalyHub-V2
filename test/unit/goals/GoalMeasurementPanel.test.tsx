@@ -161,8 +161,17 @@ describe("a measurable Goal", () => {
   it("lists every reading with its change from the one before", () => {
     renderPanel({ measurements: series });
     const history = screen.getByTestId("goal-history");
-    const rows = within(history).getAllByRole("listitem");
-    // Newest first.
+    /*
+     * UNTITLED-07 — the history is a TABLE, so its rows are rows.
+     *
+     * It was a `<ul>` with a labelled "Edit" and a red "Remove" button on every
+     * line; readings are columnar data (a date, a value, a delta, a note) and a
+     * row whose actions are a correction and a deletion is the row Untitled's
+     * `application/table` draws with a trailing menu. The FACTS asserted here
+     * are unchanged — newest first, each reading's change against the one
+     * before it, and "First measurement" for the earliest.
+     */
+    const rows = within(history).getAllByRole("row").slice(1); // skip the head
     expect(rows[0]!.textContent).toContain("79 kg");
     expect(rows[0]!.textContent).toContain("↓ 0.3 kg");
     expect(rows[2]!.textContent).toContain("First measurement");

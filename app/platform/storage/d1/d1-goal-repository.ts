@@ -254,7 +254,31 @@ interface GoalProjectRow {
   readonly archived_at: string | null;
   readonly task_total: number | null;
   readonly task_completed: number | null;
+  readonly icon_key: string | null;
+  readonly colour_slot: string | null;
+  readonly colour_rank: number | null;
 }
+
+/**
+ * UNTITLED-07 — a Project's stable identity RANK, for the Goal record's
+ * Projects tab.
+ *
+ * Character-for-character `d1-project-repository.ts`'s `PROJECT_RANKS_CTE`:
+ * `ROW_NUMBER() OVER (ORDER BY created_at, id) - 1`, 0-based to match
+ * `areaAccentForRank`. Two repositories reading the same Project MUST agree
+ * about its colour, and the only way to guarantee that is for both to compute
+ * it from the same immutable creation facts with the same expression.
+ *
+ * It adds a CTE and no column, no migration and no index — and it is bounded by
+ * the same workspace scope every other statement here carries.
+ */
+const GOAL_PROJECT_RANKS_CTE = `project_ranks AS (
+             SELECT id,
+                    ROW_NUMBER() OVER (ORDER BY created_at ASC, id ASC) - 1
+                      AS colour_rank
+             FROM entities
+             WHERE workspace_id = ? AND type = '${PROJECT}'
+           )`;
 
 export class D1GoalRepository implements GoalRepository {
   readonly #db: D1Database;
@@ -1068,7 +1092,8 @@ export class D1GoalRepository implements GoalRepository {
     const result = await this.#run(
       this.#db
         .prepare(
-          `WITH task_counts AS (
+          `WITH ${GOAL_PROJECT_RANKS_CTE},
+           task_counts AS (
              SELECT tl.target_entity_id AS project_id,
                     COUNT(*) AS total,
                     SUM(CASE WHEN tsr.completed_at IS NOT NULL THEN 1 ELSE 0 END) AS completed
@@ -1086,7 +1111,10 @@ export class D1GoalRepository implements GoalRepository {
                   COALESCE(pd.status, 'planned') AS status,
                   pd.archived_at,
                   COALESCE(tc.total, 0) AS task_total,
-                  COALESCE(tc.completed, 0) AS task_completed
+                  COALESCE(tc.completed, 0) AS task_completed,
+                  pd.icon_key AS icon_key,
+                  pd.colour_slot AS colour_slot,
+                  pr.colour_rank AS colour_rank
            FROM entity_links pg
            JOIN entities e
              ON e.workspace_id = pg.workspace_id AND e.id = pg.source_entity_id
@@ -1096,12 +1124,16 @@ export class D1GoalRepository implements GoalRepository {
            LEFT JOIN project_details pd
              ON pd.workspace_id = e.workspace_id AND pd.entity_id = e.id
            LEFT JOIN task_counts tc ON tc.project_id = e.id
+           LEFT JOIN project_ranks pr ON pr.id = e.id
            WHERE pg.workspace_id = ? AND pg.type = '${PROJECT_ADVANCES_GOAL}'
                  AND pg.deleted_at IS NULL AND pg.target_entity_id = ?${cursorClause}
            ORDER BY e.created_at ASC, e.id ASC
            LIMIT ?`,
         )
         .bind(
+          // The rank CTE's workspace, then the task-count CTE's, then the
+          // outer statement's — in the order the placeholders appear.
+          this.#workspaceId,
           this.#workspaceId,
           this.#workspaceId,
           goalId,
@@ -1301,6 +1333,9 @@ export class D1GoalRepository implements GoalRepository {
         row.archived_at === null ? null : fromStorageTimestamp(row.archived_at),
       taskTotal: Number(row.task_total ?? 0),
       taskCompleted: Number(row.task_completed ?? 0),
+      iconKey: row.icon_key,
+      colourSlot: row.colour_slot,
+      colourRank: row.colour_rank === null ? null : Number(row.colour_rank),
     };
   }
 

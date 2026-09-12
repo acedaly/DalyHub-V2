@@ -33,6 +33,11 @@ function project(
     archivedAt: null,
     taskTotal: 0,
     taskCompleted: 0,
+    // UNTITLED-07 — a Project inside a Goal carries its own identity now, so a
+    // fixture must decide what this one is rather than leaving it undefined.
+    iconKey: null,
+    colourSlot: null,
+    colourRank: null,
     ...over,
   };
 }

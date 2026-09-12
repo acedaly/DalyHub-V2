@@ -103,6 +103,10 @@ function project(
     archivedAt: null,
     taskTotal: 4,
     taskCompleted: 1,
+    // UNTITLED-07 — a Project inside a Goal carries its own identity now.
+    iconKey: null,
+    colourSlot: null,
+    colourRank: null,
     ...over,
   };
 }

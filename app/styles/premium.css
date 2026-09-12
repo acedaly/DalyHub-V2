@@ -109,18 +109,15 @@
   border-radius: var(--dh-radius-sm);
 }
 
-/* Flat collections keep the reference's dense, hairline-separated rows. */
-.dh-mrow-list {
-  border-block: var(--dh-border-width) solid var(--dh-color-divider);
-}
-
-.dh-mrow {
-  border-radius: 0;
-}
-
-.dh-mrow:hover {
-  background: var(--dh-color-surface-subtle);
-}
+/*
+ * UNTITLED-07 — the three `.dh-mrow*` overrides that used to live here are gone.
+ *
+ * They were a second opinion about a row Untitled now paints: an unlayered
+ * `:hover` background beat the component's own `hover:bg-primary_hover`
+ * unconditionally, which is the exact cascade failure Phase 5 recorded against
+ * `premium.css` and the button. `ProgressRow` owns its surface, its hover and
+ * its hairlines; nothing here reaches it.
+ */
 
 /* -------------------------------------------------------------------------- */
 /* Record pages                                                               */

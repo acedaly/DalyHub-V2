@@ -16,10 +16,21 @@
  * here is conveyed by colour alone, and a Goal with no readings renders a
  * designed absence rather than an empty 0% bar claiming a denominator it has not
  * got.
+ *
+ * ── UNTITLED-07 — the paint, and the badge ─────────────────────────────────
+ *
+ * `goals.css`'s `.dh-goalprogress*` block drew every rung of this readout's
+ * type and every tone of its state word. It is drawn here now, in Untitled's
+ * token roles, and the classes survive as hooks with no rules attached. The
+ * status chip is the genuine `base/badges` source through the shared
+ * `UntitledStatusBadge`, which is the same badge the Goals workspace, the Area
+ * record and every migrated collection already draw — `StatusPill` was the
+ * legacy chip and drawing it here kept Today's Goal rows on a different badge
+ * from the Goal record they open.
  */
 
 import type { GoalProgressEvaluation } from "~/kernel/goals";
-import { StatusPill } from "~/shared/pill";
+import { UntitledStatusBadge } from "~/shared/pill";
 import { ProgressTrack } from "~/shared/progress";
 
 import {
@@ -54,6 +65,22 @@ export interface GoalProgressReadoutProps {
   readonly className?: string;
 }
 
+/**
+ * The glance surface's state word, in tone.
+ *
+ * `accent` and `info` both take the brand's secondary text role: one is the
+ * product's own accent state and the other is "noteworthy", and neither is a
+ * judgement the way success, warning and danger are.
+ */
+const GLANCE_TONE: Record<string, string> = {
+  neutral: "text-tertiary",
+  accent: "text-brand-secondary",
+  info: "text-brand-secondary",
+  success: "text-success-primary",
+  warning: "text-warning-primary",
+  danger: "text-error-primary",
+};
+
 export function GoalProgressReadout({
   progress,
   label,
@@ -80,13 +107,23 @@ export function GoalProgressReadout({
 
   return (
     <div
-      className={className ? `dh-goalprogress ${className}` : "dh-goalprogress"}
+      className={["dh-goalprogress flex min-w-0 flex-col gap-1.5", className]
+        .filter(Boolean)
+        .join(" ")}
       data-size={size}
     >
-      <p className="dh-goalprogress__value">
+      <p className="dh-goalprogress__value m-0 flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
         {/* The current value is the headline. A Goal with nothing recorded says
             so instead of printing a zero it never measured. */}
-        <span className="dh-goalprogress__current">
+        <span
+          className={[
+            "dh-goalprogress__current font-semibold text-primary tabular-nums",
+            // The density ladder in type: a glance surface states the reading
+            // at the size of the row it sits in; the record makes it the
+            // section's figure.
+            size === "hero" ? "text-display-xs" : "text-md",
+          ].join(" ")}
+        >
           {progress.current === null
             ? "No measurement yet"
             : progress.type === "milestone"
@@ -103,7 +140,9 @@ export function GoalProgressReadout({
           "35% / Target 100%". Nobody set a target of 100%; it is the scale.
         */}
         {targetLabel && progress.current !== null ? (
-          <span className="dh-goalprogress__target">{targetLabel}</span>
+          <span className="dh-goalprogress__target text-sm text-tertiary tabular-nums">
+            {targetLabel}
+          </span>
         ) : null}
       </p>
       {progress.progressPercent !== null ? (
@@ -117,9 +156,9 @@ export function GoalProgressReadout({
           status={goalProgressMeterStatus(progress.status)}
         />
       ) : null}
-      <p className="dh-goalprogress__facts">
+      <p className="dh-goalprogress__facts m-0 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
         {facts.length > 0 ? (
-          <span className="dh-goalprogress__fact-list">
+          <span className="dh-goalprogress__fact-list text-sm text-tertiary">
             {facts.join(" · ")}
           </span>
         ) : null}
@@ -128,16 +167,29 @@ export function GoalProgressReadout({
             screen's colour spent on metadata. The tone is never the only
             signal — the word is the signal, and the tone agrees with it. */}
         {glance ? (
+          /*
+           * At a glance the state is a WORD in its own tone, not a filled chip:
+           * a green pill beside a violet bar on four cards at once is most of a
+           * screen's colour spent on metadata. The tone is never the only
+           * signal — the word is the signal, and the tone agrees with it.
+           *
+           * The four tone classes are written out rather than composed, because
+           * Tailwind scans source text for class names and a template literal
+           * would leave all four unbuilt.
+           */
           <span
-            className="dh-goalprogress__state"
+            className={[
+              "dh-goalprogress__state text-sm font-medium",
+              GLANCE_TONE[goalProgressStatusTone(progress.status)],
+            ].join(" ")}
             data-tone={goalProgressStatusTone(progress.status)}
           >
             {statusLabel}
           </span>
         ) : (
-          <StatusPill tone={goalProgressStatusTone(progress.status)}>
+          <UntitledStatusBadge tone={goalProgressStatusTone(progress.status)}>
             {statusLabel}
-          </StatusPill>
+          </UntitledStatusBadge>
         )}
       </p>
     </div>

@@ -19,10 +19,35 @@
  *   - **It does not hide the rest.** When more Projects advance the Goal than
  *     the pane's bounded page holds, the row says so and points at the tab that
  *     lists them all, rather than silently showing the first few.
+ *
+ * ── UNTITLED-07 — the chips, the heading and the picker ────────────────────
+ *
+ * `goals.css` drew all three: a hand-written pill with its own radius, border
+ * and hover; a heading rung that matched nothing else on the pane; and a picker
+ * whose search field was a bare `.dh-input` and whose results were a bordered
+ * `<ul>` of `<button>`s with a hand-rolled hover. The picker's field in
+ * particular was the cascade problem this migration keeps finding: `ui.css` is
+ * unlayered, so `.dh-input` repainted the control's height, radius and focus
+ * ring whatever an Untitled utility said.
+ *
+ * Now: the section heading is Untitled's `application/section-headers`
+ * (`SectionLabel.Root`), the actions are the shared Untitled-backed `Button`,
+ * the picker's field is the genuine `base/input` `InputBase` with its search
+ * icon, and the results are Untitled's divided list body
+ * (`divide-y divide-secondary`) with its own `hover:bg-primary_hover`.
+ *
+ * The chip itself stays a LINK rather than becoming Untitled's `base/tags`
+ * `Tag`: a `TagGroup` is a React Aria selection collection whose items are
+ * selected or removed, and these are destinations. It takes Untitled's `modern`
+ * badge geometry — a hairline ring on the primary surface — so it sits in the
+ * same family as every other chip in the product without claiming an
+ * interaction model it does not have.
  */
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Link, useRevalidator } from "react-router";
+
+import { SearchLg } from "@untitledui/icons";
 
 import { DrawerTrigger } from "~/shared/drawer";
 import { AccentIcon } from "~/shared/entity";
@@ -34,7 +59,9 @@ import { Sheet } from "~/shared/sheet";
 
 import type { SerializedGoalProjectItem } from "./goal-view";
 import type { GoalLinkProjectOptionsData } from "./routes/link-projects";
-import { buttonClassName } from "~/shared/ui";
+import { Button, buttonClassName } from "~/shared/ui";
+import { InputBase } from "~/shared/ui/untitled/base/input/input";
+import { SectionLabel } from "~/shared/ui/untitled/application/section-headers/section-label";
 
 export function GoalProjectChips({
   goalId,
@@ -53,12 +80,17 @@ export function GoalProjectChips({
   const openerRef = useRef<HTMLButtonElement | null>(null);
 
   return (
-    <section className="dh-goalchips" aria-labelledby={headingId}>
-      <div className="dh-goalchips__head">
-        <h3 className="dh-goalchips__title" id={headingId}>
-          Linked projects
-        </h3>
-        <div className="dh-goalchips__actions">
+    <section
+      className="dh-goalchips flex min-w-0 flex-col gap-3 border-t border-secondary px-4 py-4 md:px-5"
+      aria-labelledby={headingId}
+    >
+      <div className="dh-goalchips__head flex flex-wrap items-start justify-between gap-3">
+        <SectionLabel.Root
+          className="dh-goalchips__title min-w-0"
+          title={<span id={headingId}>Linked projects</span>}
+          description="The work that advances this Goal."
+        />
+        <div className="dh-goalchips__actions flex flex-wrap gap-2">
           {/*
            * STEER-04 (DEBT-210) — CREATE the missing structure, beside the
            * action that only re-parents an existing Project.
@@ -76,16 +108,16 @@ export function GoalProjectChips({
             <PlusIcon aria-hidden="true" />
             New Project
           </DrawerTrigger>
-          <button
-            type="button"
+          <Button
             ref={openerRef}
-            className={buttonClassName({ variant: "secondary", size: "sm" })}
+            variant="secondary"
+            size="sm"
+            icon={<PlusIcon aria-hidden="true" />}
             data-testid="goal-link-project"
             onClick={() => setPicking(true)}
           >
-            <PlusIcon aria-hidden="true" />
             Link project
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -96,23 +128,44 @@ export function GoalProjectChips({
          * starts — so the copy says what a link would do rather than treating
          * the absence as a problem.
          */
-        <p className="dh-goalchips__empty">
+        <p className="dh-goalchips__empty m-0 text-sm text-tertiary">
           No Projects advance this Goal yet. Linking one moves it under{" "}
           {goalTitle}.
         </p>
       ) : (
-        <ul className="dh-goalchips__list">
+        <ul className="dh-goalchips__list m-0 flex list-none flex-wrap gap-2 p-0">
           {projects.map((project) => (
-            <li key={project.id}>
+            <li key={project.id} className="min-w-0">
+              {/*
+               * Untitled's `modern` badge geometry, on a link: a hairline ring
+               * on the primary surface, at the badge's own radius and type rung.
+               */}
               <Link
-                className="dh-goalchips__chip"
+                className="dh-goalchips__chip flex min-w-0 items-center gap-1.5 rounded-full bg-primary px-2.5 py-1 text-sm font-medium text-secondary shadow-xs ring-1 ring-primary transition duration-100 ease-linear ring-inset hover:bg-primary_hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
                 to={`/projects/${encodeURIComponent(project.id)}`}
                 data-testid="goal-project-chip"
               >
-                <span className="dh-goalchips__mark" aria-hidden="true">
-                  <AccentIcon entityType="project" iconKey={null} size="sm" />
+                <span
+                  className="dh-goalchips__mark inline-flex shrink-0"
+                  aria-hidden="true"
+                >
+                  {/*
+                   * UNTITLED-07 — the Project's real mark. It was pinned to
+                   * `iconKey={null}` because the projection carried none; it
+                   * carries one now, so a chip here and the row on the Projects
+                   * tab beside it show the same record the same way.
+                   */}
+                  <AccentIcon
+                    entityType="project"
+                    iconKey={project.iconKey}
+                    colourSlot={project.colourSlot}
+                    colourRank={project.colourRank}
+                    size="sm"
+                  />
                 </span>
-                <span className="dh-goalchips__name">{project.title}</span>
+                <span className="dh-goalchips__name max-w-56 truncate">
+                  {project.title}
+                </span>
               </Link>
             </li>
           ))}
@@ -120,8 +173,11 @@ export function GoalProjectChips({
       )}
 
       {total > projects.length ? (
-        <p className="dh-goalchips__more">
-          <Link to={`/goals/${encodeURIComponent(goalId)}?tab=projects`}>
+        <p className="dh-goalchips__more m-0 text-sm">
+          <Link
+            className="rounded-sm font-medium text-brand-secondary hover:text-brand-secondary_hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+            to={`/goals/${encodeURIComponent(goalId)}?tab=projects`}
+          >
             {`See all ${total} Projects`}
           </Link>
         </p>
@@ -249,47 +305,68 @@ function LinkProjectSheet({
       initialFocusRef={queryRef}
       onClose={onClose}
     >
-      <div className="dh-goalchips__picker">
-        <label className="dh-field">
-          <span className="dh-field__label-text">Search projects</span>
-          <input
-            className="dh-input"
+      <div className="dh-goalchips__picker flex min-w-0 flex-col gap-4">
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <label
+            className="text-sm font-medium text-secondary"
+            htmlFor="goal-link-project-search"
+          >
+            Search projects
+          </label>
+          {/*
+           * The genuine Untitled `base/input`, with its own search icon. The
+           * legacy `.dh-field` / `.dh-input` pair drew a second field system on
+           * an overlay that already renders Untitled-backed controls elsewhere.
+           */}
+          <InputBase
+            id="goal-link-project-search"
+            ref={queryRef}
+            icon={SearchLg}
             type="search"
             value={query}
-            ref={queryRef}
             placeholder="Search projects…"
             onChange={(event) => setQuery(event.currentTarget.value)}
           />
-        </label>
+        </div>
         {failed ? (
-          <p className="dh-goalchips__picker-note" role="status">
+          <p
+            className="dh-goalchips__picker-note m-0 text-sm text-tertiary"
+            role="status"
+          >
             We couldn’t load your projects. Please try again.
           </p>
         ) : loading ? (
-          <p className="dh-goalchips__picker-note" role="status">
+          <p
+            className="dh-goalchips__picker-note m-0 text-sm text-tertiary"
+            role="status"
+          >
             Searching…
           </p>
         ) : options.length === 0 ? (
-          <p className="dh-goalchips__picker-note" role="status">
+          <p
+            className="dh-goalchips__picker-note m-0 text-sm text-tertiary"
+            role="status"
+          >
             {query.length > 0
               ? `No projects match “${query}”.`
               : "Every project already advances this Goal, or there are none yet."}
           </p>
         ) : (
-          <ul className="dh-goalchips__picker-list">
+          /* Untitled's divided list body, inside its bounded card boundary. */
+          <ul className="dh-goalchips__picker-list m-0 list-none divide-y divide-secondary overflow-hidden rounded-xl p-0 ring-1 ring-secondary">
             {options.map((option) => (
               <li key={option.value}>
                 <button
                   type="button"
-                  className="dh-goalchips__picker-option"
+                  className="dh-goalchips__picker-option flex w-full min-w-0 flex-col gap-0.5 px-4 py-3 text-left transition duration-100 ease-linear hover:bg-primary_hover focus-visible:-outline-offset-2 focus-visible:outline-2 focus-visible:outline-focus-ring disabled:cursor-not-allowed disabled:opacity-50"
                   disabled={pendingId !== null}
                   onClick={() => void link(option.value, option.label)}
                 >
-                  <span className="dh-goalchips__picker-name">
+                  <span className="dh-goalchips__picker-name text-sm font-medium text-primary">
                     {option.label}
                   </span>
                   {option.description ? (
-                    <span className="dh-goalchips__picker-context">
+                    <span className="dh-goalchips__picker-context text-sm text-tertiary">
                       {pendingId === option.value
                         ? "Linking…"
                         : option.description}

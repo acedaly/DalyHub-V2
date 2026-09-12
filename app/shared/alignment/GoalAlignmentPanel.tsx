@@ -44,7 +44,7 @@ export function GoalAlignmentPanel({
 }: GoalAlignmentPanelProps) {
   return (
     <section
-      className="dh-alignment-panel"
+      className="dh-alignment-panel flex min-w-0 flex-col gap-3"
       aria-labelledby={headingId}
       data-state={alignment.state}
     >
@@ -61,26 +61,37 @@ export function GoalAlignmentPanel({
         then a bulleted list) put the Goal's Projects tab 1022px down the page.
       */}
       {evidence.length > 0 ? (
-        <div className="dh-alignment-panel__evidence">
-          <h3 className="dh-alignment-panel__evidence-heading">
-            Recent contributing Tasks
-          </h3>
-          <ul className="dh-alignment-panel__evidence-list">
+        <div className="dh-alignment-panel__evidence flex min-w-0 flex-col gap-2">
+          {/*
+           * UNTITLED-07 — the panel's own heading is gone, and that is a fix
+           * rather than a loss.
+           *
+           * Its `<section>` is already named by the caller's heading
+           * (`aria-labelledby={headingId}`), which on the Goal record reads
+           * "Recent contribution" — so the record printed "Recent contribution"
+           * and then "Recent contributing Tasks" directly beneath it, two
+           * headings for one list. The list keeps its own accessible name, so
+           * nothing an assistive technology could hear has been removed.
+           */}
+          <ul
+            className="dh-alignment-panel__evidence-list m-0 flex list-none flex-col divide-y divide-secondary p-0"
+            aria-label="Recent contributing Tasks"
+          >
             {evidence.map((item) => (
               <li
                 key={item.taskId}
-                className="dh-alignment-panel__evidence-item"
+                className="dh-alignment-panel__evidence-item flex min-w-0 flex-col gap-1 py-2"
               >
                 <button
                   type="button"
-                  className="dh-alignment-panel__evidence-task"
+                  className="dh-alignment-panel__evidence-task inline-flex min-h-11 items-center rounded-sm text-left text-sm font-medium [overflow-wrap:anywhere] text-brand-secondary underline underline-offset-2 hover:text-brand-secondary_hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
                   onClick={() => onOpenTask(item.taskId)}
                 >
                   {item.taskTitle}
                 </button>
-                <span className="dh-alignment-panel__evidence-context">
+                <span className="dh-alignment-panel__evidence-context text-sm [overflow-wrap:anywhere] text-tertiary">
                   <a
-                    className="dh-alignment-panel__evidence-project"
+                    className="dh-alignment-panel__evidence-project rounded-sm text-inherit hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
                     href={`/projects/${encodeURIComponent(item.projectId)}`}
                   >
                     {item.projectTitle}
@@ -94,7 +105,10 @@ export function GoalAlignmentPanel({
             ))}
           </ul>
           {evidenceHasMore ? (
-            <p className="dh-alignment-panel__evidence-note" role="note">
+            <p
+              className="dh-alignment-panel__evidence-note m-0 text-sm [overflow-wrap:anywhere] text-tertiary"
+              role="note"
+            >
               More contributing Tasks exist. This panel shows the most recent
               ones.
             </p>

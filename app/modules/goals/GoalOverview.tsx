@@ -313,7 +313,7 @@ export function GoalOverview({
       id: "target",
       label: "Target date",
       value: (
-        <span className="dh-goal-overview__target">
+        <span className="dh-goal-overview__target inline-flex min-w-0 flex-wrap items-center gap-1">
           <InlineDateField
             label="Target date"
             value={details.targetDate}
@@ -327,7 +327,9 @@ export function GoalOverview({
             data-testid="goal-target-date-edit"
           />
           {target.state === "overdue" ? (
-            <span className="dh-goal-overview__target-note">— overdue</span>
+            <span className="dh-goal-overview__target-note text-tertiary">
+              — overdue
+            </span>
           ) : null}
         </span>
       ),
@@ -505,7 +507,7 @@ export function GoalOverview({
           // The administrative timestamps, as the band's quiet trailing line.
           facts: detailItems,
           description: (
-            <div className="dh-goal-overview__summary">
+            <div className="dh-goal-overview__summary grid min-w-0 gap-4">
               {/*
                * FOLLOW-02 — did this Goal MOVE inside the named window?
                *
@@ -524,7 +526,7 @@ export function GoalOverview({
                   size="record"
                   label="Movement"
                   formatDay={(iso) => formatCalendarDate(iso) ?? iso}
-                  className="dh-goal-overview__movement"
+                  className="dh-goal-overview__movement min-w-0 border-b border-secondary pb-4"
                 />
               ) : null}
               {/*
@@ -544,7 +546,7 @@ export function GoalOverview({
                * alignment and the owner's condition.
                */}
               <div
-                className="dh-goal-overview__next"
+                className="dh-goal-overview__next mt-2 flex min-w-0 flex-wrap items-center gap-2"
                 data-testid="goal-next-step"
               >
                 <NextActionLine
@@ -573,7 +575,7 @@ export function GoalOverview({
                 ) : null}
               </div>
               <div className="dh-goal-overview__definition">
-                <h2 className="dh-goal-overview__definition-heading">
+                <h2 className="dh-goal-overview__definition-heading m-0 mb-2 text-sm font-medium text-tertiary">
                   Definition of done
                 </h2>
                 {/*
@@ -592,7 +594,7 @@ export function GoalOverview({
                   multiline
                   rows={5}
                   maxLength={GOAL_DEFINITION_OF_DONE_MAX_LENGTH}
-                  className="dh-goal-overview__definition-field"
+                  className="dh-goal-overview__definition-field min-w-0"
                   data-testid="goal-definition-edit"
                 />
               </div>
@@ -606,7 +608,7 @@ export function GoalOverview({
                 can see what inheriting currently means before choosing not to.
               */}
               {onSetIdentity ? (
-                <div className="dh-goal-overview__appearance">
+                <div className="dh-goal-overview__appearance mt-4 min-w-0 border-t border-secondary pt-4">
                   <GoalIdentityField
                     details={details}
                     area={overview.area}
@@ -630,7 +632,7 @@ export function GoalOverview({
                 <div className="dh-goal-overview__alignment">
                   <h2
                     id={alignmentHeadingId}
-                    className="dh-goal-overview__alignment-heading"
+                    className="dh-goal-overview__alignment-heading m-0 mb-2 text-sm font-medium text-tertiary"
                   >
                     Recent contribution
                   </h2>

@@ -1,858 +1,51 @@
 /*
- * AREA-02 Goals module styles.
+ * The Goals module's stylesheet — LAYOUT ONLY (UNTITLED-07).
  *
- * Module-local layout only; shared Card, Record Layout, Drawer, Forms and
- * Timeline styles remain the authority for their own components.
- */
-
-.dh-goal-overview__summary {
-  display: grid;
-  gap: var(--app-space-4);
-  min-inline-size: 0;
-}
-
-/*
- * FOLLOW-02 — the movement statement, leading the Goal record's summary.
+ * ── What used to be here, and where it went ────────────────────────────────
  *
- * It gets a hairline BELOW it rather than a container around it: the summary
- * band is already a card (DS-02's "a container is earned"), and a second box
- * around three lines of text would be the nested-container shape UIX-03 spent a
- * whole pass removing from this record.
- */
-.dh-goal-overview__movement {
-  padding-block-end: var(--dh-space-4);
-  border-block-end: var(--dh-border-width) solid var(--dh-color-divider);
-  min-inline-size: 0;
-}
-
-.dh-goal-overview__definition-heading {
-  margin: 0 0 var(--app-space-2);
-  font-size: var(--dh-text-meta-size);
-  font-weight: 500;
-  color: var(--dh-color-text-muted);
-}
-
-/* EDIT-02 — the definition of done is edited in place, so its READ state is the
- * shared inline field's own trigger. Plain text, not Markdown: line breaks are
- * preserved by the shared `[data-multiline]` rule, and long content wraps
- * without horizontal overflow. */
-.dh-goal-overview__definition-field {
-  min-inline-size: 0;
-}
-
-/*
- * IDENTITY-01 — the Goal's own appearance control.
+ * This file was 1,404 lines and drew every pixel of the Goals experience: the
+ * measurement workspace's card, metric strip, bar row, pace band, chart well
+ * and reading history; the stat trio's type and columns; the shared progress
+ * readout; the measurement-type chooser and its unit chips; the master–detail
+ * pane's identity, focus band and linked-project chips; and the picker inside
+ * the link-a-Project sheet. Phase 4 recorded it as "`goals.css` keeps layout
+ * only", and it did not: 173 declarations of background, border, radius,
+ * shadow, font size, font weight, control height and colour were still here,
+ * every one of them beneath a component the product had already migrated.
  *
- * A Goal has no Settings tab, so its one appearance field sits in the summary
- * beside the definition of done. It is separated by the shared hairline rather
- * than by a heading of its own: the picker already carries its label, and a
- * second heading over one control would be chrome describing a field that
- * describes itself.
- */
-.dh-goal-overview__appearance {
-  margin-block-start: var(--dh-space-4);
-  padding-block-start: var(--dh-space-4);
-  border-block-start: var(--dh-border-width) solid var(--dh-color-divider);
-  min-inline-size: 0;
-}
-
-/* The target date sits inline in the Summary metadata; "overdue" stays a WORD
- * beside it, never a colour alone. */
-.dh-goal-overview__target {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--app-space-1);
-  min-inline-size: 0;
-}
-
-.dh-goal-overview__target-note {
-  color: var(--dh-color-text-muted);
-}
-
-.dh-goal-overview__progress {
-  margin: 0;
-  color: var(--dh-color-text-muted);
-  overflow-wrap: anywhere;
-}
-
-.dh-goal-overview__progress-label {
-  color: var(--dh-color-text);
-  font-weight: 500;
-}
-
-.dh-goal-overview__alignment-heading {
-  margin: 0 0 var(--app-space-2);
-  font-size: var(--dh-text-meta-size);
-  font-weight: 500;
-  color: var(--dh-color-text-muted);
-}
-
-.dh-goal-bounded-note {
-  margin: var(--app-space-4) 0 0;
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-meta-size);
-  overflow-wrap: anywhere;
-}
-
-.dh-goal-activity,
-.dh-goal-not-found {
-  min-inline-size: 0;
-}
-
-/* -------------------------------------------------------------------------- */
-/* UIX-03 — the Goals collection                                               */
-/* -------------------------------------------------------------------------- */
-
-/*
- * The status views row.
+ * All of it is drawn by the components now, in Untitled UI's own grammar and
+ * token roles. Each removed block is named in the component that took it over:
  *
- * It sits between the collection header and the grid — the shared segmented
- * FILTER position (UIQ-013: a view switcher changes the collection's mode and
- * belongs in the header; a filter narrows the data and belongs beside it). It
- * scrolls horizontally rather than wrapping, so four tabs with counts stay on
- * one line at 320px instead of becoming two rows of chrome above the Goals they
- * are there to reveal.
- */
-.dh-goals-views {
-  display: flex;
-  min-inline-size: 0;
-  margin-block-end: var(--app-space-4);
-  overflow-x: auto;
-  /* No visible scrollbar track under a four-item row; the overflow is a
-   * fallback for very narrow phones, not the normal state. */
-  scrollbar-width: none;
-}
-
-.dh-goals-views::-webkit-scrollbar {
-  display: none;
-}
-
-.dh-goals-views > * {
-  flex: none;
-}
-
-/* -------------------------------------------------------------------------- */
-/* GOAL-02 — measurable Goals                                                  */
-/* -------------------------------------------------------------------------- */
-
-/*
- * UIX-03 — the Goal record's PROGRESS WORKSPACE.
+ * | Was | Now |
+ * | --- | --- |
+ * | `.dh-goal-measure*` | `~/modules/goals/GoalMeasurementPanel.tsx` — Untitled's card, band, section-label, table, checkbox, input and button sources |
+ * | `.dh-goal-trio*` | `~/shared/goal-progress/GoalStatTrio.tsx` — a divided Untitled metric band |
+ * | `.dh-goalprogress*` | `~/shared/goal-progress/GoalProgressReadout.tsx` |
+ * | `.dh-measure-choice*`, `.dh-measure-unit*`, `.dh-measure-inference` | `base/radio-buttons` and `base/button-group`, in `GoalMeasurementSetupSheet` and `NewGoalForm` |
+ * | `.dh-goalpane__*` paint | `~/modules/goals/GoalWorkspacePane.tsx` — Untitled's in-card band rule |
+ * | `.dh-goalchips*` | `~/modules/goals/GoalProjectChips.tsx` |
+ * | `.dh-goalspace__add` | the shared Untitled-backed button, through `buttonClassName` |
+ * | `.dh-goal-overview__*` paint | `~/modules/goals/GoalOverview.tsx` |
  *
- * It is now the record's own top-level region (`RecordLayout`'s `feature`
- * slot), so it earns one card surface of its own instead of being a section
- * inside the summary band inside the record. Everything within it — the metric
- * strip, the bar, the pace facts, the chart, the history — is a region of that
- * one surface, never a card in its own right: one clear surface per meaningful
- * region is the whole of the rule.
- */
-.dh-goal-measure {
-  display: grid;
-  gap: var(--app-space-5);
-  min-inline-size: 0;
-  padding: var(--app-card-padding);
-  background: var(--dh-color-surface);
-  border-radius: var(--dh-radius-lg);
-  box-shadow: var(--app-elevation-resting);
-}
-
-/* A region whose content brings its own container — see `UnmeasuredState`. */
-.dh-goal-measure--bare {
-  padding: 0;
-  background: none;
-  box-shadow: none;
-}
-
-.dh-goal-measure__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--app-space-4);
-  min-inline-size: 0;
-}
-
-.dh-goal-measure__headline {
-  display: grid;
-  gap: var(--app-space-3);
-  /* 18rem, so the strip keeps a readable measure before the actions wrap under
-   * it rather than squeezing four figures into a column. */
-  flex: 1 1 18rem;
-  min-inline-size: 0;
-}
-
-/*
- * The metric strip — Start · Now · Target · Remaining.
+ * ── Why anything survives ──────────────────────────────────────────────────
  *
- * A definition list, because each cell genuinely is a term and its value, which
- * is what lets a screen reader pair them without any ARIA. `auto-fit` with a
- * 6rem floor keeps two cells across a 320px phone instead of stacking four
- * one-line rows.
- */
-.dh-goal-measure__metrics {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(6rem, 1fr));
-  gap: var(--app-space-3) var(--app-space-4);
-  margin: 0;
-  min-inline-size: 0;
-}
-
-.dh-goal-measure__metric {
-  min-inline-size: 0;
-}
-
-.dh-goal-measure__metric dt {
-  font: var(--t-eyebrow);
-  text-transform: uppercase;
-  letter-spacing: var(--t-eyebrow-tracking);
-  color: var(--dh-color-text-muted);
-}
-
-.dh-goal-measure__metric dd {
-  margin: var(--app-space-px) 0 0;
-  font-size: var(--dh-text-section-title-size);
-  line-height: var(--dh-text-section-title-line-height);
-  font-weight: var(--dh-text-section-title-weight);
-  color: var(--dh-color-text);
-  font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
-}
-
-/*
- * NOW is the page's biggest number. Start and Target are fixed facts the owner
- * chose; the current value is the one that moved, and it is why they opened the
- * record.
+ * Three kinds of rule are left, and nothing else is allowed in:
  *
- * ── REDESIGN-03: biggest, not enormous ───────────────────────────────────────
- * It was Material's `display-small` — 36px against 18px siblings, a full
- * Material headline ladder apart. At that ratio "83 kg" stopped being the lead
- * figure of a quartet and became a banner with three captions under it: the eye
- * cannot take Start, Now, Target and Remaining as ONE reading, which is exactly
- * what the row is for, because the relationship between them is the whole
- * measurement.
+ *   1. **The workspace's two-pane geometry**, including the phone swap. Both
+ *      panes stay in the DOM and CSS decides which is on screen, so the first
+ *      server byte is correct at every width and there is no viewport sniffing.
+ *      A container query cannot express "hide the master when a Goal was ASKED
+ *      for", because the condition is a data attribute on an ancestor.
+ *   2. **A variable a shared component reads** (`--scroll-strip-cover`).
+ *   3. **Two DOM hooks with no box** (`display: contents`).
  *
- * The approved reference draws Current, Target and Target date at the SAME size
- * and separates them by label alone. DalyHub keeps a step — the current value
- * genuinely is why the record was opened — but takes it from the product's own
- * `--t-stat` (24px) rather than from Material's display ramp. 24 against 18
- * still reads as the lead at a glance and still lets the four figures be read
- * together.
+ * Every class name that is not below survives in the markup as a TEST hook and
+ * carries no rules, which is this migration's standing rule about a name
+ * outliving its presentation.
  */
-.dh-goal-measure__metric[data-lead="true"] dd {
-  font: var(--t-stat);
-  letter-spacing: var(--t-stat-tracking);
-}
-
-/* The bar and its figure on one line, directly under the numbers they measure. */
-.dh-goal-measure__bar {
-  display: flex;
-  align-items: center;
-  gap: var(--app-space-3);
-  min-inline-size: 0;
-}
-
-.dh-goal-measure__track {
-  flex: 1;
-  min-inline-size: 0;
-}
-
-.dh-goal-measure__percent {
-  flex: none;
-  font-size: var(--dh-text-label-size);
-  font-weight: 600;
-  color: var(--dh-color-text);
-  font-variant-numeric: tabular-nums;
-}
-
-.dh-goal-measure__state {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--app-space-2) var(--app-space-3);
-  margin: 0;
-  min-inline-size: 0;
-}
-
-/* "from 85 kg → 70 kg" — the same sentence the gallery card carries, so the
- * two surfaces describe one Goal in one vocabulary. */
-.dh-goal-measure__journey {
-  font-size: var(--dh-text-meta-size);
-  color: var(--dh-color-text-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.dh-goal-measure__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--app-space-2);
-}
-
-/*
- * Pace facts. A definition list, because each is genuinely a term and its
- * value — and because that is what lets a screen reader pair them. It wraps to
- * one column on a phone rather than shrinking the numbers.
- */
-.dh-goal-measure__pace {
-  display: grid;
-  /* 7rem, so a 320px phone still fits TWO facts across rather than stacking
-     four rows of one — the difference between a compact band and a column. */
-  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
-  gap: var(--app-space-3);
-  margin: 0;
-  /*
-   * REDESIGN-03 — an open band with a rule, not a filled well.
-   *
-   * These three facts sat on `bg-sunken` with a supporting corner radius, which
-   * on a record that is otherwise white surfaces read as a Material tonal
-   * container: a grey slab in the middle of the page, drawing more attention
-   * than the measurement above it. The brief is explicit that the data is the
-   * hero and the chrome is not, and that fine separators beat containment.
-   *
-   * The facts keep their grid and lose their box: a hairline says "these belong
-   * together and they are not the headline", which is the whole job the fill
-   * was doing.
-   */
-  padding-block: var(--app-space-4);
-  border-block: var(--dh-border-width) solid var(--dh-color-divider);
-}
-
-.dh-goal-measure__pace-item {
-  min-inline-size: 0;
-}
-
-.dh-goal-measure__pace dt {
-  font-size: var(--dh-text-meta-size);
-  color: var(--dh-color-text-muted);
-}
-
-.dh-goal-measure__pace dd {
-  margin: 0;
-  font-size: var(--dh-text-label-size);
-  font-weight: 500;
-  color: var(--dh-color-text);
-  overflow-wrap: anywhere;
-}
-
-.dh-goal-measure__chart {
-  min-inline-size: 0;
-}
-
-/* The honest "not enough data" line — a sentence, never a flat fake line. */
-.dh-goal-measure__thin {
-  margin: 0;
-  font-size: var(--dh-text-meta-size);
-  color: var(--dh-color-text-muted);
-}
-
-.dh-goal-measure__empty {
-  min-inline-size: 0;
-}
-
-.dh-goal-measure__history-heading {
-  margin: 0;
-  font-size: var(--dh-text-meta-size);
-  font-weight: 500;
-  color: var(--dh-color-text-muted);
-}
-
-.dh-goal-measure__history,
-.dh-goal-measure__milestones {
-  display: grid;
-  gap: var(--app-space-2);
-  min-inline-size: 0;
-}
-
-.dh-goal-measure__history-list,
-.dh-goal-measure__milestone-list {
-  display: grid;
-  gap: var(--app-space-1);
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-/*
- * One measurement row: the facts on the left, the controls on the right, at
- * every width.
- *
- * The facts WRAP inside their own cell rather than stacking the controls
- * underneath, so a 320px phone gets a two-line row instead of a three-line one
- * and six readings stay a glance rather than a scroll. Nothing is squeezed below
- * a 44px target and nothing scrolls sideways.
- */
-/*
- * UIX-03 — the list is capped at a reading measure.
- *
- * A measurement row holds a date, a value and a change: about thirty
- * characters. Stretched across a 1200px workspace, the controls ended up a
- * hand's width from the facts they act on, with a quarter of the panel as dead
- * space in between — the "is there dead whitespace?" question the acceptance
- * checklist asks, answered badly. The chart above still spans the full width,
- * because a chart genuinely uses it.
- */
-.dh-goal-measure__history-list {
-  max-inline-size: var(--app-width-prose, 46rem);
-}
-
-.dh-goal-measure__history-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--app-space-2);
-  padding-block: var(--app-space-1);
-  border-block-end: var(--app-border-width-thin) solid var(--dh-color-border);
-  min-inline-size: 0;
-}
-
-.dh-goal-measure__history-row:last-child {
-  border-block-end: none;
-}
-
-.dh-goal-measure__history-facts {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--app-space-1) var(--app-space-3);
-  min-inline-size: 0;
-}
-
-.dh-goal-measure__history-date {
-  font-size: var(--dh-text-meta-size);
-  color: var(--dh-color-text-muted);
-  white-space: nowrap;
-}
-
-.dh-goal-measure__history-value {
-  font-size: var(--dh-text-row-size);
-  font-weight: 500;
-  color: var(--dh-color-text);
-}
-
-.dh-goal-measure__history-change {
-  font-size: var(--dh-text-meta-size);
-  color: var(--dh-color-text-muted);
-  white-space: nowrap;
-}
-
-/* A note is its own line within the facts group — it is prose, not a figure. */
-.dh-goal-measure__history-note {
-  flex-basis: 100%;
-  font-size: var(--dh-text-meta-size);
-  color: var(--dh-color-text-muted);
-  overflow-wrap: anywhere;
-}
-
-.dh-goal-measure__history-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--app-space-1);
-}
-
-/* A labelled destructive control: the glyph is decorative and the word carries
- * the meaning, so it is never an unlabelled bin. The error tone is on the TEXT,
- * which is why the label has to be there. */
-.dh-goal-measure__remove {
-  gap: var(--app-space-1);
-  color: var(--dh-color-danger);
-}
-
-/* The shared icon is already `aria-hidden` by default (`~/shared/icons`), so the
- * label beside it is the control's whole accessible name. */
-.dh-goal-measure__remove .dh-icon {
-  inline-size: 1rem;
-  block-size: 1rem;
-}
-
-/* From tablet up the date gets its own column, so the values line up down the
-   list and the history reads as a table without being one. */
-@media (min-width: 40rem) {
-  .dh-goal-measure__history-facts {
-    display: grid;
-    grid-template-columns: 8rem auto minmax(0, 1fr);
-    align-items: baseline;
-  }
-
-  .dh-goal-measure__history-note {
-    grid-column: 2 / -1;
-  }
-}
-
-.dh-goal-measure__milestone {
-  display: flex;
-  align-items: center;
-  gap: var(--app-space-2);
-  min-block-size: var(--app-touch-target-min);
-  min-inline-size: 0;
-}
-
-.dh-goal-measure__milestone-label {
-  display: flex;
-  align-items: center;
-  gap: var(--app-space-2);
-  flex: 1 1 auto;
-  min-inline-size: 0;
-  overflow-wrap: anywhere;
-}
-
-.dh-goal-measure__milestone-weight {
-  font-size: var(--dh-text-meta-size);
-  color: var(--dh-color-text-muted);
-  white-space: nowrap;
-}
-
-/*
- * DHDS-11 — the stage row's reorder grip and its overflow.
- *
- * The grip is a DHDS-08 reveal element: it occupies its geometry at rest, so
- * showing it on hover moves no text, and it is simply drawn on a touch device
- * and in forced colours. The overflow keeps the full touch target it had as a
- * button.
- */
-.dh-goal-measure__milestone-handle,
-.dh-goal-measure__milestone-overflow {
-  flex: 0 0 auto;
-}
-
-.dh-goal-measure__milestone-overflow {
-  min-inline-size: var(--app-touch-target-min);
-  min-block-size: var(--app-touch-target-min);
-}
-
-/* The floating object: a stage is its words. */
-.dh-goal-measure__milestone-preview {
-  display: block;
-  color: var(--dh-color-text);
-}
-
-.dh-goal-measure__milestone-add {
-  display: flex;
-  gap: var(--app-space-2);
-  min-inline-size: 0;
-}
-
-.dh-goal-measure__milestone-add .dh-input {
-  flex: 1 1 auto;
-  min-inline-size: 0;
-}
-
-/* -------------------------------------------------------------------------- */
-/* The shared progress readout                                                 */
-/* -------------------------------------------------------------------------- */
-
-.dh-goalprogress {
-  display: grid;
-  gap: var(--app-space-2);
-  min-inline-size: 0;
-}
-
-.dh-goalprogress__value {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--app-space-2);
-  margin: 0;
-  min-inline-size: 0;
-}
-
-/*
- * The current value is the number the page is about, so it gets display weight
- * on the record and body weight in a card. Authored in rem so OS text scaling
- * reaches it (AGENTS.md §15).
- */
-.dh-goalprogress__current {
-  font-size: var(--dh-text-section-title-size);
-  font-weight: 600;
-  line-height: 1.15;
-  color: var(--dh-color-text);
-  overflow-wrap: anywhere;
-}
-
-/*
- * REDESIGN-03 — the hero readout takes the product's stat role, not Material's
- * display ramp, for the same reason the record's NOW figure does: 24px leads a
- * quartet, 36px replaces it.
- */
-.dh-goalprogress[data-size="hero"] .dh-goalprogress__current {
-  font: var(--t-stat);
-  letter-spacing: var(--t-stat-tracking);
-}
-
-.dh-goalprogress__target {
-  font-size: var(--dh-text-meta-size);
-  color: var(--dh-color-text-muted);
-}
-
-.dh-goalprogress__facts {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--app-space-2);
-  margin: 0;
-  font-size: var(--dh-text-meta-size);
-  color: var(--dh-color-text-muted);
-  min-inline-size: 0;
-}
-
-.dh-goalprogress__fact-list {
-  overflow-wrap: anywhere;
-}
-
-/*
- * VIS-01 — the GLANCE state: a word in its own tone, where the other two sizes
- * draw a filled pill.
- *
- * The tones are the pill's own semantic set, read as text rather than as a
- * container, so nothing new is authored and the two presentations can never
- * disagree about what "Ahead" means. `neutral` deliberately takes no colour at
- * all: a state with nothing to report should not be the thing the eye lands on.
- */
-.dh-goalprogress__state {
-  flex: none;
-  font-weight: 500;
-  color: var(--dh-color-text-muted);
-  white-space: nowrap;
-}
-
-.dh-goalprogress__state[data-tone="success"] {
-  color: var(--dh-color-success);
-}
-
-.dh-goalprogress__state[data-tone="warning"] {
-  color: var(--dh-color-warning);
-}
-
-.dh-goalprogress__state[data-tone="danger"] {
-  color: var(--dh-color-overdue);
-}
-
-.dh-goalprogress__state[data-tone="accent"],
-.dh-goalprogress__state[data-tone="info"] {
-  color: var(--dh-color-accent);
-}
-
-/* The glance value is a card's headline, not a record's: one rung down from the
- * `title-large` a compact readout takes, so four of them in a row read as a row
- * of figures rather than as four small heroes. */
-.dh-goalprogress[data-size="glance"] .dh-goalprogress__current {
-  font-size: var(--dh-text-section-title-size);
-}
-
-/* -------------------------------------------------------------------------- */
-/* Measurement setup                                                           */
-/* -------------------------------------------------------------------------- */
-
-/*
- * The four measurement strategies, as M3-Expressive choice cards over native
- * radio semantics: one Tab stop for the group, arrow keys between options, and
- * the selected state announced. The visual treatment is entirely CSS — there is
- * no custom widget here to get wrong.
- */
-.dh-measure-choices {
-  display: grid;
-  gap: var(--app-space-2);
-  border: none;
-  margin: 0;
-  padding: 0;
-  min-inline-size: 0;
-}
-
-.dh-measure-choices__legend {
-  padding: 0;
-  font-size: var(--dh-text-label-size);
-  font-weight: 500;
-  color: var(--dh-color-text-muted);
-}
-
-.dh-measure-choice {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: start;
-  column-gap: var(--app-space-3);
-  row-gap: var(--app-space-1);
-  padding: var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--app-shape-card);
-  background: var(--dh-color-surface);
-  cursor: pointer;
-  min-block-size: var(--app-touch-target-min);
-}
-
-/* Selection is a tinted surface AND a heavier border AND the radio's own
- * checked state — never colour alone. */
-.dh-measure-choice[data-selected="true"] {
-  border-color: var(--dh-color-accent);
-  background: var(--dh-color-accent-subtle);
-  color: var(--dh-color-text-on-accent-subtle);
-}
-
-.dh-measure-choice:focus-within {
-  outline: var(--app-border-width-thick) solid var(--dh-color-accent);
-  outline-offset: var(--app-space-px);
-}
-
-/* The radio occupies the first column across both text rows, so the label and
- * its description align to one another rather than to the control. */
-.dh-measure-choice input[type="radio"] {
-  grid-row: 1 / span 2;
-  align-self: center;
-}
-
-.dh-measure-choice__label {
-  font-size: var(--dh-text-body-size);
-  font-weight: 500;
-  min-inline-size: 0;
-  overflow-wrap: anywhere;
-}
-
-.dh-measure-choice__description {
-  font-size: var(--dh-text-meta-size);
-  color: var(--dh-color-text-muted);
-  min-inline-size: 0;
-  overflow-wrap: anywhere;
-}
-
-.dh-measure-choice[data-selected="true"] .dh-measure-choice__description {
-  color: var(--dh-color-text-on-accent-subtle);
-}
-
-.dh-measure-units {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--app-space-2);
-}
-
-.dh-measure-unit {
-  min-block-size: var(--app-touch-target-min);
-  padding-inline: var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-pill);
-  background: var(--dh-color-surface);
-  color: var(--dh-color-text);
-  font-size: var(--dh-text-label-size);
-  cursor: pointer;
-}
-
-.dh-measure-unit[data-selected="true"] {
-  border-color: var(--dh-color-accent);
-  background: var(--dh-color-surface-selected);
-  color: var(--dh-color-text);
-}
-
-/* The inferred direction, stated back in words so it can be checked without
- * understanding the inference. */
-.dh-measure-inference {
-  margin: 0;
-  font-size: var(--dh-text-meta-size);
-  color: var(--dh-color-text-muted);
-  overflow-wrap: anywhere;
-}
 
 /* ==========================================================================
-   REDESIGN-04 — the Goal stat TRIO (`mockup3.png`).
-
-   Three equal columns, each a figure over a quiet label. Equal because the
-   question is a comparison: drawing one of the terms larger makes it the
-   subject and the others its captions, which is the exact defect REDESIGN-03
-   started removing when it brought the lead figure down from 36px.
-   ========================================================================== */
-
-.dh-goal-trio {
-  display: grid;
-  /*
-   * Sized to CONTENT, not to equal thirds of the pane.
-   *
-   * Equal thirds gave the third column a fixed sliver and wrapped "14 Dec 2026"
-   * onto two lines beside two single-line figures — which un-equalises the trio
-   * far more than a difference in width does. `max-content` with a generous
-   * gutter keeps the three on one line and keeps them a group, which is what
-   * the reference draws.
-   */
-  grid-template-columns: repeat(3, minmax(0, max-content));
-  justify-content: start;
-  gap: var(--dh-space-8);
-  margin: 0;
-}
-
-.dh-goal-trio__stat {
-  min-inline-size: 0;
-}
-
-/*
- * Visual order is figure-then-label; DOM order is label-then-figure, so a
- * screen reader announces "Current, 60.0 kg" rather than "60.0 kg, Current".
- * `flex-direction: column-reverse` on the pair is what separates the two.
- */
-.dh-goal-trio__stat {
-  display: flex;
-  flex-direction: column-reverse;
-  justify-content: flex-end;
-  gap: var(--dh-space-1);
-}
-
-.dh-goal-trio__label {
-  margin: 0;
-  /*
-   * Sentence case, not the uppercase eyebrow role.
-   *
-   * `mockup3.png` writes "Current", "Target", "Target date" — and it is right
-   * to: an eyebrow's job is to label a REGION, and uppercase tracking is what
-   * makes it read as chrome. These three label FIGURES that sit directly above
-   * them, at the same size as every other supporting line in the product, so
-   * they should read as words rather than as headings.
-   */
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-  font-weight: var(--dh-text-meta-weight);
-  color: var(--dh-color-text-muted);
-}
-
-.dh-goal-trio__value {
-  margin: 0;
-  font-size: var(--dh-text-metric-size);
-  line-height: var(--dh-text-metric-line-height);
-  font-weight: var(--dh-text-metric-weight);
-  color: var(--dh-color-text);
-  font-variant-numeric: var(--dh-font-numeric);
-  overflow-wrap: anywhere;
-}
-
-.dh-goal-trio__note {
-  display: block;
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-  font-weight: var(--dh-text-meta-weight);
-  color: var(--dh-color-text-muted);
-}
-
-/*
- * §7 — the trio STAYS a trio on a phone, and only gives up at 320.
- *
- * Three short figures fit a 390px row comfortably; stacking them there would
- * cost three rows for what is one comparison. At 320 a long unit ("31 Dec
- * 2025") no longer fits three-across, so the columns become one and the pairs
- * keep their own order.
- */
-/*
- * At narrow widths the three figures no longer fit one line; the gutter closes
- * first, and only below 22.5rem do they stack. Stacking earlier would cost
- * three rows for what is one comparison.
- */
-@media (max-width: 30rem) {
-  .dh-goal-trio {
-    gap: var(--dh-space-5);
-  }
-}
-
-@media (max-width: 22.5rem) {
-  .dh-goal-trio {
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--dh-space-3);
-  }
-}
-
-/* ==========================================================================
-   REDESIGN-04 §2.2 — the Goals master–detail WORKSPACE.
+   The Goals master–detail WORKSPACE
    ========================================================================== */
 
 /*
@@ -871,16 +64,14 @@
 }
 
 .dh-goalspace__panel {
-  display: flex;
-  flex-direction: column;
+  min-inline-size: 0;
 }
 
-/* UNTITLED-04 — the surface is the component's (Untitled's bounded card
- * grammar); this keeps only what is layout. */
+/* The bounded card surface belongs to the components (Untitled's own
+ * `TableCard.Root` boundary); these keep only what is layout. */
 .dh-goalspace__list,
 .dh-goalspace__detail {
   min-inline-size: 0;
-  overflow: hidden;
 }
 
 /*
@@ -909,69 +100,23 @@
     overflow-y: auto;
     min-block-size: 0;
   }
-
-  .dh-goalspace__add {
-    flex: none;
-  }
-}
-
-.dh-goalspace__detail {
-  padding: var(--dh-space-4) var(--dh-inset-inline);
 }
 
 /*
- * `+ Add goal` closes the list, exactly as the reference draws it — a quiet
- * text action with a leading plus, not a filled button competing with the
- * collection's own primary.
+ * The context line is a RUN, because one of its parts is a control rather than
+ * a fragment of a sentence.
+ *
+ * It was `Area · Target by 31 Dec 2026` joined into one string. The target date
+ * is an inline field, so the parts are separate elements with the product's
+ * middot drawn BETWEEN them by the layout rather than typed into the text —
+ * which is also what lets a Goal with no Area, or no target date, close the gap
+ * instead of printing a stray separator. A generated separator between
+ * arbitrary siblings has no utility equivalent, so it stays a rule; it inherits
+ * its colour from the line, which is the component's.
  */
-.dh-goalspace__add {
-  display: flex;
-  align-items: center;
-  gap: var(--dh-space-2);
-  /* The touch floor from the token that `(pointer: coarse)` raises to 44px —
-   * never `--button-height-md`, which is REDESIGN-03 debt item 6. */
-  min-block-size: var(--dh-control-height);
-  padding: var(--dh-space-2) var(--dh-inset-inline);
-  border-block-start: var(--dh-border-width) solid var(--dh-color-border);
-  font-size: var(--dh-text-meta-size);
-  font-weight: var(--dh-text-label-weight);
-  color: var(--dh-color-accent);
-  background: none;
-  border-inline: 0;
-  border-block-end: 0;
-  inline-size: 100%;
-  text-align: start;
-  text-decoration: none;
-  cursor: pointer;
-}
-
-.dh-goalspace__add svg {
-  inline-size: 1rem;
-  block-size: 1rem;
-}
-
-.dh-goalspace__add:hover {
-  background: var(--dh-color-surface-quiet);
-}
-
-.dh-goalspace__add:focus-visible {
-  outline: var(--dh-focus-width) solid var(--dh-focus-color);
-  outline-offset: calc(-1 * var(--dh-focus-width));
-}
-
-/* -- The detail pane ------------------------------------------------------- */
-
-.dh-goalpane {
-  display: flex;
-  flex-direction: column;
-  gap: var(--dh-space-5);
-  min-inline-size: 0;
-}
-
-/* UNTITLED-04 — the rail draws its own bottom rule (Untitled's `underline`
- * tab list), so the wrapper no longer adds a second one. */
-.dh-goalpane__tabs {
-  margin-block-end: calc(-1 * var(--dh-space-2));
+.dh-goalpane__context > * + *::before {
+  content: "·";
+  margin-inline-end: var(--dh-space-2);
 }
 
 /*
@@ -982,313 +127,19 @@
  * `--app-surface-current` "at the point of use" (`scroll-strip.css`). The Goal
  * pane never set it, so the rail — which sits on the WHITE detail panel — was
  * covering itself in the page's grey: MEASURED at 1440 on `/goals`, a ~20px
- * grey block at each end of a four-tab rail that does not even scroll. The other
- * two adopters (`collection-layout.css`, `capture.css`) already name their
- * surface; this is the Goal pane joining them.
+ * grey block at each end of a four-tab rail that does not even scroll.
  */
 .dh-goalpane__rail {
   --scroll-strip-cover: var(--dh-color-surface);
 }
 
-.dh-goalpane__identity {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--dh-space-3);
-  min-inline-size: 0;
-}
-
-.dh-goalpane__mark {
-  flex: none;
-  display: inline-flex;
-}
-
-.dh-goalpane__titles {
-  flex: 1;
-  min-inline-size: 0;
-}
-
-.dh-goalpane__title {
-  margin: 0;
-  font-size: var(--dh-text-section-title-size);
-  line-height: var(--dh-text-card-title-line-height);
-  font-weight: var(--dh-text-card-title-weight);
-  color: var(--dh-color-text);
-  overflow-wrap: anywhere;
-}
-
-.dh-goalpane__open,
-.dh-goalpane__open:visited {
-  color: inherit;
-  text-decoration: none;
-}
-
-.dh-goalpane__open:hover {
-  text-decoration: underline;
-}
-
-.dh-goalpane__open:focus-visible {
-  outline: var(--dh-focus-width) solid var(--dh-focus-color);
-  outline-offset: var(--dh-focus-offset);
-  border-radius: var(--dh-radius-sm);
-}
-
-/*
- * DHDS-10 — the context line is a RUN, because one of its parts is now a
- * control rather than a fragment of a sentence.
- *
- * It was `Area · Target by 31 Dec 2025` joined into one string. The target date
- * is an inline field, so the parts are separate elements with the product's
- * middot drawn BETWEEN them by the layout rather than typed into the text —
- * which is also what lets a Goal with no Area, or no target date, close the gap
- * instead of printing a stray separator.
- */
-.dh-goalpane__context {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--dh-space-2);
-  margin: var(--dh-space-1) 0 0;
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-  color: var(--dh-color-text-muted);
-}
-
-.dh-goalpane__context > * + *::before {
-  content: "·";
-  margin-inline-end: var(--dh-space-2);
-  color: var(--dh-color-text-muted);
-}
-
-/* The label and its field are ONE item in that run, so the middot lands before
- * the pair rather than between the word and the date it introduces. */
-.dh-goalpane__target {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--dh-space-1);
-  min-inline-size: 0;
-}
-
-/* The selected Goal answers the two daily-driver questions before the chart:
- * how is it going, and what is the next concrete stage? This is an open band,
- * not another card inside the detail card. */
-.dh-goalpane__focus {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--dh-space-4);
-  padding-block: var(--dh-space-4);
-  border-block: var(--dh-border-width) solid var(--dh-color-divider);
-}
-
-/*
- * STEER-02 — the owner's CONDITION sits in the same band as the derived
- * status, the next stage and the movement line, and is drawn exactly like
- * them: a quiet label above the value. Its placement is the argument — the
- * owner's answer beside the machine's, never over it.
- */
-.dh-goalpane__focus-state,
-.dh-goalpane__focus-next,
-.dh-goalpane__focus-condition {
-  display: flex;
-  flex-direction: column;
-  gap: var(--dh-space-1);
-  min-inline-size: 0;
-  margin: 0;
-}
-
-.dh-goalpane__focus span {
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-}
-
-.dh-goalpane__focus strong {
-  color: var(--dh-color-text);
-  font-size: var(--dh-text-body-size);
-  line-height: var(--dh-text-body-line-height);
-  font-weight: var(--dh-text-label-weight);
-  overflow-wrap: anywhere;
-}
-
-/*
- * FOLLOW-02 — the movement statement takes the band's whole width.
- *
- * It is a SENTENCE, not a figure, so it does not belong in a column beside two
- * one-word values: at 320px a half-width sentence wraps to four lines, and at
- * 1440 it reads as a third statistic when it is a different KIND of answer.
- */
-.dh-goalpane__movement {
-  grid-column: 1 / -1;
-}
-
-@media (max-width: 32rem) {
-  .dh-goalpane__focus {
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--dh-space-3);
-  }
-}
-
-/* -- Linked projects (§6.2) ------------------------------------------------ */
-
-.dh-goalchips {
-  display: flex;
-  flex-direction: column;
-  gap: var(--dh-space-3);
-  padding-block-start: var(--dh-space-4);
-  border-block-start: var(--dh-border-width) solid var(--dh-color-border);
-}
-
-.dh-goalchips__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--dh-space-3);
-}
-
-.dh-goalchips__title {
-  margin: 0;
-  font-size: var(--dh-text-body-size);
-  line-height: var(--dh-text-body-line-height);
-  font-weight: var(--dh-text-label-weight);
-  color: var(--dh-color-text);
-}
-
-.dh-goalchips__list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--dh-space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-/*
- * A chip is a compact LINK to a record, not a status pill — so it takes the
- * card family's hairline boundary rather than a tonal container fill (§13: no
- * new tonal-container badges in this scope).
- */
-.dh-goalchips__chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--dh-space-2);
-  min-block-size: var(--dh-control-height);
-  padding: var(--dh-space-1) var(--dh-space-3);
-  font-size: var(--dh-text-meta-size);
-  color: var(--dh-color-text);
-  background: var(--dh-color-surface);
-  border: var(--dh-border-width) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-pill);
-  text-decoration: none;
-  transition: border-color var(--dh-motion-fast) var(--dh-ease-standard);
-}
-
-.dh-goalchips__chip:hover {
-  border-color: var(--dh-color-border-strong);
-}
-
-.dh-goalchips__chip:focus-visible {
-  outline: var(--dh-focus-width) solid var(--dh-focus-color);
-  outline-offset: var(--dh-focus-offset);
-}
-
-.dh-goalchips__mark {
-  display: inline-flex;
-  flex: none;
-}
-
-.dh-goalchips__name {
-  min-inline-size: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-inline-size: 14rem;
-}
-
-.dh-goalchips__empty,
-.dh-goalchips__more,
-.dh-goalchips__picker-note {
-  margin: 0;
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-  color: var(--dh-color-text-muted);
-}
-
-.dh-goalchips__picker {
-  display: flex;
-  flex-direction: column;
-  gap: var(--dh-space-4);
-}
-
-.dh-goalchips__picker-list {
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  border: var(--dh-border-width) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  overflow: hidden;
-}
-
-.dh-goalchips__picker-list > li + li {
-  border-block-start: var(--dh-border-width) solid var(--dh-color-border);
-}
-
-.dh-goalchips__picker-option {
-  display: flex;
-  flex-direction: column;
-  gap: var(--dh-space-1);
-  inline-size: 100%;
-  min-block-size: var(--dh-control-height);
-  padding: var(--dh-space-3) var(--dh-inset-inline);
-  text-align: start;
-  background: none;
-  border: 0;
-  cursor: pointer;
-}
-
-.dh-goalchips__picker-option:hover {
-  background: var(--dh-color-surface-quiet);
-}
-
-.dh-goalchips__picker-option:focus-visible {
-  outline: var(--dh-focus-width) solid var(--dh-focus-color);
-  outline-offset: calc(-1 * var(--dh-focus-width));
-}
-
-.dh-goalchips__picker-name {
-  font-size: var(--dh-text-body-size);
-  font-weight: var(--dh-text-label-weight);
-  color: var(--dh-color-text);
-}
-
-.dh-goalchips__picker-context {
-  font-size: var(--dh-text-meta-size);
-  color: var(--dh-color-text-muted);
-}
-
 /*
  * Desktop has both panes on screen at once, so a "back to the list" control
- * would point at something already visible.
+ * would point at something already visible. The component draws the link; this
+ * decides whether it exists at this width.
  */
 .dh-goalpane__back {
   display: none;
-  align-items: center;
-  gap: var(--dh-space-1);
-  min-block-size: var(--dh-control-height);
-  font-size: var(--dh-text-meta-size);
-  font-weight: var(--dh-text-label-weight);
-  color: var(--dh-color-accent);
-  text-decoration: none;
-}
-
-.dh-goalpane__back:hover {
-  text-decoration: underline;
-}
-
-.dh-goalpane__back:focus-visible {
-  outline: var(--dh-focus-width) solid var(--dh-focus-color);
-  outline-offset: var(--dh-focus-offset);
-  border-radius: var(--dh-radius-sm);
 }
 
 /*
@@ -1297,8 +148,8 @@
  * Both panes stay in the DOM and CSS decides which is on screen, so the first
  * server byte is correct at every width. A phone showing the workspace with a
  * Goal selected shows that Goal; with none selected it shows the list. The
- * `:has()` test reads the pane's own empty state, so the rule follows the real
- * selection rather than a duplicated flag.
+ * `[data-selection]` test reads the real selection rather than a duplicated
+ * flag.
  */
 @media (max-width: 60rem) {
   .dh-goalspace {
@@ -1326,6 +177,41 @@
   }
 }
 
+/* ==========================================================================
+   The collection's lens rail
+   ========================================================================== */
+
+/*
+ * The status views row.
+ *
+ * It sits between the collection header and the workspace — the shared
+ * segmented FILTER position (UIQ-013: a view switcher changes the collection's
+ * mode and belongs in the header; a filter narrows the data and belongs beside
+ * it). It scrolls horizontally rather than wrapping, so six lenses with counts
+ * stay on one line at 320px instead of becoming two rows of chrome above the
+ * Goals they are there to reveal.
+ */
+.dh-goals-views {
+  display: flex;
+  min-inline-size: 0;
+  overflow-x: auto;
+  /* No visible scrollbar track under a six-item row; the overflow is a
+   * fallback for very narrow phones, not the normal state. */
+  scrollbar-width: none;
+}
+
+.dh-goals-views::-webkit-scrollbar {
+  display: none;
+}
+
+.dh-goals-views > * {
+  flex: none;
+}
+
+/* ==========================================================================
+   DOM hooks with no box
+   ========================================================================== */
+
 /*
  * STEER-01/02 — the machine-fact wrappers around a Goal's inline fields.
  *
@@ -1341,64 +227,22 @@
   display: contents;
 }
 
-/*
- * STEER-03 — the shared Goal-story row's signal group.
- *
- * The row's signal slot now carries up to three separate answers — FOLLOW-02's
- * movement sentence, ADR-040's alignment indicator and STEER-02's owner
- * condition. They are separate facts, so they are separate elements that wrap
- * independently rather than one run-on line; the gap is what keeps them
- * readable as three at a phone width.
- */
-.dh-goal-row__signals {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--dh-space-1) var(--dh-space-2);
-  min-inline-size: 0;
-}
+/* ==========================================================================
+   Two shared components inside a Goal's own line
+   ========================================================================== */
 
 /*
- * STEER-04 — the Goal record's next STEP, under its movement line.
+ * STEER-04 — the Goal's next STEP, under its movement line, on the record and
+ * on the `/goals` pane alike.
  *
- * The two lines are the record's past and its future in one band: "did anything
- * happen?" then "what happens next?". The create-structure door sits beside the
- * absence when the absence is structural, so the diagnosis and its remedy are
- * on the same line rather than a tab apart.
+ * `NextActionLine` is shared and brings its own paragraph margin, which is
+ * right where it is a paragraph and wrong where it is one item of a wrapping
+ * row beside a button. This is the caller declaring the shape it is placing a
+ * shared component INTO — the one thing a utility on the child cannot express,
+ * because the child is not this module's to change.
  */
-.dh-goal-overview__next {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--dh-space-2);
-  margin-block-start: var(--dh-space-2);
-  min-inline-size: 0;
-}
-
-.dh-goal-overview__next .dh-next-action {
-  margin: 0;
-  flex: 1 1 auto;
-}
-
-/* STEER-04 — the same next-step line on the `/goals` pane's focus band. */
-.dh-goalpane__next {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--dh-space-2);
-  min-inline-size: 0;
-}
-
+.dh-goal-overview__next .dh-next-action,
 .dh-goalpane__next .dh-next-action {
   margin: 0;
   flex: 1 1 auto;
-}
-
-/* STEER-04 — the two Project actions on the pane's chip row: create one, or
- * link one that exists. Different verbs, so both are offered and neither is
- * hidden behind the other; they wrap rather than crowd the heading. */
-.dh-goalchips__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--dh-space-2);
 }

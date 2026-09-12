@@ -1,254 +1,30 @@
 /*
- * AREA-03 Alignment presentation (ADR-040).
+ * AREA-03 Alignment presentation (ADR-040) — MIGRATED to Untitled UI
+ * (UNTITLED-07).
  *
- * A restrained toned pill (the alignment state) plus the detailed Goal-record
- * panel and its bounded contributing-Task evidence list. Mirrors
- * `health.css` structurally (`.dh-health*` -> `.dh-alignment*`) — the SAME
- * "colour never carries meaning alone" contract (DS-11 / WCAG 2.2 AA): every
- * tone pairs its colour with a text label and a decorative dot. Alignment
- * deliberately never uses the warning/danger tone tokens (ADR-040 §40.5).
- */
-
-.dh-alignment {
-  display: inline-flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--app-space-2);
-  min-width: 0;
-}
-
-.dh-alignment__pill {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--app-space-1);
-  padding: 0 var(--app-space-2);
-  min-height: var(--app-space-5);
-  font-size: var(--dh-text-meta-size);
-  font-weight: 500;
-  border-radius: var(--dh-radius-pill);
-  border: var(--app-border-width-thin) solid var(--dh-color-border);
-  color: var(--dh-color-text-muted);
-  background: var(--dh-color-surface);
-  white-space: nowrap;
-}
-
-.dh-alignment__dot {
-  width: var(--app-space-2);
-  height: var(--app-space-2);
-  border-radius: var(--dh-radius-pill);
-  background: currentColor;
-  flex: none;
-}
-
-.dh-alignment__pill[data-tone="success"] {
-  color: var(--dh-color-text-on-success-subtle);
-  background: var(--dh-color-success-subtle);
-  border-color: transparent;
-}
-.dh-alignment__pill[data-tone="info"] {
-  color: var(--dh-color-text-on-info-subtle);
-  background: var(--dh-color-info-subtle);
-  border-color: transparent;
-}
-
-.dh-alignment__reason {
-  font-size: var(--dh-text-label-size);
-  color: var(--dh-color-text-muted);
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-/* --- The Goals collection summary line ------------------------------------ */
-
-.dh-goals-alignment-summary {
-  margin: 0 0 var(--app-space-4);
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-meta-size);
-  overflow-wrap: anywhere;
-}
-
-/* --- The detailed Goal-record panel --------------------------------------- */
-
-.dh-alignment-panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-3);
-}
-
-.dh-alignment-panel__header {
-  display: flex;
-  align-items: center;
-  gap: var(--app-space-2);
-}
-
-.dh-alignment-panel__reasons {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-1);
-}
-
-.dh-alignment-panel__reason {
-  position: relative;
-  padding-inline-start: var(--app-space-4);
-  font-size: var(--dh-text-meta-size);
-  color: var(--dh-color-text);
-  overflow-wrap: anywhere;
-}
-
-.dh-alignment-panel__reason::before {
-  content: "";
-  position: absolute;
-  inset-inline-start: var(--app-space-1);
-  inset-block-start: 0.55em;
-  width: var(--app-space-2);
-  height: var(--app-space-2);
-  border-radius: var(--dh-radius-pill);
-  background: var(--dh-color-border-strong);
-}
-.dh-alignment-panel__reason[data-tone="success"]::before {
-  background: var(--dh-color-success);
-}
-.dh-alignment-panel__reason[data-tone="info"]::before {
-  background: var(--dh-color-info);
-}
-
-.dh-alignment-panel__evidence {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-2);
-  min-width: 0;
-}
-
-.dh-alignment-panel__evidence-heading {
-  margin: 0;
-  font-size: var(--dh-text-meta-size);
-  font-weight: 500;
-  color: var(--dh-color-text-muted);
-}
-
-.dh-alignment-panel__evidence-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-1);
-}
-
-.dh-alignment-panel__evidence-item {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-1);
-  padding: var(--app-space-2) 0;
-  border-block-end: var(--app-border-width-thin) solid var(--dh-color-border);
-  min-width: 0;
-}
-.dh-alignment-panel__evidence-item:last-child {
-  border-block-end: none;
-}
-
-.dh-alignment-panel__evidence-task {
-  appearance: none;
-  background: none;
-  border: none;
-  padding: 0;
-  margin: 0;
-  min-height: var(--app-touch-target-min);
-  display: inline-flex;
-  align-items: center;
-  text-align: start;
-  font: inherit;
-  font-weight: 500;
-  color: var(--dh-color-accent);
-  text-decoration: underline;
-  text-underline-offset: 0.15em;
-  cursor: pointer;
-  overflow-wrap: anywhere;
-}
-
-.dh-alignment-panel__evidence-context {
-  font-size: var(--dh-text-label-size);
-  color: var(--dh-color-text-muted);
-  overflow-wrap: anywhere;
-}
-
-.dh-alignment-panel__evidence-project {
-  color: inherit;
-}
-
-.dh-alignment-panel__evidence-note {
-  margin: 0;
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-meta-size);
-  overflow-wrap: anywhere;
-}
-
-/* --- FOLLOW-02: the Goal movement statement -------------------------------- */
-
-/*
- * A SENTENCE, not a badge.
+ * Everything this file drew is drawn by its components now:
  *
- * Movement is an observation about a bounded window ("did this Goal move
- * between Monday and Sunday?"), and a two-colour chip would turn it into a
- * verdict — the grade [ADR-110] decision 4 refuses. So there is no tone, no
- * hue and no dot: the words carry the whole meaning, at every width and in
- * forced-colours mode alike, and `data-goal-movement` carries only WEIGHT.
+ * | Was | Now |
+ * | --- | --- |
+ * | `.dh-alignment`, `__pill`, `__dot`, `__reason` and the two tone rules | `~/shared/alignment/AlignmentIndicator.tsx` — the genuine `base/badges` source through `UntitledStatusBadge` |
+ * | `.dh-goal-movement*` | `~/shared/alignment/GoalMovementLine.tsx` |
+ * | `.dh-alignment-panel*` | `~/shared/alignment/GoalAlignmentPanel.tsx` |
+ * | `.dh-goals-alignment-summary` | `~/modules/goals/GoalsCollection.tsx` |
+ *
+ * The alignment PILL is the change worth naming. It was a bespoke chip — its
+ * own radius, border, min-height, dot and a pair of tone rules mapping
+ * `success`/`info` onto DalyHub's subtle containers — on surfaces that already
+ * drew Untitled badges for a Goal's measurement status and an Area's state. One
+ * record therefore carried two chip shapes describing two of its own states.
+ * `AlignmentTone` is a strict subset of `BadgeTone`, so the migration needed no
+ * mapping table: the indicator hands its tone to the shared
+ * `UntitledStatusBadge` and Untitled's `BadgeWithDot` draws it.
+ *
+ * Forced colours moved with it. Untitled's badge keeps a real border in forced
+ * colours and its dot is `currentColor`, so the rules that used to pin both to
+ * `CanvasText` have nothing left to correct.
+ *
+ * The class names survive in the markup as hooks and carry no rules. The stable
+ * machine facts are unchanged: `data-goal-movement`, `-events` and `-projects`
+ * on the movement line, and `data-dh-badge` + `data-tone` on the badge.
  */
-.dh-goal-movement {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-1);
-  min-width: 0;
-}
-
-.dh-goal-movement__label {
-  margin: 0;
-  font-size: var(--dh-text-meta-size);
-  font-weight: 500;
-  color: var(--dh-color-text-muted);
-}
-
-.dh-goal-movement__headline {
-  margin: 0;
-  font-size: var(--dh-text-label-size);
-  color: var(--dh-color-text-muted);
-  /*
-   * The Goal's NAME keeps priority over this line everywhere it appears, so it
-   * wraps rather than competing for the row: a long sentence takes a second
-   * line instead of pushing a title into an ellipsis.
-   */
-  overflow-wrap: anywhere;
-}
-
-/* Movement that happened reads as a statement of fact, so it takes the page's
-   ordinary text colour; an absence stays quiet. Weight and colour BOTH follow
-   the same key, and neither is the only carrier of the meaning. */
-.dh-goal-movement[data-goal-movement="moved"] .dh-goal-movement__headline {
-  color: var(--dh-color-text);
-  font-weight: 500;
-}
-
-.dh-goal-movement__detail,
-.dh-goal-movement__window {
-  margin: 0;
-  font-size: var(--dh-text-meta-size);
-  color: var(--dh-color-text-muted);
-  overflow-wrap: anywhere;
-}
-
-.dh-goal-movement[data-size="record"] .dh-goal-movement__headline {
-  font-size: var(--dh-text-body-size);
-}
-
-@media (forced-colors: active) {
-  .dh-alignment__pill {
-    border-color: CanvasText;
-  }
-  .dh-alignment__dot,
-  .dh-alignment-panel__reason::before {
-    background: CanvasText;
-  }
-}

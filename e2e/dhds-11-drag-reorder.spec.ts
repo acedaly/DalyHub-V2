@@ -257,8 +257,20 @@ test.describe("DHDS-11 Journey A — a manually ordered collection", () => {
     await expect(stages).toBeVisible();
     expect(await stageTitles(page)).toEqual([...GOAL_STAGES]);
 
-    // Complete the first stage, so the reorder has progress to leave alone.
-    await stages.getByRole("checkbox", { name: GOAL_STAGES[0] }).click();
+    /*
+     * Complete the first stage, so the reorder has progress to leave alone.
+     *
+     * UNTITLED-07 — the stage's control is Untitled's checkbox (through the
+     * shared `Checkbox`'s `onCheckedChange` path), whose real `<input>` is
+     * visually hidden beneath the drawn box. Clicking the INPUT is intercepted
+     * by the box on top of it; clicking the LABEL is what a person does, and it
+     * is the same element `stageTitles` already reads the name from.
+     */
+    await stages
+      .locator("label")
+      .filter({ hasText: GOAL_STAGES[0] })
+      .first()
+      .click();
     await expect
       .poll(() =>
         page

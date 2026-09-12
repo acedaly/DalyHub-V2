@@ -788,3 +788,83 @@ benchmark.
 `SerializedGoalProjectItem` carries no identity or health, so a Project drawn
 inside a GOAL record has a neutral mark and no signal column. Extending that
 projection is Goals' migration, not this one.
+
+## Phase 7 completion record — Goals
+
+The authenticated Pro catalogue was available for this pass (`has_pro_access:
+true`), and its SCREENSHOTS were studied rather than its names merely listed.
+The CLI remains unauthenticatable here: `npx untitledui@latest login` completes
+an OAuth callback to a localhost port a headless remote container cannot reach,
+`add` on a Pro component answers "🔒 … requires PRO access", and the connector
+returns metadata plus that command rather than source. Pro source came from the
+vendored tree under `app/shared/ui/untitled/`, as in every phase since Phase 4.
+
+Page templates consulted: `dashboards-01/16` (its three "savings goal" tiles —
+mark, name, figure, thin bar, in a bounded card), `dashboards-02/02` (metric
+cards in a divided band above a table with progress columns),
+`settings-02/13` (a plan card whose one action lives in a divided footer under
+the bar), `informational-01/13` (the record page shape) and `dashboards-01/06`
+/ `dashboards-01/09` (dense status tables with row actions).
+
+| Goals surface | Untitled source | How it is used | Custom remaining, and why |
+| --- | --- | --- | --- |
+| Collection frame | Shared `CollectionLayout` over `application/tabs` | Title, lens rail, empty and error states | The lens rail's own horizontal strip, for six lenses at 320px |
+| Master list panel | `application/table` (`TableCard.Root` + its header anatomy) | Header with a count badge, divided body, divided footer action | — |
+| Goal row | `base/progress-indicators` (via `ProgressTrack`), Untitled's divided list body and surface roles | Mark, name, Area, status, movement, bar, honest value | `ProgressRow` composes them; the row's FACTS are DalyHub's |
+| Detail pane | Untitled's in-card band rule | Identity, the standing band, the measurement workspace, the Projects | Master–detail geometry (a data attribute a container query cannot read) |
+| Status / alignment / condition | `base/badges` via `UntitledStatusBadge` | Every chip on every Goal surface | `GoalConditionTag` renders nothing for "Pursuing" — a product rule |
+| Metric band | A divided Untitled band | Current / Target / Target date | Which three figures, and that an absent one is stated |
+| Progress bar | `base/progress-indicators` via the `labelled-progress-bar` override | The one linear indicator in the product | The override's name, valuetext, tone and forced-colours handling |
+| Acts | `base/buttons` via `Button` / `buttonClassName` | "Log weight", "Edit measurement", "Add goal", the chips' actions | — |
+| Pace band | Untitled tokens and the in-card band rule | Recent, required and projected pace | Which figures the evaluator will produce |
+| Trend chart | — | — | DalyHub's `TrendLine` — see the rejection below |
+| Reading history | `application/table`'s cell/head/row classes, `base/dropdown` via `Menu` | Date / Value / Change / Note, with one row menu | A semantic `<table>`, not React Aria's grid: not sortable, not selectable, and a keyboard grid between the owner and five dates costs more than it gives |
+| Stages | `base/checkbox`, `base/input`, `base/dropdown` | The checklist, its add row and its item menu | `SortableList` — Untitled has no sortable list, and the drag, the keyboard move and the whole-order write are domain behaviour |
+| Measurement chooser | `base/radio-buttons` | Four described strategies, in the sheet and in New Goal | The CARD around each option, so four two-line strategies read as four choices |
+| Unit suggestions | `base/button-group` | A real `ToggleButtonGroup` | — |
+| Link-a-Project picker | `base/input`, Untitled's divided list body and card boundary | Search field, results, hover and focus | The debounced server-backed search |
+| Empty states | `application/empty-state` | Unmeasured, no readings, no Projects, no Goals | `size="inline"` at record level |
+| Projects inside a Goal | The shared `ProjectSummaryList` (`application/table`) | The same column vocabulary `/projects?present=table` uses | Health is still absent from the projection — a deliberate read boundary |
+
+### Rejected, and why
+
+- **`application/charts-base`** (public, so genuinely available). A Recharts
+  composition; Recharts is not a dependency of this product. Adding one to a
+  Workers SSR bundle to redraw a chart that already carries a single tab stop
+  with arrow-key stepping, a `role="status"` readout, references told apart by
+  dash pattern rather than hue, and a projection drawn only when all three of
+  its facts exist, would cost bundle weight and accessibility for house style.
+- **`base/progress-circles`.** A ring would be a second, rounder way of saying
+  what the bar already says, and the Goals brief rules out "meaningless rings
+  everywhere" by name.
+- **`application/metrics`, `application/activity-feed`, `application/progress-steps`.**
+  Pro-only and not in the vendored tree, so unavailable here. Their grammar was
+  studied through the connector's screenshots and expressed with the vendored
+  card, band and section-label sources instead; `progress-steps` would in any
+  case have been wrong for milestones, which are unordered-completion stages
+  rather than a wizard's linear steps.
+- **`base/tags`' `Tag`.** A `TagGroup` is a React Aria selection collection
+  whose items are selected or removed; a Goal's Project chips are destinations,
+  so they stay links wearing Untitled's `modern` badge geometry.
+- **Untitled's `TableRowActionsDropdown`.** Upstream's is a fixed
+  Edit/Copy/Delete demo; the shared `Menu` is the same `base/dropdown` source
+  with the product's own items, tones and focus restoration.
+
+### Documentation consulted
+
+[Introduction](https://www.untitledui.com/react/docs/introduction),
+[Theming](https://www.untitledui.com/react/docs/theming),
+[Dark mode](https://www.untitledui.com/react/docs/dark-mode),
+[CLI](https://www.untitledui.com/react/docs/cli),
+[MCP](https://www.untitledui.com/react/docs/mcp),
+[Tables](https://www.untitledui.com/react/components/tables),
+[Progress indicators](https://www.untitledui.com/react/components/progress-indicators),
+[Badges](https://www.untitledui.com/react/components/badges),
+[Radio groups](https://www.untitledui.com/react/components/radio-groups),
+[Button groups](https://www.untitledui.com/react/components/button-groups),
+[Checkboxes](https://www.untitledui.com/react/components/checkboxes),
+[Inputs](https://www.untitledui.com/react/components/inputs) and
+[Empty states](https://www.untitledui.com/react/components/empty-states).
+
+No screenshot, historical visual audit or legacy Material/MD3/DHDS stylesheet is
+an implementation reference for Goals.

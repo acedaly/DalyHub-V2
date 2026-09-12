@@ -1117,6 +1117,40 @@
   transition: inline-size var(--dh-motion-base) var(--dh-ease-standard);
 }
 
+/*
+ * UNTITLED-07 — `SupportingSurface`'s meter ramp, re-homed from `progress.css`.
+ *
+ * It used to ride on a shared selector list beside `.dh-progress__fill` and
+ * `.dh-mrow__fill`. Both of those are Untitled components now and draw their own
+ * fills, so the list had one member left; keeping it in `progress.css` would
+ * have left a linear-bar stylesheet alive for a caller that is not the shared
+ * bar. `SupportingSurface` has no consumer in the product today — see
+ * PRODUCT_DEBT — so it is left as it was rather than migrated speculatively.
+ */
+.dh-scard__progress-fill {
+  background: var(--dh-color-meter-neutral);
+}
+
+[data-meter-status="success"] .dh-scard__progress-fill {
+  background: var(--dh-color-meter-success);
+}
+
+[data-meter-status="info"] .dh-scard__progress-fill {
+  background: var(--dh-color-meter-info);
+}
+
+[data-meter-status="warning"] .dh-scard__progress-fill {
+  background: var(--dh-color-meter-warning);
+}
+
+[data-meter-status="danger"] .dh-scard__progress-fill {
+  background: var(--dh-color-meter-danger);
+}
+
+.dh-scard__progress-track {
+  background: var(--dh-color-meter-track);
+}
+
 .dh-scard__progress-text {
   flex: none;
   color: var(--dh-color-text);
@@ -2585,196 +2619,18 @@
  */
 
 /* ==========================================================================
-   REDESIGN-04 — the MEASURED row (`.dh-mrow`).
+   The MEASURED row (`.dh-mrow`) — MIGRATED to Untitled UI (UNTITLED-07)
 
-   `mockup3.png` draws it twice: the Goals workspace's left list, and the
-   compact Goals section on the Projects page. A sibling of `.dh-erow` rather
-   than a variant of it — an Area row deliberately carries NO bar (an Area never
-   completes), and a Goal row's whole point is the bar and the honest value at
-   the line's end.
+   `.dh-mrow`, `.dh-mrow-list` and every element beneath them are drawn by the
+   component now (`~/shared/card/ProgressRow.tsx`): the list is Untitled's
+   divided body, the row's hover/selected/focus states are Untitled's own
+   surface roles, and the bar is the shared `ProgressTrack`, which is Untitled's
+   `ProgressBarBase` geometry. Before this pass the row drew the THIRD
+   hand-written progress track in the product, at a height and a radius neither
+   of the other two used.
+
+   The class names survive in the markup as test hooks — `e2e/goals-outcomes`,
+   `e2e/goal-measurement` and `e2e/steer-goals` read `.dh-mrow__title` and
+   `.dh-mrow__value` — and carry no rules, which is this migration's standing
+   rule about a name outliving its presentation.
    ========================================================================== */
-
-.dh-mrow-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  background: none;
-}
-
-.dh-mrow-list__item + .dh-mrow-list__item {
-  border-block-start: var(--app-border-width-thin) solid var(--dh-color-border);
-}
-
-.dh-mrow {
-  position: relative;
-  display: flex;
-  align-items: flex-start;
-  gap: var(--dh-space-3);
-  min-inline-size: 0;
-  padding: var(--dh-space-3) var(--dh-inset-inline);
-  transition: background var(--dh-motion-fast) var(--dh-ease-standard);
-}
-
-.dh-mrow:hover {
-  background: var(--dh-color-surface-quiet);
-}
-
-/*
- * The master–detail's CURRENT row.
- *
- * A tint AND `aria-current="page"` on the link inside it (see `ProgressRow`),
- * plus a leading rail in the record's own accent — so selection is a shape as
- * well as a tone, and survives forced-colors.
- */
-.dh-mrow[data-selected="true"] {
-  background: var(--dh-color-surface-selected);
-}
-
-.dh-mrow[data-selected="true"]::before {
-  content: "";
-  position: absolute;
-  inset-block: 0;
-  inset-inline-start: 0;
-  inline-size: var(--app-border-width-thick);
-  background: var(--dh-color-accent);
-}
-
-.dh-mrow--muted {
-  opacity: 0.72;
-}
-
-.dh-mrow__mark {
-  flex: none;
-  display: inline-flex;
-  /* Optically centred on the title line rather than on the whole row, which
-   * grows by a bar and would otherwise drag the mark below the name. */
-  margin-block-start: 1px;
-}
-
-.dh-mrow__body {
-  flex: 1;
-  min-inline-size: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--dh-space-1);
-}
-
-.dh-mrow__line {
-  display: flex;
-  align-items: baseline;
-  gap: var(--dh-space-3);
-  min-inline-size: 0;
-}
-
-.dh-mrow__title {
-  margin: 0;
-  flex: 1;
-  min-inline-size: 0;
-  font-size: var(--dh-text-card-title-size);
-  line-height: var(--dh-text-card-title-line-height);
-  font-weight: var(--dh-text-card-title-weight);
-  color: var(--dh-color-text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.dh-mrow__open,
-.dh-mrow__open:visited {
-  color: inherit;
-  text-decoration: none;
-}
-
-.dh-mrow__open::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-}
-
-.dh-mrow__open:focus-visible {
-  outline: none;
-}
-
-.dh-mrow:has(.dh-mrow__open:focus-visible) {
-  outline: var(--app-border-width-thick) solid var(--dh-color-accent);
-  outline-offset: calc(-1 * var(--app-border-width-thick));
-}
-
-/*
- * The honest value at the line's end — "60.0 / 70 kg", "12 / 24".
- *
- * Tabular figures, so a column of them lines up; `flex: none` so the measure
- * never wraps under the name it belongs to.
- */
-.dh-mrow__value {
-  flex: none;
-  margin: 0;
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-  font-weight: var(--dh-text-label-weight);
-  color: var(--dh-color-text);
-  font-variant-numeric: var(--dh-font-numeric);
-  white-space: nowrap;
-}
-
-.dh-mrow__context {
-  margin: 0;
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-  color: var(--dh-color-text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/*
- * FOLLOW-02 — the row's derived SIGNAL slot.
- *
- * Unlike the context line above it, this WRAPS: it holds a sentence rather than
- * a label, and a truncated statement about whether a Goal moved would be worse
- * than a two-line one. The row's NAME still leads, because the signal sits
- * below it and never competes for its line.
- */
-.dh-mrow__signal {
-  margin-block-start: var(--dh-space-1);
-  min-inline-size: 0;
-}
-
-/*
- * POLISH-01 — the track is the ONE shared meter well (`progress.css`).
- *
- * It was `--dh-color-border`, a translucent hairline, on the reasoning that a
- * sunken token reads as a Material tonal well on a white record. The reasoning
- * held for one meter and produced three different empty states across the
- * product: a Goal row's track was a rule, a Project card's was a well, and the
- * shared `ProgressMeter`'s was a lavender container. One meter, one well.
- */
-.dh-mrow__track {
-  display: block;
-  inline-size: 100%;
-  block-size: var(--app-progress-bar-height);
-  margin-block-start: var(--dh-space-1);
-  border-radius: var(--dh-radius-pill);
-  /* POLISH-01 — the shared meter track. It was `--dh-color-border`, a
-     translucent hairline, so this meter's empty state did not match the one on
-     the card beside it. */
-  overflow: hidden;
-}
-
-.dh-mrow__fill {
-  display: block;
-  block-size: 100%;
-  border-radius: inherit;
-  transition: inline-size var(--dh-motion-base) var(--dh-ease-standard);
-}
-
-@media (forced-colors: active) {
-  .dh-mrow__fill {
-    background: CanvasText;
-  }
-  .dh-mrow[data-selected="true"] {
-    /* The tint does not survive forced-colors; the rail is a shape and does. */
-    outline: var(--app-border-width-thin) solid CanvasText;
-    outline-offset: calc(-1 * var(--app-border-width-thin));
-  }
-}
