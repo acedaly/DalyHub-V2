@@ -61,6 +61,11 @@ export {
   CHART_TICK,
 } from "./untitled/chart-theme";
 export {
+  PeriodicAdherence,
+  type PeriodicAdherencePoint,
+  type PeriodicAdherenceProps,
+} from "./untitled/PeriodicAdherence";
+export {
   MeasurementTrend,
   type MeasurementTrendPoint,
   type MeasurementTrendProjection,

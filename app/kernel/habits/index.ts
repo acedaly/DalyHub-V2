@@ -57,10 +57,12 @@ export {
 } from "./habit-schedule";
 
 export {
+  HABIT_ADHERENCE_WEEKS,
   HABIT_RECENT_WINDOW_DAYS,
   MAX_HABIT_CONSISTENCY_WEEKS,
   UNAVAILABLE_HABIT_PERIOD_CONSISTENCY,
   buildHabitHistory,
+  buildHabitWeeklyAdherence,
   evaluateHabitConsistency,
   evaluateHabitToday,
   evaluateHabitWeek,
@@ -72,6 +74,7 @@ export {
   type HabitHistoryDayState,
   type HabitTodayKind,
   type HabitTodayState,
+  type HabitWeeklyAdherence,
   type HabitWeekProgress,
 } from "./habit-progress";
 

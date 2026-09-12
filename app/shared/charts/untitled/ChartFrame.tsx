@@ -163,10 +163,17 @@ export function ChartFrame({
 export function ChartKeyItem({
   color,
   dash,
+  shape = "line",
   children,
 }: {
   readonly color: string;
   readonly dash?: string;
+  /**
+   * What the plot actually draws. A key is only useful if its swatch is the
+   * same mark as the thing it names — a line swatch beside a bar chart is a
+   * legend for a chart that is not on the page.
+   */
+  readonly shape?: "line" | "bar";
   readonly children: ReactNode;
 }) {
   return (
@@ -174,21 +181,25 @@ export function ChartKeyItem({
       <svg
         className="shrink-0"
         width="20"
-        height="8"
-        viewBox="0 0 20 8"
+        height="10"
+        viewBox="0 0 20 10"
         aria-hidden="true"
         focusable="false"
       >
-        <line
-          x1="0"
-          y1="4"
-          x2="20"
-          y2="4"
-          stroke={color}
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeDasharray={dash}
-        />
+        {shape === "bar" ? (
+          <rect x="3" y="0" width="14" height="10" rx="2" fill={color} />
+        ) : (
+          <line
+            x1="0"
+            y1="5"
+            x2="20"
+            y2="5"
+            stroke={color}
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeDasharray={dash}
+          />
+        )}
       </svg>
       {children}
     </span>

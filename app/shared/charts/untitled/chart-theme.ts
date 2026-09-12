@@ -18,13 +18,21 @@
  * all — belongs to the chart above this file.
  */
 
-/** The series colour: the record's own identity, falling back to brand. */
+/**
+ * The series colour: the record's own identity, falling back to brand.
+ *
+ * `--dh-chart-series` rather than `--dh-identity` directly, and the difference
+ * matters: `tokens.css` defines `--dh-identity` on bare `:root` as the neutral
+ * container, so it is ALWAYS set and a `var()` fallback beside it never fires.
+ * `charts.css` declares the brand default on `.dh-chart` and lets a real
+ * `[data-identity]` ancestor override it, which is what that attribute means
+ * everywhere else in the product.
+ */
 export const CHART_SERIES_COLOR =
-  "var(--dh-identity, var(--color-utility-brand-600))";
+  "var(--dh-chart-series, var(--color-utility-brand-600))";
 
 /** The quieter partner of the series, for a required or projected path. */
-export const CHART_PROJECTION_COLOR =
-  "var(--dh-identity, var(--color-utility-brand-600))";
+export const CHART_PROJECTION_COLOR = CHART_SERIES_COLOR;
 
 /**
  * A reference rule — a target, a threshold, a budget. Never the series' hue,

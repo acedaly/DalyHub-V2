@@ -8,7 +8,11 @@
 
 export { HabitRow, type HabitRowProps } from "./HabitRow";
 export { HabitList, type HabitListProps } from "./HabitList";
-export { HabitWeekStrip, type HabitWeekStripProps } from "./HabitWeekStrip";
+export {
+  HabitWeekStrip,
+  HabitWeekStripHeading,
+  type HabitWeekStripProps,
+} from "./HabitWeekStrip";
 export {
   SupportingHabits,
   type SupportingHabitsProps,
