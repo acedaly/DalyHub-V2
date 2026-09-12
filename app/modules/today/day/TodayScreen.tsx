@@ -1181,12 +1181,20 @@ export function TodayScreen({
   const openTodayCount =
     buckets.overdue.filter((task) => !task.completed).length +
     buckets.today.filter((task) => !task.completed).length;
+  /*
+   * No trailing full stop, and no "today".
+   *
+   * This sits BESIDE the date on one line now rather than under it as its own
+   * metadata row, so the stop punctuated the middle of a line and "today" was
+   * the third thing on the page saying which day it is — after the date it is
+   * standing next to and the day rail underneath.
+   */
   const attentionSummary =
     openTodayCount === 0
-      ? "Your day is clear."
+      ? "Your day is clear"
       : openTodayCount === 1
-        ? "One task needs your attention today."
-        : `${openTodayCount} tasks need your attention today.`;
+        ? "One task needs your attention"
+        : `${openTodayCount} tasks need your attention`;
 
   /*
    * The ONE contextual command Today registers: `?` opens the keyboard
@@ -1377,11 +1385,38 @@ export function TodayScreen({
        * was a full-width primary button sitting between the greeting and the
        * first task.
        */}
+      {/*
+       * ── The header says WHO and WHEN, in two pieces, not four ─────────────
+       *
+       * `PaneHeader`'s compact density lays the eyebrow, the title, the
+       * subtitle and the metadata row out on ONE baseline. For a collection
+       * that is two items and reads well — "Habits · Build consistency without
+       * turning life into a game." Today had FOUR, two of them long sentences:
+       *
+       *   TODAY  Good morning, Aidan   Sunday 13 September 2026   46 tasks need your attention today.
+       *
+       * strung across the width with a gap between each, which reads as a row
+       * of loose chips rather than as a heading.
+       *
+       * The eyebrow is gone because it was the THIRD "Today" in forty pixels —
+       * the day rail immediately below has Today as its selected tab, and the
+       * date says it in words. An eyebrow earns its place by naming a section
+       * the title does not; this one repeated its own neighbours.
+       *
+       * The date and the count are one line now rather than two slots, because
+       * together they answer a single question — which day, and how much is on
+       * it. The count keeps its own live region inside that line, so it still
+       * announces when a check-in changes it.
+       */}
       <PaneHeader
-        eyebrow="Today"
         title={greeting}
-        subtitle={data.dateLong}
-        meta={<span aria-live="polite">{attentionSummary}</span>}
+        subtitle={
+          <>
+            {data.dateLong}
+            <span aria-hidden="true"> · </span>
+            <span aria-live="polite">{attentionSummary}</span>
+          </>
+        }
         viewSwitcher={
           /* CAL-02 — these are DalyHub's day views, composed into the shared
              Untitled page-header grammar rather than given a Today-only header. */
