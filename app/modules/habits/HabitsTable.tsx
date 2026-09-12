@@ -144,6 +144,31 @@ export function HabitsTable({
              * being cut off inside a 55px cell — silently, because the card
              * clipped it and the document never scrolled. A column that cannot
              * hold its content is dropped, not squeezed.
+             *
+             * ── Which is why each column appears when the NAME can still be
+             *    read, not when the column itself would fit ─────────────────
+             *
+             * The five data columns are 3.5 + 10 + 9 + 11 + 8 = 41.5rem of
+             * FIXED width, and they all used to arrive by `@2xl` — a 42rem
+             * container. At a 1024 viewport this card is about 44rem wide, so
+             * every column was drawn and the name was left with what remained:
+             * about 70px. The collection's whole subject rendered as "S…",
+             * "W..", "R…", and the Area chip on the second line ran into the
+             * Schedule column beside it. Seen at 1024 in the capture pass.
+             *
+             * Each threshold below is now the container width at which its
+             * column fits WITH a 12rem floor under the name — 15.5rem for the
+             * check and the name, then each column's own width added:
+             *
+             *   Today      9rem  → 24.5rem  → `@md`  (28rem)
+             *   Progress  11rem  → 35.5rem  → `@xl`  (36rem)
+             *   Schedule  10rem  → 45.5rem  → `@3xl` (48rem)
+             *   This week  8rem  → 53.5rem  → `@4xl` (56rem)
+             *
+             * The ORDER is unchanged — state, then progress, then schedule,
+             * then the week's dots — because that order is about what a reader
+             * needs first. Only the widths at which each one is affordable
+             * moved.
              */}
             <th scope="col" className={`${HEAD} w-14`}>
               <span className="dh-visually-hidden">Done today</span>
@@ -153,25 +178,25 @@ export function HabitsTable({
             </th>
             <th
               scope="col"
-              className={`${HEAD} hidden w-40 @lg/habits:table-cell`}
+              className={`${HEAD} hidden w-40 @3xl/habits:table-cell`}
             >
               Schedule
             </th>
             <th
               scope="col"
-              className={`${HEAD} hidden w-36 @sm/habits:table-cell`}
+              className={`${HEAD} hidden w-36 @md/habits:table-cell`}
             >
               Today
             </th>
             <th
               scope="col"
-              className={`${HEAD} hidden w-44 @md/habits:table-cell`}
+              className={`${HEAD} hidden w-44 @xl/habits:table-cell`}
             >
               Progress
             </th>
             <th
               scope="col"
-              className={`${HEAD} hidden w-32 @2xl/habits:table-cell`}
+              className={`${HEAD} hidden w-32 @4xl/habits:table-cell`}
             >
               {/* The weekday letters live HERE, once, above the seven tracks
                   every row's dots are drawn in — not repeated on each row. */}
@@ -348,7 +373,7 @@ function HabitTableRow({
            * question this page answers first and the state column is the one
            * that cannot fit beside a title at 390.
            */}
-          <span className="@sm/habits:hidden">
+          <span className="@md/habits:hidden">
             {done ? "Done today" : habit.today.label}
           </span>
           {place === null ? null : (
@@ -362,15 +387,15 @@ function HabitTableRow({
               {place.title}
             </span>
           )}
-          <span className="@lg/habits:hidden">{habit.scheduleShortLabel}</span>
+          <span className="@3xl/habits:hidden">{habit.scheduleShortLabel}</span>
           {habit.week.label === null ? null : (
-            <span className="@md/habits:hidden">{habit.week.label}</span>
+            <span className="@xl/habits:hidden">{habit.week.label}</span>
           )}
         </span>
       </td>
 
       <td
-        className={`${CELL} hidden whitespace-nowrap text-tertiary @lg/habits:table-cell`}
+        className={`${CELL} hidden whitespace-nowrap text-tertiary @3xl/habits:table-cell`}
       >
         {/*
          * One label, at every width, and there is no second line under it.
@@ -387,11 +412,11 @@ function HabitTableRow({
         {habit.scheduleShortLabel}
       </td>
 
-      <td className={`${CELL} hidden @sm/habits:table-cell`}>
+      <td className={`${CELL} hidden @md/habits:table-cell`}>
         {todayBadge(habit, done)}
       </td>
 
-      <td className={`${CELL} hidden @md/habits:table-cell`}>
+      <td className={`${CELL} hidden @xl/habits:table-cell`}>
         {weekPercent === null ? (
           <span className="text-tertiary">
             <span aria-hidden="true">—</span>
@@ -420,7 +445,7 @@ function HabitTableRow({
         )}
       </td>
 
-      <td className={`${CELL} hidden @2xl/habits:table-cell`}>
+      <td className={`${CELL} hidden @4xl/habits:table-cell`}>
         {habit.weekHistory === undefined ? null : (
           <HabitWeekStrip
             days={habit.weekHistory}
