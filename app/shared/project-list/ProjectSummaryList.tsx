@@ -231,7 +231,9 @@ function ProjectSummaryRow({
       data-muted={project.muted ? "true" : undefined}
       data-testid="project-summary-row"
     >
-      <Table.Cell className="px-5 py-3 max-md:px-4">
+      {/* `max-md:relative`, so the title link can stretch over the cell on a
+       * phone. See the note on the link itself. */}
+      <Table.Cell className="px-5 py-3 max-md:relative max-md:px-4">
         <span className="flex min-w-0 items-center gap-3">
           <span className="shrink-0" aria-hidden="true">
             <AccentIcon
@@ -242,8 +244,15 @@ function ProjectSummaryRow({
               size="sm"
             />
           </span>
+          {/*
+           * On a PHONE the link stretches over its cell — see `AreasTable` for
+           * the measurement. A table row is ~100px tall on a handset and the
+           * title text is 20px of it, so without this a finger can only hit two
+           * words. Phone only, and over the row-header cell, so no other
+           * control in the row is covered.
+           */}
           <Link
-            className="truncate text-sm font-semibold text-primary outline-focus-ring hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
+            className={`truncate text-sm font-semibold text-primary outline-focus-ring hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 max-md:after:absolute max-md:after:inset-0 max-md:after:content-['']`}
             to={`/projects/${encodeURIComponent(project.id)}`}
             // The product-wide accessible name for a record's open link
             // (AGENTS.md §7). The visible text is contained in the name, so

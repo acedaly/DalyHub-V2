@@ -200,7 +200,9 @@ function ProjectTableRow({
       data-dh-action-context="true"
       data-testid="project-table-row"
     >
-      <Table.Cell className="px-5 py-3 max-md:col-start-1 max-md:px-4">
+      {/* `max-md:relative`, so the title link can stretch over the cell on a
+       * phone. See the note on the link itself. */}
+      <Table.Cell className="px-5 py-3 max-md:relative max-md:col-start-1 max-md:px-4">
         <span className="flex min-w-0 items-center gap-3">
           <span className="shrink-0" aria-hidden="true">
             <AccentIcon
@@ -211,8 +213,21 @@ function ProjectTableRow({
               size="sm"
             />
           </span>
+          {/*
+           * UNTITLED-05 — on a PHONE the link stretches over its cell.
+           *
+           * Measured at 390px: the row is 100px tall and this link is 20px of
+           * it, so the only thing a finger could hit was two words — in a
+           * product that guarantees a 44px target on a coarse pointer, and on
+           * the presentation ADR-100 makes the DEFAULT above forty Projects.
+           * The gallery card has always solved this with a stretched link.
+           *
+           * Phone only, and over the row-header CELL: the Area picker and the
+           * overflow are separate cells, so neither is covered, and at desktop
+           * width the cell is one column of seven.
+           */}
           <Link
-            className="truncate text-sm font-semibold text-primary outline-focus-ring hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
+            className={`truncate text-sm font-semibold text-primary outline-focus-ring hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 max-md:after:absolute max-md:after:inset-0 max-md:after:content-['']`}
             to={`/projects/${encodeURIComponent(card.id)}`}
             /*
              * "Open <title>" is the product-wide accessible name for a record's

@@ -391,6 +391,47 @@ test.describe("AREA-01 — Areas", () => {
     await expect(page).toHaveURL(/\/areas\/a-dh/);
   });
 
+  /**
+   * UNTITLED-05 — the TABLE row's phone target, by the same argument.
+   *
+   * A table row is ~100px tall on a handset and its title link is 20px of it,
+   * so before this the only thing a finger could hit was two words — 20% of the
+   * row, in a product that guarantees a 44px target on a coarse pointer. The
+   * link now stretches over its own cell at phone widths.
+   *
+   * Measured the way the card's is, and for the same reason: `boundingBox()`
+   * reports the anchor's own 20px box and would be wrong about the product. The
+   * assertion is what the OWNER experiences — the corner of the row, far from
+   * the text, opens the record — plus a hit test proving the link is what is
+   * actually on top there rather than something that merely happens to
+   * navigate.
+   */
+  test("table: a row's phone target is the row, not the two words in it", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await gotoFixture(page, "/areas?present=table");
+    const row = page.getByTestId("area-table-row").first();
+    await expect(row).toBeVisible();
+    await expectMinTouchTarget(row);
+
+    const corner = await row.evaluate((node) => {
+      // The row-header CELL, not the row: the actions column is a separate
+      // cell and must stay reachable, so the stretched link covers only this.
+      const cell = node.querySelector("td")!;
+      const rect = cell.getBoundingClientRect();
+      const x = rect.x + 10;
+      const y = rect.y + rect.height - 6;
+      const top = document.elementsFromPoint(x, y)[0] as
+        HTMLElement | undefined;
+      return { x, y, topLabel: top?.getAttribute("aria-label") ?? null };
+    });
+    expect(corner.topLabel).toMatch(/^Open /);
+
+    await page.touchscreen.tap(corner.x, corner.y);
+    await expect(page).toHaveURL(/\/areas\/[^/?#]+$/);
+  });
+
   test("collection and record stay overflow-free across representative widths", async ({
     page,
   }) => {

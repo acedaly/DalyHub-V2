@@ -195,7 +195,11 @@ function AreaTableRow({
       data-dh-action-context="true"
       data-testid="area-table-row"
     >
-      <Table.Cell className="px-5 py-3 max-md:col-start-1 max-md:px-4">
+      {/*
+       * `max-md:relative`, so the title link below can stretch over the whole
+       * cell on a phone. See the note on the link itself.
+       */}
+      <Table.Cell className="px-5 py-3 max-md:relative max-md:col-start-1 max-md:px-4">
         <span className="flex min-w-0 items-center gap-3">
           <span className="shrink-0" aria-hidden="true">
             <AccentIcon
@@ -207,8 +211,22 @@ function AreaTableRow({
             />
           </span>
           <span className="flex min-w-0 flex-col">
+            {/*
+             * On a PHONE the link stretches over its cell.
+             *
+             * A table row is ~100px tall on a handset and the title text is
+             * 20px of it, so without this the only thing a finger can hit is
+             * two words — 24% of the row, in a product that guarantees a 44px
+             * target on a coarse pointer. The gallery card has always solved
+             * this with a stretched link; a table row deserves the same.
+             *
+             * Phone only, and over the row-header CELL rather than the row:
+             * the actions column is a separate cell, so the overflow menu stays
+             * reachable, and at desktop width the cell is one column of several
+             * and a stretched link there would cover nothing useful.
+             */}
             <Link
-              className="truncate text-sm font-semibold text-primary outline-focus-ring hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
+              className={`truncate text-sm font-semibold text-primary outline-focus-ring hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 max-md:after:absolute max-md:after:inset-0 max-md:after:content-['']`}
               to={`/areas/${encodeURIComponent(card.id)}`}
               // "Open <title>" is the product-wide accessible name for a
               // record's open link (AGENTS.md §7). The visible text is
