@@ -372,19 +372,19 @@ function HabitTableRow({
       <td
         className={`${CELL} hidden whitespace-nowrap text-tertiary @lg/habits:table-cell`}
       >
-        {habit.scheduleShortLabel}
         {/*
-         * "Mon · Wed · Fri" under "Weekdays" — the DAYS, beneath the word for
-         * them, so a selected-weekday cadence is legible without opening the
-         * record. Only for that one kind: "Every day" and "3× weekly" already
-         * say everything their full sentence says.
+         * One label, at every width, and there is no second line under it.
+         *
+         * A sub-line of "Mon, Wed & Fri" under "Weekdays" was drawn here, on
+         * `scheduleLabel !== scheduleShortLabel`. That condition can never be
+         * true for a weekday schedule: the two helpers differ for `weekly_count`
+         * alone ("3× weekly" against "3× a week"), and for `weekdays` they are
+         * the same string — which is also why the collapsed row below `@lg`
+         * loses nothing. A selected-weekday cadence already READS as
+         * "Mon, Wed & Fri"; "Weekdays" is returned only when the habit is
+         * literally Monday to Friday, where the word is the whole fact.
          */}
-        {habit.scheduleKind === "weekdays" &&
-        habit.scheduleLabel !== habit.scheduleShortLabel ? (
-          <span className="mt-0.5 block truncate text-xs text-quaternary">
-            {habit.scheduleLabel}
-          </span>
-        ) : null}
+        {habit.scheduleShortLabel}
       </td>
 
       <td className={`${CELL} hidden @sm/habits:table-cell`}>

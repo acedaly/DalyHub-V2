@@ -423,10 +423,27 @@ function HabitSummaryTab({
            * else says it. It spans the row instead: two figures above, this one
            * beneath them, and the fact survives the width.
            */}
+          {/*
+           * The OWNER'S calendar day, not the first ten characters of an
+           * instant. `createdAt` is a UTC timestamp, so slicing it gives the
+           * wrong day to anyone whose offset puts their local midnight on the
+           * other side of UTC's — which for an Australian owner is most
+           * evenings (ADR-108: an owner day never travels without its zone).
+           *
+           * And it needs no timezone plumbing to fix: a Habit's earliest
+           * schedule version already carries `effectiveFrom`, which is an
+           * owner-calendar date the write recorded. The last entry is the
+           * earliest, because `serializeHabitRecord` sorts them newest-first.
+           */}
           <RecordFigure
             className="max-sm:col-span-2"
             label="Kept since"
-            value={formatCalendarDate(habit.createdAt.slice(0, 10)) ?? "—"}
+            value={
+              formatCalendarDate(
+                habit.scheduleHistory.at(-1)?.fromIso ??
+                  habit.createdAt.slice(0, 10),
+              ) ?? "—"
+            }
             supporting={
               habit.scheduleHistory.length > 1
                 ? `${habit.scheduleHistory.length} schedules since then`

@@ -1409,12 +1409,15 @@ export function TodayScreen({
        * ── The columns, and what decides which one a panel is in ─────────────
        *
        *   ACTION  (2fr)  Now · Next · today's plan · habits due · attention
-       *   CONTEXT (1fr)  schedule · continue · Goals · last 7 days · reflection · review
+       *   CONTEXT (1fr)  schedule · continue · Goals · reflection · last 7 days · review
        *
        * The test is whether the panel is something to DO now. A habit due today
        * is — it has a check control in it — so it is in the action column,
        * beneath the tasks rather than spanning the page as a full-width band.
-       * "Continue working" is a suggestion about tomorrow and moves across.
+       * "Continue working" is a suggestion about OTHER projects rather than
+       * about this day, so it belongs across — and for one review round it was
+       * listed there and rendered here, which is the kind of disagreement
+       * between a comment and its code that only a reader catches.
        *
        * ── Nothing is moved by CSS `order`, and the columns are why ──────────
        *
@@ -1691,6 +1694,18 @@ export function TodayScreen({
               </ul>
             </section>
           ) : null}
+        </div>
+
+        <div className="dh-today__col dh-today__col--context">
+          <SchedulePanel
+            week={data.week}
+            todayIso={data.todayIso}
+            meetingsToday={data.meetings}
+            stale={data.scheduleStale}
+            hasSources={data.scheduleHasSources}
+            onOpenEvent={onOpenEvent}
+            eventHref={eventHref}
+          />
 
           {/* Absent entirely when no project has open work — "continue working"
             on a project with nothing left to do is not a suggestion. */}
@@ -1770,18 +1785,6 @@ export function TodayScreen({
               </ul>
             </section>
           ) : null}
-        </div>
-
-        <div className="dh-today__col dh-today__col--context">
-          <SchedulePanel
-            week={data.week}
-            todayIso={data.todayIso}
-            meetingsToday={data.meetings}
-            stale={data.scheduleStale}
-            hasSources={data.scheduleHasSources}
-            onOpenEvent={onOpenEvent}
-            eventHref={eventHref}
-          />
 
           <GoalProgressSection
             goals={data.goals}
