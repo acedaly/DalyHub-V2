@@ -23,6 +23,14 @@
 /rss-evidence/
 /*-results.json
 
+# Screenshot evidence from the opt-in capture passes. Every `*-screenshots.spec`
+# writes under `docs/design/assets/<pass>/`, and those dumps are EVIDENCE for a
+# specific audit — cited in the record that used them, looked at by whoever ran
+# the pass, and not checked in. Same reason #158 took the earlier dumps back
+# out, and the same reason the RSS samples above are ignored.
+/docs/design/assets/
+/docs/product/assets/
+
 # Cloudflare / Wrangler local state and generated types
 .mf
 .wrangler
