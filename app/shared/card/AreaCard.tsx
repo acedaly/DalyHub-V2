@@ -96,6 +96,10 @@ export type AreaCardProps = {
    *
    * The wording is the RECORD's own ("No active work"), so the two surfaces
    * speak one vocabulary rather than two.
+   *
+   * It sits ABOVE `facts` rather than replacing them: an Area can be quiet AND
+   * have a history, and the history is the last thing to drop. The `hint` is
+   * the caller's to withhold where it would be false — see `AreasCollection`.
    */
   readonly quiet?: { readonly label: string; readonly hint?: string } | null;
   /** The foot's figures. Two or three; a fourth is a dashboard. */
@@ -214,49 +218,65 @@ export function AreaCard({
        * lines — the property that makes a row of them comparable at a glance,
        * and the same rule `ProjectCard` applies to its measure.
        */}
-      {quiet ? (
-        <div className="dh-areacard__foot mt-auto flex min-w-0 flex-col items-start gap-1.5 border-t border-secondary bg-secondary_subtle px-5 py-3 max-md:px-4">
+      {quiet || facts.length > 0 ? (
+        <div className="dh-areacard__foot mt-auto flex min-w-0 flex-col gap-2.5 border-t border-secondary bg-secondary_subtle px-5 py-3 max-md:px-4">
           {/*
-           * `pointer-events-none` beside the lift: a state is a reading, never
-           * a control, and the card's contract is that every static part of its
-           * face opens the record. Lifting the badge above the stretched link
-           * without giving the pointer back makes it a dead patch.
+           * The state and the FACTS both, when the Area has both.
+           *
+           * The quiet branch used to REPLACE the strip, which lost the one
+           * fact a dormant Area still has: an Area with sixty finished
+           * Projects and nothing currently running read "Ready for its first
+           * Project", which is false about a part of a life that has been
+           * tended for years. An Area's history is exactly what distinguishes
+           * it from a Project, so it is the last thing the card should drop.
            */}
-          <span className="pointer-events-none relative z-10">
-            <UntitledStatusBadge tone="neutral" dot size="sm">
-              {quiet.label}
-            </UntitledStatusBadge>
-          </span>
-          {quiet.hint ? (
-            <span className="dh-areacard__quiet-hint min-w-0 truncate text-sm text-tertiary">
-              {quiet.hint}
-            </span>
+          {quiet ? (
+            <div className="flex min-w-0 flex-col items-start gap-1.5">
+              {/*
+               * `pointer-events-none` beside the lift: a state is a reading,
+               * never a control, and the card's contract is that every static
+               * part of its face opens the record. Lifting the badge above the
+               * stretched link without giving the pointer back makes it a dead
+               * patch.
+               */}
+              <span className="pointer-events-none relative z-10">
+                <UntitledStatusBadge tone="neutral" dot size="sm">
+                  {quiet.label}
+                </UntitledStatusBadge>
+              </span>
+              {quiet.hint ? (
+                <span className="dh-areacard__quiet-hint min-w-0 truncate text-sm text-tertiary">
+                  {quiet.hint}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+          {facts.length > 0 ? (
+            /*
+             * `auto-fit` rather than a fixed column count, so a sparse Area's
+             * two facts fill the width and a busy one's four wrap to two rows
+             * instead of crushing to 60px each. The minimum is the width of
+             * "open tasks", which is the longest noun any of them carries.
+             */
+            <dl className="m-0 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(4.25rem,1fr))] gap-x-3 gap-y-2.5">
+              {facts.map((fact) => (
+                <div key={fact.id} className="flex min-w-0 flex-col">
+                  {/*
+                   * The VALUE before its noun in the DOM, which is the reading
+                   * order a figure wants — and a `<dl>` permits `dd` before
+                   * `dt` only inside a wrapping `div`, which is what this is.
+                   */}
+                  <dd className="dh-areacard__fact-value order-1 m-0 text-lg leading-tight font-semibold text-primary tabular-nums">
+                    {fact.value}
+                  </dd>
+                  <dt className="dh-areacard__fact-label order-2 truncate text-xs text-tertiary">
+                    {fact.label}
+                  </dt>
+                </div>
+              ))}
+            </dl>
           ) : null}
         </div>
-      ) : facts.length > 0 ? (
-        /*
-         * `auto-fit` rather than a fixed column count, so a sparse Area's two
-         * facts fill the width and a busy one's four wrap to two rows instead
-         * of crushing to 60px each. The minimum is the width of "open tasks",
-         * which is the longest noun any of them carries.
-         */
-        <dl className="dh-areacard__foot m-0 mt-auto grid min-w-0 grid-cols-[repeat(auto-fit,minmax(4.25rem,1fr))] gap-x-3 gap-y-2.5 border-t border-secondary bg-secondary_subtle px-5 py-3 max-md:px-4">
-          {facts.map((fact) => (
-            <div key={fact.id} className="flex min-w-0 flex-col">
-              {/*
-               * The VALUE before its noun in the DOM, which is the reading
-               * order a figure wants — and a `<dl>` permits `dd` before `dt`
-               * only inside a wrapping `div`, which is what this is.
-               */}
-              <dd className="dh-areacard__fact-value order-1 m-0 text-lg leading-tight font-semibold text-primary tabular-nums">
-                {fact.value}
-              </dd>
-              <dt className="dh-areacard__fact-label order-2 truncate text-xs text-tertiary">
-                {fact.label}
-              </dt>
-            </div>
-          ))}
-        </dl>
       ) : null}
     </article>
   );

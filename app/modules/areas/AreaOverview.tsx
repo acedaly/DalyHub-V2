@@ -417,6 +417,74 @@ function attentionRank(project: SerializedAreaProjectItem): number {
 }
 
 /**
+ * What the Active work section says about ITSELF — the honest reading of a
+ * capped, possibly-bounded list.
+ *
+ * Three facts decide it, and the order matters:
+ *
+ * 1. **Is the list bounded?** While `projectsNextCursor` is set the record
+ *    holds only this Area's first page, so "the ones asking for you first" is a
+ *    promise the page cannot keep: an at-risk Project past the cursor is
+ *    counted by the momentum band and by `activeProjectTotal`, and is not in
+ *    the array this section sorts. The attention ordering still earns its place
+ *    over what IS loaded — it puts the Project the band is talking about first
+ *    whenever that Project is on the page — but the note says which set it
+ *    ordered, and the door beside it goes to the rest.
+ * 2. **Is anything actively worked at all?** When nothing is, the note carries
+ *    what the Area does hold instead, so the section is never a heading over a
+ *    silence.
+ * 3. **Are there direct Tasks?** A Task filed straight into an Area is work
+ *    with no Project to belong to, and the Area record has no Tasks tab to send
+ *    anyone to — so the count is stated here, where the reader is already
+ *    asking "what is going on?", rather than dropped for want of a destination.
+ */
+export function activeWorkNote({
+  shown,
+  activeProjectTotal,
+  projectTotal,
+  directTasks,
+  bounded,
+}: {
+  readonly shown: number;
+  readonly activeProjectTotal: number;
+  readonly projectTotal: number;
+  readonly directTasks: number;
+  readonly bounded: boolean;
+}): string {
+  const tasks =
+    directTasks > 0
+      ? `${directTasks} Task${directTasks === 1 ? "" : "s"} filed straight into this Area ${directTasks === 1 ? "is" : "are"} still open.`
+      : null;
+
+  if (shown === 0) {
+    const projects =
+      activeProjectTotal > 0
+        ? bounded
+          ? `${activeProjectTotal} Project${activeProjectTotal === 1 ? " is" : "s are"} active here, beyond the first page this record loaded.`
+          : `${activeProjectTotal} active Project${activeProjectTotal === 1 ? "" : "s"} could not be read.`
+        : projectTotal > 0
+          ? "The Projects here are planned, on hold or finished."
+          : null;
+    /*
+     * An empty string, not a sentence, when there is genuinely nothing to add.
+     * An Area with open Goals and no work reaches here, and its Goals section
+     * is directly below; "Nothing is in flight." over that reads as a verdict
+     * on the Goals rather than on the Projects. The section's own inline
+     * absence already states the narrow fact, and `SectionLabel` omits an
+     * empty description rather than drawing a blank line.
+     */
+    return [projects, tasks].filter(Boolean).join(" ");
+  }
+
+  const lead = bounded
+    ? `${shown} of this Area's first loaded Projects, attention first — it has ${activeProjectTotal} active in all.`
+    : activeProjectTotal > shown
+      ? `${shown} of ${activeProjectTotal} active Projects, the ones asking for you first.`
+      : "The Projects being worked in this Area.";
+  return tasks ? `${lead} ${tasks}` : lead;
+}
+
+/**
  * The Area's ACTIVE Projects, attention first.
  *
  * "Active" is the shared `isProjectHealthVisible` rule the loader already
@@ -454,6 +522,9 @@ function AreaOverviewTab({
   projects,
   activeProjectTotal,
   goalTotal,
+  momentum,
+  projectTotal,
+  projectsNextCursor,
   onSelectTab,
   activityTab,
   habitsSlot,
@@ -472,6 +543,28 @@ function AreaOverviewTab({
   readonly activeProjectTotal: number;
   /** The Area's COMPLETE Goal total, from its roll-up. */
   readonly goalTotal: number;
+  /**
+   * The COMPLETE momentum, from the kernel's own unbounded boundary.
+   *
+   * The Overview's "nothing here" decision is taken from THIS rather than from
+   * the bounded page it draws, because the two can disagree and the band above
+   * already states the kernel's answer. An Area whose only work is a Task filed
+   * directly in it has no active Project and no open Goal, so a page-derived
+   * check called it empty while the band beside it read "Momentum visible" —
+   * the same screen saying both things.
+   */
+  readonly momentum: AreaMomentum;
+  /** The Area's COMPLETE Project total, from its roll-up. */
+  readonly projectTotal: number;
+  /**
+   * Non-null when MORE Projects exist than the record loaded.
+   *
+   * The Overview orders what it has by attention, and while this is set that
+   * ordering is over the first bounded page rather than over the workspace —
+   * so the section says so instead of promising a completeness a bounded page
+   * cannot deliver.
+   */
+  readonly projectsNextCursor: string | null;
   readonly onSelectTab?: (tabId: string) => void;
   readonly activityTab: ReactNode;
   /**
@@ -493,13 +586,37 @@ function AreaOverviewTab({
   const openGoals = goals.filter((goal) => goal.completedAt === null);
   const shownGoals = openGoals.slice(0, OVERVIEW_GOAL_LIMIT);
   /*
-   * The empty state is decided by what is genuinely RUNNING, not by the
-   * roll-up's historical totals. An Area whose Goals are all met and whose
-   * Projects are all finished has non-zero totals, so keying off those would
-   * render two headings over two absences — which is the "an absence is never
-   * drawn as a state" rule broken by the surface that cites it.
+   * Whether the record loaded EVERY Project in this Area, or only its first
+   * page. Everything the Active work section claims about ordering is
+   * conditional on this.
    */
-  const empty = shown.length === 0 && openGoals.length === 0;
+  const bounded = projectsNextCursor !== null;
+  /*
+   * The unfinished Tasks filed DIRECTLY in this Area, from the momentum
+   * evaluator's own complete boundary.
+   *
+   * Not from `rollup.tasks`, which spans every Project under the Area as well:
+   * the distinction is the whole reason `getAreaMomentumFacts` reads direct
+   * tasks separately, and conflating them here would reintroduce the figure
+   * UIX-02 removed from the summary band.
+   */
+  const directTasks =
+    momentum.reasons.find((reason) => reason.code === "unfinished_direct_tasks")
+      ?.count ?? 0;
+  /*
+   * The empty state is the KERNEL's, not this page's.
+   *
+   * It used to be `no shown Projects && no open Goals`, derived from the
+   * bounded page — which is a different question from "is anything running
+   * here?", and answered it wrongly in two ways. An Area whose only work is a
+   * Task filed directly in it read "Nothing running" beneath a band saying
+   * "Momentum visible"; an Area with three planned Projects read the same
+   * beneath "Work planned". `evaluateAreaMomentum` answers this over the
+   * COMPLETE set of aligned Projects, direct Tasks and Goals, and the band
+   * above is already showing its verdict, so taking the tab's from anywhere
+   * else is how one screen comes to say two things.
+   */
+  const empty = momentum.state === "empty";
 
   return (
     <div className="flex min-w-0 flex-col gap-8">
@@ -531,20 +648,35 @@ function AreaOverviewTab({
         />
       ) : null}
 
-      {shown.length > 0 ? (
+      {/*
+       * The Active work section is drawn whenever the Area is not empty —
+       * INCLUDING when it has no actively-worked Project to list.
+       *
+       * Rendering it only when `shown` is non-empty made the section vanish on
+       * two records that genuinely have work: an Area whose Projects are all
+       * planned or on hold, and an Area running more Projects than one page
+       * whose first page happens to hold none of the active ones. In both the
+       * band above says work exists, so a missing section was the page
+       * declining to account for it.
+       */}
+      {empty ? null : (
         <AreaSection
           title="Active work"
-          description={
-            /*
-             * The section states its own bound. "5 of 9" is the honest reading
-             * of a capped list, and the door beside it goes to all of them.
-             */
-            activeProjectTotal > shown.length
-              ? `${shown.length} of ${activeProjectTotal} active Projects, the ones asking for you first.`
-              : "The Projects being worked in this Area."
-          }
+          description={activeWorkNote({
+            shown: shown.length,
+            activeProjectTotal,
+            projectTotal,
+            directTasks,
+            bounded,
+          })}
           action={
-            activeProjectTotal > shown.length ? (
+            /*
+             * The door, whenever there is more to see than this section shows
+             * — including when it shows nothing and the Projects are all
+             * planned, which is exactly when an owner most needs pointing at
+             * the tab that has them.
+             */
+            projectTotal > shown.length ? (
               <ButtonLink
                 href={`/areas/${encodeURIComponent(overview.id)}?tab=projects`}
                 variant="subtle"
@@ -568,22 +700,38 @@ function AreaOverviewTab({
                   }
                 }}
               >
-                View all {activeProjectTotal}
+                {projectTotal > shown.length
+                  ? `View all ${projectTotal}`
+                  : "View Projects"}
               </ButtonLink>
             ) : undefined
           }
           data-testid="area-active-work"
         >
-          <ProjectSummaryList
-            projects={shown.map(toProjectSummary)}
-            label="The Projects being actively worked in this Area, with their status, progress and health signal."
-            showSignal
-            showContext
-            contextLabel="Sits under"
-            data-testid="area-overview-projects"
-          />
+          {shown.length > 0 ? (
+            <ProjectSummaryList
+              projects={shown.map(toProjectSummary)}
+              label="The Projects being actively worked in this Area, with their status, progress and health signal."
+              showSignal
+              showContext
+              contextLabel="Sits under"
+              data-testid="area-overview-projects"
+            />
+          ) : (
+            /*
+             * The section's OWN absence, which is a narrower claim than the
+             * page's: no Project is being actively worked. What the Area does
+             * have is in the note above, so this is one line rather than a
+             * second statement of the same nothing.
+             */
+            <EmptyState
+              size="inline"
+              headingLevel={3}
+              title="No Project in this Area is being actively worked."
+            />
+          )}
         </AreaSection>
-      ) : null}
+      )}
 
       {shownGoals.length > 0 ? (
         <AreaSection
@@ -851,6 +999,12 @@ export function AreaOverviewView({
                 projects={projects}
                 activeProjectTotal={activeProjectTotal}
                 goalTotal={rollup.goals.total}
+                // The kernel's complete verdict and the complete Project total,
+                // so the tab's "nothing here" can never disagree with the band
+                // above it or with the tab badge beside it.
+                momentum={momentum}
+                projectTotal={rollup.projects.total}
+                projectsNextCursor={projectsNextCursor}
                 onSelectTab={onTabChange}
                 activityTab={activityTab}
                 habitsSlot={habitsSlot}

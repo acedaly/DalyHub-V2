@@ -147,6 +147,8 @@ function renderRecord(
     activeTabId?: string;
     /** The COMPLETE active-Project count the loader supplies. */
     activeProjectTotal?: number;
+    /** The COMPLETE momentum, from the kernel's own unbounded boundary. */
+    momentum?: AreaMomentum;
   } = {},
 ) {
   const router = createMemoryRouter(
@@ -158,7 +160,7 @@ function renderRecord(
             <AreaOverviewView
               overview={overview}
               rollup={rollup}
-              momentum={momentum}
+              momentum={over.momentum ?? momentum}
               goals={over.goals ?? [goal]}
               goalsNextCursor={over.goalsNextCursor ?? null}
               projects={over.projects ?? [project]}
@@ -302,6 +304,135 @@ describe("AreaOverview", () => {
     expect(
       screen.queryByRole("progressbar", { name: /Career/ }),
     ).not.toBeInTheDocument();
+  });
+
+  /*
+   * UNTITLED-05 (review follow-up) — the Overview's "nothing here" is the
+   * KERNEL's verdict, never the bounded page's.
+   *
+   * `evaluateAreaMomentum` reads every aligned Project, every direct Task and
+   * every Goal; the Overview draws one bounded page of Projects. Deriving the
+   * empty state from the page let the band say "Momentum visible" while the tab
+   * beneath it said "Nothing running" — one screen, two answers.
+   */
+  it("never says nothing is running while the band says work is", () => {
+    renderRecord({
+      projects: [],
+      goals: [],
+      momentum: {
+        state: "steady",
+        label: "Momentum visible",
+        tone: "success",
+        summary: "Active work is present without a derived warning.",
+        reasons: [
+          {
+            code: "unfinished_direct_tasks",
+            count: 2,
+            summary: "2 direct Area Tasks unfinished.",
+          },
+        ],
+        evaluatedAtIso: "2026-07-22T02:00:00.000Z",
+      },
+    });
+    expect(
+      screen.queryByText("Nothing running in this Area yet."),
+    ).not.toBeInTheDocument();
+    const work = screen.getByTestId("area-active-work");
+    // The direct Tasks are STATED. An Area record has no Tasks tab to send
+    // anyone to, so the count is given where the reader is already asking
+    // "what is going on?" rather than dropped for want of a destination.
+    expect(
+      within(work).getByText(/2 Tasks filed straight into this Area/),
+    ).toBeInTheDocument();
+    expect(
+      within(work).getByText(
+        "No Project in this Area is being actively worked.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("still gives a genuinely empty Area one sentence and one door", () => {
+    renderRecord({
+      projects: [],
+      goals: [],
+      momentum: {
+        state: "empty",
+        label: "No active work",
+        tone: "neutral",
+        summary: "This Area has no active goals, projects or tasks yet.",
+        reasons: [
+          {
+            code: "no_active_work",
+            summary: "No active descendants are contributing momentum.",
+          },
+        ],
+        evaluatedAtIso: "2026-07-22T02:00:00.000Z",
+      },
+    });
+    expect(
+      screen.getByText("Nothing running in this Area yet."),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("area-active-work")).not.toBeInTheDocument();
+  });
+
+  /*
+   * UNTITLED-05 (review follow-up) — the attention ordering is over the LOADED
+   * page, and the section says so rather than promising the workspace.
+   *
+   * `projects` is the loader's first bounded page in created order, so for an
+   * Area running more Projects than one page an at-risk Project past the cursor
+   * is counted by the momentum band and by `activeProjectTotal` and is not in
+   * the array this section sorts. Ordering what IS loaded still puts the
+   * Project the band names first whenever it is on the page; claiming it is
+   * "the ones asking for you first" across the Area would not be true.
+   */
+  it("does not claim a workspace-wide ordering it only has a page of", () => {
+    const { unmount } = renderRecord({
+      projects: [project],
+      projectsNextCursor: "p-next",
+      activeProjectTotal: 60,
+    });
+    const work = screen.getByTestId("area-active-work");
+    expect(
+      within(work).queryByText(/the ones asking for you first/),
+    ).not.toBeInTheDocument();
+    expect(within(work).getByText(/first loaded Projects/)).toBeInTheDocument();
+    expect(within(work).getByText(/60 active in all/)).toBeInTheDocument();
+    unmount();
+
+    // Unbounded, the claim is true and is made.
+    renderRecord({ projects: [project], activeProjectTotal: 4 });
+    expect(
+      within(screen.getByTestId("area-active-work")).getByText(
+        /the ones asking for you first/,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  /*
+   * And the section SURVIVES a page holding none of the active Projects. It
+   * used to render only when the page had one, so an Area whose first page is
+   * all planned Projects lost the section entirely while its band said work
+   * existed.
+   */
+  it("keeps the section, and its door, when the loaded page holds no active Project", () => {
+    renderRecord({
+      projects: [{ ...project, status: "planned", healthVisible: false }],
+      activeProjectTotal: 0,
+    });
+    const work = screen.getByTestId("area-active-work");
+    expect(
+      within(work).getByText(
+        "No Project in this Area is being actively worked.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(work).getByText(/planned, on hold or finished/),
+    ).toBeInTheDocument();
+    // `rollup` fixes projects.total = 2, so the door names the complete total.
+    expect(
+      within(work).getByRole("link", { name: "View all 2" }),
+    ).toBeInTheDocument();
   });
 
   it("links a Goal row to the canonical Goal record (AREA-02)", () => {

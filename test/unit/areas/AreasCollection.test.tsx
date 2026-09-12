@@ -160,6 +160,41 @@ describe("Areas collection", () => {
     expect(within(card).queryByText(/On track/)).not.toBeInTheDocument();
   });
 
+  /*
+   * An Area's HISTORY survives its quiet state.
+   *
+   * The quiet branch used to REPLACE the fact strip, so an Area that had
+   * finished sixty Projects and had nothing running read "Ready for its first
+   * Project" — false about a part of a life that has been tended for years,
+   * and the loss of the one fact that most distinguishes an Area from a
+   * Project (a Project's completion ends it; an Area's completions pile up).
+   */
+  it("keeps a quiet Area’s completed history, and drops the invitation it makes false", () => {
+    renderCollection([
+      area({
+        title: "Retired",
+        activeProjectCount: 0,
+        completedProjectCount: 60,
+        rollup: {
+          kind: "area",
+          goals: { total: 0, completed: 0, ratio: null },
+          projects: { total: 60, completed: 60, ratio: 1 },
+          tasks: { total: 0, completed: 0, ratio: null },
+        },
+      }),
+    ]);
+    const card = screen.getByRole("article", { name: "Retired" });
+    // The state, in the record's own word…
+    expect(within(card).getByText("No active work")).toBeInTheDocument();
+    // …the history beside it…
+    expect(within(card).getByText("60")).toBeInTheDocument();
+    expect(within(card).getByText("completed")).toBeInTheDocument();
+    // …and NOT an invitation that is false about this Area.
+    expect(
+      within(card).queryByText("Ready for its first Project"),
+    ).not.toBeInTheDocument();
+  });
+
   it("does not repeat the task count as both summary and metric", () => {
     // An Area holding loose tasks and NO Projects or Goals. The first Gate D
     // capture caught this rendering "1 open task" twice, one line above the

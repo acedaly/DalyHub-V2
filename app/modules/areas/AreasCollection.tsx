@@ -255,7 +255,22 @@ function AreaGalleryCard({
         quiet={
           card.hasActiveWork
             ? null
-            : { label: card.quietLabel, hint: "Ready for its first Project" }
+            : {
+                label: card.quietLabel,
+                /*
+                 * The invitation, only where it is TRUE.
+                 *
+                 * "Ready for its first Project" on an Area that has finished
+                 * sixty of them is a statement about a part of a life that has
+                 * been tended for years, and it is simply false. An Area with a
+                 * history keeps the state chip and its completed count; the
+                 * next-step line is for an Area that genuinely has never had
+                 * one.
+                 */
+                ...(card.completedProjects === 0
+                  ? { hint: "Ready for its first Project" }
+                  : {}),
+              }
         }
         facts={areaCardFacts(card)}
         overflow={
@@ -282,9 +297,10 @@ function AreaGalleryCard({
  * eleven warnings. The strip can therefore be one, two, three or four facts
  * wide, and `auto-fit` lets it fill the card at each of them.
  *
- * It is never EMPTY: an Area with nothing at all in it draws the quiet band
- * instead (see `quiet` above), which is the honest single statement of that
- * state rather than a strip that vanished.
+ * It CAN be empty, and that is the one case the quiet chip above it covers on
+ * its own: an Area with nothing running and no history has nothing to state.
+ * An Area with nothing running but a HISTORY is a different record and keeps
+ * its completed count, beneath the chip rather than instead of it.
  *
  * Completed Projects join as a last fact ONLY when there are some. They are the
  * one figure here about the Area's HISTORY rather than its present — and the
