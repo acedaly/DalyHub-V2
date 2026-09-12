@@ -679,3 +679,112 @@ on primaries, a real `box-shadow` on primaries and secondaries, and Untitled's
 8px radius on all of them. That is what found `premium.css` and the collection
 controls trigger; neither is visible in a diff and both are easy to miss in a
 screenshot.
+
+## Phase 6 — Areas
+
+Phase 4 gave Areas migrated shared PRIMITIVES. Phase 6 is the finding that came
+out of using them: the primitives were Untitled's and the COMPOSITION above them
+was still AREA-01's, and it answered the wrong questions.
+
+### Untitled references selected and verified
+
+The MCP connector authenticated (`has_pro_access: true`) and was used for
+catalogue search and page-template selection. The Untitled CLI still cannot be
+authenticated in this environment for the reason Phase 4 recorded: `npx
+untitledui@latest login` completes an OAuth callback to a localhost port, which
+a headless remote container cannot reach, and the connector hands back the CLI
+command rather than source. Free-tier component source remains retrievable from
+the public component API (`POST https://www.untitledui.com/react/api/components`),
+which reports Pro paths as `pro` rather than serving them. Pro source therefore
+came, as in every phase since Phase 4, from the genuine vendored tree under
+`app/shared/ui/untitled/`, imported from a licensed checkout. No Pro component
+was recreated from memory and no unavailable example or snippet was invented.
+
+Page templates inspected this pass:
+
+- `informational-02/06` — a filterable collection page: three summary metric
+  cards, a filter toolbar, and a data table carrying status badges and usage
+  progress bars. This is the grammar the Areas collection's control band and the
+  Areas table follow.
+- `informational-01/13` — a record page: breadcrumb, page header, tab rail, and
+  split content with an activity column. This is the grammar the Area record's
+  Overview follows, with DalyHub's activity feed as a section rather than a
+  column because an Area record has no second column at 1024.
+- `dashboards-01/02` — the filter-bar-plus-table band Tasks and Projects already
+  carry, reused unchanged.
+
+Components used, all from the vendored tree:
+`application/table` (`TableCard.Root`, `Table`, `Table.Header`, `Table.Body`,
+`Table.Row`, `Table.Cell`), `application/section-headers`' `SectionLabel`,
+`application/tabs` (through the shared `RecordTabs` and `ViewSwitcher`),
+`application/empty-state`, `base/badges` (through `UntitledStatusBadge`),
+`base/buttons`, and the DalyHub overrides `labelled-progress-bar` and
+`table-head`.
+
+### What moved
+
+| Surface | Untitled source | Structural change | Legacy remaining |
+|---|---|---|---|
+| Areas gallery | Untitled card boundary + divided footer band, `base/badges` | `EntityCard` replaced by `AreaCard`: permanence where a Project card puts its measure, and a fact strip where it puts its meta line | `dh-areacard*` class names as hooks, all unstyled |
+| Areas dense view | `application/table` (`TableCard.Root` + React Aria `Table`) | `EntityRowList` deleted; the nouns became column headings and the row grammar became React Aria's | — |
+| Areas control band | `dashboards-01/02` filter bar | A band whose only occupant was a two-option toggle now states the collection's shape | — |
+| Area Overview | `application/section-headers`, `application/table`, Untitled card boundary | Three figures restating the tab badges replaced by the records themselves, attention first | — |
+| Area Projects tab | `application/table` via the shared `ProjectSummaryList` | A second Project design inside Areas replaced by the `/projects?present=table` column vocabulary | — |
+| Goal Projects tab | The same shared list | A third Project design replaced by the same one | — |
+| Area Settings | Untitled tokens and utilities | The delete-blocked list drawn from `areas.css` rules replaced by bounded rows | The shared `~/shared/settings` chrome — see the deferred note below |
+| Area record ErrorBoundary, Activity tab | — | `areas.css` layout classes replaced by utilities | — |
+
+### Deliberate decisions worth recording
+
+**The Areas collection states no health, and that is a decision.** DalyHub has
+an authoritative Area evaluator (`evaluateAreaMomentum`), but it needs
+per-Project health facts for every Project aligned to the Area — a read a
+bounded collection page does not do and must not start doing per row. A second,
+weaker momentum computed from the counts alone would let the same Area read
+"steady" in the gallery and "Needs attention" on its own record, which is
+exactly the third-measure drift STEER-03 spent a phase removing from Goals. The
+one state either presentation draws is the genuine ABSENCE, in the record's own
+words ("No active work"), derived from the same three counts the record's own
+empty check uses — so it agrees with the record's `empty` momentum in every
+case.
+
+**Grid leads, and the table follows.** UIX-02 put Areas on rows for two stated
+reasons: an Area card was a Project card with renamed fields, and the cards were
+mostly empty. The first stopped being true when Projects got `ProjectCard`; the
+second stopped being true when Areas got `AreaCard`, which is built around what
+an Area actually has. `?present=list` is no longer one of this collection's
+presentations and falls to the default, which is what `allowed` is for.
+
+**The Area record measures Projects and never the Area.** A Project inside an
+Area genuinely completes, so the Overview's Project bars are legitimate. What
+must never exist is a bar named for the Area: its task roll-up spans every
+Project under it, so the figure moves when unrelated work finishes and a mature
+Area sits near 100% for ever, reading as "nearly done" about a part of a life.
+
+**Areas has no search, and that is also a decision.** `listAreas` has one
+ordering and no text filter; `searchAreas` returns a different, thinner
+projection without roll-ups or identity. Narrowing the loaded page in the
+browser would be a lie about a paginated collection, and giving the collection a
+server-side text filter is a repository change rather than a presentation one.
+A person has a handful of Areas; the collection fits on one screen.
+
+**The creation flow was audited and kept.** The New Area drawer is two fields —
+a title and the identity picker — on Untitled-backed form controls, opened from
+the collection and preserving its context. It already satisfies "stay where you
+are, change the thing in context, continue working", and Untitled's own
+`new-project-modal` and `create-event-menu` patterns are heavier than the task
+warrants.
+
+### Deferred
+
+Record Settings tabs draw `~/shared/settings`' own bordered groups inside a
+`surface="panel"` record panel — a frame inside a frame, on Areas and on
+Projects alike. It is a property of the shared settings chrome rather than of
+either module, and `tone="danger"` on a reversible Archive group is the same
+shared decision: both belong to the Settings phase, which the migration guide
+already sequences, and fixing one module alone would diverge it from the
+benchmark.
+
+`SerializedGoalProjectItem` carries no identity or health, so a Project drawn
+inside a GOAL record has a neutral mark and no signal column. Extending that
+projection is Goals' migration, not this one.

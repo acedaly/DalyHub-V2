@@ -263,6 +263,46 @@ Summary cards show a small number of meaningful facts. Do not duplicate the same
 fact in a header, card and row unless each placement supports a distinct
 decision.
 
+## The Area card, and what an Area is drawn AS
+
+An Area is the one spine record that never completes, so it is never drawn with
+a measure. Three rules hold wherever an Area appears:
+
+- **Permanence takes the slot a Project card gives its measure.** "Ongoing since
+  Mar 2024" is `created_at` and nothing derived. A Project card says how far
+  through it is; an Area card says how long it has been tended, and that is what
+  makes the two readable apart with the labels hidden.
+- **The relationships are a fact STRIP, not a sentence.** A figure with its noun
+  beneath it, one per dimension the Area actually has, in a divided footer band.
+  A dimension the Area does not have is ABSENT, never a zero.
+- **A collection states no Area health.** The authoritative evaluator
+  (`evaluateAreaMomentum`) needs per-Project health for every Project in the
+  Area, which a bounded page must not read per row. The one state either
+  presentation draws is the genuine absence, in the RECORD's own words ("No
+  active work"), derived from the same counts the record's own empty check uses.
+
+`AreaCard`/`AreaCardGrid` live in the shared card family beside `ProjectCard`,
+because an Area is rendered by more than the Areas module.
+
+## A Project inside another record
+
+A Project should be recognisable as the same object whether it is reached from
+`/projects`, from an Area or from a Goal. `~/shared/project-list`'s
+`ProjectSummaryList` is the one way a record draws the Projects inside it: the
+vendored Untitled `application/table` composition, with the column vocabulary
+`/projects?present=table` uses — identity mark, name, status badge, measure,
+health signal, and what it sits under.
+
+What differs between hosts is only which columns the host has facts for, which
+each caller declares. A column the host cannot fill is not drawn at all, rather
+than drawn empty: a screen reader must never announce a run of blank cells under
+a heading that never has a value.
+
+On a phone the table recomposes to a row carrying the name and one quiet line of
+the facts the hidden columns held — drawn from the SAME DOM, so exactly one copy
+is visible at any width. A handset loses no fact and a desktop gains no
+duplicate.
+
 ## Stay in touch signal people 03
 
 People surfaces use care language and relationship history. Follow-up signals

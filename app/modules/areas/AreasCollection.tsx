@@ -448,33 +448,49 @@ function AreasCollection({
          * leading edge states the collection's SHAPE instead of standing empty
          * — which is what the band looked like before this pass: a full-width
          * strip whose only occupant was the toggle at its far end.
+         *
+         * The band is ABSENT entirely on a collection with nothing in it. A
+         * presentation toggle for zero records is a control that cannot change
+         * anything, and the empty state below already carries the one action
+         * that can.
          */
-        <div
-          /*
-           * `min-w-0` is load-bearing: a flex item's automatic minimum size is
-           * its min-content, which overrides `w-full`, so without it this band
-           * grows to fit its contents and puts the document into horizontal
-           * scroll at 320px.
-           */
-          className="flex w-full min-w-0 flex-wrap items-center gap-3 max-md:flex-col max-md:items-stretch"
-          data-untitled-source="dashboards-01/02:filter-bar"
-        >
-          <p
-            className="m-0 min-w-0 flex-1 truncate text-sm text-tertiary"
-            data-testid="areas-shape"
+        failed || count === 0 ? undefined : (
+          <div
+            /*
+             * `min-w-0` is load-bearing: a flex item's automatic minimum size is
+             * its min-content, which overrides `w-full`, so without it this band
+             * grows to fit its contents and puts the document into horizontal
+             * scroll at 320px.
+             */
+            className="flex w-full min-w-0 flex-wrap items-center gap-3 max-md:flex-col max-md:items-stretch"
+            data-untitled-source="dashboards-01/02:filter-bar"
           >
-            {shape ??
-              "Areas are the standing parts of your life. They hold Goals, Projects and Tasks, and they never finish."}
-          </p>
-          <div className="flex shrink-0 items-center gap-3 max-md:justify-end">
-            <ViewSwitcher
-              param="present"
-              options={PRESENTATION_OPTIONS}
-              value={presentation}
-              label="Area layout"
-            />
+            {/*
+             * `shape` is null only while ANOTHER PAGE exists, where the loaded
+             * rows are not the workspace and a count of them would be a claim
+             * this page cannot make. The heading's own "N Areas loaded" already
+             * says so; the band simply carries the toggle alone there.
+             */}
+            {shape ? (
+              <p
+                className="m-0 min-w-0 flex-1 truncate text-sm text-tertiary"
+                data-testid="areas-shape"
+              >
+                {shape}
+              </p>
+            ) : (
+              <span className="min-w-0 flex-1" />
+            )}
+            <div className="flex shrink-0 items-center gap-3 max-md:justify-end">
+              <ViewSwitcher
+                param="present"
+                options={PRESENTATION_OPTIONS}
+                value={presentation}
+                label="Area layout"
+              />
+            </div>
           </div>
-        </div>
+        )
       }
       error={
         failed ? (

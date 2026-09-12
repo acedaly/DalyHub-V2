@@ -30,18 +30,24 @@ test.describe("AREA-01 — Areas", () => {
      * the collection already means.
      */
     const dhCard = page.getByRole("article", { name: "DalyHub V2" });
-    await expect(dhCard.getByText(/\d+ Projects?/)).toBeVisible();
     /*
-     * The open-task figure and its NOUN.
+     * UNTITLED-05 — the relationships are a FACT STRIP, not a run-on line.
      *
-     * They are separate elements in the gallery card (the metric's value is set
-     * larger than its label) and one string in the row, so the assertion is that
-     * both parts are present rather than that they are one node. That is the fact
-     * that matters — the count is never a bare number — and it is the only form of
-     * it true of both presentations.
+     * They used to be joined into one string ("14 Projects · 2 Goals") in a
+     * flexible cell where nothing lined up; each is now a figure with its noun
+     * beneath it, so a gallery is comparable straight down each column. The
+     * product rule is unchanged and is what these assert: every count carries
+     * its noun, and a count is never a bare number.
      */
-    await expect(dhCard.getByText(/open tasks?/)).toBeVisible();
-    await expect(dhCard).toContainText(/\d+\s*open tasks?/);
+    await expect(dhCard.getByText("Projects", { exact: true })).toBeVisible();
+    await expect(dhCard.getByText(/^open tasks?$/)).toBeVisible();
+    await expect(dhCard).toContainText(/\d+/);
+    /*
+     * And the PERMANENCE line — the one fact a Project card can never carry and
+     * an Area always can. A Project says how far through it is; an Area says how
+     * long it has been tended.
+     */
+    await expect(dhCard.getByText(/^Ongoing since /)).toBeVisible();
     // The chip that said nothing about any particular Area is gone.
     await expect(page.getByText("Permanent")).toHaveCount(0);
 
@@ -77,14 +83,30 @@ test.describe("AREA-01 — Areas", () => {
     ).toBeVisible();
 
     /*
-     * UIX-02 — the record OPENS on its Overview, so reaching a section is a
-     * deliberate step. The overview states what is in the Area as counts of
-     * living things; the sections hold the records themselves.
+     * UNTITLED-05 — the record OPENS on an Overview that shows the RECORDS.
+     *
+     * It used to show three large figures, every one of which the tab strip
+     * above already carried as a badge, so the summary band could say "1 active
+     * project is at risk" and the tab beneath it would not say WHICH. The first
+     * row of the landing tab is now the Project the band is talking about.
      */
-    const overviewMetrics = page.getByTestId("area-overview-metrics");
-    await expect(overviewMetrics).toBeVisible();
-    // Counts, never a proportion: an Area does not complete.
-    await expect(page.getByRole("progressbar")).toHaveCount(0);
+    const activeWork = page.getByTestId("area-active-work");
+    await expect(activeWork).toBeVisible();
+    await expect(
+      activeWork.getByRole("link", { name: /^Open / }).first(),
+    ).toBeVisible();
+    // The tiles that restated the tab badges are gone.
+    await expect(page.getByTestId("area-overview-metrics")).toHaveCount(0);
+    /*
+     * The Area itself is still never measured. A PROJECT inside it genuinely
+     * completes, so the Overview's Project bars are legitimate; what must never
+     * exist is a bar named for the Area.
+     */
+    for (const meter of await page.getByRole("progressbar").all()) {
+      expect(await meter.getAttribute("aria-label")).not.toContain(
+        "DalyHub V2",
+      );
+    }
 
     await page.getByRole("tab", { name: /Goals/ }).click();
     await expect(page).toHaveURL(/\/areas\/a-dh\?tab=goals/);
@@ -104,15 +126,33 @@ test.describe("AREA-01 — Areas", () => {
 
     await page.getByRole("tab", { name: /Projects/ }).click();
     await expect(page).toHaveURL(/\/areas\/a-dh\?tab=projects/);
+    /*
+     * UNTITLED-05 — the tab draws the SHARED `ProjectSummaryList`, the genuine
+     * Untitled `application/table` composition whose column vocabulary is
+     * `/projects?present=table`'s. So a Project is a ROW rather than a bespoke
+     * card, and each one still states what it sits under.
+     */
+    const projectsTable = page.getByTestId("area-projects-table");
+    await expect(projectsTable).toBeVisible();
+    /*
+     * `visible: true` because the row draws the fact TWICE from one DOM — once
+     * in its own column, and once in the quiet line the phone layout shows in
+     * place of the hidden columns. Exactly one of the two is visible at any
+     * width, which is the point: a handset loses no fact and a desktop gains no
+     * duplicate.
+     */
     await expect(
-      page
-        .getByRole("article", { name: "Website relaunch" })
-        .getByText("Directly in this Area"),
+      projectsTable
+        .getByRole("row")
+        .filter({ hasText: "Website relaunch" })
+        .getByText("Directly in this Area")
+        .filter({ visible: true }),
     ).toBeVisible();
     await expect(
-      page
-        .getByRole("article", { name: "Launch checklist" })
-        .getByText("Goal: Launch the site"),
+      projectsTable
+        .getByRole("row")
+        .filter({ hasText: "Launch checklist" })
+        .getByRole("link", { name: "Goal: Launch the site" }),
     ).toBeVisible();
 
     const projectLink = page.getByRole("link", {
@@ -156,6 +196,8 @@ test.describe("AREA-01 — Areas", () => {
       page.getByText("Nothing running in this Area yet."),
     ).toBeVisible();
     await expect(page.getByTestId("area-overview-metrics")).toHaveCount(0);
+    // …and one real door out of it, so the absence is never a dead end.
+    await expect(page.getByTestId("area-active-work")).toHaveCount(0);
 
     await page.getByRole("tab", { name: /Goals/ }).click();
     await expect(page.getByText("No Goals in this Area")).toBeVisible();
@@ -222,24 +264,45 @@ test.describe("AREA-01 — Areas", () => {
     expect(new Set(identities).size).toBeGreaterThan(1);
 
     // The seeded `a-dh` Area holds Projects, Goals and Tasks; the counts come
-    // from workspace-wide aggregates, so they are integers, never blanks.
-    await expect(fallback.getByText(/\d+ Projects?/)).toBeVisible();
-    /*
-     * The open-task figure and its NOUN.
-     *
-     * They are separate elements in the gallery card (the metric's value is set
-     * larger than its label) and one string in the row, so the assertion is that
-     * both parts are present rather than that they are one node. That is the fact
-     * that matters — the count is never a bare number — and it is the only form of
-     * it true of both presentations.
-     */
-    await expect(fallback.getByText(/open tasks?/)).toBeVisible();
-    await expect(fallback).toContainText(/\d+\s*open tasks?/);
+    // from workspace-wide aggregates, so they are integers, never blanks. Each
+    // is a figure with its noun beneath it — UNTITLED-05's fact strip — so the
+    // assertion is that both halves are drawn, never a bare number.
+    await expect(fallback.getByText("Projects", { exact: true })).toBeVisible();
+    await expect(fallback.getByText(/^open tasks?$/)).toBeVisible();
+    await expect(fallback).toContainText(/\d+/);
 
-    // Areas never complete, so no Area row carries a completion bar — the
+    // Areas never complete, so no Area card carries a completion bar — the
     // source of the audit's ragged-alignment finding, and the fabricated
     // figure UIX-02 also removed from the Area RECORD.
     await expect(page.getByRole("progressbar")).toHaveCount(0);
+  });
+
+  /**
+   * UNTITLED-05 — the dense reading is a REAL table.
+   *
+   * `EntityRowList` stated the ambition exactly — "the counts are what the eye
+   * is actually comparing down the column" — and then drew them as prose in a
+   * single flexible cell. The nouns are column headings now, stated once at the
+   * top, and the row semantics are React Aria's.
+   */
+  test("collection: the table presentation is a genuine table, and still measures nothing", async ({
+    page,
+  }) => {
+    await gotoFixture(page, "/areas?present=table");
+    const table = page.getByRole("grid", { name: /^Areas,/ });
+    await expect(table).toBeVisible();
+    for (const column of ["Area", "Projects", "Goals", "Open tasks"]) {
+      await expect(
+        table.getByRole("columnheader", { name: column }),
+      ).toBeVisible();
+    }
+    await expect(
+      table.getByRole("link", { name: "Open DalyHub V2" }),
+    ).toHaveAttribute("href", "/areas/a-dh");
+    // An Area never completes, in EITHER presentation.
+    await expect(page.getByRole("progressbar")).toHaveCount(0);
+    await expectNoAxeViolations(page);
+    await expectNoHorizontalOverflow(page);
   });
 
   test("collection: axe is clean in the dark appearance too", async ({
@@ -273,12 +336,20 @@ test.describe("AREA-01 — Areas", () => {
     await gotoFixture(page, "/design/collection-states?state=areas-icons");
     const empty = page.getByRole("article", { name: "Finances" });
     /*
-     * UIX-02 — ONE line, and it is the ACTIONABLE absence. The row used to say
-     * "No active work" in its relationship slot and "Ready for its first
-     * Project" beneath it: two statements of the same nothing.
+     * UNTITLED-05 — the state in the RECORD's own word, and the next step.
+     *
+     * "No active work" is `evaluateAreaMomentum`'s label for its `empty`
+     * branch, and this card's state is derived from exactly the three counts
+     * that imply it — so the collection and the record say one thing about one
+     * state rather than inventing a second vocabulary for it.
+     *
+     * The actionable line stays beside it. UIX-02 dropped it to ONE line
+     * because both then sat in the SAME slot and read as two statements of the
+     * same nothing; here the state is a chip and the line beneath it is the
+     * invitation, which is what stops an empty Area being a dead end.
      */
+    await expect(empty.getByText("No active work")).toBeVisible();
     await expect(empty.getByText("Ready for its first Project")).toBeVisible();
-    await expect(empty.getByText("No active work")).toHaveCount(0);
     // The three absence messages the audit found are gone.
     await expect(empty.getByText(/No goals yet/)).toHaveCount(0);
     await expect(empty.getByText(/No Projects yet/)).toHaveCount(0);
@@ -288,17 +359,9 @@ test.describe("AREA-01 — Areas", () => {
     const loose = page.getByRole("article", { name: "Home" });
     await expect(loose.getByText("No active work")).toHaveCount(0);
     await expect(loose.getByText("Ready for its first Project")).toHaveCount(0);
-    /*
-     * The open-task figure and its NOUN.
-     *
-     * They are separate elements in the gallery card (the metric's value is set
-     * larger than its label) and one string in the row, so the assertion is that
-     * both parts are present rather than that they are one node. That is the fact
-     * that matters — the count is never a bare number — and it is the only form of
-     * it true of both presentations.
-     */
-    await expect(loose.getByText(/open tasks?/)).toBeVisible();
-    await expect(loose).toContainText(/\d+\s*open tasks?/);
+    // Its open-task figure and its NOUN, which is the whole truth about it.
+    await expect(loose.getByText(/^open tasks?$/)).toBeVisible();
+    await expect(loose).toContainText(/\d+/);
   });
 
   test("collection: meets touch targets and stays overflow-free at 320px", async ({
