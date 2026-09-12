@@ -2,7 +2,7 @@
  * UIX-05 — the PERSON row.
  *
  * The fourth member of the record-surface family, beside `.dh-pcard` (a Project),
- * `.dh-mrow` (a measured record) and `.dh-erow` (an Area). It exists for the same reason
+ * `.dh-mrow` (a measured record) and `.dh-areacard` (an Area). It exists for the same reason
  * those do: People had been rendering through the generic `Card`, so the surface
  * whose subject is a relationship answered the question a Project card asks.
  *
@@ -257,7 +257,7 @@ function ReachLink({
  * The single surface the rows sit in.
  *
  * A labelled `<ul>`/`<li>`, so a screen reader announces "People, list, 24
- * items" before any of them is read — the same contract `EntityRowList` and
+ * items" before any of them is read — the same contract `AreaCardGrid` and
  * `EntityCardGrid` have. The hairlines are drawn by the LIST rather than by each
  * row, so the first and last edges are the surface's own and no row has to know
  * where it sits.

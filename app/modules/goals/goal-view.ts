@@ -28,6 +28,7 @@ import type {
 } from "~/kernel/goals";
 import { UNMEASURED_GOAL } from "~/kernel/goals";
 import { normaliseProgress, type CardTone } from "~/shared/card";
+import type { PillTone } from "~/shared/pill";
 import type { GoalAlignment, GoalMovement } from "~/shared/alignment";
 import type { GoalProgressEvaluation, GoalStory } from "~/shared/goal-progress";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
@@ -307,11 +308,19 @@ export function goalStateLabel(goal: { readonly completedAt: string | null }): {
  * across the spine's Project presentation (mirrors `~/modules/projects`'
  * `projectStateLabel` and `~/modules/areas`' equivalent — kept as its own small,
  * duplicated pure function per the established cross-module-import rule). */
+/**
+ * A contributing Project's lifecycle word, as the Goal record states it.
+ *
+ * UNTITLED-05 — the tone is a `PillTone` rather than the wider `CardTone`, the
+ * same narrowing `ProjectCardStatus` and the Areas module record: all three
+ * branches below have always returned a value inside `BadgeTone`, and every
+ * surface that draws this now draws it as an Untitled badge.
+ */
 export function goalProjectStateLabel(project: {
   readonly completedAt: string | null;
   readonly archivedAt: string | null;
   readonly status: ProjectWorkflowStatus;
-}): { readonly label: string; readonly tone: CardTone } {
+}): { readonly label: string; readonly tone: PillTone } {
   if (project.archivedAt !== null) {
     return { label: "Archived", tone: "neutral" };
   }

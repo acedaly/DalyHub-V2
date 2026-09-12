@@ -57,7 +57,6 @@ function renderTab(
               goalId="g1"
               projects={props.projects}
               nextCursor={props.nextCursor}
-              onOpenProject={vi.fn()}
             />
           </DrawerProvider>
         ),
@@ -104,8 +103,14 @@ describe("Goal Projects tab pagination (DEBT-22)", () => {
 
     await screen.findByText("Bravo project");
 
-    const list = screen.getByRole("list", { name: "Goal Projects" });
-    expect(within(list).getAllByText("Alpha project")).toHaveLength(1);
+    /*
+     * UNTITLED-05 — the tab draws the SHARED `ProjectSummaryList`, which is the
+     * genuine Untitled `application/table` composition, so the accumulated page
+     * is a React Aria `grid` rather than a `list`. The contract this asserts is
+     * unchanged: a Project sitting exactly on a page boundary appears ONCE.
+     */
+    const table = screen.getByRole("grid", { name: /Projects advancing/ });
+    expect(within(table).getAllByText("Alpha project")).toHaveLength(1);
     // The URL never changed — loading more did not navigate away from the record.
     expect(router.state.location.pathname).toBe("/goals/g1");
     expect(
@@ -198,7 +203,6 @@ describe("Goal Projects tab pagination (DEBT-22)", () => {
             goalId={active.id}
             projects={active.firstPage}
             nextCursor={active.cursor}
-            onOpenProject={vi.fn()}
           />
         </DrawerProvider>
       );

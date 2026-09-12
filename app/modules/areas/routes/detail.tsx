@@ -560,9 +560,13 @@ function AreaDetail(props: Awaited<ReturnType<typeof loader>>) {
         />
       }
       onRename={onRename}
-      onOpenProject={(projectId) =>
-        navigate(`/projects/${encodeURIComponent(projectId)}`)
-      }
+      /*
+       * UNTITLED-05 — `onOpenProject` is GONE, for the reason `onOpenGoal` went
+       * before it: the shared `ProjectSummaryList` opens through a react-router
+       * `<Link>`, which is the same client-side navigation with a real href
+       * behind it. The callback was a second way to say the same thing, and one
+       * of them was not middle-clickable.
+       */
       activeTabId={activeTabId}
       onTabChange={onTabChange}
       linkedTab={
@@ -603,7 +607,7 @@ function AreaDetail(props: Awaited<ReturnType<typeof loader>>) {
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   if (isRouteErrorResponse(error) && error.status === 404) {
     return (
-      <div className="dh-area-not-found">
+      <div className="min-w-0">
         <EmptyState
           icon={<EntityIcon type="area" />}
           title="We couldn’t find that Area"

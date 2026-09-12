@@ -137,6 +137,25 @@ export type AreaProjectItem = {
   readonly parent: AreaProjectParentContext;
   readonly taskTotal: number;
   readonly taskCompleted: number;
+  /**
+   * UNTITLED-05 — the PROJECT's own identity, so an Area record draws its
+   * Projects with the same mark `/projects` draws them with.
+   *
+   * A Project that appears in three places should be recognisable in all three;
+   * before this it was a bare monochrome glyph inside an Area and a coloured
+   * mark in its own collection. The owner's chosen icon and colour come from
+   * the `project_details` row `listAreaProjects` already joins, so they cost no
+   * extra read and cannot become an N+1; `colourRank` is ADR-068 decision 5's
+   * lifecycle-independent rank, from the same window function the Projects
+   * collection uses.
+   *
+   * The Project's OWN rank, never its Area's (#130): inheriting the Area's
+   * would paint every Project in an Area the same colour, which is the one
+   * thing an identity ramp exists to prevent.
+   */
+  readonly iconKey: EntityIconKey | null;
+  readonly colourSlot: IdentityColourSlot | null;
+  readonly colourRank: number;
 };
 
 /**

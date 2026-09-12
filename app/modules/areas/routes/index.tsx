@@ -34,13 +34,17 @@ export async function loader({ request, context }: Route.LoaderArgs) {
    * The presentation is read on the SERVER, so the first byte is already drawn
    * the way the URL asks for. Resolving it in the browser would flash the
    * default and then swap, which is the one thing a shareable view state must
-   * not do. Areas offers a gallery and a list; `?present=table` is not one of
-   * its presentations and falls to the quieter list rather than rendering
-   * nothing. The first allowed presentation is the module's default.
+   * not do.
+   *
+   * UNTITLED-05 — Areas offers a GALLERY and a TABLE, and the gallery is the
+   * default. `?present=list` was the retired row list's value; it is not one of
+   * this collection's presentations any more and falls to the default rather
+   * than rendering nothing, which is exactly what `allowed` is for. The first
+   * allowed presentation is the module's default.
    */
   const presentation = parseCollectionPresentation(params.get("present"), [
-    "list",
     "grid",
+    "table",
   ]);
 
   try {

@@ -11,7 +11,7 @@
  *     │         ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁ │
  *     └────────────────────────────────────────────────────────────┘
  *
- * Three rules make it different from `EntityRow` (which is what an Area is, and
+ * Three rules make it different from `AreaCard` (which is what an Area is, and
  * deliberately carries NO bar because an Area never completes) and from
  * `ProjectCard` (a gallery object with room for a foot):
  *
@@ -182,7 +182,7 @@ export function ProgressRow({
 /**
  * The single surface the measured rows sit in — a labelled `<ul>`/`<li>`, so a
  * screen reader announces "Goals, list, 6 items" before any row is read. The
- * hairlines belong to the list, exactly as in `EntityRowList`, so no row has to
+ * hairlines belong to the list, exactly as in Untitled's own table body, so no row has to
  * know where it sits.
  */
 export function ProgressRowList({
