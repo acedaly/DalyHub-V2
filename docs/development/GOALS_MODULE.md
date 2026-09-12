@@ -1902,7 +1902,7 @@ argument ADR-038 §38.7 made about Area momentum.
   stop with arrow-key stepping; the readout, the dash-pattern references and the
   conditional projection are DalyHub's composition on top and transferred to
   `ChartFrame` / `MeasurementTrend` without loss. The dependency's weight was
-  measured rather than assumed: MIT, code-split, about 380 KB raw on the routes
+  measured rather than assumed: MIT, code-split, about 400 KB raw on the routes
   that draw a plot. The Goal trend is `MeasurementTrend` now.
 - **A progress RING** (`base/progress-circles`). It would be a second, rounder
   way of saying what the bar already says.

@@ -836,7 +836,7 @@ the bar), `informational-01/13` (the record page shape) and `dashboards-01/06`
   its facts exist, would cost bundle weight and accessibility for house style.~~
   **REVERSED by UNTITLED-11 and [ADR-126](../decisions/ARCHITECTURE_DECISIONS.md#adr-126-a-chart-is-an-untitled-recharts-plot-on-one-shared-foundation--the-phase-7-rejection-reversed-on-measurement-and-the-behaviour-untitled-had-no-equivalent-for-kept).** Both halves of that reasoning
   failed measurement. The weight is real but bounded and lazy — the chart chunk
-  is about 380 KB raw, code-split onto the routes that draw a plot — and the
+  is about 400 KB raw, code-split onto the routes that draw a plot — and the
   accessibility argument was against Recharts' DEFAULT rather than against the
   library: `accessibilityLayer` gives the same single tab stop with arrow-key
   stepping, and the readout, the dash-pattern references and the conditional
@@ -924,7 +924,7 @@ templates for the action-led arrangement Today needed.
 | The one bounded card | `application/table` (`TableCard.Root` + its header anatomy) | Header, standing band, table body, divided footer | The rail that used to sit beside it is deleted, not restyled |
 | Standing band | Untitled's in-card band rule and its divider roles | Three figures: due today, kept this week, at risk | ADR-104 — every figure states its denominator, and the denominator is `sr-only` at phone width rather than absent |
 | Habit table | `application/table`'s cell / head / row classes, inside `@container/habits` | Name, cadence, today, this week, streak, next due, row menu | A semantic `<table>`, NOT React Aria's grid: a keyboard grid puts a mode switch between the owner and the page's primary act, which is the check-in. Same precedent as the Goal reading history |
-| Check-in control | `base/checkbox` geometry via the shared habit dot | One tap per day, from the collection, with no detail page in the way | D7 — a CIRCLE, because a check-in is completing rather than selecting. The dot's states are the only paint `habits.css` still carries |
+| Check-in control | Not Untitled's — the product's own shared completion control | One tap per day, from the collection, with no detail page in the way | D7 — completion is the 20px rounded square and selection the 18px square, and a check-in is the SAME act the Task row's control performs. Adopting Untitled's checkbox here would give one product two completion controls |
 | Week strip | Untitled's surface and border roles | Seven day cells, with an `aria-hidden` letter head | A `<ul>` on one `grid grid-cols-7`, stated once so the head and the body cannot drift |
 | Row menu | `base/dropdown` via the shared `Menu` | Edit, archive, delete | Product items, tones and focus restoration |
 | Record header | `application/section-headers` via the `section-heading` override | The habit's name, cadence and acts | The override adds `level` — upstream's `SectionLabel.Root` hard-codes `h3`, which fails axe under a record's `h1` |
@@ -933,8 +933,9 @@ templates for the action-led arrangement Today needed.
 | Creation and editing | `base/input`, `base/select`, `base/checkbox`, `base/button-group` | The whole New/Edit form | `ToggleGroupField` — see the rejection below |
 | Empty states | `application/empty-state` | No habits, nothing due, an archived lens with no rows | `size="inline"` at record level |
 
-`habits.css` went from 1,093 lines to 456: the dot's states and the forced-
-colours block are what survived. Everything else was paint Untitled now owns.
+`habits.css` went from 1,093 lines to 553: the dot's states, the four-week
+grid and the forced-colours block are what survived. Everything else was paint
+Untitled now owns.
 
 ### Charts
 
@@ -999,7 +1000,7 @@ at phone width and one `grid-cols-[minmax(0,2fr)_minmax(0,1fr)]` from `lg`.
 
 | Package | Version | Licence | Why | Weight | SSR | Cloudflare |
 | --- | --- | --- | --- | --- | --- | --- |
-| `recharts` | 3.10.1 | MIT | Untitled UI React's charts are Recharts compositions; adopting the implementation means adopting the library | Code-split to `build/client/assets/charts-*.js`, about 380 KB raw, on the routes that draw a plot only | `ChartFrame` mounts client-only and reserves its block size, so the server renders the frame and the readout and the plot arrives without layout shift | `wrangler deploy --dry-run` succeeds; total upload 13,318 KiB / 3,230 KiB gzipped |
+| `recharts` | 3.10.1 | MIT | Untitled UI React's charts are Recharts compositions; adopting the implementation means adopting the library | Code-split to `build/client/assets/charts-*.js`, about 400 KB raw, on the routes that draw a plot only | `ChartFrame` mounts client-only and reserves its block size, so the server renders the frame and the readout and the plot arrives without layout shift | `wrangler deploy --dry-run` succeeds; total upload 13,400 KiB / 3,250 KiB gzipped |
 
 Transitive licences (MIT, with ISC and one BSD-3-Clause beneath
 `victory-vendor`) are enumerated in

@@ -2103,13 +2103,20 @@ function GoalProgressSection({
               {measured.length > 0
                 ? /*
                    * V2.7 RECALL-04 — the same figure the stat card prints, from
-                   * the same predicate, and now saying the same thing about its
-                   * set: "shown here" when the panel is a sample of a larger
-                   * workspace. `/goals`, one tap away through the heading's own
-                   * link, answers the workspace question.
+                   * the same predicate, and saying the same thing about its set.
+                   *
+                   * UNTITLED-11 — the qualifier used to be "shown here", and it
+                   * stopped being true the moment this panel started DRAWING
+                   * only two of the set it COUNTS: the line read "4 of 4 shown
+                   * here on track" above two Goals. The figure was always
+                   * honest; the phrase described the wrong bound. "Most
+                   * pressing" is what the loader's ranking actually means, and
+                   * the foot door below says how many are not drawn. `/goals`,
+                   * one tap away through the heading's own link, answers the
+                   * workspace question.
                    */
                   `${onTrack} of ${measured.length}${
-                    goalsBounded ? " shown here" : ""
+                    goalsBounded ? " most pressing" : ""
                   } on track`
                 : null}
               {measured.length > 0 && movedNote ? " · " : null}

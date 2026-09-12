@@ -269,7 +269,7 @@ function HabitTableRow({
       <td className={`${CELL} pr-0`}>
         {checkable ? (
           /*
-           * The completion circle — the Task row's control, for the same act.
+           * The shared completion control — the Task row's, for the same act.
            * See the note at the top of this file on why this is not Untitled's
            * checkbox.
            */
@@ -304,7 +304,16 @@ function HabitTableRow({
            * is carried in the Today column, in words.
            */
           <span
-            className="block size-5 rounded-full ring-1 ring-secondary"
+            /*
+             * The SAME geometry as the control it stands in for — 20px on the
+             * completion radius. It was a circle, and a circle is a shape this
+             * product's control vocabulary does not use (D7: selection is the
+             * 18px square, completion the 20px rounded square), so the rows that
+             * could NOT be acted on were the only ones wearing a distinct
+             * control shape. Caught by looking at the collection rather than by
+             * a test.
+             */
+            className="block size-5 rounded-[6px] ring-1 ring-secondary"
             aria-hidden="true"
           />
         )}

@@ -7638,7 +7638,7 @@ deleted design programme files are not authority; git history is the archive.
      about cost.** It was never measured. Measured: the Recharts tree is MIT
      (with ISC and one BSD-3-Clause package beneath `victory-vendor`), it
      code-splits cleanly onto the routes that draw a plot, and the Worker's own
-     upload gzips to 3,230 KiB with it — the chart chunk is about 380 KB raw,
+     upload gzips to 3,250 KiB with it — the chart chunk is about 400 KB raw,
      isolated in `assets/charts-*.js`, and reaches nobody who does not open a
      surface with a chart on it. A cost that is real but bounded and lazy is a
      different fact from an unmeasured cost assumed to be prohibitive.

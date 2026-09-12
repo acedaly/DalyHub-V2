@@ -692,7 +692,7 @@ DEFAULT, not against the library: `accessibilityLayer` supplies the same single
 tab stop with arrow-key stepping, and the readout, the dash-pattern references
 and the conditional projection are DalyHub's composition on top — they sit in
 `ChartFrame` and `MeasurementTrend` now and are stated ONCE rather than per
-chart. The weight was then measured: MIT, code-split, about 380 KB raw in
+chart. The weight was then measured: MIT, code-split, about 400 KB raw in
 `assets/charts-*.js`, reaching nobody who does not open a surface with a chart.
 What the original decision never priced was the duplication it preserved —
 every hand-drawn plot re-deriving its own scales, ticks and domain, and
@@ -764,8 +764,8 @@ This records what MOVED and what is left behind.
 
 ### Stylesheets cut
 
-- `habits.css` — 1,093 → 456 lines. The dot's states and the forced-colours
-  block survived; the rest was paint Untitled now owns.
+- `habits.css` — 1,093 → 553 lines. The dot's states, the four-week grid and
+  the forced-colours block survived; the rest was paint Untitled now owns.
 - `ui.css` — the whole `.dh-icon-button*` block deleted, and the
   `:is(.dh-control, .dh-input)` paint block with it. Only the select chevron's
   inset and the coarse-pointer `min-block-size` remain.

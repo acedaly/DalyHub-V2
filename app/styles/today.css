@@ -76,8 +76,15 @@
     @apply shrink-0;
   }
 
-  .dh-today__grid > .dh-today__now,
-  .dh-today__grid > .dh-today__next {
+  /*
+   * DESCENDANT, not a child combinator. The two act panels used to be direct
+   * children of the grid; they sit inside the action column and, when both
+   * exist, inside the pair that puts them side by side — so `>` silently
+   * stopped matching and the day's two most important panels lost their tint.
+   * Caught by looking at the screenshot, not by a test.
+   */
+  .dh-today__grid .dh-today__now,
+  .dh-today__grid .dh-today__next {
     @apply rounded-xl bg-brand-primary ring-1 ring-brand;
   }
   .dh-today__now .dh-today__panel-head,
@@ -93,8 +100,20 @@
   .dh-today__next-time {
     @apply shrink-0 text-sm font-semibold tabular-nums text-brand-secondary;
   }
+  /*
+   * A COLUMN. The title and the context are two inline children, so on one line
+   * they ran together — "Mortgage broker — rate reviewPhone". The context is
+   * where the meeting is, which is supporting detail, so it belongs under the
+   * title rather than beside it.
+   */
   .dh-today__next-copy {
-    @apply min-w-0 truncate text-sm text-primary;
+    @apply flex min-w-0 flex-col;
+  }
+  .dh-today__next-copy strong {
+    @apply truncate text-sm font-semibold text-primary;
+  }
+  .dh-today__next-copy > span {
+    @apply truncate text-xs text-tertiary;
   }
   .dh-today__next-arrow {
     @apply ml-auto text-tertiary;
@@ -255,8 +274,18 @@
   }
 
   @media (min-width: 64rem) {
+    /*
+     * The context column has a FLOOR, not just a share.
+     *
+     * At a plain 2fr/1fr it was ~250px at 1024, and the schedule's one agenda
+     * row — a time, a NEXT badge and a meeting title — had about 60px left for
+     * the title. "Mortgage broker — rate review" came out broken letter by
+     * letter down seven lines. `break-words` is the right rule and was doing
+     * what it is for; the column was simply too narrow to put a word in.
+     * 17rem is the width the agenda row needs to wrap at spaces.
+     */
     .dh-today__grid {
-      @apply grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)] items-start gap-5;
+      @apply grid grid-cols-[minmax(0,2fr)_minmax(17rem,1fr)] items-start gap-5;
     }
     /*
      * The wrappers become real columns here, which is the whole point: each

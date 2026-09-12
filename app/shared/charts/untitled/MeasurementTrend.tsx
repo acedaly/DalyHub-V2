@@ -144,17 +144,44 @@ function niceDomain(
   steps: number,
 ): { domain: [number, number]; ticks: number[] } {
   const span = max - min;
-  const padded = span === 0 ? Math.max(1, Math.abs(max) * 0.1) * 2 : span * 1.2;
-  const rough = padded / Math.max(1, steps);
+  // A tenth of the range above and below, so a flat-ish series does not sit on
+  // the floor of the box and read as if it hit a limit.
+  const pad = span === 0 ? Math.max(1, Math.abs(max) * 0.1) : span * 0.1;
+  /*
+   * A series that never goes below zero gets an axis that never goes below
+   * zero. A "run 100 km" Goal drew a −50 km tick, which is not a distance —
+   * the padding had pushed the floor under a bound the MEASURE itself has.
+   * Caught by looking at the chart, not by a test.
+   */
+  const floorAtZero = min >= 0;
+  const lowRaw = floorAtZero ? Math.max(0, min - pad) : min - pad;
+  const highRaw = max + pad;
+
+  /*
+   * The step comes from the DATA's span rather than the padded one: padding is
+   * head-room, and letting it choose the step rounded a 0–100 axis up to a
+   * 50-unit tick (0, 50, 100, 150) where 25 reads far better.
+   */
+  const rough = (span || Math.abs(max) || 1) / Math.max(1, steps);
   const magnitude = Math.pow(10, Math.floor(Math.log10(rough || 1)));
   const normalised = rough / magnitude;
+  // 2.5 is on the ladder because quarters of a round number read as naturally
+  // as halves do, and without it a 0–100 range has no better option than 50.
   const step =
-    (normalised <= 1 ? 1 : normalised <= 2 ? 2 : normalised <= 5 ? 5 : 10) *
-    magnitude;
+    (normalised <= 1
+      ? 1
+      : normalised <= 2
+        ? 2
+        : normalised <= 2.5
+          ? 2.5
+          : normalised <= 5
+            ? 5
+            : 10) * magnitude;
 
-  const centre = (min + max) / 2;
-  const low = Math.floor((centre - padded / 2) / step) * step;
-  const high = Math.ceil((centre + padded / 2) / step) * step;
+  const low = floorAtZero
+    ? Math.max(0, Math.floor(lowRaw / step) * step)
+    : Math.floor(lowRaw / step) * step;
+  const high = Math.ceil(highRaw / step) * step;
 
   const ticks: number[] = [];
   // Guard the loop as well as trusting the arithmetic: a pathological step
@@ -169,6 +196,42 @@ function niceDomain(
   }
 
   return { domain: [low, high], ticks };
+}
+
+/**
+ * A date tick that keeps itself inside the plot.
+ *
+ * Recharts centres every tick on its value, so the first and last ones — which
+ * sit ON the plot's edges — hang half their width outside it and are clipped by
+ * the chart's margin. At 320 that lost most of the last date. Anchoring the end
+ * ticks to the inside is the fix; a wider margin would only move the problem to
+ * the next-longest label.
+ */
+function DateTick(props: {
+  readonly x?: number;
+  readonly y?: number;
+  readonly index?: number;
+  readonly visibleTicksCount?: number;
+  readonly payload?: { readonly value: number };
+  readonly tickFormatter?: (value: number) => string;
+}) {
+  const { x = 0, y = 0, index = 0, visibleTicksCount = 0, payload } = props;
+  if (!payload) return null;
+  const anchor =
+    index === 0 ? "start" : index === visibleTicksCount - 1 ? "end" : "middle";
+  return (
+    <text
+      x={x}
+      y={y}
+      dy={12}
+      textAnchor={anchor}
+      fill={CHART_TICK.fill}
+      fontSize={CHART_TICK.fontSize}
+      fontWeight={CHART_TICK.fontWeight}
+    >
+      {props.tickFormatter ? props.tickFormatter(payload.value) : payload.value}
+    </text>
+  );
 }
 
 export interface MeasurementTrendPoint {
@@ -456,7 +519,7 @@ export function MeasurementTrend({
               }
               axisLine={false}
               tickLine={false}
-              tick={CHART_TICK}
+              tick={<DateTick />}
               tickMargin={8}
             />
 
@@ -488,23 +551,18 @@ export function MeasurementTrend({
                 strokeDasharray={CHART_DASH.reference}
                 ifOverflow="extendDomain"
                 /*
-                 * Named ON the rule, INSIDE the plot — not hanging off its right
-                 * edge, which is where the previous chart put it and where it
-                 * collided with the panel boundary at every width. The offset
-                 * clears the dashes: at `dy: -6` the rule ran through the cap
-                 * height of the text.
+                 * NOT named on the rule. It was — `insideTopLeft`, to keep it
+                 * off the plot's right edge where it used to collide with the
+                 * panel boundary — and inside the plot it collided with the
+                 * SERIES instead: on a Goal whose readings sit near its target
+                 * the words ran straight through the line and its points.
+                 *
+                 * There is nowhere inside a plot that is reliably empty. The
+                 * legend below already names this rule and shows its dash
+                 * pattern, which is the same fact in a place that cannot be
+                 * drawn over, so the label on the rule was redundant as well as
+                 * in the way.
                  */
-                label={{
-                  value: target.tag,
-                  position: "insideTopLeft",
-                  fill: CHART_AXIS_COLOR,
-                  fontSize: 12,
-                  fontWeight: 500,
-                  // `offset` moves the label away from the RULE in the
-                  // direction its position names; `dy` moves the glyphs and left
-                  // the dashes running through the cap height.
-                  offset: 8,
-                }}
               />
             )}
 

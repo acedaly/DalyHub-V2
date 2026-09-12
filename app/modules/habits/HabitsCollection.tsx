@@ -360,12 +360,21 @@ function HabitsBand({
     },
     {
       id: "consistency",
-      label: "Recent consistency",
+      /*
+       * "Recent consistency" wrapped to two lines at 320 and ran to the card's
+       * edge — the only one of the three labels that did. The word "recent" was
+       * carrying the WINDOW, which belongs with the denominator underneath
+       * rather than in a label that has to fit a third of a phone.
+       */
+      label: "Consistency",
       value:
         overview.consistencyPercent === null
           ? "—"
           : `${overview.consistencyPercent}%`,
-      supporting: consistency ?? "Nothing expected in the last four weeks",
+      supporting:
+        consistency === null
+          ? "Nothing expected in the last four weeks"
+          : `${consistency} in the last four weeks`,
     },
   ];
 
@@ -390,10 +399,16 @@ function HabitsBand({
           className="flex min-w-0 flex-col gap-0.5 px-3 py-3 sm:px-4"
           data-testid={`habits-stat-${figure.id}`}
         >
-          <dt className="text-xs font-semibold text-quaternary">
+          {/*
+           * The label is allowed to wrap; the FIGURE is not. "31 of 42" broke
+           * across two lines at 320 and left the three columns at three
+           * different heights — a band that reads as three fragments rather
+           * than one row of facts. Seen at 320 in the capture pass.
+           */}
+          <dt className="text-[0.6875rem] font-semibold text-quaternary sm:text-xs">
             {figure.label}
           </dt>
-          <dd className="m-0 text-lg font-semibold text-primary tabular-nums sm:text-xl">
+          <dd className="m-0 whitespace-nowrap text-base font-semibold text-primary tabular-nums sm:text-xl">
             {figure.value}
           </dd>
           <dd className="m-0 text-xs text-tertiary max-sm:sr-only">

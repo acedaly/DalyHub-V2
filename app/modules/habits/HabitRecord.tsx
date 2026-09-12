@@ -379,7 +379,12 @@ function HabitSummaryTab({
             </>
           )}
         </div>
-        <dl className="m-0 grid grid-cols-2 divide-x divide-secondary border-t border-secondary sm:grid-cols-3">
+        {/*
+         * `divide-y` as well as `divide-x`, because at phone width the third
+         * figure WRAPS onto a second row rather than being dropped — see the
+         * note on "Kept since" below.
+         */}
+        <dl className="m-0 grid grid-cols-2 divide-x divide-y divide-secondary border-t border-secondary sm:grid-cols-3 sm:divide-y-0">
           <RecordFigure
             label="This week"
             value={
@@ -411,9 +416,15 @@ function HabitSummaryTab({
            * "How often 3x a week" is the stat duplication UNTITLED-07 removed
            * from the Goal record. How long the behaviour has been kept is a fact
            * nothing else on the page carries.
+           *
+           * Which is exactly why it is no longer `max-sm:hidden`. That dropped
+           * it from the phone ENTIRELY — out of the accessibility tree as well
+           * as off the screen — and this comment's own argument is that nothing
+           * else says it. It spans the row instead: two figures above, this one
+           * beneath them, and the fact survives the width.
            */}
           <RecordFigure
-            className="max-sm:hidden"
+            className="max-sm:col-span-2"
             label="Kept since"
             value={formatCalendarDate(habit.createdAt.slice(0, 10)) ?? "—"}
             supporting={
@@ -426,9 +437,10 @@ function HabitSummaryTab({
       </section>
 
       {/*
-       * Twelve weeks, only when there are at least two with an expectation in
-       * them. One period is a figure the band already prints, and a chart of it
-       * would be a bar on its own claiming to be a trend.
+       * Up to twelve weeks — as many as the Habit has actually existed for —
+       * and only when there are at least two with an expectation in them. One
+       * period is a figure the band already prints, and a chart of it would be
+       * a bar on its own claiming to be a trend.
        */}
       {adherence.length < 2 ? null : (
         <section
@@ -439,7 +451,14 @@ function HabitSummaryTab({
             id="habit-consistency"
             level={2}
             title="Consistency"
-            description="Twelve weeks. Each bar is what the week asked for; the solid part is what happened."
+            /*
+             * It said "Twelve weeks." flatly, and a Habit started six weeks ago
+             * drew six bars under that sentence with its own caption saying
+             * "across 6 weeks" — the heading and the chart disagreeing about
+             * the same data. Twelve is the BOUND, not a promise; the caption
+             * under the plot states the window the reading actually covers.
+             */
+            description="Each bar is what the week asked for; the solid part is what happened."
           />
           <PeriodicAdherence
             data-testid="habit-adherence-chart"

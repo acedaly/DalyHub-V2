@@ -1388,11 +1388,11 @@ describe("V2.7 RECALL-04: a bounded Goal figure names its set (DEBT-234)", () =>
     renderScreen(day({ goals: [measuredGoal()], goalsBounded: true }));
     const panel = screen.getByTestId("today-goal-progress");
     expect(within(panel).getByText(/on track/)).toHaveTextContent(
-      "1 of 1 shown here on track",
+      "1 of 1 most pressing on track",
     );
     expect(
       within(screen.getByTestId("today-summary")).getByText(
-        "of the 1 measurable goal shown here",
+        "of the 1 measurable goal Today read",
       ),
     ).toBeInTheDocument();
   });
