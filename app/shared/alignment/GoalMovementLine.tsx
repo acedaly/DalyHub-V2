@@ -71,7 +71,9 @@ export function GoalMovementLine({
 
   return (
     <div
-      className={["dh-goal-movement", className].filter(Boolean).join(" ")}
+      className={["dh-goal-movement flex min-w-0 flex-col gap-1", className]
+        .filter(Boolean)
+        .join(" ")}
       data-size={size}
       data-goal-movement={movement.key}
       /*
@@ -84,13 +86,42 @@ export function GoalMovementLine({
       data-goal-movement-projects={movement.movedProjectCount}
       data-testid={testId}
     >
-      {label ? <p className="dh-goal-movement__label">{label}</p> : null}
-      <p className="dh-goal-movement__headline">{statement.headline}</p>
+      {label ? (
+        <p className="dh-goal-movement__label m-0 text-sm text-tertiary">
+          {label}
+        </p>
+      ) : null}
+      {/*
+       * The Goal's NAME keeps priority over this line everywhere it appears, so
+       * it WRAPS rather than competing for the row: a long sentence takes a
+       * second line under the title instead of truncating.
+       */}
+      <p
+        className={[
+          "dh-goal-movement__headline m-0 [overflow-wrap:anywhere]",
+          size === "record" ? "text-md" : "text-sm",
+          /*
+           * Movement that HAPPENED reads as a statement of fact, so it takes
+           * the page's ordinary text colour and a medium weight; an absence
+           * stays quiet. Weight and colour BOTH follow the same key, and
+           * neither is the only carrier of the meaning — the words are.
+           */
+          movement.key === "moved"
+            ? "font-medium text-primary"
+            : "text-tertiary",
+        ].join(" ")}
+      >
+        {statement.headline}
+      </p>
       {statement.detail ? (
-        <p className="dh-goal-movement__detail">{statement.detail}</p>
+        <p className="dh-goal-movement__detail m-0 [overflow-wrap:anywhere] text-sm text-tertiary">
+          {statement.detail}
+        </p>
       ) : null}
       {windowLabel ? (
-        <p className="dh-goal-movement__window">{windowLabel}</p>
+        <p className="dh-goal-movement__window m-0 text-sm text-tertiary tabular-nums">
+          {windowLabel}
+        </p>
       ) : null}
     </div>
   );

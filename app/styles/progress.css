@@ -1,149 +1,26 @@
 /*
- * M3-01 — the shared LINEAR PROGRESS indicator.
+ * The shared progress indicators.
  *
- * M3's own metrics: a 4px fully-rounded track in `secondary-container` with a
- * `primary` fill. The pair is held at 3:1 in BOTH appearances by the contrast
- * tests, so a progress bar is legible in either without being special-cased.
+ * ── The LINEAR bar MIGRATED to Untitled UI (UNTITLED-07) ────────────────────
  *
- * The CIRCULAR form is `~/shared/charts/ProgressRing`, which the Today
- * dashboard's rings are built from — same tokens, same 4px stroke.
+ * `.dh-progress`, `.dh-progress__header/__label/__summary/__track/__fill` and
+ * the `data-meter-status` ramp that painted them are all drawn by the
+ * components now: `~/shared/progress/ProgressTrack.tsx` (Untitled's
+ * `ProgressBarBase` geometry and token roles, through the
+ * `labelled-progress-bar` override) and `~/shared/progress/ProgressMeter.tsx`
+ * (the header above it). Reduced motion and forced colours moved with them, as
+ * Tailwind variants on the component, so no unlayered stylesheet can repaint an
+ * Untitled control.
+ *
+ * The class names survive in the markup as hooks and carry no rules.
+ *
+ * The CIRCULAR form below is `~/shared/charts/ProgressRing` and is NOT a
+ * migration: Untitled's `base/progress-circles` is a determinate loading ring
+ * with a centred percentage, and DalyHub's is a data ring whose geometry
+ * (radius, dash offset, centred well) the component computes. It keeps its
+ * paint here, and the tokens it uses are the same ones the linear bar's
+ * Untitled roles resolve against.
  */
-
-.dh-progress {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-2);
-  min-inline-size: 0;
-}
-
-.dh-progress__header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--app-space-1) var(--app-space-2);
-  margin: 0;
-  min-inline-size: 0;
-}
-
-.dh-progress__label {
-  color: var(--dh-color-text);
-  font-size: var(--dh-text-compact-title-size);
-  line-height: var(--dh-text-compact-title-line-height);
-  font-weight: var(--dh-text-label-weight);
-  letter-spacing: var(--dh-text-label-tracking);
-}
-
-/* The authoritative statement of progress. Secondary, never faint: it carries the
- * meaning for anyone who cannot see the bar. */
-.dh-progress__summary {
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-  letter-spacing: var(--dh-text-meta-tracking);
-  overflow-wrap: anywhere;
-}
-
-.dh-progress__track {
-  position: relative;
-  inline-size: 100%;
-  /* The product's ONE progress thickness, from the token — never a literal, so
-     a bar on Today and a bar on a Project card cannot drift apart. A meter
-     rather than a bar: the number beside it is the authority and the track
-     illustrates it. */
-  block-size: var(--app-progress-bar-height);
-  border-radius: var(--dh-radius-pill);
-  /* POLISH-01 — the ONE meter track. It was `secondary-container`, a lavender
-     in this scheme, so an empty bar read as a full one in a different colour. */
-  background: var(--dh-color-meter-track);
-  overflow: hidden;
-}
-
-.dh-progress__fill {
-  block-size: 100%;
-  border-radius: var(--dh-radius-pill);
-  background: var(--dh-color-meter-neutral);
-  transition: inline-size var(--dh-motion-base) var(--dh-ease-standard);
-}
-
-/*
- * POLISH-01 — THE METER SAYS HOW IT IS GOING, NOT WHAT IT IS.
- *
- * IDENTITY-01 pointed this fill at `--dh-identity`, so a Goal's bar was painted
- * in the Goal's chosen colour. Four Goal tiles side by side did read as four
- * records — and a Goal at "60% — Ahead" whose colour slot happened to be red
- * drew a red bar, a finished Project drew an orange one, and a healthy Goal
- * drew the same amber the product spends on "needs attention". At a glance the
- * bar was answering the wrong question, in the one position on the card where
- * the eye is asking about progress.
- *
- * The identity ramp keeps the tile, the dot, the mark, the pills and the
- * Analytics legends — every place a colour means "which record is this". The
- * bar takes the status the surface already derived (`~/shared/progress/meter-status`),
- * and `neutral` is what an unmeasured or purely-volumetric bar gets, because a
- * meter with nothing to judge should not guess.
- *
- * These rules are shared by every meter in the product: the four bespoke fills
- * (`__mrow`) opt in by carrying the same
- * `data-meter-status` attribute on their track, so there is one mapping from
- * status to colour rather than five.
- */
-.dh-progress__fill,
-.dh-mrow__fill,
-.dh-scard__progress-fill {
-  background: var(--dh-color-meter-neutral);
-}
-
-[data-meter-status="success"]
-  :is(.dh-progress__fill, .dh-mrow__fill, .dh-scard__progress-fill) {
-  background: var(--dh-color-meter-success);
-}
-
-[data-meter-status="info"]
-  :is(.dh-progress__fill, .dh-mrow__fill, .dh-scard__progress-fill) {
-  background: var(--dh-color-meter-info);
-}
-
-[data-meter-status="warning"]
-  :is(.dh-progress__fill, .dh-mrow__fill, .dh-scard__progress-fill) {
-  background: var(--dh-color-meter-warning);
-}
-
-[data-meter-status="danger"]
-  :is(.dh-progress__fill, .dh-mrow__fill, .dh-scard__progress-fill) {
-  background: var(--dh-color-meter-danger);
-}
-
-/* Every meter's TRACK, in one place. */
-.dh-progress__track,
-.dh-mrow__track,
-.dh-scard__progress-track {
-  background: var(--dh-color-meter-track);
-}
-
-/* Complete is signalled by colour AND by the summary text ("8 of 8 complete"),
- * never by the bar reaching the end alone. It outranks the status deliberately:
- * a finished measure is the one thing a Goal's bar is allowed to announce on
- * its own. */
-.dh-progress__track[data-complete="true"] .dh-progress__fill {
-  background: var(--dh-color-success);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .dh-progress__fill {
-    transition-duration: var(--dh-motion-none);
-  }
-}
-
-/* Forced colours: the track/fill pair is replaced by system colours, and the
- * border keeps the track visible when backgrounds are dropped. */
-@media (forced-colors: active) {
-  .dh-progress__track {
-    border: var(--app-border-width-thin) solid CanvasText;
-  }
-  .dh-progress__fill {
-    background: Highlight;
-  }
-}
 
 /* -------------------------------------------------------------------------- */
 /* Circular progress (`~/shared/charts/ProgressRing`)                          */

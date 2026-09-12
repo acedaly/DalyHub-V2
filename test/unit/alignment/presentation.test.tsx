@@ -55,7 +55,19 @@ function evidence(
 describe("AlignmentIndicator", () => {
   it("renders a toned pill with a text label (never colour-only)", () => {
     render(<AlignmentIndicator alignment={alignment()} showReason />);
-    const pill = screen.getByText("No recent action");
+    /*
+     * UNTITLED-07 — the tone rides on the wrapper `UntitledStatusBadge` emits.
+     *
+     * The indicator draws the genuine `base/badges` source now rather than a
+     * Goals-only pill, and upstream's `Badge` spreads no arbitrary props — so
+     * DalyHub's stable machine fact (`data-dh-badge` + `data-tone`) lives on the
+     * `display: contents` wrapper around it, exactly as it does on every other
+     * migrated surface. The fact asserted is the same one; where it hangs is
+     * the shared badge's contract rather than this component's.
+     */
+    const pill = screen
+      .getByText("No recent action")
+      .closest("[data-dh-badge]");
     expect(pill).toHaveAttribute("data-tone", "info");
     expect(
       screen.getByText(
@@ -80,9 +92,9 @@ describe("AlignmentIndicator", () => {
         alignment={alignment({ tone: "success", label: "Recently active" })}
       />,
     );
-    const pill = screen.getByText("Recently active");
-    expect(pill.getAttribute("data-tone")).not.toBe("warning");
-    expect(pill.getAttribute("data-tone")).not.toBe("danger");
+    const pill = screen.getByText("Recently active").closest("[data-dh-badge]");
+    expect(pill?.getAttribute("data-tone")).not.toBe("warning");
+    expect(pill?.getAttribute("data-tone")).not.toBe("danger");
   });
 });
 

@@ -20,9 +20,9 @@
  *     accessible name, so assistive tech reads the value, not the pixels;
  *   - the same value is ALWAYS present as visible text, so the meaning never
  *     depends on seeing the bar (AGENTS.md §15);
- *   - the fill uses `--app-color-progress-fill` against `--app-color-progress-track`,
- *     a pair the contrast test holds at 3:1 in every theme, and switches to
- *     `--app-color-progress-complete` at 100% so "done" is not signalled by length
+ *   - the fill is Untitled's `bg-fg-*` foreground role against its
+ *     `bg-quaternary` track (UNTITLED-07, through {@link ProgressTrack}), and
+ *     switches to the success role at 100% so "done" is not signalled by length
  *     alone.
  */
 
@@ -64,9 +64,22 @@ export function ProgressMeter({
   const complete = available && value >= 100;
 
   return (
-    <div className="dh-progress" data-available={available ? "true" : "false"}>
-      <p className="dh-progress__header">
-        <span className="dh-progress__label">{label}</span>
+    /*
+     * UNTITLED-07 — the header's paint is the component's, not `progress.css`'s.
+     *
+     * The classes survive as hooks; every rule attached to them is gone, which
+     * is the migration's standing rule about a class name outliving its
+     * presentation. The typography is the same pair `RecordSummaryBar` already
+     * draws its own meter header with, so the two agree by construction.
+     */
+    <div
+      className="dh-progress flex min-w-0 flex-col gap-2"
+      data-available={available ? "true" : "false"}
+    >
+      <p className="dh-progress__header m-0 flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
+        <span className="dh-progress__label text-sm font-medium text-primary">
+          {label}
+        </span>
         {/*
          * DS-14 §8 — when there is nothing to measure, the summary IS the
          * absence state, so it is a designed rendering rather than a sentence
@@ -81,7 +94,9 @@ export function ProgressMeter({
          * lifecycle status.
          */}
         {available ? (
-          <span className="dh-progress__summary">{summary}</span>
+          <span className="dh-progress__summary [overflow-wrap:anywhere] text-sm text-tertiary">
+            {summary}
+          </span>
         ) : (
           <AbsenceText>{summary}</AbsenceText>
         )}
