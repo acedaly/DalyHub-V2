@@ -167,7 +167,12 @@ interface GoalOverviewProps {
   /** PX-04: reversible removal (soft-delete + Undo), from the header overflow. */
   readonly onDelete?: () => Promise<void>;
   readonly deletePending?: boolean;
-  readonly onOpenProject: (projectId: string) => void;
+  /*
+   * UNTITLED-05 — `onOpenProject` is GONE. The shared `ProjectSummaryList` the
+   * Projects tab now draws opens through a react-router `<Link>`, which is the
+   * same client-side navigation with a real href behind it: the callback was a
+   * second way to say one thing, and one of them was not middle-clickable.
+   */
   readonly onOpenTask: (taskId: string) => void;
   readonly activityTab: ReactNode;
   /** The shared Universal Relationship System Linked Items section. */
@@ -220,7 +225,6 @@ export function GoalOverview({
   onMoveToArea,
   onDelete,
   deletePending = false,
-  onOpenProject,
   onOpenTask,
   activityTab,
   linkedTab,
@@ -659,7 +663,6 @@ export function GoalOverview({
                 goalId={overview.id}
                 projects={projects}
                 nextCursor={projectsNextCursor}
-                onOpenProject={onOpenProject}
               />
             ),
           },

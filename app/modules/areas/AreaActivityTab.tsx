@@ -55,7 +55,7 @@ export function AreaActivityTab({ areaId, reloadKey }: AreaActivityTabProps) {
   );
 
   return (
-    <div className="dh-area-activity">
+    <div className="min-w-0">
       <h2 className="dh-visually-hidden">Activity</h2>
       <Timeline
         loadPage={loadPage}

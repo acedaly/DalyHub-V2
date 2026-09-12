@@ -9,6 +9,7 @@
  */
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { RouterProvider, createMemoryRouter } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 
 import type { AreaDependencySummary } from "~/kernel/areas";
@@ -62,16 +63,32 @@ function renderTab(
   const onArchive = props.onArchive ?? vi.fn(() => Promise.resolve());
   const onRestore = props.onRestore ?? vi.fn(() => Promise.resolve());
   const onDelete = props.onDelete ?? vi.fn(() => Promise.resolve());
+  /*
+   * UNTITLED-05 — a router, because the delete-blocked list's entries are now
+   * router `Link`s rather than bare anchors. A blocker that points at this same
+   * record's Goals tab should not reload the document to get there.
+   */
+  const router = createMemoryRouter(
+    [
+      {
+        path: "/areas/a1",
+        element: (
+          <AreaSettingsTab
+            overview={ACTIVE_OVERVIEW}
+            dependencies={summary()}
+            onArchive={onArchive}
+            onRestore={onRestore}
+            onDelete={onDelete}
+            {...props}
+          />
+        ),
+      },
+    ],
+    { initialEntries: ["/areas/a1"] },
+  );
   render(
     <FeedbackProvider>
-      <AreaSettingsTab
-        overview={ACTIVE_OVERVIEW}
-        dependencies={summary()}
-        onArchive={onArchive}
-        onRestore={onRestore}
-        onDelete={onDelete}
-        {...props}
-      />
+      <RouterProvider router={router} />
     </FeedbackProvider>,
   );
   return { onArchive, onRestore, onDelete };

@@ -171,7 +171,6 @@ function renderGoal(
     onSetCondition: (value: GoalCondition | null) => Promise<InlineSaveOutcome>;
     /** STEER-02 — re-file the Goal into another Area (DEBT-184). */
     onMoveToArea: (areaId: string) => Promise<InlineSaveOutcome>;
-    onOpenProject: (id: string) => void;
     onOpenTask: (id: string) => void;
   }> = {},
 ) {
@@ -194,7 +193,6 @@ function renderGoal(
       onSetDefinitionOfDone={over.onSetDefinitionOfDone ?? accept}
       onSetCondition={over.onSetCondition}
       onMoveToArea={over.onMoveToArea}
-      onOpenProject={over.onOpenProject ?? (() => {})}
       onOpenTask={over.onOpenTask ?? (() => {})}
       linkedTab={<div>linked-content</div>}
       activityTab={<div>activity-content</div>}
@@ -398,22 +396,26 @@ describe("GoalOverview", () => {
   });
 
   it("shows Projects, opens the canonical Project record and reports its task roll-up", () => {
-    const onOpenProject = vi.fn();
-    renderGoal({ projects: [project()], onOpenProject });
+    renderGoal({ projects: [project()] });
     fireEvent.click(screen.getByRole("tab", { name: /Projects/ }));
     /*
-     * UIX-03 — the roll-up is stated ONCE, as the bar's label.
+     * UIX-03 — the roll-up is stated ONCE, as the bar's own value.
      *
      * The row used to carry "Tasks: 1 of 4 tasks" as metadata AND "Task
      * roll-up: 1 of 4 tasks" beneath it as the bar's label: one fact, twice, on
      * a row whose whole job is to be a compact pointer at a Project.
      */
-    expect(screen.getByText("1 of 4 tasks")).toBeInTheDocument();
+    expect(screen.getAllByText("1 of 4 tasks").length).toBeGreaterThan(0);
     expect(screen.queryByText(/Task roll-up/)).toBeNull();
-    fireEvent.click(
+    /*
+     * UNTITLED-05 — the Project opens through a real `<Link>` in the SHARED
+     * summary table, not through an `onOpenProject` callback. Same client-side
+     * navigation, with an href behind it — so it is deep-linkable and
+     * middle-clickable, which the callback was not.
+     */
+    expect(
       screen.getByRole("link", { name: "Open 12-week training plan" }),
-    );
-    expect(onOpenProject).toHaveBeenCalledWith("p1");
+    ).toHaveAttribute("href", "/projects/p1");
   });
 
   it("uses the exact contribution total for the Projects tab badge, independent of a smaller supplied first page", () => {

@@ -120,7 +120,30 @@ export {
  * shared `ProgressRow` below and whose pane is the Goal's own Overview. Nothing
  * the card guaranteed was dropped — see the note in `GoalsCollection.tsx`.
  */
-export { EntityRow, EntityRowList, type EntityRowProps } from "./EntityRowList";
+/*
+ * UNTITLED-05 — `EntityRow`/`EntityRowList` were removed with the Area row list
+ * they existed for. Areas was their only consumer, and its dense reading is now
+ * the genuine Untitled `application/table` composition (`AreasTable`) while its
+ * gallery is `AreaCard` below. Nothing the row guaranteed was dropped — an Area
+ * still draws no progress bar, still leads with its identity mark, and still
+ * states its relationships as counts of living things.
+ */
+/**
+ * UNTITLED-05 — the AREA card: a standing domain of responsibility.
+ *
+ * The third member of the gallery family, and the reason there is one: an Area
+ * never completes, so the card a Project gets — bottom-heavy around a measure
+ * running to 100% — answers a question an Area does not have. `AreaCard` puts
+ * permanence where the Project's measure sits and states what is LIVING in the
+ * Area as a fact strip. It lives here rather than in the Areas module because
+ * the card family is shared, for the same reason `ProjectCard` is.
+ */
+export {
+  AreaCard,
+  AreaCardGrid,
+  type AreaCardFact,
+  type AreaCardProps,
+} from "./AreaCard";
 /**
  * REDESIGN-04 — the MEASURED row (`mockup3.png`): tile · name · context · a
  * thin bar · the record's own honest value at the line's end. Shared by the

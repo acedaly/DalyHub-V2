@@ -25,6 +25,7 @@ import type {
 } from "~/kernel/areas";
 import type { AreaRollup, CompletionRollup } from "~/kernel/spine";
 import { normaliseProgress, type CardTone } from "~/shared/card";
+import type { PillTone } from "~/shared/pill";
 import type { LoadedGoalStory } from "~/shared/goal-progress";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 
@@ -131,6 +132,10 @@ export type SerializedAreaProjectItem = {
   readonly completedAt: string | null;
   readonly status: ProjectWorkflowStatus;
   readonly archivedAt: string | null;
+  /** UNTITLED-05 — the Project's OWN identity. See `AreaProjectItem`. */
+  readonly iconKey: EntityIconKey | null;
+  readonly colourSlot: IdentityColourSlot | null;
+  readonly colourRank: number;
   readonly parent:
     | { readonly kind: "area" }
     | {
@@ -175,6 +180,16 @@ export type AreaCardData = {
   /** EXACT count of incomplete Tasks in this Area, direct and via its Projects. */
   readonly openTasks: number;
   /**
+   * EXACT count of Projects in this Area that have been COMPLETED.
+   *
+   * UNTITLED-05 — an Area's history, and the fact that most distinguishes it
+   * from a Project: a Project's completion ENDS it, while completed Projects
+   * accumulate inside an Area that carries on. `evaluateAreaMomentum` already
+   * treats them exactly this way — explanatory context, never a warning — so
+   * the collection states them quietly and never tints them.
+   */
+  readonly completedProjects: number;
+  /**
    * Whether this Area has anything in flight at all. False collapses the card
    * to ONE concise state instead of the three separate absence messages the
    * audit found ("No goals yet · No Projects yet · No tasks yet").
@@ -185,6 +200,33 @@ export type AreaCardData = {
    * when the open-task metric beside it is already the whole story.
    */
   readonly workSummary: string | null;
+  /**
+   * UNTITLED-05 — the PERMANENCE line, "Ongoing since Mar 2024".
+   *
+   * The one fact a Project card can never carry and an Area always can. A
+   * Project states how far through it is; an Area states how long it has been
+   * tended, which is what makes the two objects readable apart with the labels
+   * hidden. It is `created_at` and nothing derived from it.
+   */
+  readonly sinceLabel: string | null;
+  /**
+   * UNTITLED-05 — the record's OWN word for an Area with nothing running.
+   *
+   * The one state a bounded collection page can state honestly: it is derived
+   * from exactly the three counts above, and it agrees with
+   * `evaluateAreaMomentum`'s `empty` result in every case, because that result
+   * requires no active Project, no unfinished direct Task and no open Goal —
+   * all of which are implied by these three being zero. The WORDING is the
+   * record's, so the collection and the record speak one vocabulary rather
+   * than two.
+   *
+   * Everything stronger than an absence is deliberately absent here. Momentum's
+   * at-risk, blocked and stale branches need per-Project health facts for every
+   * Project in the Area, which this page does not read and must not start
+   * reading per row — and a second, weaker Area judgement computed from counts
+   * alone is precisely the drift STEER-03 removed from Goals.
+   */
+  readonly quietLabel: string;
   readonly updatedLabel: string | null;
 };
 
@@ -284,6 +326,9 @@ export function serializeAreaProjectItem(
     parent: item.parent,
     taskTotal: item.taskTotal,
     taskCompleted: item.taskCompleted,
+    iconKey: item.iconKey,
+    colourSlot: item.colourSlot,
+    colourRank: item.colourRank,
     health,
     healthVisible: isProjectHealthVisible(item),
   };
@@ -409,6 +454,62 @@ export function areaUpdatedLabel(iso: string): string | null {
   return formatted ? `Updated ${formatted}` : null;
 }
 
+/**
+ * UNTITLED-05 — the permanence line: "Ongoing since Mar 2024".
+ *
+ * Month and year, never a day. The precision a person wants about a part of
+ * their life is the season they took it on; "Ongoing since 14 Mar 2024" states
+ * an accuracy that means nothing here, and costs the card a line's worth of
+ * width on a phone to say it.
+ *
+ * Formatted MANUALLY from the UTC parts rather than through `Intl`, for the two
+ * reasons `formatCalendarDate` gives: it is hydration-safe (the worker and the
+ * browser cannot disagree about which ICU data they have), and it is never
+ * timezone-shifted across a month boundary — a one-day slip would be invisible
+ * here, and a one-month slip would simply be wrong.
+ *
+ * `null` for an unparseable timestamp, so the card omits the line rather than
+ * printing "Ongoing since Invalid Date".
+ */
+export function areaSinceLabel(iso: string): string | null {
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) {
+    return null;
+  }
+  const date = new Date(ms);
+  const monthName = SINCE_MONTHS[date.getUTCMonth()];
+  if (!monthName) {
+    return null;
+  }
+  return `Ongoing since ${monthName} ${date.getUTCFullYear()}`;
+}
+
+const SINCE_MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+] as const;
+
+/**
+ * The QUIET label — the record's own word for an Area with nothing running.
+ *
+ * One constant rather than a string literal at three call sites, because the
+ * whole point of it is that the collection and the record say the same thing:
+ * `evaluateAreaMomentum`'s `empty` branch is labelled "No active work", and a
+ * card that said "Quiet" or "Idle" instead would be a second vocabulary for one
+ * state.
+ */
+export const AREA_QUIET_LABEL = "No active work";
+
 function plural(count: number, one: string, many: string): string {
   return count === 1 ? one : many;
 }
@@ -472,8 +573,11 @@ export function toAreaCardData(item: SerializedAreaListItem): AreaCardData {
     activeProjects,
     openGoals,
     openTasks,
+    completedProjects: item.completedProjectCount,
     hasActiveWork: activeProjects > 0 || openGoals > 0 || openTasks > 0,
     workSummary: areaWorkSummary({ activeProjects, openGoals, openTasks }),
+    sinceLabel: areaSinceLabel(item.createdAt),
+    quietLabel: AREA_QUIET_LABEL,
     updatedLabel: areaUpdatedLabel(item.updatedAt),
   };
 }
@@ -487,11 +591,20 @@ export function goalStateLabel(goal: { readonly completedAt: string | null }): {
     : { label: "Completed", tone: "success" };
 }
 
+/**
+ * A Project's lifecycle word, as an Area's surfaces state it.
+ *
+ * The tone is a `PillTone` rather than the wider `CardTone` — the same
+ * narrowing `ProjectCardStatus` records, and for the same reason: every surface
+ * that draws this now draws it as an Untitled badge, whose vocabulary is
+ * `BadgeTone`, and all three branches below have always returned a value inside
+ * it. Declaring the wider type only ever meant a cast at the call site.
+ */
 export function projectStateLabel(project: {
   readonly completedAt: string | null;
   readonly archivedAt: string | null;
   readonly status: ProjectWorkflowStatus;
-}): { readonly label: string; readonly tone: CardTone } {
+}): { readonly label: string; readonly tone: PillTone } {
   if (project.archivedAt !== null) {
     return { label: "Archived", tone: "neutral" };
   }

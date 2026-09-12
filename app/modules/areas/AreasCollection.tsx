@@ -1,57 +1,66 @@
 /**
- * The Areas index — a calm list of the permanent domains of a life.
+ * The Areas index — the standing domains of a life.
  *
- * ── UIX-02 (the current design) ──────────────────────────────────────────────
+ * ── UNTITLED-05 (the current design) ────────────────────────────────────────
  *
- * Areas were a gallery of `EntityCard`s, which is the SAME component and the
- * same grid Projects used. Two consequences, both bad:
+ * The question this page answers is "what parts of my life am I responsible
+ * for, and what is living in each of them?". Before this pass it answered the
+ * first half and left the second to a run-on sentence:
  *
- * 1. **An Area was a Project with renamed fields.** Identical mark, identical
- *    card, identical layout, one big figure where a Project had its percentage.
- *    With the labels hidden nothing distinguished the two most different
- *    records in the spine — a finite body of work, and a part of life that
- *    never ends.
- * 2. **The cards were mostly empty.** An Area has no description, no
- *    completion, no due date and no progress. Four facts in a 260px card is a
- *    lot of whitespace, and six of them tiled across a 1440 was a page of air
- *    with words in the corners.
+ *     [mark]  DalyHub V2                              44 open tasks
+ *             14 Projects · 2 Goals
  *
- * So Areas became `EntityRow` in `EntityRowList`: one surface, hairlines
- * between, a column of identity marks down the left edge.
+ * — the nouns repeated on every row, the figures in a flexible cell where
+ * nothing lined up, a filter band whose only occupant was a two-option toggle
+ * at the far trailing edge, and no way at all to tell a busy Area from a
+ * dormant one without reading all eleven rows.
  *
- * ── IDENTITY-01 follow-up: the gallery remains available ────────────────────
+ * Three things changed, and each is structural rather than cosmetic:
  *
- * The gallery was restored after UIX-02. Both of UIX-02's objections were real
- * and one of them has since been answered:
+ * 1. **The gallery is an `AreaCard`, and Areas lead with it.** Areas were drawn
+ *    by the generic `EntityCard` — the same component and the same grid a
+ *    Project used until UIX-02 gave Projects a card of their own. So the fix
+ *    for "an Area was a Project with renamed fields" had only been applied to
+ *    one side of the pair. `AreaCard` puts PERMANENCE ("Ongoing since Mar
+ *    2024") where a Project card puts its measure, and states what is living in
+ *    the Area as a fact strip in a bordered foot — figures on a shared
+ *    baseline, comparable straight down a gallery column.
+ * 2. **The dense reading is a real table.** `EntityRowList`'s own source said
+ *    the aim was that "the counts are what the eye is actually comparing down
+ *    the column", and then drew them as prose in one flexible cell. A table is
+ *    what that row was reaching for: the nouns move to column headings, stated
+ *    once at the top; the figures land in columns; and the row semantics become
+ *    React Aria's. See `AreasTable`.
+ * 3. **The control row carries the collection's shape.** The lifecycle-style
+ *    band that held one toggle now leads with a plain statement of what the
+ *    workspace holds and ends with the presentation control — the same
+ *    filter-bar structure `/tasks` and `/projects` carry from Pro
+ *    `dashboards-01/02`.
  *
- *   - "An Area was a Project with renamed fields" — no longer true. A Project
- *     card is `.dh-pcard`, bottom-heavy around a progress bar it pins to a
- *     shared baseline; an Area card is `.dh-ecard` with no bar at all, because
- *     an Area never completes. They are different components with different
- *     anatomy, and the identity ramp now gives each record a colour the owner
- *     may have chosen. The two are no longer distinguishable only by reading.
- *   - "The cards were mostly empty" — still partly true, and it is the reason
- *     the LIST survives rather than being deleted. An Area genuinely has fewer
- *     facts than a Project, so the gallery card states the three it has (what
- *     is living in this Area, how much is waiting, when it last moved) and
- *     stops, and an owner who prefers the denser reading keeps it one click
- *     away.
- *
- * So this is a presentation TOGGLE, `?present=`, exactly as Projects has — but
- * List is the DHDS default and Grid is the optional recognition-led view.
- * Neither view filters: both draw the same records from the same loader in the
- * same order.
- *
- * What did NOT change, and must not — in EITHER presentation:
+ * ── What did NOT change, and must not — in EITHER presentation ──────────────
  *
  *   - **No progress, anywhere.** Areas never complete (AGENTS.md §4), so a
- *     completion bar answers a question the entity does not have. The row has
- *     nowhere to put one by construction.
- *   - **No status chip.** "Permanent" on every Area is a fact about Areas, not
- *     about this Area, and `listAreas` does not return archived ones at all.
+ *     completion bar answers a question the entity does not have.
+ *   - **No "Permanent" chip.** "Permanent" on every Area is a fact about Areas,
+ *     not about this Area, and `listAreas` does not return archived ones at all.
  *   - **No invented health.** There is no Area score, no traffic light and no
- *     "at risk". What the row states is what is in the Area.
+ *     "at risk" here. The one state either presentation draws is the genuine
+ *     ABSENCE — "No active work" — which is the record's own wording for its
+ *     own `empty` momentum, derived from the same three counts. Everything
+ *     stronger needs per-Project health for every Project in the Area, which a
+ *     bounded collection page does not read and must not start reading per row.
  *   - The owner's CHOSEN icon on the Area's own stable accent.
+ *
+ * ── The presentation toggle ─────────────────────────────────────────────────
+ *
+ * `?present=` offers Grid and Table, exactly as Projects does, and GRID is the
+ * default. That inverts UIX-02's ordering, and the reason UIX-02 gave for a
+ * list-first default has been answered rather than ignored: *"the cards were
+ * mostly empty"* was true of a generic card holding four facts, and is not true
+ * of a card built around what an Area actually has. An Area is the record most
+ * often reached by RECOGNITION rather than by reading, and a gallery of
+ * identity marks is what recognition wants. `?present=list` — the value the
+ * retired row list used — falls to the default rather than rendering nothing.
  *
  * The component holds no server imports; loaders hand it JSON-safe summaries.
  */
@@ -59,15 +68,12 @@
 import { useCallback, useMemo } from "react";
 import { useNavigate, useRevalidator } from "react-router";
 
-import {
-  EntityCard,
-  EntityCardGrid,
-  EntityRow,
-  EntityRowList,
-} from "~/shared/card";
+import { AreaCard, AreaCardGrid } from "~/shared/card";
 import {
   CollectionLayout,
   collectionCountLabel,
+  collectionStateBreakdown,
+  collectionStateSegment,
   CreateActionLabel,
   useCollectionLoading,
   type CollectionPresentation,
@@ -82,11 +88,12 @@ import {
 import { EmptyState } from "~/shared/empty-state";
 import { AccentIcon, EntityIcon } from "~/shared/entity";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
-import { GridIcon, ListIcon } from "~/shared/icons";
+import { GridIcon, TableIcon } from "~/shared/icons";
 import { OverflowMenu } from "~/shared/overflow-menu";
 import { useRecordLifecycle } from "~/shared/record-lifecycle";
 import { ViewSwitcher } from "~/shared/view-switcher";
 
+import { AreasTable } from "./AreasTable";
 import { NewAreaForm } from "./NewAreaForm";
 import {
   toAreaCardData,
@@ -103,16 +110,18 @@ type AreasPageData = {
 };
 
 /**
- * The presentation toggle's two options — a gallery, or the same Areas as rows.
+ * The presentation toggle's two options — a gallery, or the same Areas as a
+ * table.
  *
- * List is FIRST and is the DHDS default: Areas are permanent organising
- * contexts, so the daily scan benefits from density and calm more than from a
- * project-like gallery. Grid remains one click away for recognition-led
- * browsing. `Table` is deliberately absent — Areas has no columns worth one.
+ * Grid is FIRST and is the default: an Area is the record most often navigated
+ * to by recognition rather than by reading, and the gallery is where its mark,
+ * its colour and its standing shape have room. The table is one click away for
+ * the denser reading, and it is the SAME records in the SAME order from the
+ * SAME loader — a presentation, never a filter.
  */
 const PRESENTATION_OPTIONS = [
-  { value: "list", label: "List", icon: <ListIcon /> },
   { value: "grid", label: "Grid", icon: <GridIcon /> },
+  { value: "table", label: "Table", icon: <TableIcon /> },
 ] as const;
 
 export interface AreasCollectionViewProps {
@@ -120,7 +129,7 @@ export interface AreasCollectionViewProps {
   /** Opaque cursor for the next page from the loader, or null when exhausted. */
   readonly nextCursor: string | null;
   /**
-   * Gallery or list. A presentation, never a filter — both draw the same
+   * Gallery or table. A presentation, never a filter — both draw the same
    * records, in the same order, from the same loader. Resolved on the server
    * from `?present=`, so the first byte is already right.
    */
@@ -171,27 +180,22 @@ function NewAreaFormHost() {
 }
 
 /**
- * One Area card.
+ * One Area gallery card.
  *
- * The accessible name is the Area's name plus its work state, so a screen-reader
- * user hears what a sighted user sees in the container's colour and the
- * summary line — the identity accent is never the only carrier of meaning.
+ * The accessible name is the Area's name; what a sighted reader takes from the
+ * mark's colour and the foot's figures, a screen-reader user takes from the
+ * same words in the same order, because every figure carries its noun. The
+ * identity accent is never the only carrier of meaning.
  *
- * DS-16 — the metadata region is now a compact GROUP of facts (glyph, number,
- * noun) rather than the audit's `Goals: 2 · Projects: 4 · Tasks: 11` label
- * ladder, and the card carries the shared DS-12 overflow so an Area can be
- * archived from the gallery instead of only from inside its Settings tab. The
- * overflow sits above the whole-card link (`.dh-ecard__overflow`), so opening
- * the menu never navigates.
+ * The card carries the shared DS-12 overflow, so an Area can be archived from
+ * the gallery instead of only from inside its Settings tab. The overflow sits
+ * above the whole-card link, so opening the menu never navigates.
  */
-function AreaEntityCard({
+function AreaGalleryCard({
   card,
-  presentation,
   onArchived,
 }: {
   readonly card: AreaCardData;
-  /** Which drawing this Area takes. The DATA is identical in both. */
-  readonly presentation: CollectionPresentation;
   readonly onArchived: () => void;
 }) {
   const archive = useCallback(async () => {
@@ -219,81 +223,14 @@ function AreaEntityCard({
     onArchive: archive,
   });
 
-  const overflow = (
-    <OverflowMenu
-      items={lifecycle.overflowActions}
-      label={`More actions for ${card.title}`}
-    />
-  );
-  const href = `/areas/${encodeURIComponent(card.id)}`;
-  const openAriaLabel = `Open ${card.title}`;
-
-  /*
-   * The GALLERY card. Deliberately not the Project card: `.dh-ecard` has no
-   * progress bar and this call passes none, because an Area never completes
-   * (AGENTS.md §4) and a bar would answer a question the entity does not have.
-   *
-   * An Area has fewer facts than a Project, and the card says the three it
-   * genuinely has rather than padding to fill the space: what is LIVING here
-   * (the relationship line), how much is WAITING here (the metric), and when it
-   * last moved. That sparseness is exactly why the list presentation survives
-   * beside this one rather than being replaced by it.
-   */
-  if (presentation === "grid") {
-    return (
-      <>
-        <EntityCard
-          data-testid="area-card"
-          /*
-           * The mark leads the composition at the gallery rung — an Area is the
-           * record most often navigated to by recognition rather than by
-           * reading, and in a grid the tile is what the eye lands on first.
-           */
-          icon={
-            <AccentIcon
-              entityType="area"
-              iconKey={card.iconKey}
-              colourSlot={card.colourSlot}
-              colourRank={card.colourRank}
-              size="lg"
-            />
-          }
-          title={card.title}
-          headingLevel={2}
-          accent={card.colourRank}
-          colourSlot={card.colourSlot}
-          subtitle={areaRelationshipLine(card)}
-          metric={
-            card.openTasks > 0
-              ? {
-                  value: String(card.openTasks),
-                  label: card.openTasks === 1 ? "open task" : "open tasks",
-                }
-              : undefined
-          }
-          /* The one supporting fact a card has room for that a row does not.
-           * `updatedLabel` is honestly "Updated <date>" — never implied
-           * activity the projection cannot see. */
-          meta={card.updatedLabel}
-          overflow={overflow}
-          href={href}
-          openAriaLabel={openAriaLabel}
-        />
-        {lifecycle.dialogs}
-      </>
-    );
-  }
-
   return (
     <>
-      <EntityRow
+      <AreaCard
         data-testid="area-card"
         /*
-         * The mark leads, at the compact rung. An Area is the most permanent
-         * thing in the product and the one most often navigated to by
-         * recognition rather than by reading — but a row does not need the
-         * gallery's 56px square to say so, and a column of them down the left
-         * edge is the whole point of drawing this as a list.
+         * The LARGE identity rung. In a gallery the tile is what the eye lands
+         * on first, and an Area is the record this product most wants to be
+         * recognisable before it is read.
          */
         icon={
           <AccentIcon
@@ -301,38 +238,49 @@ function AreaEntityCard({
             iconKey={card.iconKey}
             colourSlot={card.colourSlot}
             colourRank={card.colourRank}
-            size="md"
+            size="lg"
           />
         }
         title={card.title}
         headingLevel={2}
         accent={card.colourRank}
         colourSlot={card.colourSlot}
+        since={card.sinceLabel}
         /*
-         * The relationships, on one line — what is LIVING in this part of life.
-         *
-         * A count of zero is omitted rather than rendered as "0 Projects": an
-         * absent dimension is not a fact worth a line on every row, and three
-         * of them stacked ("No goals yet · No Projects yet · No tasks yet") is
-         * the placeholder ladder the AREA-01 audit removed. The one absence
-         * that survives is the ACTIONABLE one — an Area with nothing in it is
-         * an Area waiting for its first Project, and saying so is how the list
-         * avoids a dead end (AGENTS.md §6).
+         * The genuine absence, in the RECORD's own words — and with the next
+         * action beside it, so an empty Area is never a dead end (AGENTS.md §6).
+         * An Area holding only loose tasks is NOT idle and never reaches here:
+         * `hasActiveWork` counts them.
          */
-        facts={areaRelationshipLine(card)}
-        /*
-         * The one trailing figure: how much is waiting here. NOT a proportion —
-         * an Area never completes, so there is no percentage to state and this
-         * row deliberately has nowhere to put one.
-         */
-        figure={
-          card.openTasks > 0
-            ? `${card.openTasks} open ${card.openTasks === 1 ? "task" : "tasks"}`
-            : null
+        quiet={
+          card.hasActiveWork
+            ? null
+            : {
+                label: card.quietLabel,
+                /*
+                 * The invitation, only where it is TRUE.
+                 *
+                 * "Ready for its first Project" on an Area that has finished
+                 * sixty of them is a statement about a part of a life that has
+                 * been tended for years, and it is simply false. An Area with a
+                 * history keeps the state chip and its completed count; the
+                 * next-step line is for an Area that genuinely has never had
+                 * one.
+                 */
+                ...(card.completedProjects === 0
+                  ? { hint: "Ready for its first Project" }
+                  : {}),
+              }
         }
-        overflow={overflow}
-        href={href}
-        openAriaLabel={openAriaLabel}
+        facts={areaCardFacts(card)}
+        overflow={
+          <OverflowMenu
+            items={lifecycle.overflowActions}
+            label={`More actions for ${card.title}`}
+          />
+        }
+        href={`/areas/${encodeURIComponent(card.id)}`}
+        openAriaLabel={`Open ${card.title}`}
       />
       {lifecycle.dialogs}
     </>
@@ -340,40 +288,57 @@ function AreaEntityCard({
 }
 
 /**
- * The Area's relationship line — "2 Projects · 3 Goals", or the one absence
- * worth stating.
+ * The card's foot — what is LIVING in this Area, as figures with their nouns.
  *
- * Deliberately plain nouns rather than the "2 active Projects · 3 open Goals"
- * the card's subtitle used: on a list where every row says it, the qualifiers
- * are six words per row restating what the collection already means, and the
- * counts are what the eye is actually comparing down the column.
+ * A dimension the Area does not have is ABSENT, not drawn as a zero. That is
+ * the same rule AREA-01 applied when it deleted "Goals: No goals yet ·
+ * Projects: No Projects yet · Tasks: No tasks yet" from every row: an absence
+ * is never drawn as a state, and a column of zeros across a gallery reads as
+ * eleven warnings. The strip can therefore be one, two, three or four facts
+ * wide, and `auto-fit` lets it fill the card at each of them.
+ *
+ * It CAN be empty, and that is the one case the quiet chip above it covers on
+ * its own: an Area with nothing running and no history has nothing to state.
+ * An Area with nothing running but a HISTORY is a different record and keeps
+ * its completed count, beneath the chip rather than instead of it.
+ *
+ * Completed Projects join as a last fact ONLY when there are some. They are the
+ * one figure here about the Area's HISTORY rather than its present — and the
+ * fact that most distinguishes an Area from a Project, because a Project's
+ * completion ends it while completed Projects pile up inside an Area that
+ * carries on. A "0 completed" column on a young Area would read as a reproach.
  */
-function areaRelationshipLine(card: AreaCardData): string | null {
-  const parts: string[] = [];
+function areaCardFacts(card: AreaCardData) {
+  const facts: { id: string; value: string; label: string }[] = [];
   if (card.activeProjects > 0) {
-    parts.push(
-      `${card.activeProjects} ${card.activeProjects === 1 ? "Project" : "Projects"}`,
-    );
+    facts.push({
+      id: "projects",
+      value: String(card.activeProjects),
+      label: card.activeProjects === 1 ? "Project" : "Projects",
+    });
   }
   if (card.openGoals > 0) {
-    parts.push(`${card.openGoals} ${card.openGoals === 1 ? "Goal" : "Goals"}`);
+    facts.push({
+      id: "goals",
+      value: String(card.openGoals),
+      label: card.openGoals === 1 ? "Goal" : "Goals",
+    });
   }
-  if (parts.length > 0) {
-    return parts.join(" · ");
+  if (card.openTasks > 0) {
+    facts.push({
+      id: "tasks",
+      value: String(card.openTasks),
+      label: card.openTasks === 1 ? "open task" : "open tasks",
+    });
   }
-  /*
-   * The fallback is only honest when the Area is genuinely EMPTY.
-   *
-   * An Area with no Projects and no Goals but a handful of loose tasks filed
-   * directly in it is not "ready for its first Project" — it is being used, and
-   * telling its owner to start something would be the product misreading its
-   * own data. That Area draws no relationship line at all: the trailing figure
-   * beside it already says "3 open tasks", which is the whole truth about it.
-   *
-   * This is the same distinction `areaWorkSummary` drew, and the reason it
-   * checked the task count before reporting an absence.
-   */
-  return card.openTasks > 0 ? null : "Ready for its first Project";
+  if (card.completedProjects > 0) {
+    facts.push({
+      id: "completed",
+      value: String(card.completedProjects),
+      label: "completed",
+    });
+  }
+  return facts;
 }
 
 /**
@@ -418,10 +383,39 @@ export function areasCountLabel(count: number, hasMore: boolean): string {
   return collectionCountLabel(count, "Area", "Areas", { hasMore });
 }
 
+/**
+ * UNTITLED-05 — the control row's statement of SHAPE: "3 with work in flight ·
+ * 2 quiet".
+ *
+ * A complete statement about the LOADED page and nothing more, which is why it
+ * is suppressed while another page exists rather than being quietly wrong. Each
+ * fragment is dropped when it is zero, through the same shared breakdown
+ * grammar Projects' "8 active · 2 archived" line uses — a zero on a count line
+ * reads as a warning about the zero.
+ *
+ * "Quiet" here is the same derivation the card's state chip draws, so the line
+ * and the cards can never disagree: it counts Areas with no Projects, no Goals
+ * and no open Tasks, which is exactly the momentum evaluator's `empty`.
+ */
+export function areaShapeLabel(
+  cards: readonly AreaCardData[],
+  hasMore: boolean,
+): string | null {
+  if (hasMore || cards.length === 0) {
+    return null;
+  }
+  const quiet = cards.filter((card) => !card.hasActiveWork).length;
+  const running = cards.length - quiet;
+  return collectionStateBreakdown([
+    collectionStateSegment(running, "with work in flight"),
+    collectionStateSegment(quiet, "quiet"),
+  ]);
+}
+
 function AreasCollection({
   areas,
   nextCursor,
-  presentation = "list",
+  presentation = "grid",
   failed,
 }: AreasCollectionViewProps) {
   const { items, hasMore, loading, loadFailed, loadMore } = useAreaPagination(
@@ -439,57 +433,80 @@ function AreasCollection({
   const subtitle = failed
     ? "We couldn’t load your Areas."
     : areasCountLabel(count, hasMore);
+  const shape = failed ? null : areaShapeLabel(cards, hasMore);
 
   // PX-06: the ONE shared collection loading signal — a same-route navigation
   // shows the shared skeleton instead of leaving the previous list on screen
   // with no feedback. The skeleton follows the requested presentation so it
-  // resembles the row or card anatomy that replaces it.
+  // resembles the card or row anatomy that replaces it.
   const isReloading = useCollectionLoading();
   return (
     <CollectionLayout
-      /*
-       * DS-05 — a flat LIST takes the white ground DS-04 established for one
-       * (`collection-layout.css` → `--flat`); a card GRID wants the grey canvas
-       * with the cards floating on it, which is the default. So the ground
-       * follows the presentation rather than the module.
-       */
-      className={presentation === "list" ? "dh-collection--flat" : undefined}
       isLoading={isReloading}
       title="Areas"
       subtitle={subtitle}
       // So the loading skeleton resembles the anatomy that replaces it. The
       // skeleton's own vocabulary is narrower than the collection's (it has no
       // table shape), so the mapping is explicit rather than a cast.
-      presentation={presentation === "list" ? "list" : "grid"}
+      presentation={presentation === "grid" ? "grid" : "list"}
       primaryAction={
         <DrawerButton drawerKey={NEW_AREA_KEY} variant="primary">
           <CreateActionLabel>New area</CreateActionLabel>
         </DrawerButton>
       }
-      /*
-       * The toggle sits on the control row rather than in the header's
-       * `viewSwitcher` slot, for the reason Projects gives: the title row is
-       * already carrying the count and the primary action. Areas has no state
-       * tabs to lead the row, so the switcher takes the trailing edge alone —
-       * the same position, on a lighter row.
-       */
       filterBar={
         /*
-         * UNTITLED-04 — the Untitled Application UI filter-bar band, the same
-         * structure Tasks and Projects carry. Areas has no state tabs to lead
-         * the row, so the switcher takes the trailing edge alone.
+         * UNTITLED-04/05 — the Untitled Application UI filter-bar band, the same
+         * structure Tasks and Projects carry from Pro `dashboards-01/02`.
+         *
+         * Areas has no lifecycle tabs to lead the row (`listAreas` returns only
+         * active Areas; archived ones are reached from the record), so the
+         * leading edge states the collection's SHAPE instead of standing empty
+         * — which is what the band looked like before this pass: a full-width
+         * strip whose only occupant was the toggle at its far end.
+         *
+         * The band is ABSENT entirely on a collection with nothing in it. A
+         * presentation toggle for zero records is a control that cannot change
+         * anything, and the empty state below already carries the one action
+         * that can.
          */
-        <div
-          className="flex w-full flex-wrap items-center justify-end gap-3"
-          data-untitled-source="dashboards-01/02:filter-bar"
-        >
-          <ViewSwitcher
-            param="present"
-            options={PRESENTATION_OPTIONS}
-            value={presentation}
-            label="Area layout"
-          />
-        </div>
+        failed || count === 0 ? undefined : (
+          <div
+            /*
+             * `min-w-0` is load-bearing: a flex item's automatic minimum size is
+             * its min-content, which overrides `w-full`, so without it this band
+             * grows to fit its contents and puts the document into horizontal
+             * scroll at 320px.
+             */
+            className="flex w-full min-w-0 flex-wrap items-center gap-3 max-md:flex-col max-md:items-stretch"
+            data-untitled-source="dashboards-01/02:filter-bar"
+          >
+            {/*
+             * `shape` is null only while ANOTHER PAGE exists, where the loaded
+             * rows are not the workspace and a count of them would be a claim
+             * this page cannot make. The heading's own "N Areas loaded" already
+             * says so; the band simply carries the toggle alone there.
+             */}
+            {shape ? (
+              <p
+                className="m-0 min-w-0 flex-1 truncate text-sm text-tertiary"
+                data-testid="areas-shape"
+              >
+                {shape}
+              </p>
+            ) : (
+              <span className="min-w-0 flex-1" />
+            )}
+            <div className="flex shrink-0 items-center gap-3 max-md:justify-end">
+              <ViewSwitcher
+                param="present"
+                options={PRESENTATION_OPTIONS}
+                value={presentation}
+                label="Area layout"
+              />
+            </div>
+          </div>
+        )
       }
       error={
         failed ? (
@@ -514,27 +531,17 @@ function AreasCollection({
       }
     >
       {presentation === "grid" ? (
-        <EntityCardGrid label="Areas">
+        <AreaCardGrid label="Areas">
           {cards.map((card) => (
-            <AreaEntityCard
+            <AreaGalleryCard
               key={card.id}
               card={card}
-              presentation="grid"
               onArchived={() => revalidator.revalidate()}
             />
           ))}
-        </EntityCardGrid>
+        </AreaCardGrid>
       ) : (
-        <EntityRowList label="Areas">
-          {cards.map((card) => (
-            <AreaEntityCard
-              key={card.id}
-              card={card}
-              presentation="list"
-              onArchived={() => revalidator.revalidate()}
-            />
-          ))}
-        </EntityRowList>
+        <AreasTable cards={cards} onArchived={() => revalidator.revalidate()} />
       )}
       {!failed && hasMore ? (
         <LoadMore

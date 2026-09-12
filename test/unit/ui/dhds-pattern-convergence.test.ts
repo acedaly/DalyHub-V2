@@ -47,11 +47,25 @@ describe("DHDS-04 — gallery items", () => {
     }
   });
 
-  it("keeps Areas on quiet rows by default while retaining optional gallery", () => {
+  /*
+   * UNTITLED-05 — Areas leads with its GALLERY, and its dense reading is the
+   * genuine Untitled table rather than a hand-composed row list.
+   *
+   * UIX-02 put Areas on rows because "an Area card was a Project card with
+   * renamed fields" and "the cards were mostly empty". The first stopped being
+   * true when Projects got `ProjectCard`; the second stopped being true when
+   * Areas got `AreaCard`, built around what an Area actually has. An Area is
+   * the record most often reached by recognition rather than by reading, and
+   * that is what a gallery is for.
+   */
+  it("keeps Areas on their own identity-led card, with the table as the dense reading", () => {
     const source = read("app", "modules", "areas", "AreasCollection.tsx");
-    expect(source).toContain('presentation = "list"');
-    expect(source).toContain("<EntityRow");
-    expect(source).toContain("<EntityCard");
+    expect(source).toContain('presentation = "grid"');
+    expect(source).toContain("<AreaCard");
+    expect(source).toContain("<AreasTable");
+    // Never the generic gallery card Projects was pulled off in UIX-02: the two
+    // most different records in the spine are two different objects.
+    expect(source).not.toContain("<EntityCard");
   });
 });
 

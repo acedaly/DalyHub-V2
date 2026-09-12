@@ -1,28 +1,73 @@
 /**
- * AREA-01/AREA-02 — canonical Area record, composed through the shared DS-02
- * Record Layout. AREA-02 upgrades the Goals tab: each card links to the
- * canonical `/goals/:goalId` record, shows its target date when set (batched,
- * never a per-Goal read), and the tab gains a "New Goal" action — the exact
- * roll-up totals and bounded-card-page honesty AREA-01 established are
- * unchanged.
+ * The Area record — a working space for one standing part of a life.
+ *
+ * ── UNTITLED-05 (the current design) ────────────────────────────────────────
+ *
+ * The record's question is "how is this Area going, and what currently matters
+ * inside it?". Before this pass the Overview answered it with three counts —
+ * every one of which the tab strip immediately above already carried as a badge
+ * — and then an activity feed:
+ *
+ *     ┌──────────────────────────────────────────────────────────────┐
+ *     │ ● Needs attention                                            │
+ *     │ 1 active project is at risk. · 2 completed projects kept …   │
+ *     ├─ Overview ─ Goals 2 ─ Projects 17 ─ Linked ─ Activity ─ … ───┤
+ *     │  2              9                 44                         │
+ *     │  open Goals     active Projects   open tasks in this Area    │
+ *     │  View Goals     View Projects                                │
+ *     │                                                              │
+ *     │  Recent activity …                                           │
+ *     └──────────────────────────────────────────────────────────────┘
+ *
+ * So the band said "1 active project is at risk" and the tab beneath it would
+ * not say WHICH — the one question an owner opens an Area to answer was three
+ * clicks and seventeen rows away, and the space in between was spent restating
+ * the tab badges as large figures. That is the "six meaningless stat widgets"
+ * the brief warns about, arrived at from the opposite direction: not too many
+ * tiles, but tiles where the records themselves belonged.
+ *
+ * The Overview is now the Area's STEWARDSHIP view, from facts the route already
+ * loads — no new read, no new derivation:
+ *
+ *   1. **Active work.** The Projects genuinely being worked, attention FIRST,
+ *    so the Project the summary band is talking about is the first row on the
+ *    page. Five of them, then a door to the rest.
+ *   2. **Goals.** The same shared `GoalStoryRow` `/goals` draws, three of them,
+ *    then a door.
+ *   3. **Habits**, as context. A Habit is not a Goal, a Project or a Task and
+ *    is counted in none of the Area's figures.
+ *   4. **Recent activity**, the same feed the Activity tab renders.
+ *
+ * The counts did not vanish; they moved to where they were already stated. The
+ * tab strip carries the Goals and Projects totals as badges, and the summary
+ * band carries the momentum and its reasons. What the Overview adds is the
+ * records.
+ *
+ * ── What must not change ────────────────────────────────────────────────────
+ *
+ *   - **No completion meter, anywhere on this record.** An Area never completes
+ *     (AGENTS.md §4), and its task roll-up spans every Project under it, so a
+ *     percentage would move when an unrelated Project finished something and a
+ *     mature Area would sit near 100% for ever — reading as "nearly done" about
+ *     a part of someone's life.
+ *   - **No second Project design.** Projects inside an Area are drawn by the
+ *     shared `ProjectSummaryList`, whose column vocabulary is the one
+ *     `/projects?present=table` uses.
+ *   - **No second Goal measure.** Goals are the shared `GoalStoryRow` from the
+ *     shared story (STEER-03/DEBT-206).
+ *   - **Momentum is stated once**, in the summary band, from the kernel
+ *     evaluator's complete boundary.
  */
 
 import type { ReactNode } from "react";
 
-import {
-  Card,
-  CardCollection,
-  ProgressRowList,
-  MetricRow,
-  MetricRowItem,
-  MetricTile,
-  type CardMetaItem,
-  type CardProps,
-} from "~/shared/card";
+import { ProgressRowList } from "~/shared/card";
 import { DrawerTrigger } from "~/shared/drawer";
 import { EmptyState } from "~/shared/empty-state";
-import { AccentIcon, EntityIcon } from "~/shared/entity";
-import { HealthIndicator } from "~/shared/project-health";
+import { AccentIcon } from "~/shared/entity";
+import { ProjectSummaryList } from "~/shared/project-list";
+import type { ProjectSummaryItem } from "~/shared/project-list";
+import { healthReasonText } from "~/shared/project-health";
 /*
  * STEER-03 — the shared Goal story. The Areas module reaches it through
  * `~/shared`, not through `~/modules/goals`: a module may not import another
@@ -40,21 +85,26 @@ import { TITLE_MAX_LENGTH } from "~/kernel/entities";
 import { InlineTextField, type InlineSaveOutcome } from "~/shared/inline-edit";
 import { useRecordLifecycle } from "~/shared/record-lifecycle";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
+import { SectionLabel } from "~/shared/ui/untitled/application/section-headers/section-label";
+import { ButtonLink } from "~/shared/ui";
+import { buttonClassName } from "~/shared/ui";
 import type { AreaMomentum } from "~/kernel/areas";
 
 import {
   areaStateLabel,
   projectStateLabel,
-  rollupProgress,
   type SerializedAreaGoalItem,
   type SerializedAreaOverview,
   type SerializedAreaProjectItem,
   type SerializedAreaRollup,
 } from "./area-view";
-import { buttonClassName } from "~/shared/ui";
 
 /** The Drawer key that opens the AREA-02 "New Goal" create form. */
 export const NEW_GOAL_KEY = "new-goal";
+
+/** How many records the Overview shows before handing over to a section. */
+const OVERVIEW_PROJECT_LIMIT = 5;
+const OVERVIEW_GOAL_LIMIT = 3;
 
 interface AreaOverviewViewProps {
   readonly overview: SerializedAreaOverview;
@@ -82,16 +132,6 @@ interface AreaOverviewViewProps {
    * the server's own message beside it.
    */
   readonly onRename: (title: string) => Promise<InlineSaveOutcome>;
-  /*
-   * STEER-03 — `onOpenGoal` is GONE.
-   *
-   * It existed because the Goal CARD's primary open target was a callback the
-   * route turned into a `navigate()`. The shared `GoalStoryRow` opens through a
-   * react-router `<Link>`, which is the same client-side navigation with a real
-   * href behind it — so the callback was a second way to say the same thing,
-   * and one of them was not middle-clickable.
-   */
-  readonly onOpenProject: (projectId: string) => void;
   readonly activityTab: ReactNode;
   /** The shared Universal Relationship System Linked Items section. */
   readonly linkedTab: ReactNode;
@@ -128,26 +168,87 @@ function MomentumChip({ momentum }: { readonly momentum: AreaMomentum }) {
 }
 
 /**
+ * A section head inside a record tab: the Untitled `section-headers` label,
+ * with the section's one door opposite it.
+ *
+ * `SectionLabel.Root` is the genuine vendored component, so the heading rung,
+ * the description rung and the token colours are Untitled's rather than a
+ * fourth hand-written heading style. Its heading is an `h3`, which is the right
+ * level under a tab panel's own `h2`.
+ */
+function AreaSection({
+  title,
+  description,
+  action,
+  children,
+  ...rest
+}: {
+  readonly title: string;
+  readonly description?: string;
+  readonly action?: ReactNode;
+  readonly children: ReactNode;
+  readonly "data-testid"?: string;
+}) {
+  return (
+    <section
+      className="flex min-w-0 flex-col gap-3"
+      aria-label={title}
+      data-testid={rest["data-testid"]}
+    >
+      <div className="flex min-w-0 flex-wrap items-end justify-between gap-x-4 gap-y-2">
+        <SectionLabel.Root
+          className="min-w-0"
+          title={title}
+          description={description}
+          data-untitled-source="application/section-headers:section-label"
+        />
+        {action ? <div className="shrink-0">{action}</div> : null}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/**
+ * Untitled's bounded panel, for an Overview section whose content does not
+ * bring its own surface.
+ *
+ * `rounded-xl bg-primary shadow-xs ring-1 ring-secondary` is the boundary
+ * `application/table`'s `TableCard.Root` declares and that every Untitled
+ * Application UI panel uses — the SAME one `RecordTabs` draws around a
+ * `surface="panel"` tab, so a section that supplies its own and a tab that
+ * supplies one are visibly the same object.
+ *
+ * The Overview's own tab is `surface="plain"` precisely so these can exist:
+ * three sections inside one panel would be a frame inside a frame, and a run of
+ * bordered sections is what lets the eye find the seam between the Area's work,
+ * its Goals and its history.
+ */
+function AreaPanel({
+  children,
+  className,
+}: {
+  readonly children: ReactNode;
+  readonly className?: string;
+}) {
+  return (
+    <div
+      className={[
+        "min-w-0 overflow-hidden rounded-xl bg-primary shadow-xs ring-1 ring-secondary",
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      data-untitled-source="application/table:table-card"
+    >
+      {children}
+    </div>
+  );
+}
+
+/**
  * STEER-03 (DEBT-206) — an Area's Goal, told through the SHARED Goal story.
  *
- * ── What this replaced ─────────────────────────────────────────────────────
- * A hand-built Card whose progress bar was the Area's Task ROLL-UP
- * (`taskCompleted / taskTotal`), captioned "Task roll-up", with no measurement,
- * no movement, no alignment and no owner condition. It was a third measure of a
- * Goal that no other surface in the product showed: the same Goal read
- * *"53% · Ahead"* on Today and an unrelated task-count percentage on its own
- * Area, with nothing on either surface saying they were different questions.
- *
- * ── What it is now ─────────────────────────────────────────────────────────
- * The SAME `GoalStoryRow` `/goals` renders, from the same shared evaluators —
- * so the bar is GOAL-02's measurement (absent, not zero, on an unmeasured
- * Goal), the sentence beneath is FOLLOW-02's movement, the indicator is
- * ADR-040's alignment and the word beside them is STEER-02's owner condition.
- * The mark is `goalIdentitySource`'s one identity rule, with the AREA's own
- * identity as the inherited rung — this record knows it, so a Goal with no
- * colour of its own is drawn in its Area's, exactly as `/goals` draws it.
- *
- * ── The roll-up is kept, and worded as what it is ──────────────────────────
  * The Projects and Tasks counts are real structural facts, and the Area record
  * is where structure is read. They stay, on the row's CONTEXT line, phrased as
  * counts of Projects and Tasks — never as a percentage, never as a bar, and
@@ -175,14 +276,6 @@ function areaGoalStructureNote(goal: SerializedAreaGoalItem): string | null {
 }
 
 /**
- * The story a Goal with no readable story still tells.
- *
- * The story read is its own failure domain (see the Area loader), so a Goal can
- * arrive without one. It keeps its identity, its title and its structure; what
- * it loses is the derived facts, and it says so by showing none of them rather
- * than by showing zeros.
- */
-/**
  * AREA-02's target date, kept. Only shown when SET, so an Area whose Goals carry
  * no target dates never reads a column of "No target date" — an ordinary
  * absence must not be drawn as a problem.
@@ -193,6 +286,14 @@ function areaGoalTargetNote(goal: SerializedAreaGoalItem): string | null {
   return formatted ? `Target ${formatted}` : null;
 }
 
+/**
+ * The story a Goal with no readable story still tells.
+ *
+ * The story read is its own failure domain (see the Area loader), so a Goal can
+ * arrive without one. It keeps its identity, its title and its structure; what
+ * it loses is the derived facts, and it says so by showing none of them rather
+ * than by showing zeros.
+ */
 function areaGoalStory(goal: SerializedAreaGoalItem): GoalStory {
   return (
     goal.story ?? {
@@ -210,216 +311,528 @@ function areaGoalStory(goal: SerializedAreaGoalItem): GoalStory {
   );
 }
 
-function projectCard(
+/**
+ * One Area Project, as the SHARED summary row needs it.
+ *
+ * Every value is already derived by the loader or by the shared evaluators; the
+ * row computes nothing, so a Project cannot read one way here and another on
+ * `/projects`.
+ *
+ * `signal` is drawn only where `healthVisible` says the shared rule considers
+ * this Project actively worked. A Planned, on-hold, completed or archived
+ * Project has no health to report and says nothing rather than "On track",
+ * which would be a judgement the evaluator did not make.
+ */
+function toProjectSummary(
   project: SerializedAreaProjectItem,
-  onOpenProject: (projectId: string) => void,
-): CardProps {
-  const tasks = rollupProgress(
-    {
-      total: project.taskTotal,
-      completed: project.taskCompleted,
-      ratio:
-        project.taskTotal === 0
-          ? null
-          : project.taskCompleted / project.taskTotal,
-    },
-    "task",
-  );
-  const metadata: CardMetaItem[] = [];
-  if (project.healthVisible) {
-    metadata.push({
-      id: "health",
-      label: "Health",
-      value: <HealthIndicator health={project.health} showReason />,
-    });
-  }
-  if (!tasks.has) {
-    metadata.push({ id: "tasks", label: "Tasks", value: "No tasks yet" });
-  }
-  const parentLabel =
-    project.parent.kind === "goal"
-      ? `Goal: ${project.parent.goal.title}`
-      : "Directly in this Area";
-  // When the Project advances a Goal, its parent-Goal context is a real link to
-  // the canonical Goal record — a separate link from the card's primary open
-  // target (the Project), so no nested interactivity is created.
-  const parentHref =
-    project.parent.kind === "goal"
-      ? `/goals/${encodeURIComponent(project.parent.goal.id)}`
-      : undefined;
-
+): ProjectSummaryItem {
+  const hasTasks = project.taskTotal > 0;
+  const percent = hasTasks
+    ? Math.round((project.taskCompleted / project.taskTotal) * 100)
+    : 0;
+  const primaryReason = project.health.reasons[0];
   return {
     id: project.id,
     title: project.title,
-    typeLabel: "Project",
-    icon: <EntityIcon type="project" />,
-    headingLevel: 3,
     status: projectStateLabel(project),
-    context: { label: parentLabel, href: parentHref },
-    metadata,
-    progress: tasks.has
+    progress: hasTasks
       ? {
-          value: tasks.completed,
-          max: tasks.total,
-          label: `Task roll-up: ${tasks.summary}`,
+          percent,
+          summary: `${project.taskCompleted} of ${project.taskTotal} ${
+            project.taskTotal === 1 ? "task" : "tasks"
+          }`,
+          // The bar takes the HEALTH tone, never the identity hue, so a card
+          // can never draw a calm bar over the words "3 overdue" (POLISH-01).
+          tone: project.healthVisible
+            ? meterToneFromHealth(project.health.tone)
+            : "neutral",
         }
-      : undefined,
-    density: "comfortable",
-    presentation: "list",
-    href: `/projects/${encodeURIComponent(project.id)}`,
-    onOpen: () => onOpenProject(project.id),
-    openAriaLabel: `Open ${project.title}`,
+      : null,
+    signal: project.healthVisible
+      ? {
+          label: project.health.label,
+          tone: project.health.tone,
+          /*
+           * The reason, only when it SAYS something the badge does not. A
+           * Project with no tasks reports the state "No tasks yet" and the
+           * reason "No tasks yet", and printing both is the label ladder twice
+           * in one cell — the same guard `HealthIndicator` has always applied.
+           */
+          detail:
+            primaryReason &&
+            healthReasonText(primaryReason) !== project.health.label
+              ? healthReasonText(primaryReason)
+              : null,
+        }
+      : null,
+    iconKey: project.iconKey,
+    colourSlot: project.colourSlot,
+    colourRank: project.colourRank,
+    context:
+      project.parent.kind === "goal"
+        ? {
+            label: `Goal: ${project.parent.goal.title}`,
+            href: `/goals/${encodeURIComponent(project.parent.goal.id)}`,
+          }
+        : { label: "Directly in this Area" },
+    muted: project.archivedAt !== null,
   };
 }
 
+/** The health evaluator's tone, in the shared Untitled bar's tone vocabulary. */
+function meterToneFromHealth(
+  tone: SerializedAreaProjectItem["health"]["tone"],
+): "neutral" | "positive" | "caution" | "critical" {
+  switch (tone) {
+    case "success":
+      return "positive";
+    case "warning":
+      return "caution";
+    case "danger":
+      return "critical";
+    default:
+      return "neutral";
+  }
+}
+
 /**
- * UIX-02 — the Area Overview tab.
+ * How loudly a Project is asking for the owner, as a sort key — highest first.
  *
- * Three counts and the recent activity. That is the whole budget, and the
- * restraint is the design: the brief's own warning about this surface is that
- * an overview becomes "six meaningless stat widgets", and an Area is precisely
- * the record where a dashboard would be least honest.
+ * The summary band says "1 active project is at risk"; this is what puts that
+ * Project at the top of the page rather than seventeen rows into a tab. It is a
+ * presentation ORDER over facts the evaluator already decided, never a second
+ * judgement: the states and their severity are `ProjectHealthState`'s, and a
+ * Project with no visible health sorts last because it has nothing to report.
+ */
+const ATTENTION_RANK: Record<string, number> = {
+  at_risk: 4,
+  blocked: 3,
+  stale: 2,
+  on_track: 1,
+};
+
+function attentionRank(project: SerializedAreaProjectItem): number {
+  if (!project.healthVisible) return 0;
+  return ATTENTION_RANK[project.health.state] ?? 0;
+}
+
+/**
+ * What the Active work section says about ITSELF — the honest reading of a
+ * capped, possibly-bounded list.
  *
- * Every figure is a COUNT OF LIVING THINGS — open Goals, active Projects, open
- * Tasks — never a proportion, a score or a health rating. An Area does not
- * complete, so there is nothing here to express as a percentage, and the one
- * derived judgement the product does make about an Area (its momentum) is
- * already stated once in the band above rather than repeated as a tile.
+ * Three facts decide it, and the order matters:
  *
- * Each tile is a way into the section that holds those records, so the overview
- * answers "what is here?" and then hands the owner somewhere to go.
+ * 1. **Is the list bounded?** While `projectsNextCursor` is set the record
+ *    holds only this Area's first page, so "the ones asking for you first" is a
+ *    promise the page cannot keep: an at-risk Project past the cursor is
+ *    counted by the momentum band and by `activeProjectTotal`, and is not in
+ *    the array this section sorts. The attention ordering still earns its place
+ *    over what IS loaded — it puts the Project the band is talking about first
+ *    whenever that Project is on the page — but the note says which set it
+ *    ordered, and the door beside it goes to the rest.
+ * 2. **Is anything actively worked at all?** When nothing is, the note carries
+ *    what the Area does hold instead, so the section is never a heading over a
+ *    silence.
+ * 3. **Are there direct Tasks?** A Task filed straight into an Area is work
+ *    with no Project to belong to, and the Area record has no Tasks tab to send
+ *    anyone to — so the count is stated here, where the reader is already
+ *    asking "what is going on?", rather than dropped for want of a destination.
+ */
+export function activeWorkNote({
+  shown,
+  activeProjectTotal,
+  projectTotal,
+  directTasks,
+  bounded,
+}: {
+  readonly shown: number;
+  readonly activeProjectTotal: number;
+  readonly projectTotal: number;
+  readonly directTasks: number;
+  readonly bounded: boolean;
+}): string {
+  const tasks =
+    directTasks > 0
+      ? `${directTasks} Task${directTasks === 1 ? "" : "s"} filed straight into this Area ${directTasks === 1 ? "is" : "are"} still open.`
+      : null;
+
+  if (shown === 0) {
+    const projects =
+      activeProjectTotal > 0
+        ? bounded
+          ? `${activeProjectTotal} Project${activeProjectTotal === 1 ? " is" : "s are"} active here, beyond the first page this record loaded.`
+          : `${activeProjectTotal} active Project${activeProjectTotal === 1 ? "" : "s"} could not be read.`
+        : projectTotal > 0
+          ? "The Projects here are planned, on hold or finished."
+          : null;
+    /*
+     * An empty string, not a sentence, when there is genuinely nothing to add.
+     * An Area with open Goals and no work reaches here, and its Goals section
+     * is directly below; "Nothing is in flight." over that reads as a verdict
+     * on the Goals rather than on the Projects. The section's own inline
+     * absence already states the narrow fact, and `SectionLabel` omits an
+     * empty description rather than drawing a blank line.
+     */
+    return [projects, tasks].filter(Boolean).join(" ");
+  }
+
+  const lead = bounded
+    ? `${shown} of this Area's first loaded Projects, attention first — it has ${activeProjectTotal} active in all.`
+    : activeProjectTotal > shown
+      ? `${shown} of ${activeProjectTotal} active Projects, the ones asking for you first.`
+      : "The Projects being worked in this Area.";
+  return tasks ? `${lead} ${tasks}` : lead;
+}
+
+/**
+ * The Area's ACTIVE Projects, attention first.
+ *
+ * "Active" is the shared `isProjectHealthVisible` rule the loader already
+ * applied (`healthVisible`), which is the same rule every other surface uses to
+ * decide whether a Project is genuinely being worked — so this list and the
+ * momentum band above it can never disagree about what "active" means.
+ *
+ * The relative order of two Projects with the same standing is the loader's,
+ * which is the repository's own ordering: a sort must not shuffle records that
+ * have nothing to choose between them.
+ */
+export function activeAreaProjects(
+  projects: readonly SerializedAreaProjectItem[],
+): readonly SerializedAreaProjectItem[] {
+  return projects
+    .filter((project) => project.healthVisible)
+    .map((project, index) => ({ project, index }))
+    .sort(
+      (a, b) =>
+        attentionRank(b.project) - attentionRank(a.project) ||
+        a.index - b.index,
+    )
+    .map((entry) => entry.project);
+}
+
+/**
+ * The Area Overview tab — what is going on in this part of life.
+ *
+ * Everything here is drawn from the record's OWN loader payload. The bounded
+ * page it draws from is stated honestly wherever the complete total is larger:
+ * a record never presents a bounded page as a total.
  */
 function AreaOverviewTab({
-  rollup,
-  activeProjects,
-  openTasks,
+  goals,
+  projects,
+  activeProjectTotal,
+  goalTotal,
+  momentum,
+  projectTotal,
+  projectsNextCursor,
   onSelectTab,
   activityTab,
   habitsSlot,
+  overview,
+  archived,
 }: {
-  readonly rollup: SerializedAreaRollup;
+  readonly goals: readonly SerializedAreaGoalItem[];
+  readonly projects: readonly SerializedAreaProjectItem[];
   /**
    * The COMPLETE count of actively-worked Projects, from the loader.
    *
-   * Not derived from the displayed card page: that page is bounded at 50, so an
-   * Area running more than that would have undercounted here while the tab
-   * badge beside it showed the true total. A record never presents a bounded
-   * page as a total.
+   * Not derived from the displayed page: that page is bounded at 50, so an Area
+   * running more than that would undercount here while the tab badge beside it
+   * showed the true total.
    */
-  readonly activeProjects: number;
-  readonly openTasks: number;
+  readonly activeProjectTotal: number;
+  /** The Area's COMPLETE Goal total, from its roll-up. */
+  readonly goalTotal: number;
+  /**
+   * The COMPLETE momentum, from the kernel's own unbounded boundary.
+   *
+   * The Overview's "nothing here" decision is taken from THIS rather than from
+   * the bounded page it draws, because the two can disagree and the band above
+   * already states the kernel's answer. An Area whose only work is a Task filed
+   * directly in it has no active Project and no open Goal, so a page-derived
+   * check called it empty while the band beside it read "Momentum visible" —
+   * the same screen saying both things.
+   */
+  readonly momentum: AreaMomentum;
+  /** The Area's COMPLETE Project total, from its roll-up. */
+  readonly projectTotal: number;
+  /**
+   * Non-null when MORE Projects exist than the record loaded.
+   *
+   * The Overview orders what it has by attention, and while this is set that
+   * ordering is over the first bounded page rather than over the workspace —
+   * so the section says so instead of promising a completeness a bounded page
+   * cannot deliver.
+   */
+  readonly projectsNextCursor: string | null;
   readonly onSelectTab?: (tabId: string) => void;
   readonly activityTab: ReactNode;
   /**
    * HABITS-01 — the behaviours the owner practises in this part of life.
    *
-   * A SLOT, so the Areas module stays unaware of what a Habit is. It sits ABOVE
-   * the activity feed and below the counts, because it is current context
+   * A SLOT, so the Areas module stays unaware of what a Habit is. It sits after
+   * the work and before the activity feed, because it is current context
    * ("these are the routines that live here") rather than history — and it is
-   * deliberately not counted in any of the three tiles: a Habit is not a Goal,
-   * a Project or a Task, and folding it into one of those figures would be the
+   * deliberately not counted in any of the Area's figures: a Habit is not a
+   * Goal, a Project or a Task, and folding it into one of those would be the
    * exact conflation this module exists to prevent.
    */
   readonly habitsSlot?: ReactNode;
+  readonly overview: SerializedAreaOverview;
+  readonly archived: boolean;
 }) {
-  const openGoals = Math.max(0, rollup.goals.total - rollup.goals.completed);
+  const active = activeAreaProjects(projects);
+  const shown = active.slice(0, OVERVIEW_PROJECT_LIMIT);
+  const openGoals = goals.filter((goal) => goal.completedAt === null);
+  const shownGoals = openGoals.slice(0, OVERVIEW_GOAL_LIMIT);
   /*
-   * The empty state is decided by the SAME three figures the tiles draw, not by
-   * the roll-up's historical totals.
-   *
-   * An Area whose Goals are all met and whose Projects are all finished has
-   * `goals.total > 0` and `projects.total > 0`, so keying off those rendered
-   * three tiles reading zero — which is the "an absence is never drawn as a
-   * state" rule broken by the very component that cites it. What the owner
-   * should see there is the one sentence.
+   * Whether the record loaded EVERY Project in this Area, or only its first
+   * page. Everything the Active work section claims about ordering is
+   * conditional on this.
    */
-  const empty = openGoals === 0 && activeProjects === 0 && openTasks === 0;
+  const bounded = projectsNextCursor !== null;
+  /*
+   * The unfinished Tasks filed DIRECTLY in this Area, from the momentum
+   * evaluator's own complete boundary.
+   *
+   * Not from `rollup.tasks`, which spans every Project under the Area as well:
+   * the distinction is the whole reason `getAreaMomentumFacts` reads direct
+   * tasks separately, and conflating them here would reintroduce the figure
+   * UIX-02 removed from the summary band.
+   */
+  const directTasks =
+    momentum.reasons.find((reason) => reason.code === "unfinished_direct_tasks")
+      ?.count ?? 0;
+  /*
+   * The empty state is the KERNEL's, not this page's.
+   *
+   * It used to be `no shown Projects && no open Goals`, derived from the
+   * bounded page — which is a different question from "is anything running
+   * here?", and answered it wrongly in two ways. An Area whose only work is a
+   * Task filed directly in it read "Nothing running" beneath a band saying
+   * "Momentum visible"; an Area with three planned Projects read the same
+   * beneath "Work planned". `evaluateAreaMomentum` answers this over the
+   * COMPLETE set of aligned Projects, direct Tasks and Goals, and the band
+   * above is already showing its verdict, so taking the tab's from anywhere
+   * else is how one screen comes to say two things.
+   */
+  const empty = momentum.state === "empty";
 
   return (
-    <div className="dh-area-overview">
+    <div className="flex min-w-0 flex-col gap-8">
       <h2 className="dh-visually-hidden">Overview</h2>
 
       {empty ? (
         /*
-         * A brand-new Area gets one sentence, not three tiles reading zero.
-         * "An absence is never drawn as a state" is the design system's rule
-         * for Goals and it holds just as well here.
+         * A quiet Area gets one sentence and one door, not two empty sections.
+         * The door is the thing that stops it being a dead end (AGENTS.md §6),
+         * and it is absent on an archived Area because creating inside one is
+         * refused server-side — a control that can only fail is worse than no
+         * control at all.
          */
         <EmptyState
           size="inline"
           headingLevel={3}
           title="Nothing running in this Area yet."
-          description="Goals, Projects and Tasks you file here will show up in this overview."
+          description="Give it a Goal to aim at, or a Project to move — whatever you file here will show up in this overview."
+          primaryAction={
+            archived ? undefined : (
+              <DrawerTrigger
+                drawerKey={NEW_GOAL_KEY}
+                className={buttonClassName({ variant: "primary" })}
+              >
+                New Goal
+              </DrawerTrigger>
+            )
+          }
         />
-      ) : (
-        <MetricRow data-testid="area-overview-metrics">
-          <MetricRowItem>
-            <MetricTile
-              value={String(openGoals)}
-              label={openGoals === 1 ? "open Goal" : "open Goals"}
-              supporting={
-                <button
-                  type="button"
-                  className={buttonClassName({ variant: "subtle", size: "sm" })}
-                  onClick={() => onSelectTab?.("goals")}
-                >
-                  View Goals
-                </button>
-              }
+      ) : null}
+
+      {/*
+       * The Active work section is drawn whenever the Area is not empty —
+       * INCLUDING when it has no actively-worked Project to list.
+       *
+       * Rendering it only when `shown` is non-empty made the section vanish on
+       * two records that genuinely have work: an Area whose Projects are all
+       * planned or on hold, and an Area running more Projects than one page
+       * whose first page happens to hold none of the active ones. In both the
+       * band above says work exists, so a missing section was the page
+       * declining to account for it.
+       */}
+      {empty ? null : (
+        <AreaSection
+          title="Active work"
+          description={activeWorkNote({
+            shown: shown.length,
+            activeProjectTotal,
+            projectTotal,
+            directTasks,
+            bounded,
+          })}
+          action={
+            /*
+             * The door, whenever there is more to see than this section shows
+             * — including when it shows nothing and the Projects are all
+             * planned, which is exactly when an owner most needs pointing at
+             * the tab that has them.
+             */
+            projectTotal > shown.length ? (
+              <ButtonLink
+                href={`/areas/${encodeURIComponent(overview.id)}?tab=projects`}
+                variant="subtle"
+                size="sm"
+                onClick={(event) => {
+                  /*
+                   * A real link — deep-linkable, middle-clickable and correct
+                   * with no JavaScript — that ALSO moves the record's own tab
+                   * state in place when it is followed normally, so the page
+                   * does not scroll back to the top of a re-rendered record.
+                   */
+                  if (
+                    onSelectTab &&
+                    !event.metaKey &&
+                    !event.ctrlKey &&
+                    !event.shiftKey &&
+                    event.button === 0
+                  ) {
+                    event.preventDefault();
+                    onSelectTab("projects");
+                  }
+                }}
+              >
+                {projectTotal > shown.length
+                  ? `View all ${projectTotal}`
+                  : "View Projects"}
+              </ButtonLink>
+            ) : undefined
+          }
+          data-testid="area-active-work"
+        >
+          {shown.length > 0 ? (
+            <ProjectSummaryList
+              projects={shown.map(toProjectSummary)}
+              label="The Projects being actively worked in this Area, with their status, progress and health signal."
+              showSignal
+              showContext
+              contextLabel="Sits under"
+              data-testid="area-overview-projects"
             />
-          </MetricRowItem>
-          <MetricRowItem>
-            <MetricTile
-              value={String(activeProjects)}
-              label={
-                activeProjects === 1 ? "active Project" : "active Projects"
-              }
-              supporting={
-                <button
-                  type="button"
-                  className={buttonClassName({ variant: "subtle", size: "sm" })}
-                  onClick={() => onSelectTab?.("projects")}
-                >
-                  View Projects
-                </button>
-              }
+          ) : (
+            /*
+             * The section's OWN absence, which is a narrower claim than the
+             * page's: no Project is being actively worked. What the Area does
+             * have is in the note above, so this is one line rather than a
+             * second statement of the same nothing.
+             */
+            <EmptyState
+              size="inline"
+              headingLevel={3}
+              title="No Project in this Area is being actively worked."
             />
-          </MetricRowItem>
-          <MetricRowItem>
-            <MetricTile
-              value={String(openTasks)}
-              // Across this Area's Projects AND its direct tasks — the SAME
-              // roll-up definition the spine uses everywhere else, in the label
-              // itself so the figure cannot be misread as "tasks I filed here".
-              // It is not a `supporting` line because that slot is drawn as a
-              // link, and this is a scope note with nowhere to go: an Area has
-              // no Tasks tab to send anyone to.
-              label={
-                openTasks === 1
-                  ? "open task in this Area"
-                  : "open tasks in this Area"
-              }
-            />
-          </MetricRowItem>
-        </MetricRow>
+          )}
+        </AreaSection>
       )}
+
+      {shownGoals.length > 0 ? (
+        <AreaSection
+          title="Goals"
+          description={
+            openGoals.length > shownGoals.length
+              ? `${shownGoals.length} of ${openGoals.length} open Goals.`
+              : "What this Area is aiming at."
+          }
+          action={
+            goalTotal > shownGoals.length ? (
+              <ButtonLink
+                href={`/areas/${encodeURIComponent(overview.id)}?tab=goals`}
+                variant="subtle"
+                size="sm"
+                onClick={(event) => {
+                  if (
+                    onSelectTab &&
+                    !event.metaKey &&
+                    !event.ctrlKey &&
+                    !event.shiftKey &&
+                    event.button === 0
+                  ) {
+                    event.preventDefault();
+                    onSelectTab("goals");
+                  }
+                }}
+              >
+                View all {goalTotal}
+              </ButtonLink>
+            ) : undefined
+          }
+          data-testid="area-overview-goals"
+        >
+          <AreaPanel>
+            <AreaGoalRows goals={shownGoals} overview={overview} />
+          </AreaPanel>
+        </AreaSection>
+      ) : null}
 
       {habitsSlot}
 
       {/*
        * The activity feed itself, not a second copy of it: the same component
-       * the Activity tab renders. An Area's recent events are the most useful
-       * thing an overview can carry, and rendering them here rather than
-       * summarising them means there is one implementation to keep honest.
+       * the Activity tab renders. An Area's recent events are among the most
+       * useful things an overview can carry, and rendering them here rather
+       * than summarising them means there is one implementation to keep honest.
        */}
-      <section
-        className="dh-area-overview__activity"
-        aria-label="Recent activity"
+      <AreaSection
+        title="Recent activity"
+        description="What has happened in this part of life lately."
       >
-        <h3 className="dh-area-overview__heading">Recent activity</h3>
-        {activityTab}
-      </section>
+        <AreaPanel className="p-2">{activityTab}</AreaPanel>
+      </AreaSection>
     </div>
+  );
+}
+
+/**
+ * The Area's Goals, as the SHARED `GoalStoryRow`.
+ *
+ * Not a card that resembles the one `/goals` draws: the same component from the
+ * same shared story, so there is nothing here that can drift. `showAlignment`
+ * is true because this surface has no detail pane beside it — on `/goals`,
+ * REDESIGN-04 §6.2 put ADR-040's indicator on the pane and left the row's
+ * accessible name to carry it. Where the indicator is DRAWN is a per-surface
+ * density decision; the VALUE is the same one.
+ */
+function AreaGoalRows({
+  goals,
+  overview,
+}: {
+  readonly goals: readonly SerializedAreaGoalItem[];
+  readonly overview: SerializedAreaOverview;
+}) {
+  return (
+    <ProgressRowList label="Area Goals" data-testid="area-goals-list">
+      {goals.map((goal) => (
+        <GoalStoryRow
+          key={goal.id}
+          data-testid="area-goal-row"
+          story={areaGoalStory(goal)}
+          identity={goalIdentitySource({
+            own: goal.story
+              ? {
+                  iconKey: goal.story.iconKey,
+                  colourSlot: goal.story.colourSlot,
+                }
+              : null,
+            area: {
+              iconKey: overview.iconKey,
+              colourSlot: overview.colourSlot,
+              colourRank: overview.colourRank,
+            },
+          })}
+          href={`/goals/${encodeURIComponent(goal.id)}`}
+          notes={[areaGoalStructureNote(goal), areaGoalTargetNote(goal)]}
+          showAlignment
+        />
+      ))}
+    </ProgressRowList>
   );
 }
 
@@ -434,7 +847,7 @@ function BoundedNote({
     return null;
   }
   return (
-    <p className="dh-area-bounded-note" role="note">
+    <p className="m-0 text-sm text-tertiary" role="note">
       More {kind.toLowerCase()} exist for this Area. This record shows the first
       bounded page.
     </p>
@@ -452,7 +865,6 @@ export function AreaOverviewView({
   activeProjectTotal,
   archived = false,
   onRename,
-  onOpenProject,
   activityTab,
   linkedTab,
   settingsTab,
@@ -465,33 +877,12 @@ export function AreaOverviewView({
   onTabChange,
 }: AreaOverviewViewProps) {
   const state = areaStateLabel(archived);
-  const tasksProgress = rollupProgress(rollup.tasks, "task");
   /*
-   * Open tasks across the Area — its Projects' and its own. The SAME roll-up
-   * definition the spine uses everywhere else, expressed as a count of what is
-   * outstanding rather than as a proportion of what is finished. See the
-   * summary band below for why the proportion is gone.
+   * The quiet Area. An Area with nothing active does not need a momentum chip
+   * and a reason list — the audit found the same absence stated four times on
+   * one screen. It gets one sentence.
    */
-  const openTasks = Math.max(0, rollup.tasks.total - rollup.tasks.completed);
-  /*
-   * RECORD-01 — an Area's header carries NO context line.
-   *
-   * It used to carry "Goals 1 of 3 · Projects 2 of 5 · Tasks 9 of 24" — every
-   * number of which the tab strip immediately below already shows as a badge,
-   * and the task roll-up of which the summary band states again as a meter. An
-   * Area sits at the top of the spine and has no parent to place it against, so
-   * with the duplication removed there is genuinely nothing left to say here,
-   * and the header simply ends after the title.
-   *
-   * Created, Updated and State moved to Settings → Record details.
-   */
-
-  /*
-   * The quiet Area. An Area with nothing active does not need a progress meter
-   * measuring nothing, a momentum chip, and a reason list — the audit found the
-   * same absence stated four times on one screen. It gets one sentence.
-   */
-  const dormant = momentum.state === "empty" && !tasksProgress.has;
+  const dormant = momentum.state === "empty";
 
   // AREA-05: an archived Area is read-only, so the heading renders as plain
   // text rather than as an editable control — a value that cannot be changed
@@ -534,10 +925,7 @@ export function AreaOverviewView({
          * UIX-02 — the record's own icon on the record's own ACCENT, at the
          * same geometry the gallery draws. It was a bare monochrome glyph, so
          * the one screen dedicated to a single Area was the one screen where
-         * that Area had no identity: an owner arriving from a list of coloured
-         * marks landed on a grey outline of the same shape. `AccentIcon` is the
-         * component the Areas list uses, resolving the same stored key and the
-         * same stable rank — recognition survives the navigation.
+         * that Area had no identity.
          */
         icon={
           <AccentIcon
@@ -553,40 +941,21 @@ export function AreaOverviewView({
          * UIX-02 — a chip only when there is an EXCEPTION to report.
          *
          * The header carried "● Permanent" on every active Area, which is a
-         * fact about Areas rather than about this Area — the same reasoning the
-         * Areas gallery used when it dropped the chip in AREA-01, applied to
-         * the record that kept it. What remains is "Archived", which is
-         * genuinely exceptional, genuinely about this record, and the one state
-         * that changes what the owner can do here.
+         * fact about Areas rather than about this Area. What remains is
+         * "Archived", which is genuinely exceptional and the one state that
+         * changes what the owner can do here.
          */
         status={archived ? { label: state.label, tone: state.tone } : undefined}
         overflowActions={lifecycle.overflowActions}
         /*
-         * RECORD-01 — the momentum card becomes the summary band, and a dormant
-         * Area gets a single line instead of a dashboard measuring nothing.
-         *
-         * Before: a "Roll-up progress: No active tasks yet." line, then an
-         * outlined card nested in the summary card carrying a "No active work"
-         * chip and the sentence "This Area has no active goals, projects or
-         * tasks yet.", then a bullet inside THAT repeating it a third way — with
-         * the header above having already said "Goals: No goals yet · Projects:
-         * No Projects yet". After: one sentence.
-         */
-        /*
          * UIX-02 — the Area's band carries NO progress meter.
          *
          * It used to open with "Tasks — 3 of 6 tasks complete" over a full-width
-         * violet bar: a COMPLETION PROPORTION, on the one entity in the spine
-         * that by definition never completes (AGENTS.md §4). The Areas gallery
-         * had never drawn one, and its own source file explains at length why —
-         * but the record did, so the product said both things about the same
-         * entity on two screens.
-         *
-         * It was also, quietly, a fabricated figure. An Area's task roll-up
-         * spans every Project under it plus its direct tasks, so "50%" moved
-         * whenever an unrelated Project finished something, and a mature Area
-         * with years of completed work would sit near 100% for ever — reading
-         * as "nearly done" about a part of someone's life.
+         * bar: a COMPLETION PROPORTION, on the one entity in the spine that by
+         * definition never completes (AGENTS.md §4). It was also, quietly, a
+         * fabricated figure — an Area's task roll-up spans every Project under
+         * it, so it moved whenever an unrelated Project finished something and a
+         * mature Area would sit near 100% for ever.
          *
          * What survives is the momentum the kernel actually evaluates: a state
          * in one word, and the reasons behind it. Those are real, and they are
@@ -610,29 +979,37 @@ export function AreaOverviewView({
           /*
            * UIX-02 — an Area record opens on an OVERVIEW.
            *
-           * It used to open on Goals, so the first thing an owner saw when they
-           * opened a part of their life was one of its five sections, chosen
-           * because it happened to be first in the list. An Area's question is
-           * "what is going on here?", and the answer to that is the shape of
-           * the whole thing rather than any one of its children.
-           *
-           * The tab holds exactly what the Area already knows: the counts its
-           * own roll-up carries, and the activity its own feed records. No
-           * score, no percentage, no traffic light — every figure here is a
-           * count of living things, and each one links to the section that
-           * holds them so the overview is a way IN rather than a dead end.
+           * An Area's question is "what is going on here?", and the answer to
+           * that is the shape of the whole thing rather than any one of its
+           * sections. UNTITLED-05 makes the answer the RECORDS rather than a
+           * restatement of the tab badges above it.
            */
           {
             id: "overview",
             label: "Overview",
+            /*
+             * The Overview brings its OWN surfaces — a bordered panel per
+             * section — so the tab must not draw a second one around them. See
+             * `RecordTab.surface`: it is a property of the content.
+             */
+            surface: "plain" as const,
             content: (
               <AreaOverviewTab
-                rollup={rollup}
-                activeProjects={activeProjectTotal}
-                openTasks={openTasks}
+                goals={goals}
+                projects={projects}
+                activeProjectTotal={activeProjectTotal}
+                goalTotal={rollup.goals.total}
+                // The kernel's complete verdict and the complete Project total,
+                // so the tab's "nothing here" can never disagree with the band
+                // above it or with the tab badge beside it.
+                momentum={momentum}
+                projectTotal={rollup.projects.total}
+                projectsNextCursor={projectsNextCursor}
                 onSelectTab={onTabChange}
                 activityTab={activityTab}
                 habitsSlot={habitsSlot}
+                overview={overview}
+                archived={archived}
               />
             ),
           },
@@ -640,19 +1017,22 @@ export function AreaOverviewView({
             id: "goals",
             label: "Goals",
             badge: rollup.goals.total,
+            // The Goal rows sit in their own bounded panel, exactly as they do
+            // on the Overview, so the two readings of the same records are one
+            // object rather than two.
+            surface: "plain" as const,
             content:
               (
                 /*
                  * RECORD-01 — the toolbar is unconditional, so "New Goal" is in
                  * the SAME place whether the Area has Goals or not, and the empty
-                 * state no longer has to carry its own copy of the action. That
-                 * removes the duplicate button and lets the absence be one line.
+                 * state no longer has to carry its own copy of the action.
                  *
                  * The local action stays (rather than deferring to the global +)
                  * because it passes the route-param test: the Drawer form already
                  * receives this Area's id, so a Goal created here needs no picker.
                  */
-                <>
+                <div className="flex min-w-0 flex-col gap-4">
                   <h2 className="dh-visually-hidden">Goals</h2>
                   {archived ? null : (
                     <div className="dh-record-toolbar">
@@ -676,60 +1056,21 @@ export function AreaOverviewView({
                     />
                   ) : (
                     <>
-                      {/*
-                       * STEER-03 — the SAME row `/goals` draws, from the same
-                       * shared story. Not a card that resembles it: the same
-                       * component, so there is nothing here that can drift.
-                       *
-                       * `showAlignment` is true because this surface has no
-                       * detail pane beside it — on `/goals`, REDESIGN-04 §6.2
-                       * put ADR-040's indicator on the pane and left the row's
-                       * accessible name to carry it. Where the indicator is
-                       * DRAWN is a per-surface density decision; the VALUE is
-                       * the same one, which is what the parity attributes on
-                       * every row prove.
-                       */}
-                      <ProgressRowList
-                        label="Area Goals"
-                        data-testid="area-goals-list"
-                      >
-                        {goals.map((goal) => (
-                          <GoalStoryRow
-                            key={goal.id}
-                            data-testid="area-goal-row"
-                            story={areaGoalStory(goal)}
-                            identity={goalIdentitySource({
-                              own: goal.story
-                                ? {
-                                    iconKey: goal.story.iconKey,
-                                    colourSlot: goal.story.colourSlot,
-                                  }
-                                : null,
-                              area: {
-                                iconKey: overview.iconKey,
-                                colourSlot: overview.colourSlot,
-                                colourRank: overview.colourRank,
-                              },
-                            })}
-                            href={`/goals/${encodeURIComponent(goal.id)}`}
-                            notes={[
-                              areaGoalStructureNote(goal),
-                              areaGoalTargetNote(goal),
-                            ]}
-                            showAlignment
-                          />
-                        ))}
-                      </ProgressRowList>
+                      <AreaPanel>
+                        <AreaGoalRows goals={goals} overview={overview} />
+                      </AreaPanel>
                       <BoundedNote kind="Goals" nextCursor={goalsNextCursor} />
                     </>
                   )}
-                </>
+                </div>
               ),
           },
           {
             id: "projects",
             label: "Projects",
             badge: rollup.projects.total,
+            // The shared `ProjectSummaryList` IS a bounded Untitled table card.
+            surface: "plain" as const,
             content:
               projects.length === 0 ? (
                 <EmptyState
@@ -739,23 +1080,35 @@ export function AreaOverviewView({
                   description="Direct Projects, and Projects advancing this Area’s Goals, appear here."
                 />
               ) : (
-                <>
+                <div className="flex min-w-0 flex-col gap-4">
                   <h2 className="dh-visually-hidden">Projects</h2>
-                  <CardCollection
-                    items={projects}
-                    getItemId={(project) => project.id}
-                    ariaLabel="Area Projects"
-                    presentation="list"
-                    density="comfortable"
-                    renderCard={(project) => (
-                      <Card {...projectCard(project, onOpenProject)} />
+                  {/*
+                   * UNTITLED-05 — the SHARED Project summary table, whose
+                   * column vocabulary is the one `/projects?present=table`
+                   * uses. Not a second Project design inside Areas: the same
+                   * component, so a Project looks like a Project wherever it is
+                   * reached from.
+                   *
+                   * Attention leads here too, for the same reason it does on
+                   * the Overview: the summary band names a count of Projects
+                   * needing the owner, and the tab it points at should not bury
+                   * them behind fourteen Planned ones.
+                   */}
+                  <ProjectSummaryList
+                    projects={orderedAreaProjects(projects).map(
+                      toProjectSummary,
                     )}
+                    label="Projects in this Area — those directly under it and those advancing its Goals — with status, progress, health signal and what each sits under."
+                    showSignal
+                    showContext
+                    contextLabel="Sits under"
+                    data-testid="area-projects-table"
                   />
                   <BoundedNote
                     kind="Projects"
                     nextCursor={projectsNextCursor}
                   />
-                </>
+                </div>
               ),
           },
           { id: "linked", label: "Linked", content: linkedTab },
@@ -768,4 +1121,35 @@ export function AreaOverviewView({
       {lifecycle.dialogs}
     </>
   );
+}
+
+/**
+ * Every Project in the Area, with the ones asking for the owner first and the
+ * finished ones last.
+ *
+ * The Projects tab used to render the loader's order directly, which interleaved
+ * two completed and one archived Project among the fourteen live ones and put
+ * the single at-risk Project fifth. This is a presentation ORDER over facts the
+ * evaluator and the lifecycle already decided — never a second judgement — and
+ * records with nothing to choose between them keep the loader's order.
+ */
+export function orderedAreaProjects(
+  projects: readonly SerializedAreaProjectItem[],
+): readonly SerializedAreaProjectItem[] {
+  return projects
+    .map((project, index) => ({ project, index }))
+    .sort(
+      (a, b) =>
+        lifecycleRank(a.project) - lifecycleRank(b.project) ||
+        attentionRank(b.project) - attentionRank(a.project) ||
+        a.index - b.index,
+    )
+    .map((entry) => entry.project);
+}
+
+/** Live Projects, then finished ones, then archived. Lowest sorts first. */
+function lifecycleRank(project: SerializedAreaProjectItem): number {
+  if (project.archivedAt !== null) return 2;
+  if (project.completedAt !== null) return 1;
+  return 0;
 }

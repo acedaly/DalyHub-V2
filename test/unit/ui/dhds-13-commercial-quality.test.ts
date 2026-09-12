@@ -179,11 +179,15 @@ describe("DHDS-13 — one row grammar across the collections", () => {
     expect(table).toMatch(/data-dh-action-context="true"/);
     expect(table).toMatch(/<Table\.Cell className="dh-action-reveal/);
 
-    const entityRow = read("app", "shared", "card", "EntityRowList.tsx");
-    expect(entityRow).toMatch(
-      /data-dh-action-context=\{overflow \? "true" : undefined\}/,
-    );
-    expect(entityRow).toMatch(/dh-erow__overflow dh-action-reveal/);
+    /*
+     * UNTITLED-05 — the Areas row list became the Untitled `application/table`
+     * composition, exactly as the Projects table did, so the SAME two halves of
+     * the contract are asserted against the same two shapes. `EntityRowList`,
+     * whose only consumer this was, is gone.
+     */
+    const areasTable = read("app", "modules", "areas", "AreasTable.tsx");
+    expect(areasTable).toMatch(/data-dh-action-context="true"/);
+    expect(areasTable).toMatch(/<Table\.Cell className="dh-action-reveal/);
   });
 
   it("drops the bespoke tray around the Assets filter band", () => {

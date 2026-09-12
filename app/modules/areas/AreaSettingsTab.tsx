@@ -26,6 +26,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Link } from "react-router";
 
 import type { AreaDependencySummary } from "~/kernel/areas";
 import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
@@ -252,23 +253,46 @@ function DeleteBlockedGroup({
       description="This Area still contains records, so it can’t be permanently deleted yet."
       tone="danger"
     >
-      <div className="dh-area-delete-blocked">
-        <p>
+      {/*
+       * UNTITLED-05 — the blockers, drawn with Untitled tokens and utilities
+       * rather than the `areas.css` rule family that used to paint them.
+       *
+       * The list is a real `<ul>` because the blockers ARE a list — a screen
+       * reader is told how many things stand in the way before reading any of
+       * them — and each entry that has somewhere to go is a router `Link` so it
+       * stays inside the application rather than reloading the document.
+       */}
+      <div className="flex min-w-0 flex-col gap-3 text-sm text-tertiary">
+        <p className="m-0">
           To delete this Area permanently, first move, archive or delete
           everything it still holds:
         </p>
-        <ul className="dh-area-delete-blocked__list">
+        <ul className="m-0 flex list-none flex-col gap-2 p-0">
           {blockers.map((blocker) => (
-            <li key={blocker.id}>
+            <li
+              key={blocker.id}
+              className="flex min-w-0 items-center gap-2 rounded-lg bg-primary px-3 py-2 ring-1 ring-secondary ring-inset"
+            >
+              <span
+                className="size-1.5 shrink-0 rounded-full bg-fg-quaternary"
+                aria-hidden="true"
+              />
               {blocker.href ? (
-                <a href={blocker.href}>{blocker.label}</a>
+                <Link
+                  className="min-w-0 truncate rounded-sm font-medium text-secondary outline-focus-ring hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
+                  to={blocker.href}
+                >
+                  {blocker.label}
+                </Link>
               ) : (
-                <span>{blocker.label}</span>
+                <span className="min-w-0 truncate font-medium text-secondary">
+                  {blocker.label}
+                </span>
               )}
             </li>
           ))}
         </ul>
-        <p>
+        <p className="m-0">
           Permanent deletion is only offered once this Area is empty. Nothing is
           ever cascade-deleted for you.
         </p>
@@ -351,7 +375,7 @@ export function AreaSettingsTab({
   }, [archived]);
 
   return (
-    <div className="dh-area-settings" ref={rootRef}>
+    <div className="min-w-0" ref={rootRef}>
       <h2 className="dh-visually-hidden">Settings</h2>
       <SettingsLayout aria-label="Area settings">
         {onSetIdentity && !archived ? (

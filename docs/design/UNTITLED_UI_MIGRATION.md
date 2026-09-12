@@ -522,20 +522,101 @@ hover and pressed as container changes and focus as its own 2px ring. The
 `(hover: none)` touch floor still reaches the component, so the 44px coarse-
 pointer target is unchanged.
 
+## Phase 6 — Areas
+
+Phase 4 migrated the STRUCTURE of nine surfaces and Phase 5 the PAINT. Phase 6
+is the third thing neither of them reached: on Areas the primitives were
+Untitled's, the paint was Untitled's, and the COMPOSITION above them was still
+AREA-01's — so the page was drawn correctly and answered the wrong questions.
+
+### What moved
+
+1. **The Areas gallery is `AreaCard`.** Areas were the last spine collection on
+   the generic `EntityCard` — the same component and the same grid UIX-02 pulled
+   Projects off in favour of `ProjectCard`, so "an Area was a Project with
+   renamed fields" had only ever been fixed on one side of the pair. The new
+   card puts permanence ("Ongoing since Mar 2024") where a Project card puts its
+   measure, and what is LIVING in the Area as a fact strip in a divided footer
+   band.
+2. **The Areas dense view is a real table.** `EntityRowList`'s own source stated
+   the aim — "the counts are what the eye is actually comparing down the
+   column" — and then drew them as prose in one flexible cell. `AreasTable` is
+   the vendored `application/table` composition, the same one `ProjectsTable`
+   adopted, so the spine's two collections carry one table grammar.
+3. **The Area Overview shows the records.** It drew three large figures, every
+   one of which the tab strip above already carried as a badge, so the summary
+   band could say "1 active project is at risk" and the tab beneath it would not
+   say which. It now leads with the active Projects, attention first.
+4. **One Project presentation inside a record.** An Area's Projects tab and a
+   Goal's each built their own `CardProps` for the generic `Card`. Both now draw
+   the shared `ProjectSummaryList`, whose columns are `/projects?present=table`'s.
+
+### Shared changes outside Areas
+
+- `~/shared/project-list` is new: the one way a Project is drawn inside another
+  record. Three consumers justify it — the Area Overview, the Area Projects tab
+  and the Goal Projects tab.
+- `AreaCard`/`AreaCardGrid` joined the shared card family beside `ProjectCard`,
+  for the same reason it is there: the card family is product-wide.
+- `EntityRow`/`EntityRowList` were deleted. Areas was their only consumer.
+- `onOpenProject` was removed from the Area and Goal records. The shared row
+  opens through a react-router `<Link>` — the same client-side navigation with a
+  real href behind it, which the callback was not.
+- `listAreaProjects` now carries the Project's own icon, colour slot and
+  identity rank, so a Project drawn inside an Area wears the mark `/projects`
+  draws it with. Two columns from a `project_details` join the query already
+  made, plus the same window function the Projects collection computes: no extra
+  read, no migration and no index.
+
+### Stylesheets deleted
+
+`app/styles/areas.css` in full, and its `@import` from `app.css`. Every rule in
+it was module-local layout for a composition that no longer exists.
+
+### Accessibility changes worth knowing about
+
+- Both new tables are React Aria `grid`s, so the row and column semantics, the
+  header association and keyboard navigation are the library's. Tests that
+  addressed a `list` named "Goal Projects" now address a `grid`.
+- Every column header carries a name, including the invisible actions column —
+  an empty column header is a real axe finding and announces a row's actions
+  under nothing at all.
+- Each table draws its facts twice from ONE DOM: in its own column at desktop
+  width, and in a quiet line under the name on a phone. Exactly one of the two
+  is visible at any width, so a handset loses no fact and a desktop gains no
+  duplicate. Playwright assertions on those strings need `filter({ visible: true })`.
+- The Overview and Projects tab panels declare `surface="plain"`, because their
+  content brings its own bounded surface. That is the documented purpose of the
+  prop and removes a frame inside a frame.
+
+### Pre-existing failures, unchanged by this phase
+
+Three end-to-end tests fail identically on `origin/main` at 37dc37c and on this
+branch, and none of them touches an Areas surface:
+
+- `areas-goals-mobile.spec.ts:121` and `:473` — horizontal overflow on a GOAL
+  record whose parent Area has a deliberately long title, at 320/390px;
+- `collection-header.spec.ts:597` — a task-row overflow menu that no longer
+  clamps at a 420px-tall viewport.
+
 ### Next
 
-1. Diary — the day navigator and the timeline.
-2. People, Assets, Reviews, Obligations, Finance — their row/table structures.
+1. Settings — record Settings tabs draw the shared settings groups inside a
+   record panel (a frame inside a frame) on Areas and Projects alike, and
+   `tone="danger"` paints a reversible Archive group as destructive. Both are
+   properties of `~/shared/settings` rather than of either module.
+2. Goals — `SerializedGoalProjectItem` carries no identity or health, so a
+   Project inside a Goal record has a neutral mark and no signal column.
+3. Diary — the day navigator and the timeline.
+4. People, Assets, Reviews, Obligations, Finance — their row/table structures.
    (Their controls, empty states, switchers and now their buttons are migrated;
    what is left is the row/table composition.)
-3. Meeting record — the notebook and agenda sections are still domain
+5. Meeting record — the notebook and agenda sections are still domain
    compositions on legacy styling.
-4. Settings — the most Untitled-native area in the product, from complete
-   settings page examples.
-5. `IconButton` — the last primitive in `~/shared/ui` not built on Untitled, and
+6. `IconButton` — the last primitive in `~/shared/ui` not built on Untitled, and
    still a full state-layer host.
-6. Remove the inert legacy class names once their tests address product hooks
+7. Remove the inert legacy class names once their tests address product hooks
    instead, and with them the `.dh-btn` hook and the thirteen module rules that
    need it.
-7. `.dh-btn--danger-quiet` in `tasks.css` has no consumer in `app/` — verify and
+8. `.dh-btn--danger-quiet` in `tasks.css` has no consumer in `app/` — verify and
    delete.

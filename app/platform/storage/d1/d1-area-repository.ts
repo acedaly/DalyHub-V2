@@ -131,6 +131,20 @@ interface AreaProjectRow {
   readonly goal_title: string | null;
   readonly task_total: number | null;
   readonly task_completed: number | null;
+  /**
+   * UNTITLED-05 — the Project's own identity, so an Area record draws its
+   * Projects with the mark `/projects` draws them with.
+   *
+   * `icon_key` and `colour_slot` come from the `project_details` row this query
+   * ALREADY left-joins for status and archival, so they cost no extra read.
+   * `colour_rank` is ADR-068 decision 5's lifecycle-independent rank, computed
+   * by the same window function the Projects collection uses — a function of
+   * immutable creation facts, so a Project keeps its colour across every
+   * surface that draws it and across every filter and re-sort.
+   */
+  readonly icon_key: string | null;
+  readonly colour_slot: string | null;
+  readonly colour_rank: number | null;
 }
 
 interface AreaAlignedProjectFactRow {
@@ -858,6 +872,19 @@ export class D1AreaRepository implements AreaRepository {
              WHERE tl.workspace_id = ? AND tl.type = '${TASK_BELONGS_TO_PROJECT}'
                    AND tl.deleted_at IS NULL
              GROUP BY tl.target_entity_id
+           ),
+           -- UNTITLED-05: the Project identity ramp (ADR-068 decision 5), the
+           -- SAME window function the Projects collection computes. Ranked over
+           -- every Project in the workspace regardless of lifecycle, which is
+           -- what makes the accent survive archiving and completion; only a
+           -- permanent delete shifts it. A CTE and no column: no migration and
+           -- no index.
+           project_ranks AS (
+             SELECT id,
+                    ROW_NUMBER() OVER (ORDER BY created_at ASC, id ASC) - 1
+                      AS colour_rank
+             FROM entities
+             WHERE workspace_id = ? AND type = '${PROJECT}'
            )
            SELECT e.id, e.title, e.created_at,
                   ${EFFECTIVE_PROJECT_UPDATED_AT_EXPR} AS effective_updated_at,
@@ -868,7 +895,10 @@ export class D1AreaRepository implements AreaRepository {
                   ap.goal_id,
                   ap.goal_title,
                   COALESCE(tc.total, 0) AS task_total,
-                  COALESCE(tc.completed, 0) AS task_completed
+                  COALESCE(tc.completed, 0) AS task_completed,
+                  pd.icon_key AS icon_key,
+                  pd.colour_slot AS colour_slot,
+                  prk.colour_rank AS colour_rank
            FROM area_projects ap
            JOIN entities e
              ON e.workspace_id = ? AND e.id = ap.project_id
@@ -878,6 +908,7 @@ export class D1AreaRepository implements AreaRepository {
            LEFT JOIN project_details pd
              ON pd.workspace_id = e.workspace_id AND pd.entity_id = e.id
            LEFT JOIN task_counts tc ON tc.project_id = e.id
+           LEFT JOIN project_ranks prk ON prk.id = e.id
            WHERE 1 = 1${cursorClause}
            ORDER BY e.created_at ASC, e.id ASC
            LIMIT ?`,
@@ -887,6 +918,8 @@ export class D1AreaRepository implements AreaRepository {
           areaId,
           this.#workspaceId,
           areaId,
+          this.#workspaceId,
+          // `project_ranks`
           this.#workspaceId,
           this.#workspaceId,
           ...cursorParams,
@@ -1094,6 +1127,12 @@ export class D1AreaRepository implements AreaRepository {
           : { kind: "area" },
       taskTotal: Number(row.task_total ?? 0),
       taskCompleted: Number(row.task_completed ?? 0),
+      // Normalised on the way OUT, so a key or slot this build no longer
+      // recognises arrives as `null` and the row renders the Project's entity
+      // default rather than an empty box.
+      iconKey: normaliseEntityIconKey(row.icon_key),
+      colourSlot: normaliseIdentityColourSlot(row.colour_slot),
+      colourRank: row.colour_rank === null ? 0 : Number(row.colour_rank),
     };
   }
 

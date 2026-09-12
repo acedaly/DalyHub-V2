@@ -6,7 +6,6 @@ import { env } from "cloudflare:workers";
 import { useCallback, useMemo, useState } from "react";
 import {
   isRouteErrorResponse,
-  useNavigate,
   useRevalidator,
   useSearchParams,
 } from "react-router";
@@ -342,7 +341,6 @@ function parseTab(value: string | null): "projects" | "linked" | "activity" {
 
 function GoalDetail(props: Awaited<ReturnType<typeof loader>>) {
   const { openDrawer } = useDrawer();
-  const navigate = useNavigate();
   const revalidator = useRevalidator();
   const { notifySuccess, notifyError, notifyUndo } = useFeedback();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -644,9 +642,6 @@ function GoalDetail(props: Awaited<ReturnType<typeof loader>>) {
         onMoveToArea={onMoveToArea}
         onDelete={onDelete}
         deletePending={deletePending}
-        onOpenProject={(projectId) =>
-          navigate(`/projects/${encodeURIComponent(projectId)}`)
-        }
         onOpenTask={(taskId) => openDrawer(`task:${taskId}`)}
         activeTabId={activeTabId}
         onTabChange={onTabChange}

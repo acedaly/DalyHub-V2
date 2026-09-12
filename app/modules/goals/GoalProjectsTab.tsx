@@ -18,13 +18,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFetcher, useLocation } from "react-router";
 
-import { Card, CardCollection } from "~/shared/card";
-import type { CardMetaItem, CardProps } from "~/shared/card";
 import { DrawerTrigger } from "~/shared/drawer";
 import { EmptyState } from "~/shared/empty-state";
 import { NEW_PROJECT_FOR_GOAL_KEY } from "~/shared/project-creation";
-import { EntityIcon } from "~/shared/entity";
 import { LoadMore } from "~/shared/load-more";
+import { ProjectSummaryList } from "~/shared/project-list";
+import type { ProjectSummaryItem } from "~/shared/project-list";
 
 import { goalProjectStateLabel } from "./goal-view";
 import type { SerializedGoalProjectItem } from "./goal-view";
@@ -36,7 +35,6 @@ interface GoalProjectsTabProps {
   readonly projects: readonly SerializedGoalProjectItem[];
   /** Opaque cursor for the next Project page, or null when exhausted. */
   readonly nextCursor: string | null;
-  readonly onOpenProject: (projectId: string) => void;
 }
 
 /** The subset of the projects endpoint's payload a "Load more" fetch reads back. */
@@ -191,44 +189,52 @@ function useGoalProjectPagination(
   };
 }
 
-function projectCard(
+/**
+ * One contributing Project, as the SHARED summary row needs it.
+ *
+ * UNTITLED-05 — this tab used to build its own `CardProps` for the generic
+ * `Card`, which drew a 12px monochrome glyph, a mini bar inlined mid-sentence
+ * and a status chip floated to the far right. An Area's Projects tab did the
+ * same thing differently, and neither resembled the Project `/projects` draws.
+ * Both are now the one shared table, so a Project is one object wherever it is
+ * reached from.
+ *
+ * `signal` is `null` because this projection carries no health facts — the
+ * Goal's contributing-Project read is a lighter one — so the tab declares
+ * `showSignal={false}` and the column is not drawn at all, rather than drawn
+ * empty. An absent fact is never rendered as a blank cell under a heading.
+ *
+ * `iconKey`/`colourSlot`/`colourRank` are likewise absent from this projection,
+ * so the mark is the Project's neutral entity glyph. That is a deliberate
+ * narrowing of what this surface knows, not a different drawing of what it
+ * knows: extending `SerializedGoalProjectItem` belongs to the Goals migration.
+ */
+function toProjectSummary(
   project: SerializedGoalProjectItem,
-  onOpenProject: (projectId: string) => void,
-): CardProps {
+): ProjectSummaryItem {
   const hasTasks = project.taskTotal > 0;
-  /*
-   * UIX-03 — the task count is stated ONCE.
-   *
-   * The row carried "Tasks: 0 of 1 tasks" as metadata AND
-   * "Task roll-up: 0 of 1 tasks" as the bar's label, directly beneath it: one
-   * fact, two renderings, on a row whose whole job is to be a compact pointer
-   * at a Project. The BAR keeps it, because a bar with no figure is the thing
-   * that needs the words; a Project with no tasks has no bar, so it keeps the
-   * metadata line instead and the row never loses the fact entirely.
-   */
-  const metadata: CardMetaItem[] = hasTasks
-    ? []
-    : [{ id: "tasks", label: "Tasks", value: "No tasks yet" }];
   return {
     id: project.id,
     title: project.title,
-    typeLabel: "Project",
-    icon: <EntityIcon type="project" />,
-    headingLevel: 3,
     status: goalProjectStateLabel(project),
-    metadata,
+    /*
+     * UIX-03 — the task count is stated ONCE, and a Project with no tasks draws
+     * no bar at all rather than an empty track at 0%: "nothing done" and
+     * "nothing planned" are different facts.
+     */
     progress: hasTasks
       ? {
-          value: project.taskCompleted,
-          max: project.taskTotal,
-          label: `${project.taskCompleted} of ${project.taskTotal} tasks`,
+          percent: Math.round(
+            (project.taskCompleted / project.taskTotal) * 100,
+          ),
+          summary: `${project.taskCompleted} of ${project.taskTotal} ${
+            project.taskTotal === 1 ? "task" : "tasks"
+          }`,
         }
-      : undefined,
-    density: "comfortable",
-    presentation: "list",
-    href: `/projects/${encodeURIComponent(project.id)}`,
-    onOpen: () => onOpenProject(project.id),
-    openAriaLabel: `Open ${project.title}`,
+      : null,
+    signal: null,
+    context: null,
+    muted: project.archivedAt !== null,
   };
 }
 
@@ -236,7 +242,6 @@ export function GoalProjectsTab({
   goalId,
   projects,
   nextCursor,
-  onOpenProject,
 }: GoalProjectsTabProps) {
   const { items, hasMore, loading, loadFailed, loadMore } =
     useGoalProjectPagination(goalId, projects, nextCursor);
@@ -279,26 +284,30 @@ export function GoalProjectsTab({
   }
 
   return (
-    <>
+    <div className="flex min-w-0 flex-col gap-4">
       <h2 className="dh-visually-hidden">Projects</h2>
-      <CardCollection
-        items={items}
-        getItemId={(project) => project.id}
-        ariaLabel="Goal Projects"
-        presentation="list"
-        density="comfortable"
-        renderCard={(project) => (
-          <Card {...projectCard(project, onOpenProject)} />
-        )}
+      {/*
+       * UNTITLED-05 — the SHARED Project summary table, the same one an Area
+       * record draws and the same column vocabulary `/projects?present=table`
+       * uses. "Load more" rides in the table card's own footer band, so the
+       * keyset affordance sits inside the surface it extends rather than
+       * floating beneath it.
+       */}
+      <ProjectSummaryList
+        projects={items.map(toProjectSummary)}
+        label="Projects advancing this Goal, with their status and progress."
+        data-testid="goal-projects-table"
+        footer={
+          hasMore ? (
+            <LoadMore
+              loading={loading}
+              loadFailed={loadFailed}
+              onLoadMore={loadMore}
+              label="Load more Projects"
+            />
+          ) : undefined
+        }
       />
-      {hasMore ? (
-        <LoadMore
-          loading={loading}
-          loadFailed={loadFailed}
-          onLoadMore={loadMore}
-          label="Load more Projects"
-        />
-      ) : null}
-    </>
+    </div>
   );
 }
