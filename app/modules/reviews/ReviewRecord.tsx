@@ -42,7 +42,7 @@ import { ReviewInsightsPanel } from "./insights/ReviewInsightsPanel";
 import { ReviewTimelineTab } from "./ReviewTimelineTab";
 import type { SerializedReview, SerializedReviewSection } from "./review-view";
 import type { ReviewMutationResult } from "./routes/mutate";
-import { buttonClassName } from "~/shared/ui";
+import { buttonClassName, inputClassName } from "~/shared/ui";
 
 interface ReviewRecordProps {
   readonly review: SerializedReview;
@@ -701,7 +701,7 @@ function ReviewSettings({
               }}
             >
               <input
-                className="dh-input"
+                className={inputClassName()}
                 value={title}
                 onChange={(event) => setTitle(event.currentTarget.value)}
                 aria-label="Review title"

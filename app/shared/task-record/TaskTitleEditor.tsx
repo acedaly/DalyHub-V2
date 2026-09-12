@@ -38,6 +38,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { postTaskRecordActionOffline } from "./task-inline-edit";
+import { inputClassName } from "~/shared/ui";
 
 /** The longest title the Task routes accept. Mirrors the record drawer's field. */
 const TITLE_MAX = 512;
@@ -140,7 +141,9 @@ export function TaskTitleEditor({
     <span className="dh-tasks-inline-title-editor">
       <input
         ref={inputRef}
-        className="dh-input dh-tasks-inline-title-editor__input"
+        className={inputClassName({
+          className: "dh-tasks-inline-title-editor__input",
+        })}
         value={draft}
         maxLength={TITLE_MAX}
         disabled={saving}

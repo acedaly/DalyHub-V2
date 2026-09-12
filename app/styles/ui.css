@@ -33,13 +33,13 @@
  *
  * ── The state layer is NOT re-implemented here ───────────────────────────────
  *
- * `.dh-icon-button` and the LEGACY `.dh-btn` literal are hosts of the ONE
- * state-layer implementation in `base.css` (M3-INT): they appear in its host
- * list and get their hover, focus, pressed and disabled opacities from there.
- * What they declare for themselves is `position: relative`'s companion —
- * `overflow: hidden`, so the layer stays inside the corner radius — and nothing
- * else. Adding a hand-rolled `color-mix()` hover fill here is what
- * `test/unit/tokens/state-layer.test.ts` refuses.
+ * The LEGACY `.dh-btn` literal is a host of the ONE state-layer implementation
+ * in `base.css` (M3-INT): it appears in that host list and gets its hover,
+ * focus, pressed and disabled opacities from there. What it declares for itself
+ * is `position: relative`'s companion — `overflow: hidden`, so the layer stays
+ * inside the corner radius — and nothing else. Adding a hand-rolled
+ * `color-mix()` hover fill here is what `test/unit/tokens/state-layer.test.ts`
+ * refuses.
  *
  * `.dh-button` — the shared component — LEFT that host list when its paint moved
  * to Untitled. Untitled draws hover and pressed as real container changes
@@ -301,221 +301,63 @@
  * control rung with everything else on the row, and packs into a dense action
  * rail without the breathing space a circle needs in order not to look crowded.
  */
-.dh-icon-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-  /* Square by construction: both axes are the density rung, so the hit area is
-   * the control height in both directions and cannot be narrower than it is
-   * tall. */
-  min-inline-size: var(--dh-control-height);
-  min-block-size: var(--dh-control-height);
-  padding: var(--dh-space-1);
-  border: var(--dh-border-width) solid transparent;
-  border-radius: var(--dh-radius-control);
-  background: transparent;
-  color: var(--dh-color-text-muted);
-  cursor: pointer;
-  overflow: hidden;
-  transition:
-    background-color var(--dh-motion-fast) var(--dh-ease-standard),
-    color var(--dh-motion-fast) var(--dh-ease-standard);
-}
-
-.dh-icon-button__glyph {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  inline-size: var(--dh-icon-size);
-  block-size: var(--dh-icon-size);
-}
-
 /*
- * SMALL — padding only, exactly as `Button`'s `sm` is.
+ * UNTITLED-11 — `.dh-icon-button*` is DELETED.
  *
- * It removes the inset around the glyph rather than shrinking the control, so a
- * dense action rail packs tighter and the hit area is still the density rung in
- * both axes. Restating the min-sizes here would be a no-op that reads like a
- * size change, which is worse than saying nothing.
+ * The shared `IconButton` is painted by Untitled's `base/buttons/button-utility`
+ * now, through that component's own exported `styles` plus its geometry — the
+ * same device `buttonClassName` uses for the text button, so an icon button and
+ * a text button beside it come from one source. Restating a border, a radius, a
+ * background or a hover colour here would paint straight over the migrated
+ * component, because this stylesheet is unlayered: that is the defect the
+ * Projects and the Goals migration each found once, and it is why a migrated
+ * primitive keeps no rules in a stylesheet at all.
+ *
+ * Its entry in `base.css`'s state-layer host list went with it. Untitled draws
+ * hover as a real container change and focus as its own ring; a `currentColor`
+ * wash on top of those is a SECOND hover state rather than the one shared one —
+ * exactly the reasoning that removed `.dh-button` from that list.
+ *
+ * The two DalyHub differences from upstream — the coarse-pointer touch floor and
+ * the `pressed` container — are expressed as utilities in the component, beside
+ * the reason for each.
  */
-.dh-icon-button--sm {
-  padding: var(--dh-space-0);
-}
-
-.dh-icon-button:hover:not(:disabled) {
-  color: var(--dh-color-text);
-}
-
-.dh-icon-button--outlined {
-  border-color: var(--dh-color-border-strong);
-  background: var(--dh-color-surface);
-  color: var(--dh-color-text);
-}
-
-.dh-icon-button--danger {
-  color: var(--dh-color-danger);
-}
-
-/* A toggle's ON state is a real container change, never a colour alone — it
- * survives forced colours and is visible without a pointer. */
-.dh-icon-button[aria-pressed="true"] {
-  background: var(--dh-color-surface-selected);
-  color: var(--dh-color-accent);
-}
-
-.dh-icon-button:disabled {
-  color: var(--dh-color-text-muted);
-  opacity: 0.55;
-  cursor: not-allowed;
-}
 
 /* ========================================================================== */
 /* Input · Textarea · Select — the one control shape                           */
 /* ========================================================================== */
 
 /*
- * `.dh-control` is the DS-02 text-entry surface, and `.dh-input` is named beside
- * it for the same bridging reason `.dh-btn` is above: `.dh-input` is the class
- * ~100 shared-form field instances already carry, and the two must not be two
- * different-looking controls while the migration runs.
+ * UNTITLED-11 — the text-control PAINT is deleted.
  *
- * The change from what `.dh-input` was: 56px becomes `--dh-control-height`,
- * `body-large` becomes the compact field rung, and 16px of inline padding
- * becomes `--dh-inset-inline`. A DalyHub text field stops being an M3 outlined
- * container and becomes the productivity field the concept draws.
+ * `:is(.dh-control, .dh-input)` used to own the height, the inline padding, the
+ * border, the radius, the hover, the focus ring, the invalid tint, the disabled
+ * ground and the placeholder colour for every text control in the product, over
+ * the legacy `--surface` / `--border-strong` / `--ink-*` family. All of it is
+ * Untitled's `base/input` recipe now, built once by `inputClassName()` in
+ * `~/shared/ui/Input` and emitted by `Input`, `Textarea`, `Select` and by every
+ * module call site that renders a bare field.
+ *
+ * The classes are still EMITTED, and that is deliberate rather than residue:
+ * about twenty module stylesheets size a field by naming `.dh-input` (a
+ * `flex: 1`, a grid span, a width). Those are the module's own composition, not
+ * a second control design, and they keep working because the class is still
+ * there carrying no paint — the same bridge `.dh-btn` is for the text button.
+ *
+ * Leaving the paint here would not have been harmless. This stylesheet is
+ * unlayered, so it beats every Tailwind utility whatever the specificity: the
+ * Goal record's measurement sheet had already had to reach past the shared
+ * component to Untitled's `InputBase` directly, and recorded that `.dh-input`
+ * "repainted the control's height, radius and focus ring" over the migrated
+ * control. Two field systems, with the legacy one winning by cascade order.
  */
-:is(.dh-control, .dh-input) {
-  inline-size: 100%;
-  max-inline-size: 100%;
-  box-sizing: border-box;
-  min-block-size: var(--input-height);
-  padding-block: 0;
-  padding-inline: var(--field-padding-inline);
-  font-family: var(--dh-font-family);
-  /*
-   * The anti-zoom floor, by token (MOBILE-01).
-   *
-   * `--app-field-font-size-compact` is `body-medium` on a pointer device and is
-   * floored at 16px on a touch one. This is the one `--app-*` reference in this
-   * file and it is deliberate: the floor is a platform behaviour rather than a
-   * design value, it is published in exactly one place, and duplicating it as a
-   * `--dh-*` name would create a second thing to keep in step with iOS.
-   * DS-08 decides where it finally lives.
-   */
-  font: var(--t-item);
-  color: var(--ink-body);
-  /* `background-color`, not the `background` SHORTHAND: the shorthand resets
-   * `background-image`, and a `<select>` draws its chevron with one (UIX-06). */
-  background-color: var(--surface);
-  border: var(--dh-border-width) solid var(--border-strong);
-  border-radius: var(--radius-input);
-  transition:
-    border-color var(--dh-motion-fast) var(--dh-ease-standard),
-    box-shadow var(--dh-motion-fast) var(--dh-ease-standard);
-}
 
-:is(.dh-control, .dh-input)::placeholder {
-  /*
-   * POLISH-01 — the placeholder takes the MUTED text tone, not the faint one.
-   *
-   * A placeholder is text a sighted user is expected to read ("Search Tasks",
-   * "dd/mm/yyyy"), so it owes WCAG 1.4.3's 4.5:1 like any other text. `faint`
-   * is now reserved for DISABLED foregrounds, which 1.4.3 exempts by name — and
-   * keeping the two apart is what stops "the disabled grey" and "the hint grey"
-   * being one value that has to be wrong for one of them.
-   */
-  color: var(--ink-muted);
-  /* The placeholder is not a label and must not be mistaken for a value. */
-  opacity: 1;
-}
-
-:is(.dh-control, .dh-input):hover:not(:disabled):not([readonly]) {
-  border-color: var(--border-hover);
-}
-
-/*
- * FOCUS — an accent border plus a soft ring, and no layout shift.
- *
- * The previous rule thickened the border to 2px and subtracted a pixel from the
- * padding to compensate, which is correct and is also the reason focusing a
- * field nudged its text. A `box-shadow` ring costs no layout at all, so the
- * caret does not move under the user's eye when they tab into a field.
- *
- * The shared `:focus-visible` outline is suppressed here and ONLY here: for a
- * text field the border IS the focus indicator, and a second ring outside it
- * says the same thing twice.
- */
-:is(.dh-control, .dh-input):focus-visible,
-:is(.dh-control, .dh-input):focus {
-  border-color: var(--dh-color-focus);
-  box-shadow: var(--focus-ring);
-  outline: none;
-}
-
-:is(.dh-control--multiline, .dh-input--multiline) {
-  /* Three rows of the control rung — a multi-line field should look like one
-   * before it is typed in. */
-  min-block-size: var(--textarea-min-height);
-  padding-block: var(--field-padding-block);
-  /* Vertical only: a textarea dragged wider than its column breaks the form
-   * grid and nothing is gained. */
-  resize: vertical;
-}
-
-/* INVALID. `aria-invalid` is what actually carries the state; the border is
- * reinforcement, and the field's error message is what says what is wrong. */
-:is(.dh-control, .dh-input)[aria-invalid="true"] {
-  border-color: var(--dh-color-danger);
-}
-
-:is(.dh-control, .dh-input)[aria-invalid="true"]:focus {
-  box-shadow: var(--danger-focus-ring);
-  /* The danger ring is the accent ring's twin and must not also be tinted with
-   * the accent, or an invalid field focuses to a violet halo. */
-  border-color: var(--dh-color-danger);
-}
-
-:is(.dh-control, .dh-input):disabled {
-  background-color: var(--surface-muted);
-  color: var(--ink-faint);
-  cursor: not-allowed;
-}
-
-:is(.dh-control, .dh-input)[readonly] {
-  background-color: var(--surface-muted);
-}
-
-/* SELECT — repainted, never replaced (D31). Only the closed control's padding
- * differs: it reserves the inline-end room its chevron is drawn into by the
- * control baseline in `base.css`. */
+/* SELECT — repainted, never replaced (D31). What remains is the one thing that
+ * is genuinely the select's own: the inline-end room its chevron is drawn into
+ * by the control baseline in `base.css`. The BOX comes from `inputClassName()`,
+ * so a select and an input in one filter row are the same family. */
 .dh-control--select {
   padding-inline-end: var(--dh-space-8);
-  cursor: pointer;
-}
-
-/* A control with a leading glyph inside it — a toolbar search box. */
-.dh-control-affix {
-  position: relative;
-  display: flex;
-  align-items: center;
-  inline-size: 100%;
-}
-
-.dh-control-affix__leading {
-  position: absolute;
-  inset-inline-start: var(--dh-inset-inline);
-  display: inline-flex;
-  inline-size: var(--dh-icon-size);
-  block-size: var(--dh-icon-size);
-  color: var(--dh-color-text-muted);
-  pointer-events: none;
-}
-
-.dh-control-affix > .dh-control {
-  padding-inline-start: calc(
-    var(--dh-inset-inline) + var(--dh-icon-size) + var(--dh-space-2)
-  );
 }
 
 @media (hover: none) {
@@ -523,6 +365,10 @@
     min-block-size: var(--button-height-touch);
   }
 
+  /* The coarse-pointer floor. It stays in CSS because it is a MEDIA state that
+     every text control in the product owes, including the ones a module renders
+     itself — and `min-block-size` is the one property a bare field cannot get
+     wrong by forgetting a utility. */
   :is(.dh-control, .dh-input) {
     min-block-size: var(--input-height-touch);
   }
@@ -892,14 +738,12 @@
  * present at both ends.
  */
 @media (prefers-reduced-motion: reduce) {
-  :is(
-    .dh-button,
-    .dh-btn,
-    .dh-icon-button,
-    .dh-control,
-    .dh-input,
-    .dh-checkbox__control
-  ) {
+  /* `.dh-icon-button`, `.dh-control` and `.dh-input` are gone from this list
+     with the rest of their rules. Each migrated control carries Untitled's own
+     `transition duration-100 ease-linear` and states the reduced-motion case
+     beside it, as a `motion-reduce:` utility on the component — which is where
+     it belongs once the paint is a utility rather than a stylesheet. */
+  :is(.dh-button, .dh-btn, .dh-checkbox__control) {
     transition: none;
   }
 

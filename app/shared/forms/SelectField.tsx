@@ -53,6 +53,7 @@ import type { BaseControlProps } from "./control-props";
 import { SelectSheetControl } from "./SelectSheetControl";
 import type { SelectOption } from "./types";
 import { useCombobox } from "./use-combobox";
+import { inputClassName } from "~/shared/ui";
 
 export interface SelectSharedProps {
   readonly options: readonly SelectOption[];
@@ -404,7 +405,7 @@ function SelectCombobox(props: SelectFieldProps) {
         <div className="dh-combobox__field" ref={fieldRef}>
           <input
             id={baseId}
-            className="dh-input dh-combobox__input"
+            className={inputClassName({ className: "dh-combobox__input" })}
             type="text"
             value={query}
             placeholder={placeholder}

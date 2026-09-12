@@ -28,7 +28,7 @@ import {
 } from "~/kernel/ai";
 import { SelectField } from "~/shared/forms";
 import { SettingsGroup, SettingsLayout, SettingsRow } from "~/shared/settings";
-import { buttonClassName } from "~/shared/ui";
+import { buttonClassName, inputClassName } from "~/shared/ui";
 
 /** Everything the section renders. Assembled server-side; carries no secret. */
 export interface AiSettingsData {
@@ -188,7 +188,7 @@ export function AiSettingsSection({ data }: { readonly data: AiSettingsData }) {
             <input
               id={ids.controlId}
               type="number"
-              className="dh-input"
+              className={inputClassName()}
               min={0}
               max={MAX_MONTHLY_BUDGET_USD}
               step="0.01"
@@ -207,7 +207,7 @@ export function AiSettingsSection({ data }: { readonly data: AiSettingsData }) {
             <input
               id={ids.controlId}
               type="number"
-              className="dh-input"
+              className={inputClassName()}
               min={0}
               max={MAX_DAILY_BUDGET_USD}
               step="0.01"
@@ -226,7 +226,7 @@ export function AiSettingsSection({ data }: { readonly data: AiSettingsData }) {
             <input
               id={ids.controlId}
               type="number"
-              className="dh-input"
+              className={inputClassName()}
               min={0}
               max={MAX_PREMIUM_BUDGET_USD}
               step="0.01"

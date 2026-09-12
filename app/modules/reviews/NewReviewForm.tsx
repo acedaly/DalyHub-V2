@@ -22,7 +22,7 @@ import {
 import { useSetMobileTopBar } from "~/shared/shell";
 
 import type { NewReviewActionData } from "./routes/new";
-import { buttonClassName } from "~/shared/ui";
+import { buttonClassName, inputClassName } from "~/shared/ui";
 
 function nextPeriod(
   type: ReviewType,
@@ -186,7 +186,7 @@ export function NewReviewForm({
               <label>
                 <span>Start date</span>
                 <input
-                  className="dh-input"
+                  className={inputClassName()}
                   type="date"
                   value={periodStart}
                   onChange={(event) => {
@@ -199,7 +199,7 @@ export function NewReviewForm({
               <label>
                 <span>End date</span>
                 <input
-                  className="dh-input"
+                  className={inputClassName()}
                   type="date"
                   value={periodEnd}
                   onChange={(event) => {
@@ -234,7 +234,7 @@ export function NewReviewForm({
           <label className="dh-review-title-field">
             <span className="dh-visually-hidden">Review title</span>
             <input
-              className="dh-input"
+              className={inputClassName()}
               name="title"
               value={displayedTitle}
               onChange={(event) => {

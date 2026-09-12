@@ -184,8 +184,14 @@ body {
  * Untitled — which draws hover and pressed as real container changes and focus
  * as its own ring — a `currentColor` wash on top of those is a SECOND hover
  * state rather than the one shared one. The host is therefore the legacy
- * literal alone. `.dh-icon-button` is still a full host, because it has not been
- * rebuilt on Untitled yet.
+ * literal alone.
+ *
+ * ── UNTITLED-11 — `.dh-icon-button` LEFT the list, for the same reason ──────
+ * The shared `IconButton` is painted by Untitled's `base/buttons/button-utility`
+ * now (through that component's own exported `styles`), so it draws hover as a
+ * real container change and focus as its own ring. A `currentColor` wash on top
+ * of those is a second hover state, not the one shared one. `.dh-icon-button*`
+ * is deleted from `ui.css` entirely; nothing emits the class any more.
  *
  * The host list is spelled out on every rule rather than routed through a shared
  * custom property. A property would read better and would be a lie: DalyHub's
@@ -196,7 +202,6 @@ body {
  */
 :is(
   .md-state-layer,
-  .dh-icon-button,
   .dh-btn:not(.dh-button),
   .record-action,
   .dh-card__action,
@@ -212,7 +217,6 @@ body {
 
 :is(
   .md-state-layer,
-  .dh-icon-button,
   .dh-btn:not(.dh-button),
   .record-action,
   .dh-card__action,
@@ -255,7 +259,6 @@ body {
 
 :is(
     .md-state-layer,
-    .dh-icon-button,
     .dh-btn:not(.dh-button),
     .record-action,
     .dh-card__action,
@@ -280,7 +283,6 @@ body {
  */
 :is(
     .md-state-layer,
-    .dh-icon-button,
     .dh-btn:not(.dh-button),
     .record-action,
     .dh-card__action,
@@ -299,7 +301,6 @@ body {
  * copied `:hover` rule rarely grows an `:active` sibling. */
 :is(
     .md-state-layer,
-    .dh-icon-button,
     .dh-btn:not(.dh-button),
     .record-action,
     .dh-card__action,
@@ -318,7 +319,6 @@ body {
  * whatever the pointer does. */
 :is(
     .md-state-layer,
-    .dh-icon-button,
     .dh-btn:not(.dh-button),
     .record-action,
     .dh-card__action,

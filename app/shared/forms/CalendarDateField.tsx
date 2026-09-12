@@ -29,6 +29,7 @@ import { Popover } from "~/shared/floating";
 import type { BaseControlProps } from "./control-props";
 import { DateChoice } from "./DateChoice";
 import { Field } from "./Field";
+import { inputClassName } from "~/shared/ui";
 
 export interface CalendarDateFieldProps extends BaseControlProps<string> {
   /**
@@ -110,7 +111,7 @@ export function CalendarDateField({
               triggerRef.current = node;
               controlRef?.(node);
             }}
-            className="dh-input dh-datefield__trigger"
+            className={inputClassName({ className: "dh-datefield__trigger" })}
             disabled={control.disabled}
             aria-haspopup="dialog"
             aria-expanded={open}

@@ -28,7 +28,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFetcher } from "react-router";
-import { Button } from "~/shared/ui";
+import { Button, inputClassName } from "~/shared/ui";
 
 import { addCalendarDays, isCalendarDate } from "~/kernel/datetime";
 import { MAX_PLAN_BATCH_SIZE, TIME_SECTORS } from "~/kernel/tasks";
@@ -533,7 +533,7 @@ function BulkMenu({
     <label className="dh-tasks-bulk__select">
       <span className="dh-tasks-bulk__select-label">{label}</span>
       <select
-        className="dh-input"
+        className={inputClassName()}
         value=""
         disabled={disabled}
         onChange={(event) => {

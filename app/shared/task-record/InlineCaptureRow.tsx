@@ -47,7 +47,7 @@ import {
 } from "~/shared/task-record/quick-capture";
 import { useTagVocabulary } from "~/shared/tags";
 import { useCompactViewport } from "~/shared/viewport";
-import { buttonClassName } from "~/shared/ui";
+import { buttonClassName, inputClassName } from "~/shared/ui";
 
 /**
  * Where a captured task lands. Structurally the intersection of the two
@@ -298,7 +298,7 @@ export function InlineCaptureRow({
       <input
         id={fieldId}
         ref={inputRef}
-        className="dh-input dh-tasks-quickadd__input"
+        className={inputClassName({ className: "dh-tasks-quickadd__input" })}
         type="text"
         value={title}
         maxLength={512}

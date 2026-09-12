@@ -19,6 +19,7 @@ import { dateTimeLocalToUtcIso, utcIsoToDateTimeLocal } from "./dates";
 import type { BaseControlProps } from "./control-props";
 import { Field } from "./Field";
 import type { DateFieldKind } from "./types";
+import { inputClassName } from "~/shared/ui";
 
 export interface DateFieldProps extends BaseControlProps<string> {
   /** Date-only (default) or a UTC instant. */
@@ -88,7 +89,7 @@ export function DateField({
         <>
           <input
             id={control.id}
-            className="dh-input dh-input--date"
+            className={inputClassName({ className: "dh-input--date" })}
             type={isDateTime ? "datetime-local" : "date"}
             value={controlValue}
             min={isDateTime ? undefined : min}

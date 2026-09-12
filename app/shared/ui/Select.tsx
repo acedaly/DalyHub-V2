@@ -29,13 +29,23 @@
  *
  * ── The chevron ──────────────────────────────────────────────────────────────
  *
- * Drawn as a gradient pair in `ui.css` rather than as an SVG asset, so it takes
- * `currentColor` and is correct in both appearances and in forced colours by
- * construction. Inherited from the control baseline; restated here only at the
- * DalyHub rung.
+ * Drawn as a gradient pair in `base.css` rather than as an SVG asset, so it
+ * takes `currentColor` and is correct in both appearances and in forced colours
+ * by construction. `.dh-control--select` is what reserves the room for it and is
+ * the only rule this control still keeps in a stylesheet.
+ *
+ * ── UNTITLED-11 — the BOX is Untitled's, exactly as the input's is ──────────
+ *
+ * A select and a text field standing next to each other in one filter row are
+ * the same family or the design has failed, so they take the same recipe from
+ * the same place: `inputClassName()`, which is Untitled's `base/input` box. The
+ * select adds only what is genuinely its own — the chevron's inline-end room and
+ * the pointer cursor.
  */
 
 import type { ReactNode, Ref, SelectHTMLAttributes } from "react";
+
+import { inputClassName } from "./Input";
 
 export interface SelectProps extends Omit<
   SelectHTMLAttributes<HTMLSelectElement>,
@@ -50,9 +60,9 @@ export interface SelectProps extends Omit<
 export function Select({ invalid, className, children, ...rest }: SelectProps) {
   return (
     <select
-      className={["dh-control", "dh-control--select", className]
-        .filter(Boolean)
-        .join(" ")}
+      className={inputClassName({
+        className: `dh-control--select cursor-pointer pe-8 ${className ?? ""}`,
+      })}
       aria-invalid={invalid || undefined}
       {...rest}
     >

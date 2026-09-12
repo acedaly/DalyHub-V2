@@ -32,6 +32,7 @@ import {
 } from "./entity-link-model";
 import { composeDescribedBy, deriveFieldIds } from "./field-ids";
 import { useCombobox } from "./use-combobox";
+import { inputClassName } from "~/shared/ui";
 
 export interface EntityLinkPickerProps {
   readonly id?: string;
@@ -325,7 +326,9 @@ export function EntityLinkPicker({
                 <label className="dh-link-picker__type">
                   <span className="dh-visually-hidden">Link type</span>
                   <select
-                    className="dh-input dh-link-picker__type-select"
+                    className={inputClassName({
+                      className: "dh-link-picker__type-select",
+                    })}
                     value={linkType}
                     disabled={disabled}
                     onChange={(event) => setLinkType(event.target.value)}
@@ -342,7 +345,9 @@ export function EntityLinkPicker({
               <div className="dh-combobox__field" ref={fieldRef}>
                 <input
                   id={baseId}
-                  className="dh-input dh-combobox__input"
+                  className={inputClassName({
+                    className: "dh-combobox__input",
+                  })}
                   type="text"
                   value={query}
                   placeholder={placeholder}

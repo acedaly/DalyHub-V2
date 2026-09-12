@@ -116,48 +116,44 @@ test.describe("visual system — Today reference layout", () => {
     const header = page.locator(".dh-today__head");
     const day = page.locator(".dh-today__timeline");
     /*
-     * CONVERGE-01 §1 put Today on ONE grid.
+     * UNTITLED-11 — the columns are real elements again, and this reads them.
      *
-     * `.dh-today__col` was the two-column arrangement's wrapper and no longer
-     * exists: the day and every supporting panel are now siblings placed on a
-     * twelve-column `.dh-today__grid`, which is what "Today on one grid" means.
-     * The hierarchy this test pins is unchanged and is what is asserted — a
-     * header of page content above everything, the day leading, and supporting
-     * context BESIDE it rather than under it — so the beside-ness is read off
-     * whichever panel the grid actually places in the day's band, rather than
-     * off a wrapper element the layout stopped having.
+     * CONVERGE-01 put every panel directly on a twelve-column grid, and this
+     * test read the beside-ness off whichever panel that grid happened to place
+     * in the day's band. Auto-placement gave each panel its own row instead, so
+     * the arrangement is two independent columns once more: the action column
+     * carries the day, the context column sits beside it. DOM order is still
+     * reading order and still tab order — there is no CSS `order` — so the
+     * wrappers cost the hierarchy nothing, and the contract is now measured
+     * where it actually lives rather than inferred from a placement.
      */
-    const beside = page
-      .locator(".dh-today__grid > .dh-today__panel")
-      .filter({ hasNot: page.locator(".dh-today__timeline") });
+    const action = page.locator(".dh-today__col--action");
+    const context = page.locator(".dh-today__col--context");
     await expect(header).toBeVisible();
     await expect(day).toBeVisible();
+    await expect(action).toBeVisible();
+    await expect(context).toBeVisible();
 
     const headerBox = (await header.boundingBox())!;
     const dayBox = (await day.boundingBox())!;
+    const actionBox = (await action.boundingBox())!;
+    const contextBox = (await context.boundingBox())!;
 
     // The greeting block is PAGE CONTENT above the grid — no card around it.
     expect(headerBox.y).toBeLessThan(dayBox.y);
     await expect(header).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
 
-    // At least one supporting panel shares the day's band, starts after it, and
+    // The day is IN the action column, and leads it.
+    await expect(action.locator(".dh-today__timeline")).toHaveCount(1);
+
+    // Supporting context shares the action column's band, starts after it, and
     // is narrower than it: the day leads, its context sits beside it.
-    const boxes = await beside.evaluateAll((nodes) =>
-      nodes.map((node) => {
-        const rect = node.getBoundingClientRect();
-        return { x: rect.x, y: rect.y, width: rect.width };
-      }),
-    );
-    const alongside = boxes.filter(
-      (box) => box.x > dayBox.x && Math.abs(box.y - dayBox.y) <= 4,
-    );
     expect(
-      alongside.length,
-      "no supporting panel shares the day's band",
-    ).toBeGreaterThan(0);
-    for (const box of alongside) {
-      expect(box.width).toBeLessThan(dayBox.width);
-    }
+      Math.abs(contextBox.y - actionBox.y),
+      "the two columns do not start on the same band",
+    ).toBeLessThanOrEqual(4);
+    expect(contextBox.x).toBeGreaterThan(actionBox.x + actionBox.width - 4);
+    expect(contextBox.width).toBeLessThan(actionBox.width);
   });
 
   test("each column is ONE tonal surface, with no outline and no shadow", async ({
