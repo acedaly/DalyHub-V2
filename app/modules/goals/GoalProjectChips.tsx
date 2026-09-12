@@ -149,7 +149,19 @@ export function GoalProjectChips({
                   className="dh-goalchips__mark inline-flex shrink-0"
                   aria-hidden="true"
                 >
-                  <AccentIcon entityType="project" iconKey={null} size="sm" />
+                  {/*
+                   * UNTITLED-07 — the Project's real mark. It was pinned to
+                   * `iconKey={null}` because the projection carried none; it
+                   * carries one now, so a chip here and the row on the Projects
+                   * tab beside it show the same record the same way.
+                   */}
+                  <AccentIcon
+                    entityType="project"
+                    iconKey={project.iconKey}
+                    colourSlot={project.colourSlot}
+                    colourRank={project.colourRank}
+                    size="sm"
+                  />
                 </span>
                 <span className="dh-goalchips__name max-w-56 truncate">
                   {project.title}

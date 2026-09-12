@@ -96,8 +96,7 @@ import { GoalStatTrio, type GoalStat } from "~/shared/goal-progress";
 import { UntitledStatusBadge } from "~/shared/pill";
 import { ProgressTrack } from "~/shared/progress";
 import { ConfirmationDialog } from "~/shared/settings";
-import { Button, Menu } from "~/shared/ui";
-import { Checkbox as UntitledCheckbox } from "~/shared/ui/untitled/base/checkbox/checkbox";
+import { Button, Checkbox, Menu } from "~/shared/ui";
 import { InputBase } from "~/shared/ui/untitled/base/input/input";
 import { SectionLabel } from "~/shared/ui/untitled/application/section-headers/section-label";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
@@ -712,13 +711,20 @@ function TrendSection({
  * head and row CLASSES are what draw it, which is where the value of the
  * library is on a surface like this.
  *
- * ── Four columns at 1440, two at 320 ───────────────────────────────────────
+ * ── Four columns when there is room, two when there is not ────────────────
  *
- * The CHANGE and NOTE columns are `hidden` below `sm` and the change moves
- * under the value instead, so a 320px phone reads "9 Sep 2026 | 83 kg ↓1.1 kg |
- * ⋯" on one line rather than scrolling a four-column table sideways. Nothing is
- * dropped — a narrow screen is not a smaller desktop, and the product's rule is
- * that no page scrolls horizontally at 320.
+ * The CHANGE and NOTE columns drop below `@md` and `@lg` and the change moves
+ * under the value instead, so a narrow table reads "9 Sep 2026 | 83 kg ↓1.1 kg
+ * | ⋯" on one line. Nothing is dropped — a narrow screen is not a smaller
+ * desktop, and the product's rule is that no page scrolls horizontally at 320.
+ *
+ * They are CONTAINER queries, not viewport ones, and the difference is a real
+ * defect rather than a preference: this workspace is also the right-hand pane of
+ * the `/goals` master–detail, which at a 1024 viewport is about 350px wide. A
+ * viewport `sm:` showed all four columns there — in a pane less than half the
+ * width the breakpoint was reasoning about — and the table then needed a
+ * sideways scroller inside a page that must not have one. The table's column
+ * budget follows the space it is actually in.
  */
 function HistoryList({
   measurements,
@@ -775,7 +781,7 @@ function HistoryList({
   const anyNote = visible.some(({ measurement }) => measurement.note);
 
   return (
-    <div className="dh-goal-measure__history flex min-w-0 flex-col border-t border-secondary">
+    <div className="dh-goal-measure__history @container flex min-w-0 flex-col border-t border-secondary">
       <div className="px-4 pt-4 pb-3 md:px-5">
         <SectionLabel.Root
           title="Progress history"
@@ -784,9 +790,10 @@ function HistoryList({
         />
       </div>
       {/*
-       * The one place this workspace may scroll sideways: a note column on a
-       * 320px screen. Everything else in the card reflows, and the product's
-       * rule is that only a table may have its own horizontal scroller.
+       * The scroller is the last resort, not the plan: the columns drop by
+       * container width above, so a note long enough to still need it is the
+       * only case that reaches this — and the product's rule is that only a
+       * table may have its own horizontal scroller.
        */}
       <div className="w-full overflow-x-auto">
         <table
@@ -816,14 +823,14 @@ function HistoryList({
               </th>
               <th
                 scope="col"
-                className="hidden px-4 py-2 text-left text-xs font-semibold whitespace-nowrap text-quaternary sm:table-cell"
+                className="hidden px-4 py-2 text-left text-xs font-semibold whitespace-nowrap text-quaternary @md:table-cell"
               >
                 Change
               </th>
               {anyNote ? (
                 <th
                   scope="col"
-                  className="hidden px-4 py-2 text-left text-xs font-semibold text-quaternary sm:table-cell"
+                  className="hidden px-4 py-2 text-left text-xs font-semibold text-quaternary @lg:table-cell"
                 >
                   Note
                 </th>
@@ -852,20 +859,20 @@ function HistoryList({
                       {formatMeasurementValue(measurement.value, progress.unit)}
                     </span>
                     {/* The change, where the column for it does not fit. */}
-                    <span className="block text-sm font-normal text-tertiary tabular-nums sm:hidden">
+                    <span className="block text-sm font-normal text-tertiary tabular-nums @md:hidden">
                       {changeText ?? "First measurement"}
                     </span>
                     {measurement.note ? (
-                      <span className="block text-sm font-normal text-tertiary sm:hidden">
+                      <span className="block text-sm font-normal text-tertiary @lg:hidden">
                         {measurement.note}
                       </span>
                     ) : null}
                   </td>
-                  <td className="dh-goal-measure__history-change hidden px-4 py-3 text-sm whitespace-nowrap text-tertiary tabular-nums sm:table-cell">
+                  <td className="dh-goal-measure__history-change hidden px-4 py-3 text-sm whitespace-nowrap text-tertiary tabular-nums @md:table-cell">
                     {changeText ?? "First measurement"}
                   </td>
                   {anyNote ? (
-                    <td className="dh-goal-measure__history-note hidden px-4 py-3 text-sm text-tertiary sm:table-cell">
+                    <td className="dh-goal-measure__history-note hidden px-4 py-3 text-sm text-tertiary @lg:table-cell">
                       {measurement.note}
                     </td>
                   ) : null}
@@ -1025,16 +1032,19 @@ function MilestoneList({
                 className="dh-action-reveal dh-goal-measure__milestone-handle"
               />
               {/*
-               * The genuine Untitled `base/checkbox`, not a bare
-               * `<input type="checkbox">` with a label around it. The stage's
-               * title IS the checkbox's label, which is what gives the whole
-               * row a 20px-plus hit target and one accessible name.
+               * The shared `Checkbox` on its UNTITLED path (`onCheckedChange`),
+               * which is what `~/shared/ui/Checkbox` documents as the route for
+               * new product work — rather than the bare `<input>` with a hand-
+               * written label this row used to carry, and rather than importing
+               * the vendored file past the shared layer. The stage's title IS
+               * the control's label, which is what gives the whole row one
+               * accessible name and a real hit target.
                */}
-              <UntitledCheckbox
+              <Checkbox
                 className="dh-goal-measure__milestone-label min-w-0 flex-1"
                 label={milestone.title}
-                isSelected={milestone.completed}
-                onChange={(isSelected) =>
+                checked={milestone.completed}
+                onCheckedChange={(isSelected) =>
                   void onToggleMilestone(milestone.id, isSelected)
                 }
               />

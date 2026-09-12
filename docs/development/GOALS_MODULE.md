@@ -1813,3 +1813,92 @@ Analytics already did (*"of the 40 Goals read, right now"*). Today now does too:
 `loadGoalSummaries` returns `{ items, bounded }` and the two figures drawn from
 it say *"shown here"* when the read did not see every open Goal. See
 [`TODAY_DASHBOARD.md`](TODAY_DASHBOARD.md#todays-goal-figures-state-their-bound-v27-recall-04-2026-09-01).
+
+---
+
+# UNTITLED-07 — the Goals experience, rebuilt on Untitled UI (2026-09-12)
+
+> **What changed is HOW every Goal surface is drawn, and nothing else.** No
+> domain rule, measurement type, formula, status, table, route, read or
+> mutation moved. The presentation contract above — which surface says what, at
+> what density, and in whose words — is unchanged and remains authoritative;
+> this section records the construction beneath it.
+> Phase record: [`UNTITLED_UI_MIGRATION.md`](../design/UNTITLED_UI_MIGRATION.md#phase-7--goals).
+> Untitled usage inventory: [`UNTITLED_UI_IMPLEMENTATION.md`](../design/UNTITLED_UI_IMPLEMENTATION.md#phase-7-completion-record--goals).
+
+## The finding
+
+Phase 4 recorded `goals.css` as "keeps layout only". It was 1,404 lines, and
+173 of its declarations were background, border, radius, shadow, font size,
+font weight, control height and colour — every one of them beneath a component
+the product had already called migrated. The screen showed it: three bare
+figures, a bar, a pill, two sentences and two buttons competing on one row; a
+pace list with no boundary; a chart floating on the canvas with its axis labels
+loose beneath it; and a reading history drawn as a `<ul>` with a labelled
+"Edit" and a red "Remove" on every line — twelve destructive controls at full
+weight on a record whose subject is an outcome.
+
+It is now composed in Untitled's grammar, from source already vendored into
+`app/shared/ui/untitled/`. `goals.css` is 248 lines and holds only geometry a
+utility cannot express, one variable a shared component reads, two
+`display: contents` hooks and one rule placing a shared component inside a
+Goal's own line.
+
+## What each surface is made of now
+
+| Surface | Composition |
+| --- | --- |
+| `/goals` master list | `application/table`'s card anatomy — a header with its count badge, a divided body of `ProgressRow`s, a divided footer holding `+ Add goal` |
+| `/goals` detail pane | Bands inside ONE card (`border-t border-secondary`): identity with its derived state opposite, then the standing band (status, condition, next stage, movement, next step), then the measurement workspace, then the Projects |
+| The measurement workspace | A divided metric band (Current / Target / Target date), the bar and the state, the two acts in their own footer, the pace band, the named Trend section, then the history or the stages |
+| The reading history | A table with `application/table`'s cell, head and row classes and ONE row menu — "Correct this reading" / "Remove reading" — whose columns drop by CONTAINER width |
+| Stages | `base/checkbox` rows with `base/input` to add and `base/dropdown` to reorder or remove; the drag is still DalyHub's `SortableList` |
+| Measurement setup and New Goal | `base/radio-buttons` for the four strategies, `base/button-group` for the unit suggestions |
+| Every chip | `base/badges` through `UntitledStatusBadge` — the measurement status, the alignment state and the owner's condition, one badge system |
+
+## Three behaviours that changed, and why each is a fix
+
+1. **The `/goals` pane carries the Goal's resolved identity.** `charts.css`
+   keys the trend line's stroke on a `[data-identity]` ancestor and the pane had
+   none, so the SAME Goal drew a green line on `/goals/:id` and the brand purple
+   on `/goals`, two clicks apart. It is the same resolver and the same source
+   the pane's own mark already used.
+2. **The record states "Recent contribution" once.** `GoalAlignmentPanel`
+   printed its own "Recent contributing Tasks" heading directly under the
+   caller's, two headings for one list. The list keeps its accessible name, so
+   nothing an assistive technology could hear was removed.
+3. **The master list's heading is visible.** It was hidden because the
+   collection's `h1` two lines above says "Goals" — true while the list was the
+   whole screen, and wrong in a two-panel workspace where the detail half
+   carries a title, a tab rail and four bands. DHDS-13's rule, that the panel is
+   not a second LANDMARK called Goals, is unchanged.
+
+## A Project inside a Goal wears its own mark
+
+`GoalProjectItem` and `SerializedGoalProjectItem` now carry `iconKey`,
+`colourSlot` and `colourRank`, closing the deferral Phase 6 recorded. The two
+stored fields come from the `project_details` join `listGoalProjects` was
+already making; the rank is `ROW_NUMBER() OVER (ORDER BY created_at, id) - 1`
+over Projects in the workspace — character-for-character
+`d1-project-repository.ts`'s expression, because two repositories reading the
+same Project must not disagree about its colour. It adds one CTE and no column,
+no migration and no index.
+
+**Health is still absent, and stays a decision.** A Project's health needs its
+per-Project fact set, and a bounded page inside a record must not start reading
+one per row — the same boundary the Areas collection holds, and the same
+argument ADR-038 §38.7 made about Area momentum.
+
+## What was rejected
+
+- **Untitled's chart source** (`application/charts-base`, public rather than
+  Pro, so genuinely available). It is a Recharts composition and Recharts is not
+  a dependency of this product. `TrendLine` already carries what Untitled's has
+  no equivalent for: ONE tab stop with arrow-key stepping and a `role="status"`
+  readout instead of a focus target per reading, a target and a baseline told
+  apart by DASH PATTERN rather than hue, and a required-path projection drawn
+  only when all three of its facts exist.
+- **A progress RING** (`base/progress-circles`). It would be a second, rounder
+  way of saying what the bar already says.
+- **`application/progress-steps` for milestones.** Stages are
+  unordered-completion steps an owner reorders, not a wizard's linear path.

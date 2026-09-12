@@ -165,6 +165,25 @@ better.
 Historical anchor. Preserve entity identity/progress semantics; migrate the
 generic card/list mechanics to Untitled.
 
+## Progress
+
+There is ONE linear progress indicator in the product and it is Untitled's
+`base/progress-indicators`, reached through the `labelled-progress-bar`
+override — which adds the accessible name, the `aria-valuetext` sentence the
+surface already states in words, a tone, and forced-colours handling. Two
+levels of packaging sit over it and no third is allowed: `ProgressTrack` (the
+bar alone, for a dense row) and `ProgressMeter` (the bar with its own label and
+summary header). `ProgressRow` composes the first.
+
+A meter states how the thing it measures is GOING (`MeterStatus`), never what
+the record IS: identity colour belongs to the mark, the dot and the legend.
+`available: false` and an omitted bar are designed absences — a record with
+nothing to measure is not a record at 0%.
+
+The CIRCULAR form (`~/shared/charts/ProgressRing`) is a data ring whose geometry
+the component computes, not Untitled's determinate loading circle, and it is not
+a substitute for the bar: a ring beside a bar says the same thing twice.
+
 ## Tabs
 
 Tabs organise peer views inside a record or module. Use Untitled/React Aria tab

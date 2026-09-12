@@ -96,6 +96,17 @@ export function Checkbox({
       <UntitledCheckbox
         {...(rest as unknown as ComponentProps<typeof UntitledCheckbox>)}
         className={className}
+        /*
+         * UNTITLED-07 — the label and the description travel.
+         *
+         * They were destructured out of `rest` above and then not forwarded, so
+         * every caller of the Untitled path rendered a box with no words beside
+         * it and no accessible name unless it also passed `aria-label`. Found by
+         * the first product surface to use this path (a Goal's stages); the
+         * native branch below has always rendered both.
+         */
+        label={label}
+        hint={description}
         isSelected={checked}
         defaultSelected={defaultChecked}
         isDisabled={disabled}

@@ -155,9 +155,19 @@ test.describe("GOAL-02 — measurable Goals", () => {
     await expect(chart).toHaveAttribute("aria-label", /3 measurements/);
     await expect(chart).toHaveAttribute("aria-label", /81\.6 kg/);
 
-    // 5. The history, newest first, each with its change from the one before.
+    /*
+     * 5. The history, newest first, each with its change from the one before.
+     *
+     * UNTITLED-07 — it is a TABLE, so its rows are rows and its two actions are
+     * ONE row menu. A reading is columnar data (a date, a value, a delta, a
+     * note), and a labelled "Edit" plus a red "Remove" on every line put two
+     * controls — one destructive, at full weight — on each of a year of
+     * weigh-ins. The FACTS asserted are unchanged.
+     */
     const history = page.getByTestId("goal-history");
-    const rows = history.getByRole("listitem");
+    const rows = history
+      .getByRole("row")
+      .filter({ has: page.getByRole("cell") });
     await expect(rows).toHaveCount(3);
     await expect(rows.nth(0)).toContainText("79 kg");
     await expect(rows.nth(0)).toContainText("↓ 0.3 kg");
@@ -165,7 +175,11 @@ test.describe("GOAL-02 — measurable Goals", () => {
     await expectNoAxeViolations(page);
 
     // 6. Correcting a reading recalculates everything.
-    await rows.nth(0).getByRole("button", { name: /^Edit/ }).click();
+    await rows
+      .nth(0)
+      .getByRole("button", { name: /^Actions for the measurement/ })
+      .click();
+    await page.getByRole("menuitem", { name: "Correct this reading" }).click();
     const editSheet = page.getByTestId("goal-check-in-sheet");
     await expect(editSheet).toBeVisible();
     await editSheet.getByRole("textbox", { name: /^Measurement/ }).fill("77.5");
@@ -181,11 +195,11 @@ test.describe("GOAL-02 — measurable Goals", () => {
 
     // 7. Removing one uses the shared destructive confirmation, and the figures
     //    fall back to the reading beneath it.
-    await history
-      .getByRole("listitem")
+    await rows
       .nth(0)
-      .getByRole("button", { name: /^Remove measurement/ })
+      .getByRole("button", { name: /^Actions for the measurement/ })
       .click();
+    await page.getByRole("menuitem", { name: "Remove reading" }).click();
     const confirm = page.getByRole("dialog", {
       name: "Remove this measurement?",
     });
@@ -193,7 +207,7 @@ test.describe("GOAL-02 — measurable Goals", () => {
     await confirm.getByRole("button", { name: "Remove" }).click();
     await expect(confirm).toHaveCount(0);
     await expect(panel.getByText("79.3 kg").first()).toBeVisible();
-    await expect(history.getByRole("listitem")).toHaveCount(2);
+    await expect(rows).toHaveCount(2);
 
     /*
      * 8. The COLLECTION carries the same numbers, from the same evaluator — a

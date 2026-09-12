@@ -599,14 +599,138 @@ branch, and none of them touches an Areas surface:
 - `collection-header.spec.ts:597` — a task-row overflow menu that no longer
   clamps at a 420px-tall viewport.
 
+## Phase 7 — Goals
+
+Phase 4 gave Goals migrated shared PRIMITIVES and recorded `goals.css` as
+"keeps layout only". Phase 7 is the finding that came out of checking that
+claim: the file was 1,404 lines and 173 of its declarations were background,
+border, radius, shadow, font size, font weight, control height and colour —
+every one of them beneath a component the product had already called migrated.
+A Goal record read as a CRUD record because it was one.
+
+### Untitled references selected and verified
+
+The MCP connector authenticated (`has_pro_access: true`) and was used for
+catalogue search, component lookup and page-template selection, including its
+screenshots. The Untitled CLI still cannot be authenticated in this
+environment, for the reason Phase 4 recorded and this phase re-confirmed by
+running it: `npx untitledui@latest login` completes an OAuth callback to a
+localhost port that a headless remote container cannot reach, `add` on a Pro
+component answers "🔒 The … component requires PRO access", and the connector
+hands back metadata plus that CLI command rather than source. Pro source
+therefore came, as in every phase since Phase 4, from the genuine vendored tree
+under `app/shared/ui/untitled/`, imported from a licensed checkout. No Pro
+component was recreated from memory and no unavailable example was invented.
+
+Page templates inspected this pass (screenshots studied, not merely listed):
+
+- `dashboards-01/16` — a financial dashboard whose three "savings goal" tiles
+  are the closest thing in the catalogue to a DalyHub Goal: a mark, a name, a
+  figure and a thin bar in a bounded card. It is the grammar the Goal record's
+  metric band follows.
+- `dashboards-02/02` — summary metric cards in a divided band above a table
+  whose rows carry progress bars and status badges. The measurement workspace's
+  band-over-table order is this.
+- `settings-02/13` — a plan card: title, figure, a full-width progress bar with
+  its reading, and a divided FOOTER holding the one action. This is why "Log
+  weight" moved out of the figure row and into its own band.
+- `informational-01/13` — a record page: breadcrumb, page header, tab rail and
+  split content. The Goal record's shape, unchanged from Phase 6's reading of
+  it.
+- `dashboards-01/06` and `dashboards-01/09` — dense status-heavy tables with
+  progress columns and row actions, for the reading history.
+
+Components used, all from the vendored tree: `application/table`
+(`TableCard.Root`'s boundary and header anatomy, and its cell/head/row
+classes), `application/section-headers`' `SectionLabel`,
+`application/empty-state`, `application/tabs` (through the shared `RecordTabs`
+and `ViewSwitcher`), `base/badges` (through `UntitledStatusBadge`),
+`base/buttons` (through `Button` / `buttonClassName`), `base/checkbox`,
+`base/input`, `base/radio-buttons`, `base/button-group`, `base/dropdown`
+(through the shared `Menu`), `base/progress-indicators` (through the
+`labelled-progress-bar` override) and `foundations/featured-icon`.
+
+### What moved
+
+| Surface | Untitled source | Structural change | Legacy remaining |
+| --- | --- | --- | --- |
+| Shared progress bar | `base/progress-indicators` via the `labelled-progress-bar` override | `ProgressTrack` was a second hand-written track at a different height, radius and track colour from the bar `ProjectCard` and `RecordSummaryBar` already drew; it is an adapter over the genuine one now. `progress.css`'s whole linear section deleted | The class names, as hooks |
+| Goal row | The same bar, plus Untitled's divided list body and surface roles | `ProgressRow` was a THIRD track. `card-family.css`'s `.dh-mrow*` block and `premium.css`'s three overrides deleted — including a `:hover` background that beat the component's own unconditionally | `.dh-mrow*` names, read by three E2E specs |
+| Alignment chip | `base/badges` via `UntitledStatusBadge` | A bespoke pill with its own radius, border, min-height, dot and two tone rules, on surfaces already drawing Untitled badges. `alignment.css` emptied | `data-dh-badge` / `data-tone`, unchanged |
+| Goals list panel | `application/table`'s card anatomy | A bordered box with no header and a hand-painted text link at its foot became a header with its count badge, a divided body and a divided footer action | — |
+| Goal pane | Untitled's in-card band rule (`border-t border-secondary`) | Four loose regions and a card-inside-a-card became bands inside ONE card; the status is the product's badge | — |
+| Measurement workspace | `application/table`, `application/section-headers`, `base/badges`, `base/buttons` | The comparison, the bar, the state and the two acts stopped sharing one crowded row; the pace band, the chart and the history each became a named band | — |
+| Reading history | `application/table`'s cell/head/row classes, `base/dropdown` | A `<ul>` with a labelled "Edit" and a red "Remove" per line became a table with ONE row menu | — |
+| Stages | `base/checkbox`, `base/input` | Bare inputs and `.dh-input` became the genuine controls; the drag stays DalyHub's | The `SortableList` machinery |
+| Measurement chooser | `base/radio-buttons`, `base/button-group` | The two bespoke controls this feature owned, in the setup sheet AND in New Goal | The card around each option |
+| Link-a-Project picker | `base/input`, Untitled's divided list body | `.dh-field` / `.dh-input` repainted the control's height, radius and focus ring whatever a utility said | — |
+| Project inside a Goal | `ProjectSummaryList`, unchanged | `SerializedGoalProjectItem` now carries identity, so a Project wears the same mark here as in the Projects collection | Health, deliberately — see below |
+
+`goals.css` is 248 lines: the two-pane geometry and its phone swap, one
+variable the shared scroll strip reads, two `display: contents` hooks, and one
+rule placing a shared component inside a Goal's own line. Each states why it
+survived.
+
+### Deliberate decisions worth recording
+
+**The chart stays DalyHub's, and that is a rejection rather than an omission.**
+Untitled's `application/charts-base` is public rather than Pro, so it was
+genuinely available — and it is a Recharts composition, and Recharts is not a
+dependency of this product. Adding one to a Cloudflare Workers SSR bundle to
+redraw a chart that already carries behaviour Untitled's has no equivalent for
+— one tab stop with arrow-key stepping and a `role="status"` readout, a target
+and a baseline told apart by DASH PATTERN rather than hue, and a required-path
+projection drawn only when all three of its facts exist — would cost bundle
+weight and accessibility to gain house style. The brief's own rule applies: a
+chart earns its place by answering a question, not by being beautiful.
+
+**The history table's columns follow the CONTAINER, not the viewport.** This
+workspace is also the right-hand pane of the `/goals` master–detail, which at a
+1024 viewport is about 350px wide. A viewport `sm:` showed all four columns
+there — in a pane less than half the width the breakpoint was reasoning about —
+and the table then needed a sideways scroller inside a page that must not have
+one. `@container` fixes the defect rather than the symptom.
+
+**The list panel's heading became VISIBLE.** It was `dh-visually-hidden`
+because the collection's own `h1` two lines above says "Goals". That held while
+the list was the whole screen; in a two-panel workspace it left the master half
+unnamed while the detail half carried a title, a tab rail and four bands, so
+the eye read the left column as a fragment of the right. DHDS-13's actual rule
+— that the panel is not a second LANDMARK called Goals — is unchanged.
+
+**A Project inside a Goal gets identity but not health.** Phase 6 deferred both
+("extending that projection is Goals' migration, not this one"). Identity is
+two columns from a `project_details` join the read was already making, plus the
+rank expression `d1-project-repository.ts` uses character-for-character, so two
+repositories cannot disagree about a Project's colour. Health is not: it needs
+the per-Project health fact set, and a bounded page inside a record must not
+start reading one per row — the same boundary Areas' collection holds.
+
+**Two defects the recomposition surfaced.** The `/goals` pane carried no
+`data-identity`, so `charts.css` painted the same Goal's trend line green on
+its record and brand-purple two clicks away. And the record printed "Recent
+contribution" and then "Recent contributing Tasks" directly beneath it, two
+headings for one list.
+
+### Pre-existing failures, unchanged by this phase
+
+- `goal-measurement.spec.ts:319` — `expectMinTouchTarget` on Today's Goal
+  check-in button reads 32px against a 44px floor. Confirmed identical with
+  this branch's changes stashed: the product's touch floor is a `(hover: none)`
+  rule and the assertion runs at a desktop viewport, so the test asks for a
+  guarantee the product deliberately makes only on a coarse pointer.
+- `areas-goals-mobile.spec.ts:121` and `:473`, `collection-header.spec.ts:597`
+  — recorded by Phase 6 and unchanged here.
+
 ### Next
 
 1. Settings — record Settings tabs draw the shared settings groups inside a
    record panel (a frame inside a frame) on Areas and Projects alike, and
    `tone="danger"` paints a reversible Archive group as destructive. Both are
    properties of `~/shared/settings` rather than of either module.
-2. Goals — `SerializedGoalProjectItem` carries no identity or health, so a
-   Project inside a Goal record has a neutral mark and no signal column.
+2. Goals — a Project inside a Goal record still carries no HEALTH, so its row
+   has no signal column. Identity was closed by Phase 7; health needs the
+   per-Project fact set a bounded page must not read per row.
 3. Diary — the day navigator and the timeline.
 4. People, Assets, Reviews, Obligations, Finance — their row/table structures.
    (Their controls, empty states, switchers and now their buttons are migrated;
