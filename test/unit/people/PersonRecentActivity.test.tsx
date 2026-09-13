@@ -184,10 +184,21 @@ describe("PersonRecentActivity", () => {
 
     renderBand();
 
+    /*
+     * And it says WHICH empty it is. "Nothing shared yet. Link a task…" would
+     * be false here twice: the relationship is not empty, and the action it
+     * teaches is not the one needed — the "Load more" beside it would show the
+     * person the truth. Codex raised this on #290 and it was right.
+     */
     expect(
-      await screen.findByText(/Nothing shared yet/, undefined, {
+      await screen.findByText(/only record edits/, undefined, {
         timeout: 3000,
       }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Nothing shared yet/)).toBeNull();
+    // The endpoint still has pages, so the way forward is offered, not hidden.
+    expect(
+      screen.getByRole("button", { name: /Load more/i }),
     ).toBeInTheDocument();
     expect(fetchSpy).toHaveBeenCalledTimes(3);
   });

@@ -48,12 +48,20 @@
  * chased — a run of maintenance events must not make a band with a meeting two
  * pages back claim there is nothing shared yet.
  *
+ * That chase is BOUNDED, and the bound has a consequence the band has to be
+ * honest about: three pages of pure maintenance with an interaction behind them
+ * leaves this with no rows AND more to read. "Nothing shared yet. Link a task…"
+ * would then be false twice over — it reports an empty relationship that is not
+ * empty, and it teaches an action the person does not need, beside a working
+ * "Load more" that would show them the truth. So the empty state says which of
+ * the two situations it is in.
+ *
  * A record's tab panels are mounted one at a time (Phase 4), so this reads its
  * first page only while the workspace is open, and the Activity tab's own read
  * happens only when that tab is.
  */
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { Link } from "react-router";
 
 import { INTERACTION_ACTIVITY_TYPES } from "~/kernel/relationships";
@@ -89,6 +97,13 @@ export function PersonRecentActivity({
   reloadKey,
   allHref,
 }: PersonRecentActivityProps) {
+  /*
+   * True when the last read came back with no interactions AND the endpoint
+   * still has pages. It changes what the empty state is allowed to claim; it
+   * never changes what is fetched.
+   */
+  const [ranOutOfBudget, setRanOutOfBudget] = useState(false);
+
   const loadPage = useCallback(
     async (cursor: string | null): Promise<ActivityStreamPage> => {
       // `reloadKey` participates so a save re-creates this loader and the
@@ -130,6 +145,7 @@ export function PersonRecentActivity({
         budget -= 1;
       } while (kept.length === 0 && hasMore && budget > 0);
 
+      setRanOutOfBudget(kept.length === 0 && hasMore);
       return { items: kept, nextCursor: next, hasMore };
     },
     [personId, reloadKey],
@@ -165,10 +181,17 @@ export function PersonRecentActivity({
         maxHeight="20rem"
         dayHeadingLevel={3}
         emptyState={
-          <p className="m-0 text-sm text-tertiary">
-            Nothing shared yet. Link a task, note, meeting or diary entry to
-            this person and it will appear here.
-          </p>
+          ranOutOfBudget ? (
+            <p className="m-0 text-sm text-tertiary">
+              Nothing shared in the most recent activity — only record edits.
+              Load more to look further back, or open the Activity tab.
+            </p>
+          ) : (
+            <p className="m-0 text-sm text-tertiary">
+              Nothing shared yet. Link a task, note, meeting or diary entry to
+              this person and it will appear here.
+            </p>
+          )
         }
       />
     </section>
