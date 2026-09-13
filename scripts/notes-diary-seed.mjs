@@ -19,7 +19,9 @@
  *   - a real tag vocabulary, applied unevenly: some notes carry three tags, some
  *     one, most none, and one carries five so the row's bounded tag column is
  *     exercised rather than assumed;
- *   - one archived Note, so the Archived lens and the header's status are real;
+ *   - one archived Note and one deleted one, so the Archived and Deleted lenses
+ *     are real — the Deleted row is the only shape in the collection with no
+ *     open target, and it cannot be reviewed without one;
  *   - forty-odd Diary entries across the last three weeks, in all nine built-in
  *     entry types, several per day on the busy days and none at all on two —
  *     a chronology with gaps is the honest test of one;
@@ -95,11 +97,37 @@ const TODAY = ownerTodayIso();
 const NOW = new Date().toISOString();
 const ws = lit(WORKSPACE);
 
+/** The tag vocabulary this fixture invents. Declared above the clear, which names it. */
+const TAG_LABELS = {
+  research: "research",
+  draft: "draft",
+  reference: "reference",
+  reading: "reading",
+  recipe: "recipe",
+  health: "health",
+  melbourne: "melbourne",
+};
+
 /* -------------------------------------------------------------------------- */
 /* Clearing                                                                   */
 /* -------------------------------------------------------------------------- */
 
-if (clearing) {
+/**
+ * Remove everything this fixture wrote, dependants first.
+ *
+ * Run by `--clear`, and ALSO unconditionally before seeding — which is what
+ * makes the script idempotent, and it has to be. `INSERT OR REPLACE` on
+ * `entities` is a DELETE followed by an INSERT, and `note_details` and
+ * `diary_entry_details` reference that row `ON DELETE RESTRICT`: the first run
+ * succeeded because there was nothing to replace, and the second failed on the
+ * foreign key. Deleting in dependency order and inserting into an empty space
+ * cannot hit that, and it also means a re-run picks up an edited fixture rather
+ * than merging into the last one.
+ *
+ * Scope discipline: every statement is bounded to the `nd12-` id prefix, so it
+ * can never touch a developer's own local Notes or Diary entries.
+ */
+function clearFixture() {
   const mine = `SELECT id FROM entities WHERE workspace_id = ${ws} AND id LIKE '${PREFIX}%'`;
   sql([
     `DELETE FROM entity_tags WHERE workspace_id = ${ws} AND entity_id IN (${mine});`,
@@ -109,7 +137,19 @@ if (clearing) {
     `DELETE FROM note_details WHERE workspace_id = ${ws} AND entity_id IN (${mine});`,
     `DELETE FROM diary_entry_details WHERE workspace_id = ${ws} AND entity_id IN (${mine});`,
     `DELETE FROM entities WHERE workspace_id = ${ws} AND id LIKE '${PREFIX}%';`,
-    `DELETE FROM workspace_tags WHERE workspace_id = ${ws} AND tag_key IN ('research','draft','reference','decision','reading','recipe','health','melbourne','архив');`,
+  ]);
+}
+
+if (clearing) {
+  clearFixture();
+  /*
+   * The tag VOCABULARY goes only on an explicit clear, and only for the tags
+   * this fixture invented. `workspace_tags` is referenced by `entity_tags`
+   * `ON DELETE RESTRICT`, so a tag another record still carries survives — the
+   * delete simply matches nothing for it.
+   */
+  sql([
+    `DELETE FROM workspace_tags WHERE workspace_id = ${ws} AND tag_key IN (${Object.keys(TAG_LABELS).map(lit).join(", ")}) AND NOT EXISTS (SELECT 1 FROM entity_tags t WHERE t.workspace_id = workspace_tags.workspace_id AND t.tag_key = workspace_tags.tag_key);`,
   ]);
   process.stdout.write("UNTITLED-12 design fixture cleared.\n");
   process.exit(0);
@@ -369,17 +409,22 @@ argument in section 4 is still the reason the shell went first.
 `,
     tags: ["reference"],
   },
+  {
+    // The DELETED lens. Its row is the one shape in the collection with no open
+    // target — a deleted entity's canonical route 404s everywhere in the kernel
+    // — so its title is static text beside a Restore action, and it cannot be
+    // reviewed at all without a deleted Note to draw.
+    slug: "deleted-draft",
+    title: "Abandoned draft — the third pricing model",
+    days: 52,
+    touched: 40,
+    deleted: true,
+    body: `Two paragraphs in I realised this was the same argument as the second
+model with different words, and the second model is already written down.
+`,
+    tags: [],
+  },
 ];
-
-const TAG_LABELS = {
-  research: "research",
-  draft: "draft",
-  reference: "reference",
-  reading: "reading",
-  recipe: "recipe",
-  health: "health",
-  melbourne: "melbourne",
-};
 
 const noteStatements = [];
 
@@ -396,12 +441,18 @@ for (const note of NOTES) {
   const archivedAt = note.archived
     ? instant(addDays(TODAY, -note.touched), 16, 30)
     : null;
+  // Soft deletion is the generic entity's, not the Note's: `deleted_at` on
+  // `entities` is what makes a record read as "not found" everywhere in the
+  // kernel, which is exactly why the Deleted row has no link.
+  const deletedAt = note.deleted
+    ? instant(addDays(TODAY, -note.touched), 17, 0)
+    : null;
   // Archive state belongs to `note_details`, not to the generic entity: a Note
   // is archived without being deleted, and the kernel keeps lifecycle facts that
   // only one entity type has on that type's own detail row.
   noteStatements.push(
-    `INSERT OR REPLACE INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at) VALUES (${lit(id)}, ${ws}, 'note', ${lit(note.title)}, ${lit(created)}, ${lit(created)}, NULL);`,
-    `INSERT OR REPLACE INTO note_details (workspace_id, entity_id, entity_type, content, updated_at, archived_at) VALUES (${ws}, ${lit(id)}, 'note', ${lit(note.body)}, ${lit(touched)}, ${archivedAt ? lit(archivedAt) : "NULL"});`,
+    `INSERT INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at) VALUES (${lit(id)}, ${ws}, 'note', ${lit(note.title)}, ${lit(created)}, ${lit(created)}, ${deletedAt ? lit(deletedAt) : "NULL"});`,
+    `INSERT INTO note_details (workspace_id, entity_id, entity_type, content, updated_at, archived_at) VALUES (${ws}, ${lit(id)}, 'note', ${lit(note.body)}, ${lit(touched)}, ${archivedAt ? lit(archivedAt) : "NULL"});`,
   );
   for (const tag of note.tags) {
     noteStatements.push(
@@ -651,14 +702,17 @@ for (const [days, hour, minute, type, title, body] of ENTRIES) {
     : occurred;
   const id = `${PREFIX}diary-${days}-${hour}${String(minute).padStart(2, "0")}`;
   diaryStatements.push(
-    `INSERT OR REPLACE INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at) VALUES (${lit(id)}, ${ws}, 'diary', ${lit(title)}, ${lit(created)}, ${lit(created)}, NULL);`,
-    `INSERT OR REPLACE INTO diary_entry_details (workspace_id, entity_id, entity_type, entry_type, body, occurred_at, timezone, source_channel, source_reference, updated_at) VALUES (${ws}, ${lit(id)}, 'diary', ${lit(type)}, ${body === null ? "NULL" : lit(body)}, ${lit(occurred)}, ${lit(TZ)}, 'manual', NULL, ${lit(created)});`,
+    `INSERT INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at) VALUES (${lit(id)}, ${ws}, 'diary', ${lit(title)}, ${lit(created)}, ${lit(created)}, NULL);`,
+    `INSERT INTO diary_entry_details (workspace_id, entity_id, entity_type, entry_type, body, occurred_at, timezone, source_channel, source_reference, updated_at) VALUES (${ws}, ${lit(id)}, 'diary', ${lit(type)}, ${body === null ? "NULL" : lit(body)}, ${lit(occurred)}, ${lit(TZ)}, 'manual', NULL, ${lit(created)});`,
   );
 }
 
+// Idempotency: seed into an empty space rather than replacing rows other rows
+// point at. See `clearFixture`.
+clearFixture();
 sql(noteStatements);
 sql(diaryStatements);
 
 process.stdout.write(
-  `UNTITLED-12 design fixture seeded: ${NOTES.length} Notes (1 archived) and ${ENTRIES.length} Diary entries across three weeks from ${TODAY}.\n`,
+  `UNTITLED-12 design fixture seeded: ${NOTES.length} Notes (1 archived, 1 deleted) and ${ENTRIES.length} Diary entries across three weeks from ${TODAY}.\n`,
 );
