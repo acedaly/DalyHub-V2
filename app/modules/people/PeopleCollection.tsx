@@ -76,8 +76,9 @@ import {
 } from "~/shared/relationships";
 import type { RelationshipTone } from "~/kernel/relationships";
 
+import { PersonAvatar } from "~/shared/person-identity";
+
 import { NewPersonForm } from "./NewPersonForm";
-import { PersonAvatar } from "./PersonAvatar";
 import {
   PERSON_CIRCLES,
   parsePersonCircle,
@@ -845,7 +846,12 @@ function PeopleCollection({
                 initials={person.initials}
                 photoUrl={person.photoUrl}
                 colourRank={personCircleRank(personCircle(person.relationship))}
-                size={44}
+                // UNTITLED-13 — Untitled's `md` rung (40px), which is the size
+                // its own member tables draw a directory row at. It replaces a
+                // bespoke `size={44}` that existed only because the old
+                // component took a pixel number; the row's grid track follows
+                // the mark rather than the other way round.
+                size="md"
               />
             }
             title={person.title}

@@ -369,74 +369,14 @@
 /*
  * One line under the title: when, where, and with whom.
  *
- * It replaces the header's "When: … / Where: …" field pairs, which read as the
- * first two rows of the metadata form §27 rules out and never mentioned the
- * people at all. It renders inside the shared header's context slot, so it
- * inherits that slot's quiet size and colour and adds no band of its own.
+ * UNTITLED-13 — every rule that used to live here is DELETED, and the class
+ * names survive only as hooks. The row's own arrangement is Untitled utilities
+ * on the component; its people are the shared Person mark over `base/avatar`,
+ * grouped as `informational-02/10`'s event panel groups guests; and
+ * `.dh-meeting-context__mark` is gone entirely — it was this module's private
+ * second avatar, written here because the first one lived inside
+ * `~/modules/people` and Meetings could not import it (§34).
  */
-.dh-meeting-context {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--app-space-1) var(--app-space-2);
-  min-inline-size: 0;
-}
-
-.dh-meeting-context__when {
-  font-weight: 500;
-  color: var(--dh-color-text);
-}
-
-.dh-meeting-context__sep {
-  color: var(--dh-color-border-strong);
-}
-
-.dh-meeting-context__people {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--app-space-1) var(--app-space-3);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  min-inline-size: 0;
-}
-
-.dh-meeting-context__person {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--app-space-1);
-  min-inline-size: 0;
-}
-
-/*
- * §28 — the identity mark is small and subordinate.
- *
- * Initials rather than a photograph, because People carries no image and
- * inventing an avatar service for a header is exactly the feature creep §59
- * rules out. It is decorative (`aria-hidden`): the person's NAME sits beside it
- * and is the link, so nothing depends on two letters being readable.
- */
-.dh-meeting-context__mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  inline-size: var(--app-space-5);
-  block-size: var(--app-space-5);
-  flex: 0 0 auto;
-  border-radius: var(--dh-radius-pill);
-  background: var(--dh-color-bg-sunken);
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-meta-size);
-  font-weight: 600;
-  line-height: 1;
-  letter-spacing: 0;
-}
-
-.dh-meeting-context__more {
-  color: var(--dh-color-text-muted);
-  font-weight: 500;
-}
 
 /* -------------------------------------------------------------------------- */
 /* UIX-04 — the meeting NOTEBOOK (§26)                                        */

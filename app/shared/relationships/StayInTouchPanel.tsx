@@ -97,7 +97,7 @@ export function StayInTouchPanel({
 
   return (
     <section
-      className="dh-stay-in-touch-panel"
+      className="dh-stay-in-touch-panel flex min-w-0 flex-col gap-3"
       aria-labelledby={headingId}
       data-state={relationship.state}
     >
@@ -111,11 +111,11 @@ export function StayInTouchPanel({
         is, and the cadence facts it stands on — so that is all it renders.
         `data-state` stays, so the section's own styling is unaffected.
       */}
-      <ul className="dh-stay-in-touch-panel__reasons">
+      <ul className="dh-stay-in-touch-panel__reasons m-0 flex list-none flex-col gap-1 p-0">
         {relationship.reasons.map((reason) => (
           <li
             key={reason.code}
-            className="dh-stay-in-touch-panel__reason"
+            className="dh-stay-in-touch-panel__reason relative min-w-0 pl-4 text-sm break-words text-secondary"
             data-tone={reason.tone}
           >
             {relationshipReasonText(reason)}
@@ -123,17 +123,30 @@ export function StayInTouchPanel({
         ))}
       </ul>
 
-      <dl className="dh-stay-in-touch-panel__facts">
+      {/*
+        UNTITLED-13 — the same quiet labelled fact strip the Person workspace
+        uses for its reference facts, and the same one Untitled's own profile
+        pages put a person's location and links in: a small quaternary label
+        over a primary value, wrapping down to one column on a phone.
+      */}
+      <dl className="dh-stay-in-touch-panel__facts m-0 grid gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
         {facts.map((fact) => (
-          <div key={fact.label} className="dh-stay-in-touch-panel__fact">
-            <dt>{fact.label}</dt>
-            <dd>{fact.value}</dd>
+          <div
+            key={fact.label}
+            className="dh-stay-in-touch-panel__fact flex min-w-0 flex-col gap-0.5"
+          >
+            <dt className="text-xs font-medium text-quaternary">
+              {fact.label}
+            </dt>
+            <dd className="m-0 text-sm font-medium break-words text-primary">
+              {fact.value}
+            </dd>
           </div>
         ))}
       </dl>
 
       {relationship.cadence.sampleTruncated ? (
-        <p className="dh-stay-in-touch-panel__note">
+        <p className="dh-stay-in-touch-panel__note m-0 text-xs break-words text-tertiary">
           This relationship has more recorded moments than one read covers, so
           the rhythm above is read from the most recent ones. The totals are
           exact.

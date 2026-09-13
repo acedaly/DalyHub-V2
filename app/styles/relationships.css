@@ -1,96 +1,28 @@
 /*
- * PEOPLE-03 stay-in-touch presentation.
+ * PEOPLE-03 stay-in-touch presentation — MIGRATED to Untitled UI (UNTITLED-13).
  *
- * Mirrors `health.css` structurally (`.dh-health*` -> `.dh-stay-in-touch*`) — the
- * SAME restrained pill + explanatory panel, so DalyHub's two derived signals read
- * as siblings rather than as two dialects.
+ * This file was 153 lines and almost all of it was paint: a hand-drawn stadium
+ * pill with its own minimum height, hairline, three-tone container map and
+ * `currentColor` dot, plus a facts grid, a reasons list and a note — every one
+ * of them a shape the product already had a component or a utility for, on a
+ * record that draws Untitled badges two lines above.
  *
- * The tone vocabulary here is deliberately NARROWER than health's: only `neutral`,
- * `success` and `info` exist. A relationship is never a warning and never a danger
- * (AGENTS.md §5 — care, not a CRM), so there is no red or amber rule to write.
- * Every tone pairs its colour with the text label and a decorative dot, so meaning
- * is never carried by colour alone (DS-11 / WCAG 2.2 AA).
+ * What moved, and where to:
+ *
+ *   - the PILL is the shared `Badge` (`base/badges`), with its `dot`, its tone
+ *     vocabulary and its contrast pairs. The narrower relationship tone set —
+ *     no warning, no danger, because a relationship is never either (AGENTS.md
+ *     §5) — is stated in `StayInTouchIndicator` as a total mapping, so the two
+ *     alarming tones are unreachable by construction rather than by omission;
+ *   - the facts grid, the reasons list, the note and both containers are
+ *     Untitled utilities on the components themselves.
+ *
+ * What is left is the ONE thing neither Untitled nor a utility expresses: the
+ * reason bullet's tone. It is a generated dot in the relationship's own
+ * three-tone vocabulary, and it is never the meaning — the reason is spelled
+ * out in words beside it, which is what a forced-colours or monochrome reader
+ * reads.
  */
-
-.dh-stay-in-touch {
-  display: inline-flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--app-space-2);
-  min-width: 0;
-}
-
-.dh-stay-in-touch__pill {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--app-space-1);
-  padding: 0 var(--app-space-2);
-  min-height: var(--app-space-5);
-  font-size: var(--dh-text-meta-size);
-  font-weight: 500;
-  border-radius: var(--dh-radius-pill);
-  border: var(--app-border-width-thin) solid var(--dh-color-border);
-  color: var(--dh-color-text-muted);
-  background: var(--dh-color-surface);
-  white-space: nowrap;
-}
-
-.dh-stay-in-touch__dot {
-  width: var(--app-space-2);
-  height: var(--app-space-2);
-  border-radius: var(--dh-radius-pill);
-  background: currentColor;
-  flex: none;
-}
-
-.dh-stay-in-touch__pill[data-tone="success"] {
-  color: var(--dh-color-text-on-success-subtle);
-  background: var(--dh-color-success-subtle);
-  border-color: transparent;
-}
-.dh-stay-in-touch__pill[data-tone="info"] {
-  color: var(--dh-color-text-on-info-subtle);
-  background: var(--dh-color-info-subtle);
-  border-color: transparent;
-}
-
-.dh-stay-in-touch__reason {
-  font-size: var(--dh-text-label-size);
-  color: var(--dh-color-text-muted);
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-/* --- The detailed record panel ------------------------------------------- */
-
-.dh-stay-in-touch-panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-3);
-}
-
-.dh-stay-in-touch-panel__header {
-  display: flex;
-  align-items: center;
-  gap: var(--app-space-2);
-}
-
-.dh-stay-in-touch-panel__reasons {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-1);
-}
-
-.dh-stay-in-touch-panel__reason {
-  position: relative;
-  padding-inline-start: var(--app-space-4);
-  font-size: var(--dh-text-meta-size);
-  color: var(--dh-color-text);
-  overflow-wrap: anywhere;
-}
 
 .dh-stay-in-touch-panel__reason::before {
   content: "";
@@ -109,44 +41,7 @@
   background: var(--dh-color-info);
 }
 
-.dh-stay-in-touch-panel__facts {
-  margin: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-  gap: var(--app-space-2) var(--app-space-4);
-}
-
-.dh-stay-in-touch-panel__fact {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-1);
-  min-width: 0;
-}
-
-.dh-stay-in-touch-panel__fact dt {
-  font-size: var(--dh-text-meta-size);
-  color: var(--dh-color-text-muted);
-}
-
-.dh-stay-in-touch-panel__fact dd {
-  margin: 0;
-  font-size: var(--dh-text-meta-size);
-  color: var(--dh-color-text);
-  overflow-wrap: anywhere;
-}
-
-.dh-stay-in-touch-panel__note {
-  margin: 0;
-  font-size: var(--dh-text-label-size);
-  color: var(--dh-color-text-muted);
-  overflow-wrap: anywhere;
-}
-
 @media (forced-colors: active) {
-  .dh-stay-in-touch__pill {
-    border-color: CanvasText;
-  }
-  .dh-stay-in-touch__dot,
   .dh-stay-in-touch-panel__reason::before {
     background: CanvasText;
   }

@@ -8,69 +8,71 @@
  */
 
 /* -------------------------------------------------------------------------- */
-/* Avatar                                                                     */
+/* The Person mark's CIRCLE ACCENT — MIGRATED to Untitled UI (UNTITLED-13)     */
 /* -------------------------------------------------------------------------- */
 
 /*
- * The one CIRCULAR identity mark in DalyHub. Every other record's mark is a
- * rounded square, because those records are containers and a person is not.
- */
-.dh-person-avatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--dh-radius-pill);
-  overflow: hidden;
-  flex: none;
-  /* The neutral disc — a Person with no relationship recorded. It is a real
-   * answer ("not classified"), not a fallback colour, and it is legible in both
-   * appearances without any accent at all. */
-  background: var(--dh-color-surface-subtle);
-  color: var(--dh-color-text-muted);
-  font-weight: 500;
-  line-height: 1;
-}
-
-/*
- * UIX-05 — the generated avatar takes its CIRCLE's accent, at the same generated
- * identity strength `.dh-accent-icon` uses (D17/D4).
+ * The mark itself is Untitled's `base/avatar`, through the shared
+ * `~/shared/person-identity` component. Its circle, its size scale, its image
+ * treatment and `onError` fallback, its initials type ramp and its focus ring
+ * are all upstream's; the ~60 lines that used to draw them here are gone, along
+ * with the inline `inlineSize`/`blockSize`/`fontSize` the old component
+ * computed from a pixel number.
  *
- * One authored rule and one generated percentage per appearance, so a list of
- * People is a soft palette in light and a calm one in dark rather than a row of
- * saturated discs. The mix is contrast-safe by construction — moving a container
- * toward the card always moves it away from its own `on-` role — which is what
- * lets the initials stay legible on all six ramps without a per-accent override.
+ * What survives is the ONE thing Untitled has no role for: UIX-05's circle
+ * accent. A GENERATED initials disc takes the identity tint of the Person's
+ * CIRCLE — a pure function of the relationship the owner recorded (ADR-068 §5),
+ * never a hash of an id and never a status — so a directory of twenty People is
+ * a legible palette rather than twenty identical discs. A photograph takes no
+ * tint: it is the strongest identity a row can carry and a ring of colour would
+ * only compete with it.
+ *
+ * ── Why this reaches one element deeper than the component's API ────────────
+ *
+ * `Avatar` exposes `contentClassName` for exactly this and the small mark uses
+ * it, so the class lands ON the tinted box. `AvatarProfilePhoto` — the large
+ * record mark — builds its own inner box and exposes no hook for it, so there
+ * the class sits on the root and the tint has to reach its only `div` child.
+ * Both spellings are stated once, here, rather than by forking upstream.
+ *
+ * The initials colour needs the `span` either way: upstream paints them
+ * `text-quaternary` on the element itself, which an inherited colour cannot
+ * reach.
  */
-.dh-person-avatar[data-accent] {
+.dh-person-avatar__accent,
+.dh-person-avatar__accent > div {
   background: color-mix(
     in srgb,
     var(--person-avatar-container) var(--app-tint-strength-identity),
     var(--dh-color-surface)
   );
+}
+
+.dh-person-avatar__accent span {
   color: var(--person-avatar-on-container);
 }
 
-.dh-person-avatar[data-accent="1"] {
+.dh-person-avatar__accent--1 {
   --person-avatar-container: var(--dh-color-area-1-subtle);
   --person-avatar-on-container: var(--dh-color-text-on-area-1-subtle);
 }
-.dh-person-avatar[data-accent="2"] {
+.dh-person-avatar__accent--2 {
   --person-avatar-container: var(--dh-color-area-2-subtle);
   --person-avatar-on-container: var(--dh-color-text-on-area-2-subtle);
 }
-.dh-person-avatar[data-accent="3"] {
+.dh-person-avatar__accent--3 {
   --person-avatar-container: var(--dh-color-area-3-subtle);
   --person-avatar-on-container: var(--dh-color-text-on-area-3-subtle);
 }
-.dh-person-avatar[data-accent="4"] {
+.dh-person-avatar__accent--4 {
   --person-avatar-container: var(--dh-color-area-4-subtle);
   --person-avatar-on-container: var(--dh-color-text-on-area-4-subtle);
 }
-.dh-person-avatar[data-accent="5"] {
+.dh-person-avatar__accent--5 {
   --person-avatar-container: var(--dh-color-area-5-subtle);
   --person-avatar-on-container: var(--dh-color-text-on-area-5-subtle);
 }
-.dh-person-avatar[data-accent="6"] {
+.dh-person-avatar__accent--6 {
   --person-avatar-container: var(--dh-color-area-6-subtle);
   --person-avatar-on-container: var(--dh-color-text-on-area-6-subtle);
 }
@@ -81,17 +83,6 @@
   .dh-person-avatar {
     border: var(--app-border-width-thin) solid CanvasText;
   }
-}
-
-.dh-person-avatar__img {
-  inline-size: 100%;
-  block-size: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.dh-person-avatar__initials {
-  letter-spacing: 0.02em;
 }
 
 /* -------------------------------------------------------------------------- */

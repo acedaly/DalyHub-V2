@@ -9,18 +9,42 @@
  * controls for changing it.
  *
  * This is the answer to all three, compactly: the date and time, the place, and
- * the attendees as small initial marks with their names. It is READ-ONLY on
- * purpose — §28 says people should be "recognisable but secondary", and an
- * editor in a header makes them the loudest thing on the record. Adding and
- * removing attendees stays exactly where it was, in the Details tab, which is
- * also where the rest of the meeting's metadata now lives.
+ * the attendees. It is READ-ONLY on purpose — §28 says people should be
+ * "recognisable but secondary", and an editor in a header makes them the
+ * loudest thing on the record. Adding and removing attendees stays exactly
+ * where it was, in the Details tab, which is also where the rest of the
+ * meeting's metadata now lives.
  *
- * §28's collapse rule: beyond `VISIBLE_ATTENDEES` the row shows a count instead
- * of a queue of pills. The overflow is not hidden information — the full list is
- * one tab away, and the count says how many are not shown.
+ * ── UNTITLED-13: the people are the SHARED Person mark ──────────────────────
+ *
+ * This file used to draw its own identity disc — `.dh-meeting-context__mark` in
+ * `meetings.css`, with its own size, ground, weight and its own `initialsOf`
+ * derivation — because `PersonAvatar` lived inside `~/modules/people` and
+ * Meetings could not reach it. The same person was therefore a 44px tinted disc
+ * on `/people` and a 20px grey one on their own meeting. Both marks are now the
+ * one shared component over Untitled's `base/avatar` (§34), and the arrangement
+ * is `informational-02/10`'s event panel: a short run of OVERLAPPING marks with
+ * the count beside them, rather than a queue of name-plus-pill pairs.
+ *
+ * Nothing is lost to assistive tech by dropping the visible names: each mark is
+ * an anchor whose accessible name is the person's, inside a list named
+ * "Attendees", so a screen reader hears every one of them. A sighted reader
+ * gets the faces and a link that says how many there are — which is the fact a
+ * header can carry and four truncated names could not.
+ *
+ * ── The tint, and why most meetings will not show one ───────────────────────
+ *
+ * A Meeting resolves its attendees through EntityLinks, which carry the
+ * counterpart's id and TITLE and nothing else. So the marks here are generated
+ * from the title and take the neutral disc: the circle accent is a function of
+ * the relationship the owner recorded, this surface does not read it, and a
+ * colour that means nothing is worse than no colour. Giving Meetings the tinted
+ * mark needs a bounded `people.getByIds` the kernel does not publish — a real
+ * follow-up, recorded in the migration guide, and deliberately not a repository
+ * change smuggled into a presentation pass.
  */
 
-import { EntityLink } from "~/shared/entity";
+import { PersonAvatarGroup } from "~/shared/person-identity";
 
 export interface MeetingAttendeeSummary {
   readonly id: string;
@@ -33,36 +57,19 @@ export interface MeetingContextRowProps {
   /** Location or mode, or null when the meeting records neither. */
   readonly where: string | null;
   readonly attendees: readonly MeetingAttendeeSummary[];
-  /** Where "+N more" sends the reader — the tab that lists them all. */
+  /** Where the count sends the reader — the tab that lists them all. */
   readonly allAttendeesHref: string;
 }
 
 /**
- * How many attendees the header names before it starts counting instead.
+ * How many attendees the header draws before it counts instead.
  *
  * Four fits one line beside a date at the narrowest desktop width and still
- * covers the great majority of real meetings. A fifth name is what pushes the
+ * covers the great majority of real meetings. A fifth mark is what pushes the
  * row onto a second line, which is the point at which people stop being
  * secondary.
  */
 const VISIBLE_ATTENDEES = 4;
-
-/**
- * A person's initials, for the identity mark.
- *
- * Deliberately derived from the DISPLAY TITLE rather than from first/last name
- * fields: the header is given whatever the People module considers this person's
- * name, and re-deriving it from parts here would be a second answer to "what is
- * this person called". Two initials at most; a mononym gets one.
- */
-function initialsOf(title: string): string {
-  const words = title
-    .split(/\s+/)
-    .filter((word) => /\p{L}/u.test(word))
-    .slice(0, 2);
-  if (words.length === 0) return "?";
-  return words.map((word) => Array.from(word)[0].toUpperCase()).join("");
-}
 
 export function MeetingContextRow({
   when,
@@ -70,61 +77,66 @@ export function MeetingContextRow({
   attendees,
   allAttendeesHref,
 }: MeetingContextRowProps) {
-  const shown = attendees.slice(0, VISIBLE_ATTENDEES);
-  const hidden = attendees.length - shown.length;
-
   return (
-    <div className="dh-meeting-context">
-      <span className="dh-meeting-context__when">{when}</span>
+    <div className="dh-meeting-context flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+      <span className="dh-meeting-context__when font-medium text-secondary">
+        {when}
+      </span>
       {where ? (
         <>
-          <span className="dh-meeting-context__sep" aria-hidden="true">
-            ·
+          <Separator />
+          <span className="dh-meeting-context__where min-w-0 truncate">
+            {where}
           </span>
-          <span className="dh-meeting-context__where">{where}</span>
         </>
       ) : null}
 
       {attendees.length > 0 ? (
         <>
-          <span className="dh-meeting-context__sep" aria-hidden="true">
-            ·
+          <Separator />
+          <span className="dh-meeting-context__people flex min-w-0 items-center gap-2">
+            <PersonAvatarGroup
+              label="Attendees"
+              size="xs"
+              max={VISIBLE_ATTENDEES}
+              overflowHref={allAttendeesHref}
+              members={attendees.map((attendee) => ({
+                id: attendee.id,
+                name: attendee.title,
+                href: `/person/${encodeURIComponent(attendee.id)}`,
+              }))}
+            />
+            {/*
+              The count is the header's one visible statement about the people,
+              and it is a LINK because there is somewhere to go: the tab that
+              lists them all. `attendeeCountLabel` states it in words, so it
+              reads correctly at one attendee as well as at nine.
+            */}
+            <a
+              className="dh-meeting-context__more font-medium text-brand-secondary outline-focus-ring hover:text-brand-secondary_hover focus-visible:outline-2 focus-visible:outline-offset-2"
+              href={allAttendeesHref}
+            >
+              {attendeeCountLabel(attendees.length)}
+            </a>
           </span>
-          {/*
-            A real list with a real name, so a screen-reader user hears "People,
-            list, 5 items" rather than a run of link text with no structure.
-          */}
-          <ul className="dh-meeting-context__people" aria-label="Attendees">
-            {shown.map((attendee) => (
-              <li key={attendee.id} className="dh-meeting-context__person">
-                {/* The mark is decorative — the name beside it is the link text
-                 * and the accessible name, so nothing depends on the initials
-                 * being legible or on colour. */}
-                <span
-                  className="dh-meeting-context__mark"
-                  aria-hidden="true"
-                  data-initials={initialsOf(attendee.title)}
-                >
-                  {initialsOf(attendee.title)}
-                </span>
-                <EntityLink
-                  type="person"
-                  id={attendee.id}
-                  title={attendee.title}
-                />
-              </li>
-            ))}
-            {hidden > 0 ? (
-              <li className="dh-meeting-context__person">
-                <a
-                  className="dh-meeting-context__more"
-                  href={allAttendeesHref}
-                >{`+${hidden} more`}</a>
-              </li>
-            ) : null}
-          </ul>
         </>
       ) : null}
     </div>
   );
+}
+
+function Separator() {
+  return (
+    <span
+      className="dh-meeting-context__sep text-quaternary"
+      aria-hidden="true"
+    >
+      ·
+    </span>
+  );
+}
+
+/** "1 attendee" / "5 attendees". Never a bare number beside a row of faces. */
+export function attendeeCountLabel(count: number): string {
+  return count === 1 ? "1 attendee" : `${count} attendees`;
 }
