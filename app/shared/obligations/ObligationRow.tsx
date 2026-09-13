@@ -131,6 +131,14 @@ export function ObligationRow({
     ? ([
         onEdit
           ? {
+              /*
+               * The accessible name CONTAINS the visible label, which WCAG
+               * 2.5.3 (Label in Name) requires and a first draft broke: "Create
+               * a task for X" and "Put X on hold" read better in isolation and
+               * are names a speech-input user cannot reach the item by, because
+               * neither starts with the words on the screen. Naming the
+               * obligation is what the suffix is for.
+               */
               id: "edit",
               label: "Edit",
               ariaLabel: `Edit ${obligation.title}`,
@@ -142,7 +150,7 @@ export function ObligationRow({
           ? {
               id: "create-task",
               label: "Create task",
-              ariaLabel: `Create a task for ${obligation.title}`,
+              ariaLabel: `Create task for ${obligation.title}`,
               onSelect: () => onCreateTask(obligation),
               ...(busy ? { pending: true } : {}),
             }
@@ -151,7 +159,7 @@ export function ObligationRow({
           ? {
               id: "hold",
               label: "Hold",
-              ariaLabel: `Put ${obligation.title} on hold`,
+              ariaLabel: `Hold ${obligation.title}`,
               onSelect: () => onHold(obligation),
               ...(busy ? { pending: true } : {}),
             }

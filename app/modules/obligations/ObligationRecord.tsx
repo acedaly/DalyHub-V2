@@ -231,7 +231,7 @@ export function ObligationRecord({
           {
             id: "create-task",
             label: "Create task",
-            ariaLabel: `Create a task for ${obligation.title}`,
+            ariaLabel: `Create task for ${obligation.title}`,
             onSelect: () => void actions.createTask(obligation),
             ...(busy ? { pending: true } : {}),
           } satisfies OverflowMenuItem,
@@ -240,7 +240,7 @@ export function ObligationRecord({
     {
       id: "hold",
       label: "Hold",
-      ariaLabel: `Put ${obligation.title} on hold`,
+      ariaLabel: `Hold ${obligation.title}`,
       onSelect: () => void actions.hold(obligation),
       ...(busy ? { pending: true } : {}),
     },

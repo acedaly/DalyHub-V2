@@ -257,7 +257,7 @@ describe("the Task authority contract, said plainly", () => {
     // simply not in it.
     openRowMenu("Renew registration");
     expect(
-      screen.queryByRole("menuitem", { name: /Create a task for/ }),
+      screen.queryByRole("menuitem", { name: /Create task for/ }),
     ).not.toBeInTheDocument();
   });
 
@@ -272,7 +272,7 @@ describe("the Task authority contract, said plainly", () => {
     const handlers = renderTab([obligation({ taskId: null })]);
     openRowMenu("Renew registration");
     expect(
-      screen.getByRole("menuitem", { name: /Create a task for/ }),
+      screen.getByRole("menuitem", { name: /Create task for/ }),
     ).toBeInTheDocument();
     expect(handlers.onAdd).not.toHaveBeenCalled();
   });
@@ -317,7 +317,7 @@ describe("actions", () => {
     const handlers = renderTab([obligation()]);
     openRowMenu("Renew registration");
     fireEvent.click(
-      screen.getByRole("menuitem", { name: "Put Renew registration on hold" }),
+      screen.getByRole("menuitem", { name: "Hold Renew registration" }),
     );
 
     await waitFor(() => expect(handlers.onChanged).toHaveBeenCalled());

@@ -178,8 +178,27 @@ test.describe("Life Admin, with no Asset anywhere in it", () => {
       .first();
     await expect(heading).toBeVisible();
 
-    const label = (await heading.textContent()) ?? "";
-    const stated = Number(/\((\d+)\)/.exec(label)?.[1] ?? "0");
+    /*
+     * UNTITLED-16 — the count is the band card's BADGE now, beside the heading
+     * rather than inside it.
+     *
+     * The contract this test exists for is unchanged and is what is asserted
+     * below: the number is of the whole band across the collection, not of the
+     * loaded page. What changed is where it is said. It used to be a
+     * parenthesised digit INSIDE the `h2`, so the heading's accessible name was
+     * "This week (3)" — a bare number welded onto a date range, which a
+     * screen-reader user has to decode. Outside the heading it has to name what
+     * it counts, which is asserted here too, and is the same fix the Meetings
+     * day card made.
+     */
+    await expect(heading).not.toHaveText(/\(\d+\)/);
+    const badge = page
+      .locator('[data-untitled-source="application/table:table-card"]')
+      .filter({ has: heading })
+      .getByText(/^\d+ obligations?$/)
+      .first();
+    const label = (await badge.textContent()) ?? "";
+    const stated = Number(/^(\d+)/.exec(label.trim())?.[1] ?? "0");
     const counted = d1Query<{ n: number }>(
       `SELECT COUNT(*) AS n FROM obligation_details
         WHERE workspace_id = 'local-dev-workspace'
