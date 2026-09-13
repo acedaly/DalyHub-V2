@@ -23,6 +23,7 @@ import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 import { useFeedback } from "~/shared/feedback";
 import { OverflowMenu } from "~/shared/overflow-menu";
+import { UntitledStatusBadge } from "~/shared/pill";
 
 import type { SerializedAssetEvent } from "./asset-history-view";
 import type { AssetHistoryPage, AssetHistoryResult } from "./routes/history";
@@ -266,85 +267,128 @@ export function AssetHistoryTab({
           // control twice on one empty screen.
         />
       ) : (
-        <ol className="dh-asset-history__list" aria-label="Asset history">
-          {events.map((event) => (
-            <li
-              key={event.id}
-              className={`dh-asset-history__item dh-asset-history__item--${event.category}`}
-            >
-              <div className="dh-asset-history__head">
-                <span className="dh-asset-history__category">
-                  {event.categoryLabel}
-                </span>
-                <span className="dh-asset-history__date">
+        /*
+          UNTITLED-16 — a bounded DIVIDED LIST, not a card per service record.
+          
+          Each entry was its own bordered, radiused box with a per-category
+          painted arm, two permanent buttons (one of them Remove), and a head row
+          that put the category and the date at opposite ends of the card. Ten
+          years of servicing was ten years of boxes.
+
+          It is Untitled's card anatomy now: ONE surface, hairline rows, the DATE
+          leading in a fixed column because a history is read by when, the
+          category as the shared badge, and the two actions in the shared
+          overflow — Remove behind a separator in the destructive tone, which is
+          the same rule the obligation row and the meeting attendee list follow.
+        */
+        <div
+          /*
+           * No ring and no shadow: this list is the body of a record TAB, which
+           * already draws a boundary. See `AssetDatesTab` for the argument.
+           */
+          className="overflow-hidden rounded-lg bg-primary"
+          data-untitled-source="application/table:table-card"
+        >
+          <ol
+            className="m-0 flex list-none flex-col divide-y divide-secondary p-0"
+            aria-label="Asset history"
+          >
+            {events.map((event) => (
+              <li
+                key={event.id}
+                className="flex min-w-0 flex-col gap-2 px-4 py-3 md:flex-row md:items-start md:gap-4 md:px-5"
+                data-category={event.category}
+              >
+                {/*
+                  The fixed leading date column, so a run of entries reads as a
+                  chronology rather than as a stack of independent boxes. It
+                  wraps under the body on a phone, where a fixed column would
+                  take a third of the width.
+                */}
+                <span className="shrink-0 text-sm whitespace-nowrap text-tertiary tabular-nums md:w-32">
                   {event.dateLabel}
                 </span>
-              </div>
-              <p className="dh-asset-history__title">{event.title}</p>
-              <p className="dh-asset-history__facts">
-                {[
-                  event.provider,
-                  event.personName,
-                  event.costDisplay,
-                  event.valueDisplay,
-                  event.meterDisplay,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </p>
-              {event.description ? (
-                <p className="dh-asset-history__description">
-                  {event.description}
-                </p>
-              ) : null}
-              {event.taskId || event.noteId ? (
-                <p className="dh-asset-history__links">
-                  {event.taskId ? (
-                    <a
-                      href={`/tasks?drawer=task%3A${encodeURIComponent(event.taskId)}`}
-                    >
-                      {event.taskTitle ?? "Linked task"}
-                    </a>
+
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                  <p className="m-0 flex flex-wrap items-center gap-2">
+                    <UntitledStatusBadge tone="neutral" type="modern">
+                      {event.categoryLabel}
+                    </UntitledStatusBadge>
+                    <span className="text-sm font-medium break-words text-primary">
+                      {event.title}
+                    </span>
+                  </p>
+                  {(() => {
+                    const facts = [
+                      event.provider,
+                      event.personName,
+                      event.costDisplay,
+                      event.valueDisplay,
+                      event.meterDisplay,
+                    ].filter(Boolean);
+                    return facts.length === 0 ? null : (
+                      <p className="m-0 text-xs break-words text-tertiary tabular-nums">
+                        {facts.join(" · ")}
+                      </p>
+                    );
+                  })()}
+                  {event.description ? (
+                    <p className="m-0 text-sm break-words text-tertiary">
+                      {event.description}
+                    </p>
                   ) : null}
-                  {event.taskId && event.noteId ? (
-                    <span aria-hidden="true"> · </span>
+                  {event.taskId || event.noteId ? (
+                    <p className="m-0 text-xs break-words text-tertiary">
+                      {event.taskId ? (
+                        <a
+                          className="font-medium text-brand-secondary underline-offset-2 hover:underline"
+                          href={`/tasks?drawer=task%3A${encodeURIComponent(event.taskId)}`}
+                        >
+                          {event.taskTitle ?? "Linked task"}
+                        </a>
+                      ) : null}
+                      {event.taskId && event.noteId ? (
+                        <span aria-hidden="true"> · </span>
+                      ) : null}
+                      {event.noteId ? (
+                        <a
+                          className="font-medium text-brand-secondary underline-offset-2 hover:underline"
+                          href={`/notes/${event.noteId}`}
+                        >
+                          {event.noteTitle ?? "Linked note"}
+                        </a>
+                      ) : null}
+                    </p>
                   ) : null}
-                  {event.noteId ? (
-                    <a href={`/notes/${event.noteId}`}>
-                      {event.noteTitle ?? "Linked note"}
-                    </a>
-                  ) : null}
-                </p>
-              ) : null}
-              {readOnly ? null : (
-                <p className="dh-asset-history__item-actions">
-                  <button
-                    type="button"
-                    className={buttonClassName({
-                      variant: "subtle",
-                      size: "sm",
-                    })}
-                    onClick={() => onEditEvent(event)}
-                  >
-                    Edit
-                    <span className="dh-visually-hidden"> {event.title}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={buttonClassName({
-                      variant: "subtle",
-                      size: "sm",
-                    })}
-                    onClick={() => void removeEvent(event)}
-                  >
-                    Remove
-                    <span className="dh-visually-hidden"> {event.title}</span>
-                  </button>
-                </p>
-              )}
-            </li>
-          ))}
-        </ol>
+                </div>
+
+                {readOnly ? null : (
+                  <div className="shrink-0 max-md:self-start">
+                    <OverflowMenu
+                      items={[
+                        {
+                          id: "edit",
+                          label: "Edit",
+                          ariaLabel: `Edit ${event.title}`,
+                          onSelect: () => onEditEvent(event),
+                        },
+                        {
+                          id: "remove",
+                          label: "Remove",
+                          ariaLabel: `Remove ${event.title}`,
+                          tone: "danger",
+                          separatorBefore: true,
+                          onSelect: () => void removeEvent(event),
+                        },
+                      ]}
+                      label={`More actions for ${event.title}`}
+                    />
+                  </div>
+                )}
+              </li>
+            ))}
+          </ol>
+        </div>
       )}
 
       {hasMore ? (

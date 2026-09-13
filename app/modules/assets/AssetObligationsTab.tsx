@@ -199,7 +199,10 @@ export function AssetObligationsTab({
             <details className="dh-asset-disclosure">
               <summary>Completed and set aside ({settled.length})</summary>
               <div className="dh-asset-disclosure__body">
-                <ObligationList ariaLabel="Completed and set-aside obligations">
+                <ObligationList
+                  ariaLabel="Completed and set-aside obligations"
+                  bounded
+                >
                   {settled.map(renderRow)}
                 </ObligationList>
               </div>

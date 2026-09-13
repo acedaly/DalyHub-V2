@@ -419,6 +419,20 @@ export function AssetsCollectionView({
       viewSwitcher={viewSwitcher}
       filterBar={filterBar}
       persistentControls
+      /*
+       * UNTITLED-16 — the comment above claimed this and the code did not do it.
+       *
+       * `persistentControls` makes the shared sheet the control surface at every
+       * width; it does not lift the shared rule that hides the desktop filter
+       * band on a phone. So the paragraph in this file's header saying "search
+       * stays visible, because a search box behind a button is a search box
+       * nobody uses" was, at 393px, false — the search field AND the tag field
+       * both vanished, and a bookmarked `?tag=` URL narrowed the gallery with no
+       * control showing it. UNTITLED-13 measured the same defect on People,
+       * fixed it there, and left `keepFiltersOnCompact` as the way to say it;
+       * this is Assets claiming the rule it already documented.
+       */
+      keepFiltersOnCompact
       mobileControls={
         <CollectionControls
           groups={controlGroups}

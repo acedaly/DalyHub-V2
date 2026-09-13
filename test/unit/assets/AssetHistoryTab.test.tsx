@@ -191,16 +191,34 @@ describe("an entry shows what applies", () => {
     ).toHaveAttribute("href", "/notes/n-1");
   });
 
-  it("names each entry's row actions, so identical buttons are distinguishable", () => {
+  it("names each entry's row actions, so identical items are distinguishable", () => {
     renderTab([
       event({ id: "a", title: "Service" }),
       event({ id: "b", title: "Repair" }),
     ]);
+    /*
+     * UNTITLED-16 — the two row actions are MENU items now.
+     *
+     * Every entry used to carry a permanent "Edit" and a permanent "Remove",
+     * which on a decade of service records is two hundred controls, half of them
+     * destructive. They are the shared overflow, and the contract this test
+     * exists for — that each one NAMES its entry, so a list is never a column of
+     * identical verbs — is unchanged and now covers the trigger as well.
+     */
+    fireEvent.click(
+      screen.getByRole("button", { name: "More actions for Service" }),
+    );
     expect(
-      screen.getByRole("button", { name: "Edit Service" }),
+      screen.getByRole("menuitem", { name: "Edit Service" }),
     ).toBeInTheDocument();
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+      key: "Escape",
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "More actions for Repair" }),
+    );
     expect(
-      screen.getByRole("button", { name: "Remove Repair" }),
+      screen.getByRole("menuitem", { name: "Remove Repair" }),
     ).toBeInTheDocument();
   });
 });
@@ -345,7 +363,12 @@ describe("removing an entry", () => {
 
     const handlers = renderTab([event()]);
     fireEvent.click(
-      screen.getByRole("button", { name: /^Remove 60,000 km service/ }),
+      screen.getByRole("button", {
+        name: /^More actions for 60,000 km service/,
+      }),
+    );
+    fireEvent.click(
+      screen.getByRole("menuitem", { name: /^Remove 60,000 km service/ }),
     );
 
     await waitFor(() => expect(handlers.onChanged).toHaveBeenCalled());
@@ -367,8 +390,11 @@ describe("read-only (archived asset)", () => {
     expect(
       screen.queryByRole("button", { name: "More ways to record an entry" }),
     ).not.toBeInTheDocument();
+    // UNTITLED-16 — and the ROW menu is not there either, which is now what
+    // "no row actions" means. Asserted on the trigger, because a menu that is
+    // never rendered has no items to look for.
     expect(
-      screen.queryByRole("button", { name: /^Remove/ }),
+      screen.queryByRole("button", { name: /^More actions for/ }),
     ).not.toBeInTheDocument();
   });
 });

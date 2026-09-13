@@ -151,6 +151,20 @@ describe("empty state", () => {
   });
 });
 
+/**
+ * Open a row's overflow.
+ *
+ * UNTITLED-16 — the row carries ONE visible control (Complete, or Reopen where
+ * the occurrence is closed) and the shared menu; Edit, Create task, Hold and
+ * Dismiss are items in it. These tests take the journey a person takes rather
+ * than reaching for controls that are no longer on the row.
+ */
+function openRowMenu(title: string): void {
+  fireEvent.click(
+    screen.getByRole("button", { name: `More actions for ${title}` }),
+  );
+}
+
 describe("grouping and state", () => {
   it("groups by band, most urgent first", () => {
     renderTab([
@@ -173,9 +187,18 @@ describe("grouping and state", () => {
         title: "Due thing",
       }),
     ]);
+    /*
+     * UNTITLED-16 — the bands are Untitled `TableCard.Header`s, which are `h2`s,
+     * and `h2` is the right rank: a record tab introduces no heading of its own,
+     * so a section inside one sits directly under the record's `h1`. The tab's
+     * own visually-hidden "Obligations" heading now shares that rank, so the
+     * bands start after it. The ORDER is what this test is about, and it is
+     * unchanged.
+     */
     const headings = screen
-      .getAllByRole("heading", { level: 3 })
-      .map((h) => h.textContent);
+      .getAllByRole("heading", { level: 2 })
+      .map((h) => h.textContent)
+      .filter((text) => text !== "Overview" && text !== "Obligations");
     expect(headings[0]).toContain("Overdue");
     expect(headings[1]).toContain("This week");
     expect(headings[2]).toContain("Later");
@@ -215,8 +238,9 @@ describe("grouping and state", () => {
       }),
     ]);
     const headings = screen
-      .getAllByRole("heading", { level: 3 })
-      .map((h) => h.textContent);
+      .getAllByRole("heading", { level: 2 })
+      .map((h) => h.textContent)
+      .filter((text) => text !== "Overview" && text !== "Obligations");
     expect(headings[0]).toContain("Overdue");
     expect(screen.getByText("Reading needed")).toBeInTheDocument();
   });
@@ -229,9 +253,11 @@ describe("the Task authority contract, said plainly", () => {
       "href",
       "/tasks?drawer=task%3At-1",
     );
-    // No "Create task" — one already exists.
+    // No "Create task" — one already exists. The menu opens and the item is
+    // simply not in it.
+    openRowMenu("Renew registration");
     expect(
-      screen.queryByRole("button", { name: /Create task/ }),
+      screen.queryByRole("menuitem", { name: /Create a task for/ }),
     ).not.toBeInTheDocument();
   });
 
@@ -244,8 +270,9 @@ describe("the Task authority contract, said plainly", () => {
 
   it("offers to create a Task only when there is none", () => {
     const handlers = renderTab([obligation({ taskId: null })]);
+    openRowMenu("Renew registration");
     expect(
-      screen.getByRole("button", { name: /Create task/ }),
+      screen.getByRole("menuitem", { name: /Create a task for/ }),
     ).toBeInTheDocument();
     expect(handlers.onAdd).not.toHaveBeenCalled();
   });
@@ -273,8 +300,9 @@ describe("actions", () => {
     expect(handlers.onComplete).toHaveBeenCalledWith(
       expect.objectContaining({ id: "o-1" }),
     );
+    openRowMenu("Renew registration");
     fireEvent.click(
-      screen.getByRole("button", { name: /^Edit Renew registration/ }),
+      screen.getByRole("menuitem", { name: "Edit Renew registration" }),
     );
     expect(handlers.onEdit).toHaveBeenCalled();
   });
@@ -287,8 +315,9 @@ describe("actions", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const handlers = renderTab([obligation()]);
+    openRowMenu("Renew registration");
     fireEvent.click(
-      screen.getByRole("button", { name: /^Hold Renew registration/ }),
+      screen.getByRole("menuitem", { name: "Put Renew registration on hold" }),
     );
 
     await waitFor(() => expect(handlers.onChanged).toHaveBeenCalled());
@@ -314,8 +343,9 @@ describe("actions", () => {
       }),
     );
     const handlers = renderTab([obligation()]);
+    openRowMenu("Renew registration");
     fireEvent.click(
-      screen.getByRole("button", { name: /^Dismiss Renew registration/ }),
+      screen.getByRole("menuitem", { name: "Dismiss Renew registration" }),
     );
     // The shared feedback surface renders the message in both the toast and the
     // assertive live region, which is exactly what a screen reader needs.
