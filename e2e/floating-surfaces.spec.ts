@@ -131,30 +131,81 @@ async function openRowEditor(page: Page, row: Locator, testId: string) {
 }
 
 /**
- * The same thing, BY KEYBOARD — and retried for the same reason.
+ * Reach a row's editor THE WAY A KEYBOARD ACTUALLY DOES, and open it.
  *
- * `openRowEditor` above already records why a single attempt is not enough:
- * "an accepted change re-groups a row and the revalidation lands a beat after
- * the value does, remounting any editor opened into that window". Capturing a
- * probe row does the same thing, so the keyboard journeys below — which focused
- * the trigger and pressed Enter exactly once — were aiming at an element React
- * was about to replace. MEASURED locally: the trigger resolves, is focused,
- * then detaches; the keypress lands on `<body>` and no menu ever opens.
+ * The Tasks collection is an Untitled / React Aria TABLE now, and a React Aria
+ * table is a GRID: it owns focus for everything inside it. Calling `.focus()`
+ * on a control in a cell therefore does not focus that control — MEASURED:
+ * immediately after `trigger.focus()`, `document.activeElement` is `<body>`, so
+ * the Enter that followed went to the document and no menu could open. Both
+ * keyboard journeys below did exactly that, and neither was a race: retrying
+ * the same synthetic focus fifteen times changed nothing.
  *
- * Nothing about what is asserted moves. The menu must still open FROM THE
- * KEYBOARD, on the trigger, with no pointer anywhere near it — a trigger that
- * genuinely never responds to Enter still fails, after several honest attempts
- * rather than after one unlucky one. This is `openRecordTab`'s shape in
- * `helpers.ts`, for the same underlying cause.
+ * The route a person has, also measured, is the grid pattern: focus the ROW,
+ * then ArrowRight steps along its focusable contents — complete, open, due
+ * date, project, priority — and Enter opens the editor under the cursor.
+ * Driving that is a STRONGER keyboard test than the synthetic focus it
+ * replaces, because it proves the whole path rather than the last press of it.
+ *
+ * Getting INTO the grid is the same rule one level up. Focusing a row hands
+ * React Aria the focus and it decides which row actually takes it — measured,
+ * focusing the `<table>` and focusing a row both land on a `<tr role="row">`,
+ * and no row ever carries `tabindex="0"`, so there is no "the focusable row" to
+ * aim at. ArrowDown then walks to the wanted one, which is again the grid
+ * pattern rather than a workaround.
+ *
+ * Both walks are bounded and ASSERTED rather than counted: a row's contents
+ * vary (a repeat glyph, a blocked note) and its position moves, so a fixed
+ * press count would pin today's list rather than test the route. If the cell is
+ * never reached, that is a real failure and it says so.
+ *
+ * The whole sequence retries, for the reason `openRowEditor` above already
+ * records: capturing a probe re-renders the list a beat later, which detaches
+ * the row mid-walk. A retry starts again from whatever the list now is.
  */
-async function openRowEditorByKeyboard(page: Page, trigger: Locator) {
+async function openRowEditorByKeyboard(
+  page: Page,
+  row: Locator,
+  testId: string,
+): Promise<Locator> {
+  const isFocused = (locator: Locator) =>
+    locator.evaluate((element) => element === document.activeElement);
+  const inCell = () =>
+    page.evaluate(
+      (selector) =>
+        document.activeElement?.closest(selector) !== null &&
+        document.activeElement?.tagName.toLowerCase() === "button",
+      `[data-testid="${testId}"]`,
+    );
+
   await expect(async () => {
-    await trigger.focus();
+    // In at the row, then down to it if the grid put us somewhere else.
+    await row.focus();
+    for (let step = 0; step < 40 && !(await isFocused(row)); step += 1) {
+      await page.keyboard.press("ArrowDown");
+    }
+    expect(
+      await isFocused(row),
+      "the row never took focus — a keyboard user cannot get to it",
+    ).toBe(true);
+
+    // …then along it to the cell.
+    for (let step = 0; step < 10 && !(await inCell()); step += 1) {
+      await page.keyboard.press("ArrowRight");
+    }
+    expect(
+      await inCell(),
+      `ArrowRight never reached ${testId} from the row — a keyboard user ` +
+        "cannot get to this editor",
+    ).toBe(true);
+
     await page.keyboard.press("Enter");
     await expect(page.getByRole("menu", { name: "Priority" })).toBeVisible({
       timeout: 1_000,
     });
-  }).toPass({ timeout: 15_000 });
+  }).toPass({ timeout: 20_000 });
+
+  return row.locator(`[data-testid="${testId}"] button`).first();
 }
 
 /** Every ancestor that clips the open surface — the defect this system removes. */
@@ -294,11 +345,13 @@ test.describe("DHDS-09 — the keyboard drives every surface", () => {
     const title = await captureProbe(page, "keyboard");
     const row = taskRow(page, title).first();
 
-    const trigger = row
-      .locator('[data-testid="task-row-priority"] button')
-      .first();
-    await openRowEditorByKeyboard(page, trigger);
+    const trigger = await openRowEditorByKeyboard(
+      page,
+      row,
+      "task-row-priority",
+    );
     const menu = page.getByRole("menu", { name: "Priority" });
+    await expect(menu).toBeVisible();
 
     // The menu opens ON the current value and arrows from there.
     await expect(
@@ -328,11 +381,12 @@ test.describe("DHDS-09 — the keyboard drives every surface", () => {
   }) => {
     await gotoFixture(page, PROBE_VIEW);
     const row = taskRows(page).first();
-    const trigger = row
-      .locator('[data-testid="task-row-priority"] button')
-      .first();
-
-    await openRowEditorByKeyboard(page, trigger);
+    const trigger = await openRowEditorByKeyboard(
+      page,
+      row,
+      "task-row-priority",
+    );
+    await expect(page.getByRole("menu", { name: "Priority" })).toBeVisible();
 
     await page.keyboard.press("Escape");
     await expect(page.getByRole("menu", { name: "Priority" })).toBeHidden();

@@ -432,8 +432,23 @@ test.describe("the Habits collection", () => {
       const daysElapsed = ((dayOfWeek + 6) % 7) + 1;
       expect(drawn).toBeLessThanOrEqual(daysElapsed);
 
-      // Every cell has WORDS. Nothing here is conveyed by colour or position.
-      await expect(strip).toContainText("this week", { useInnerText: false });
+      /*
+       * Every cell has WORDS, and the strip itself is NAMED for the week it
+       * covers. Nothing here is conveyed by colour or position.
+       *
+       * "this week" is the strip's accessible NAME — `HabitWeekStrip` builds it
+       * as "<title>, this week. <summary>." — and `toContainText` reads text
+       * content, where it has never appeared. What the cells carry is each
+       * day's own sentence, measured: "Monday 2026-09-14: scheduled, no
+       * check-in", then "Tuesday: not yet" for the days the week has not
+       * reached. So the name is asserted as a name, and the cells as words.
+       */
+      await expect(strip).toHaveAccessibleName(/this week/i);
+      const dayLabels = await strip
+        .getByTestId("habit-week-day")
+        .allInnerTexts();
+      expect(dayLabels.length).toBe(drawn);
+      expect(dayLabels.every((label) => label.trim().length > 0)).toBe(true);
     } finally {
       cleanupHabitByTitle(title);
     }
@@ -470,25 +485,40 @@ test.describe("the Habits collection", () => {
     }
   });
 
-  test("the rail's Today card and the table are the same check-in", async ({
-    page,
-  }) => {
+  test("Today and the Habits table are the same check-in", async ({ page }) => {
+    /*
+     * The two surfaces that carry a check-in, and they are not the two this
+     * test was written against.
+     *
+     * It used to tick the Habits collection's own "Today" RAIL CARD and read
+     * the table beside it. PR #286 folded that card into the table — the rail's
+     * `habits-today` section is gone from the product, and `data-testid` with
+     * it, so the locator matched nothing. Today's state is a column now, which
+     * is the right call: one list, one control per habit, rather than the same
+     * habit twice on one screen.
+     *
+     * What the claim was FOR survives and is now a better version of itself:
+     * `HabitRow` — the control with `habit-check` — is what `/today` draws, so
+     * the two surfaces that must agree are two PAGES rather than two halves of
+     * one. Both post through the one authority and both read the loader's
+     * answer, which is what is asserted below.
+     */
     const title = uniqueHabitTitle("rail");
     try {
       await createHabit(page, title, "Every day");
       await page.setViewportSize({ width: 1440, height: 950 });
-      await gotoFixture(page, "/habits");
 
-      const railRow = page
-        .getByTestId("habits-today")
+      // Tick it on TODAY…
+      await gotoFixture(page, "/today");
+      const todayRow = page
         .getByTestId("habit-row")
-        .filter({ hasText: title });
-      await expect(railRow).toHaveCount(1);
+        .filter({ hasText: title })
+        .first();
+      await expect(todayRow).toHaveCount(1);
+      await setCheckbox(todayRow.getByTestId("habit-check"));
 
-      // Tick it in the RAIL...
-      await railRow.getByTestId("habit-check").check();
-      // ...and the TABLE agrees, because both post through the one authority and
-      // both read the loader's answer.
+      // …and the Habits table agrees, without being told.
+      await gotoFixture(page, "/habits");
       await expect(tableRow(page, title)).toContainText("Done today");
       await page.reload();
       await expect(

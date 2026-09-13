@@ -207,6 +207,21 @@ export async function expectCalendarMonth(
  * grid publishes, which is what the two motivating journeys were exercising;
  * `pickCalendarDate` in `helpers.ts` is the pointer path through the month
  * buttons for journeys that only need a date chosen.
+ *
+ * ── The key goes to the DAY, not to the table ───────────────────────────────
+ *
+ * This pressed the key on `grid`, and the grid is a `<table role="grid">` with
+ * no `tabindex` of its own: `locator.press()` focuses its target first, so
+ * focusing the table was a no-op and the keystroke went wherever focus already
+ * was. MEASURED on a Task record's due-date popover — opened on July 2026,
+ * `grid.press("PageDown")` left it on July; the same press on the grid's
+ * roving-focusable day (`[tabindex="0"]`, "Wednesday 29 July 2026") moved it to
+ * August. The two journeys that walk a month were therefore asserting the
+ * landing month against a grid that had never moved.
+ *
+ * A calendar grid puts exactly one day in the tab order and moves that mark as
+ * focus travels, so the focusable day IS where a person's keystroke lands. It
+ * is re-resolved on every step because the mark moves with the walk.
  */
 export async function walkCalendarToMonth(
   scope: Locator,
@@ -218,7 +233,7 @@ export async function walkCalendarToMonth(
   const delta = calendarMonthDelta(openedOnIso, targetIso);
   const key = delta < 0 ? "PageUp" : "PageDown";
   for (let step = 0; step < Math.abs(delta); step += 1) {
-    await grid.press(key);
+    await grid.locator('[tabindex="0"]').first().press(key);
   }
   await expectCalendarMonth(scope, targetIso);
 }

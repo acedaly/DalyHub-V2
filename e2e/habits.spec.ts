@@ -404,10 +404,37 @@ test.describe("HABITS-01 — the record", () => {
     const summary = page.getByTestId("habit-summary");
     await expect(summary).toBeVisible();
 
-    // No recent-window denominator: a Habit made today has had no whole week, so
-    // there is no bounded expectation to report, and reporting one would be a
-    // measurement of weeks it did not exist for.
-    await expect(summary).not.toContainText(/expected check-ins/i);
+    /*
+     * No recent-window denominator: a Habit made today has had no whole week, so
+     * there is no bounded expectation to report, and reporting one would be a
+     * measurement of weeks it did not exist for.
+     *
+     * …on six days of seven. The seventh is not an exception to the rule, it IS
+     * the rule: `HABITS_MODULE.md` states it once — a count-based week is held
+     * to its target only if the Habit was active for EVERY day of it — and a
+     * Habit created on the week's first day was. The whole week is still ahead
+     * of the owner, so "0 of 3" is the honest reading rather than an invented
+     * obligation, and `habit-progress.test.ts` pins both sides of the boundary
+     * exactly.
+     *
+     * This block's header claims its assertions "hold on EVERY day of the
+     * week". That was true of the others and not of this one: MEASURED on a run
+     * whose owner day was Monday 14 September 2026, the summary read "This week
+     * 0 of 3 · Expected check-ins completed" and the test called it invented.
+     * Australia/Sydney is UTC+10, so a Sunday-evening UTC run is a Monday for
+     * the owner — the boundary is reached by the clock, not by a fixture.
+     *
+     * Both sides are asserted rather than one being skipped, so the day this
+     * runs on decides which claim is checked and neither goes unchecked.
+     */
+    const ownerWeekday = new Date(`${ownerToday()}T12:00:00Z`).getUTCDay();
+    const createdOnWeekStart = ownerWeekday === 1; // the fixture week starts Monday
+    if (createdOnWeekStart) {
+      await expect(summary).toContainText(/expected check-ins/i);
+      await expect(summary).toContainText("0 of 3");
+    } else {
+      await expect(summary).not.toContainText(/expected check-ins/i);
+    }
 
     // No verdict language anywhere — this is the calm contract, checked on the
     // one surface most tempted to grow it.

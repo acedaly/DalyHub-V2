@@ -238,7 +238,16 @@ test.describe("DHDS-13 — every page starts on the same vertical line", () => {
      * One navigation per route, measured at all four widths — `setViewportSize`
      * re-lays out the document, so re-navigating per width would cost four
      * times the wall clock to assert exactly the same thing.
+     *
+     * That optimisation is already the cheap version, and the journey is still
+     * EIGHT full page loads plus thirty-two re-layouts and evaluations. The
+     * default budget is sized for one interaction; this exceeded it on run
+     * 34777810234 while asserting everything it was written to assert. Same
+     * repair the file's own responsive matrices take, and the same one
+     * `goals-outcomes` and `reviews-guided` state for their journeys: the clock
+     * gets honest about the cost, and not one assertion is relaxed.
      */
+    test.setTimeout(90_000);
     const gutters = new Map<string, Map<number, number>>();
 
     for (const route of ROUTES) {

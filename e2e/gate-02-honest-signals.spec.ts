@@ -73,9 +73,23 @@ test.afterAll(() => {
 /* 1 — the Plan journey                                                        */
 /* -------------------------------------------------------------------------- */
 
-/** Every checkbox-like control a row draws: the two the design system defines. */
+/**
+ * Every checkbox-like control a row draws, BY ROLE.
+ *
+ * This used to be `.dh-check-circle, .dh-checkbox__control` — "the two the
+ * design system defines" — and there are three now, because the row's SELECT
+ * control became the shared Untitled `Checkbox` and React Aria's markup carries
+ * neither class. So the locator counted one control where the row draws one and
+ * ZERO where it draws the other, which is how a test whose whole subject is
+ * "how many checkbox-like things does a row show?" came to answer it wrongly in
+ * exactly the mode it exists to check.
+ *
+ * The role is the right question and always was: "one signal at rest" is a
+ * claim about what the owner is offered, not about which stylesheet drew it,
+ * and it survives the next implementation as well as this one.
+ */
 function rowSignals(row: Locator): Locator {
-  return row.locator(".dh-check-circle, .dh-checkbox__control");
+  return row.getByRole("checkbox");
 }
 
 /**
@@ -126,7 +140,9 @@ test("Weekly Planning: one signal at rest, selection is a mode, and both acts su
     .evaluateAll((rows) =>
       rows.map(
         (row) =>
-          row.querySelectorAll(".dh-check-circle, .dh-checkbox__control")
+          // By ROLE, for the reason `rowSignals` states: the row's select
+          // control is React Aria's now and carries neither legacy class.
+          row.querySelectorAll('[role="checkbox"], input[type="checkbox"]')
             .length,
       ),
     );
@@ -197,7 +213,9 @@ test("Weekly Planning: one signal at rest, selection is a mode, and both acts su
     .evaluateAll((rows) =>
       rows.map(
         (row) =>
-          row.querySelectorAll(".dh-check-circle, .dh-checkbox__control")
+          // By ROLE, for the reason `rowSignals` states: the row's select
+          // control is React Aria's now and carries neither legacy class.
+          row.querySelectorAll('[role="checkbox"], input[type="checkbox"]')
             .length,
       ),
     );
@@ -330,7 +348,9 @@ async function signalsPerRow(
     (selector) =>
       [...document.querySelectorAll(selector)].map(
         (row) =>
-          row.querySelectorAll(".dh-check-circle, .dh-checkbox__control")
+          // By ROLE, for the reason `rowSignals` states: the row's select
+          // control is React Aria's now and carries neither legacy class.
+          row.querySelectorAll('[role="checkbox"], input[type="checkbox"]')
             .length,
       ),
     rowSelector,
