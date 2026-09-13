@@ -1,12 +1,26 @@
 /**
- * UIX-03 — the two Goal-facing chart primitives.
+ * The chart primitives' correctness contracts.
  *
- * `TrendLine`'s job changed in this pass: it used to scale to the readings and
- * draw the target only if it happened to land inside them, which meant the
- * product's own acceptance Goal (85 kg → 79.3 kg, target 70 kg) never showed its
- * target at all. These tests pin the new contract — the target is on the scale,
- * both references are distinguishable without colour, and the chart still
- * refuses to draw a line from one point.
+ * ── UNTITLED-12: what these tests are now ───────────────────────────────────
+ *
+ * UIX-03 wrote them against `TrendLine`, which is deleted: every dated series in
+ * the product is `MeasurementTrend` over `application/charts-base` now. The
+ * contracts themselves are not TrendLine's, they are the CHART's, and every one
+ * of them survives the move:
+ *
+ *   - a target far below every reading still frames, so the chart answers "am I
+ *     getting there?" rather than only "have I moved?" — the regression UIX-03
+ *     was written for;
+ *   - a series with a natural floor of zero is never given a negative tick;
+ *   - a COUNT series offers no half-values (UNTITLED-12 — the reason Analytics'
+ *     two plots needed their own pass before they could move);
+ *   - the chart refuses to draw a line from one point.
+ *
+ * The first three are decided by `niceDomain`, which is the value-domain rule
+ * and is exported for exactly this. They are asserted on the NUMBERS rather than
+ * on a rendered SVG: `MeasurementTrend` is Recharts inside a `ResponsiveContainer`
+ * that measures its parent, so a jsdom render of it asserts jsdom's layout engine
+ * — which reports every box as zero — and not the chart.
  *
  * `Sparkline` is tested for the one thing a tiny chart can get dangerously
  * wrong: asserting a direction the data does not support.
@@ -15,157 +29,110 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { Sparkline, TrendLine, type TrendLinePoint } from "~/shared/charts";
+import {
+  MeasurementTrend,
+  Sparkline,
+  niceDomain,
+  type MeasurementTrendPoint,
+} from "~/shared/charts";
 
 /** The brief's acceptance series: down from 85, with an honest backslide. */
-const WEIGHT: TrendLinePoint[] = [
+const WEIGHT: MeasurementTrendPoint[] = [
   { key: "a", date: "2026-06-10", value: 85 },
   { key: "b", date: "2026-07-10", value: 80.1 },
   { key: "c", date: "2026-07-17", value: 80.6 },
   { key: "d", date: "2026-08-08", value: 79.3 },
 ];
 
-function renderTrend(over: Partial<Parameters<typeof TrendLine>[0]> = {}) {
-  return render(
-    <TrendLine
-      points={over.points ?? WEIGHT}
-      summary={over.summary ?? "Four measurements, down 5.7 kg."}
-      startLabel="10 Jun 2026"
-      endLabel="8 Aug 2026"
-      lowLabel="70 kg"
-      highLabel="85 kg"
-      {...over}
-    />,
-  );
-}
+const values = WEIGHT.map((point) => point.value);
 
-/** Read a `<line>`'s y as a fraction of the 0–100 plot space. */
-function lineY(container: HTMLElement, className: string): number {
-  const line = container.querySelector(`.${className}`);
-  expect(line).not.toBeNull();
-  return Number(line!.getAttribute("y1"));
-}
-
-describe("TrendLine — the target belongs on the scale", () => {
-  it("draws the target even when it is far below every reading", () => {
+describe("the value domain — the target belongs on the scale", () => {
+  it("frames a target that is far below every reading", () => {
     /*
-     * The regression this pass exists to fix. With the old reading-only domain
-     * the readings spanned 79.3–85 and a target of 70 fell outside it, so the
-     * reference line was silently dropped: the chart answered "have I moved?"
-     * and refused "am I getting there?".
+     * The regression UIX-03 exists to fix, restated on the rule that now decides
+     * it. With a reading-only domain the readings span 79.3–85 and a target of
+     * 70 falls outside it, so the reference is silently dropped: the chart
+     * answers "have I moved?" and refuses "am I getting there?".
+     *
+     * `MeasurementTrend` pushes the target into the domain before calling this
+     * (see its `model` memo), so what has to hold here is that a domain built
+     * from readings AND target contains the target with room around it.
      */
-    const { container } = renderTrend({
-      target: { value: 70, label: "Target 70 kg.", tag: "Target 70 kg" },
-    });
-    const target = container.querySelector(".dh-linechart__target");
-    expect(target).not.toBeNull();
-    // Below every reading, i.e. a LARGER y in SVG coordinates.
-    const readings = [
-      ...container.querySelectorAll(".dh-linechart__point"),
-    ].map((point) =>
-      Number(point.getAttribute("d")!.match(/M[\d.]+ ([\d.]+)/)![1]),
+    const withTarget = niceDomain(
+      Math.min(...values, 70),
+      Math.max(...values, 70),
+      4,
     );
-    expect(Number(target!.getAttribute("y1"))).toBeGreaterThan(
-      Math.max(...readings),
+    expect(withTarget.domain[0]).toBeLessThanOrEqual(70);
+    expect(withTarget.domain[1]).toBeGreaterThanOrEqual(85);
+
+    // And the readings-only domain genuinely would not have: this is the
+    // falsifier, so the assertion above cannot pass for the wrong reason.
+    const readingsOnly = niceDomain(
+      Math.min(...values),
+      Math.max(...values),
+      4,
     );
+    expect(readingsOnly.domain[0]).toBeGreaterThan(70);
   });
 
-  it("puts the distance still to cover into the plot, not out of frame", () => {
+  it("never puts a negative tick under a measure that cannot go below zero", () => {
+    // A "run 100 km" Goal drew a −50 km tick, because the head-room padding had
+    // pushed the floor under a bound the MEASURE itself has.
+    const { domain, ticks } = niceDomain(0, 100, 4);
+    expect(domain[0]).toBe(0);
+    expect(ticks.every((tick) => tick >= 0)).toBe(true);
+  });
+
+  it("offers round numbers rather than the readings' own extremes", () => {
+    // "93.4, 88.6, 82.6, 76.6" is four arbitrary numbers, and an axis a reader
+    // has to decode is an axis they will not use.
+    const { ticks } = niceDomain(76.6, 93.4, 4);
+    expect(ticks.length).toBeGreaterThan(1);
+    for (const tick of ticks) {
+      expect(Number.isFinite(tick)).toBe(true);
+    }
+    // Every step is the same size, which is what makes it a scale.
+    const steps = ticks.slice(1).map((tick, index) => tick - ticks[index]!);
+    for (const step of steps) {
+      expect(step).toBeCloseTo(steps[0]!, 6);
+    }
+  });
+
+  it("offers no half-values for a series of COUNTS", () => {
     /*
-     * The deliberate consequence of scaling to the target: a Goal 38% of the
-     * way there draws its readings across the top of the plot and leaves the
-     * rest as the distance remaining. That empty space IS the information.
+     * UNTITLED-12 — the reason Analytics' two plots needed a data pass before
+     * they could move. Tasks completed and items overdue are counts: "2.5 Tasks"
+     * does not exist, and an axis offering it is wrong rather than merely ugly.
+     * Same rule ADR-104 states for Habits' adherence chart.
      */
-    const { container } = renderTrend({
-      target: { value: 70, label: "Target 70 kg." },
-    });
-    const latest = container.querySelector(
-      '.dh-linechart__point[data-latest="true"]',
-    );
-    const y = Number(latest!.getAttribute("d")!.match(/M[\d.]+ ([\d.]+)/)![1]);
-    // 79.3 of a 68.5–86.5 padded domain sits in the upper half of the plot.
-    expect(y).toBeLessThan(50);
-  });
+    const { ticks } = niceDomain(0, 9, 4, true);
+    expect(ticks.length).toBeGreaterThan(1);
+    expect(ticks.every((tick) => Number.isInteger(tick))).toBe(true);
 
-  it("honours scaleToTarget={false} for a caller whose target is off-axis", () => {
-    const withTarget = renderTrend({
-      target: { value: 70, label: "Target 70 kg." },
-    });
-    const readingsOnly = renderTrend({
-      target: { value: 70, label: "Target 70 kg." },
-      scaleToTarget: false,
-    });
-    // Out of the reading-only domain, the target is not drawn at all.
-    expect(
-      withTarget.container.querySelector(".dh-linechart__target"),
-    ).not.toBeNull();
-    expect(
-      readingsOnly.container.querySelector(".dh-linechart__target"),
-    ).toBeNull();
-  });
-
-  it("distinguishes the two references by dash pattern, never by colour", () => {
-    const { container } = renderTrend({
-      target: { value: 70, label: "Target 70 kg.", tag: "Target 70 kg" },
-      baseline: { value: 90, label: "Started at 90 kg.", tag: "Start 90 kg" },
-    });
-    // Both drawn, at different heights, and both NAMED in text.
-    expect(lineY(container, "dh-linechart__baseline")).toBeLessThan(
-      lineY(container, "dh-linechart__target"),
-    );
-    expect(screen.getByText("Target 70 kg")).toBeInTheDocument();
-    expect(screen.getByText("Start 90 kg")).toBeInTheDocument();
-    expect(container.textContent).toContain("Target 70 kg.");
-    expect(container.textContent).toContain("Started at 90 kg.");
-  });
-
-  it("omits a baseline the caller did not supply", () => {
-    const { container } = renderTrend({
-      target: { value: 70, label: "Target 70 kg." },
-    });
-    expect(container.querySelector(".dh-linechart__baseline")).toBeNull();
-  });
-
-  it("still refuses to draw a line through a single reading", () => {
-    const { container } = renderTrend({ points: [WEIGHT[0]!] });
-    expect(container.querySelector(".dh-linechart")).toBeNull();
-  });
-
-  it("carries the summary as the chart's accessible name and as visible text", () => {
-    renderTrend({ summary: "Four measurements, down 5.7 kg." });
-    expect(
-      screen.getByRole("img", { name: /Four measurements, down 5.7 kg./ }),
-    ).toBeInTheDocument();
-    // The same sentence, readable without the chart.
-    expect(
-      screen.getByText(/Four measurements, down 5.7 kg./),
-    ).toBeInTheDocument();
+    // The step must not collapse to zero on a tiny range, which would be a loop
+    // that never terminates rather than a wrong axis.
+    const tiny = niceDomain(0, 1, 4, true);
+    expect(tiny.ticks.every((tick) => Number.isInteger(tick))).toBe(true);
+    expect(tiny.ticks.length).toBeGreaterThan(1);
   });
 });
 
-describe("TrendLine — the point readout", () => {
-  it("is one focusable group for the whole series, not one stop per reading", () => {
-    const { container } = renderTrend({
-      describePoint: (point) => `${point.value} kg on ${point.date}`,
-    });
-    // Fifty weigh-ins must not put fifty tab stops before the next control.
-    expect(container.querySelectorAll("[tabindex]")).toHaveLength(1);
-    expect(screen.getByRole("group")).toBeInTheDocument();
-  });
-
-  it("names the latest reading before anything is selected", () => {
-    renderTrend({
-      describePoint: (point) => `${point.value} kg on ${point.date}`,
-    });
-    // Information rather than an instruction, and the same reading the record's
-    // headline leads with, so the two agree.
-    expect(screen.getByText("79.3 kg on 2026-08-08")).toBeInTheDocument();
-  });
-
-  it("is not interactive at all when the caller cannot describe a point", () => {
-    const { container } = renderTrend();
-    expect(container.querySelectorAll("[tabindex]")).toHaveLength(0);
-    expect(container.querySelectorAll(".dh-linechart__hit")).toHaveLength(0);
+describe("MeasurementTrend — one point is not a trend", () => {
+  it("draws nothing at all from fewer than two readings", () => {
+    // The caller renders the "more measurements needed" state; the chart never
+    // invents a flat line from one point. This is decidable without layout,
+    // because the component returns null before it reaches Recharts.
+    const { container } = render(
+      <MeasurementTrend
+        points={[WEIGHT[0]!]}
+        summary="One measurement."
+        formatValue={(value) => `${value} kg`}
+        formatDate={(iso) => iso}
+      />,
+    );
+    expect(container).toBeEmptyDOMElement();
+    expect(screen.queryByText("One measurement.")).not.toBeInTheDocument();
   });
 });
 
@@ -238,7 +205,7 @@ describe("Sparkline", () => {
         direction="decrease"
       />,
     );
-    // Unlike `TrendLine`, which is `role="img"` with a required summary: a card
+    // Unlike `MeasurementTrend`, which is `role="img"` with a required summary: a card
     // states its reading, target and percentage as text, and a fourth reading
     // of the same facts would be noise in a screen reader.
     expect(container.querySelector(".dh-spark")).toHaveAttribute(

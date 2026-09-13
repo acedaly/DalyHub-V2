@@ -68,6 +68,14 @@ export interface ChartFrameProps {
   /** Legend, key or reference notes, drawn between the plot and the caption. */
   readonly legend?: ReactNode;
   readonly className?: string;
+  /**
+   * The chart's semantic status, in the product's ONE meter vocabulary — the
+   * same `data-meter-status` every progress bar and meter carries. Stated on
+   * the frame so "what does this chart say about the thing it plots?" has one
+   * answer that is readable without seeing the plot's colour, which is what
+   * makes the tone a reinforcement rather than the meaning.
+   */
+  readonly status?: "success" | "info" | "warning" | "danger";
   readonly "data-testid"?: string;
 }
 
@@ -89,6 +97,7 @@ export function ChartFrame({
   readout,
   legend,
   className,
+  status,
   "data-testid": testId,
 }: ChartFrameProps) {
   const reducedMotion = useReducedMotion();
@@ -105,6 +114,7 @@ export function ChartFrame({
   return (
     <figure
       className={`dh-chart m-0 flex min-w-0 flex-col gap-3 ${className ?? ""}`}
+      data-meter-status={status}
       data-testid={testId}
     >
       {/*

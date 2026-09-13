@@ -1023,3 +1023,200 @@ Transitive licences (MIT, with ISC and one BSD-3-Clause beneath
 
 No screenshot, historical visual audit or legacy Material/MD3/DHDS stylesheet is
 an implementation reference for any surface in this pass.
+
+## UNTITLED-12 completion record — Notes, Diary, the writing surface and the last chart
+
+### Pro research, and what it actually returned
+
+The authenticated connector reports `has_pro_access: true` and was searched
+before anything was built. Searches run for this pass: `notes`, `documents`,
+`knowledge base`, `document list`, `text editor`, `rich text toolbar`,
+`writing surface`, `activity feed`, `timeline`, `chronological events`,
+`calendar`, `date picker`, `day view`, `date navigation`, `journal`,
+`checklist`, `agenda`, `list items with menu`, `tabs`, `button border`,
+`segmented control`, `toggle group`, and the icon search `edit pencil`.
+
+Pro entries still come back as metadata plus a screenshot URL and the
+`npx untitledui add` command; `get_component` on a Pro entry answers with the
+lock and that command rather than with source. The CLI remains unauthenticatable
+in this container for the reason Phase 4 recorded — `npx untitledui@latest login`
+completes an OAuth callback to a localhost port a headless remote cannot reach —
+so Pro source came from the vendored tree under `app/shared/ui/untitled/`,
+exactly as in every phase since Phase 4. Nothing was recreated from memory and
+no unavailable example name, snippet or screenshot was invented.
+
+**Page templates studied rather than merely listed.** Their screenshots were
+downloaded and read:
+
+| Template | What it settled |
+| --- | --- |
+| `informational-01/19` (Pro) | The WRITING page: breadcrumb, large title, a subtitle line, a section header with its own overflow, then a toolbar row of `button-utility` controls **on the page ground** with hairline dividers, then the text in a bounded field, with a quiet context column beside it. This is the composition the Note record now has. |
+| `informational-02/19` (Pro) | The same editorial grammar in the header-nav layout. Confirmed the toolbar/field relationship is the pattern rather than one example's choice. |
+| `text-editor-modal` (Pro) | Untitled's editor toolbar at close range: a row of icon utility buttons grouped by thin vertical dividers, no filled band. |
+| `informational-02/13` (Pro) | The ACTIVITY FEED, and the single most load-bearing find of the pass: Untitled's own chronology is **not** a vertical rule with nodes. It is hairline-separated rows carrying a leading glyph, a strong name, a quiet timestamp and the content. The Diary timeline is that now. |
+| `informational-01/13` (Pro) | The split reading layout — bounded prose column, context column beside it — which is why the Diary content has a measure and the toolbar shares it. |
+| `dashboards-01/03`, `dashboards-02/03` (Pro) | The date-picker-in-a-header grammar behind the Diary navigator. |
+
+**Both editorial templates depend on TipTap.** That is Untitled's answer to a
+rich-text surface and it is explicitly not DalyHub's: ADR-006 stores long-form
+text as exact Markdown source, and CodeMirror is what preserves it. The
+COMPOSITION was adopted and the runtime was not — see the rejection list.
+
+### Notes
+
+| Notes surface | Untitled source | How it is used | Custom remaining, and why |
+| --- | --- | --- | --- |
+| Collection frame | Shared `CollectionLayout` over `application/tabs` | Title, lifecycle rail, search, "Filter & sort", empty and error states | Already migrated in Phase 4; untouched |
+| Collection row | Untitled card boundary and its hairlines | Title leads, excerpt takes the width, metadata forms a right-hand column | The excerpt now takes the product's PROSE MEASURE. At 1440 a "two-line clamp" was ~90 words on one row and the page read as a wall |
+| Row date | — | States the moment the list is ORDERED by, named `sr-only` | A real defect the design fixture surfaced: the list sorts by `created` and every row printed its effective UPDATED moment, so the default view read 12 Sep, 11 Sep, 9 Sep, 7 Sep, 12 Sep, 30 Aug and looked broken |
+| The rail | `application/app-navigation`'s `nav-item` treatment | `bg-primary`, `hover:bg-primary_hover`, the selected `bg-secondary`, the `rounded-md` box and the `text-sm font-semibold text-secondary` truncating label | A leading brand bar on the current row. Untitled marks a current nav item with a fill alone, which is right in a sidebar of eight and not enough down a column of forty near-identical documents |
+| Rail door | Untitled's brand-secondary link role | "All notes" | — |
+| Record shell | The shared Record Layout, `.dh-writing-record` | Title, one quiet context line, the tab rail, the editor | Unchanged; this pass changed its paint, not its anatomy |
+| Editor toolbar | `base/buttons/button-utility`'s own exported styles, via `iconButtonClassName` | Every formatting control, undo/redo, the host commands and "More" | The roving-tabindex model, the horizontal scroller and its overflow cue, and the glyph box (the shared icon button sizes its glyph by inset; the editor's icons are plain SVG children) |
+| Editor bar | Untitled's `bg-primary` and `border-secondary` | The sticky strip that holds the controls | It carried `--dh-color-bg` — the app CANVAS — while stuck, so on a Note record drawn `surface="plain"` the toolbar read as a grey band laid over a white page. That is the exact object VIS-01 removed the border and corners to be rid of, reached through the background instead |
+| Read/Write toggle | `base/buttons/button`'s recipe via `buttonClassName({ variant: "subtle" })` | The mode switch | The LABEL still carries the state ("Read" while writing), so meaning is never colour-only |
+
+### Diary
+
+| Diary surface | Untitled source | How it is used | Custom remaining, and why |
+| --- | --- | --- | --- |
+| Chronology | `application/table`'s `TableCard.Root` anatomy + `informational-02/13`'s activity-feed row grammar | One bounded card per day: an in-card date header, a divided body of hairline rows | The TIME leads the row. Untitled's feed puts the timestamp beside the actor because its rows are about WHO; a diary's rows are about WHEN, so the time is a fixed tabular column the eye runs down |
+| Row states | Untitled's `hover:bg-secondary` and the ACTIVE surface | Hover, and the open entry | `aria-current` as well as the fill — never a tint alone |
+| Row glyph | Untitled's `fg-quaternary` foreground | The entry-type subtype icon | Dropped below `md`. It is decorative (the meta line names the type), so on a phone it is 28px plus a gap spent on something that carries nothing |
+| Edit affordance | The shared `IconButton` with `@untitledui/icons`' `Edit01` | One action per row | It is no longer hover-only. `opacity-0` with a hover reveal fails a touch user and a keyboard user alike unless every state is remembered, and this one only remembered because `@media (hover: none)` had been patched in afterwards |
+| Week strip | Untitled's surface, hover and `bg-brand-solid` roles | Seven day cells, `aria-current="date"`, today's dot | The strip's phone arrangement, which is measured and documented in `diary.css` |
+| Week steps | `iconButtonClassName` over `button-utility` | Previous/next week | They are LINKS, not buttons: they navigate, so they are middle-clickable and work with no JavaScript, exactly as the seven day cells beside them do |
+| Date picker | **`application/date-picker`'s genuine `Calendar`**, in React Aria's `Popover` | Month header, prev/next, `CalendarGrid`, cells, selected and today treatments, the full keyboard model | The trigger is React Aria's `Button` painted with `iconButtonClassName`. See the rejection list for why it cannot be the shared `IconButton` |
+| Type filter | `overrides/link-tab-rail` (`underline`) + the genuine `Badge` | Ten navigation links with counts, marked `aria-current="page"` | `shrink-0`, which upstream has no opinion about because its rails never hold ten options — without it every option compressed to 45px while `whitespace-nowrap` kept the text at full width, and ten labels overprinted into a smear |
+| Capture type chips | The shared `toggleOptionClassName` recipe (Untitled's pill geometry) | Single-select entry type | A real `<input type="radio">` in a real `<label>`, inside a form that posts |
+| Entry details | The shared `Badge` (neutral, and neutral-outline) | Type, and "Backdated" | The Inspector's own structure |
+
+### The measure, and the empty half-page
+
+The Diary drew its chronology at a 56rem reading measure and its toolbar
+full-bleed, so at 1440 the week strip's month caption, its picker and its Today
+link sat at an edge roughly 700px right of the last entry — three controls about
+the days on screen, nowhere near them, over an empty half-page. The week strip
+shares the measure now. The type filter deliberately does not: it is a control
+row rather than prose, it carries ten options, and capping it would turn a row
+that fits at a laptop width into one that always scrolls and always clips.
+
+### Charts — the debt is closed
+
+The migration guide's chart-debt table said `TrendLine` drew three surfaces
+(Analytics, Reports, Reviews). **That was wrong, and it is worth recording how.**
+Reports and Reviews draw `TrendBars` and `CategoryBars`, which are different
+components with different semantics. `TrendLine` had exactly one consumer —
+Analytics, twice.
+
+| Chart surface | Untitled source | How it is used | Custom remaining, and why |
+| --- | --- | --- | --- |
+| Analytics completion trend | `application/charts-base` via `MeasurementTrend` | Tasks completed per bucket, on a real numeric time axis | `wholeNumbers` — a count series has no half-values |
+| Analytics overdue trend | The same | The backlog read at each bucket's close | `tone="warning"`. A backlog's existence is the attention whichever way it is moving, which is what `TrendLine`'s `status="warning"` said |
+| The tone | Untitled's semantic `fg-warning-primary` | `CHART_WARNING_COLOR` | Replaces `TrendLine`'s five-paint `data-meter-status` map. One role rather than five, because only one of the five ever had a consumer |
+
+`TrendLine` is **deleted** — the component, its 340 lines of CSS and its
+`--dh-linechart` vocabulary. The removal criterion the migration guide states
+("when the last caller moves, the file and the component go together") is met,
+and every dated series in the product is now one chart on one foundation.
+
+The data pass UNTITLED-11 asked for, and what it found:
+
+1. **The series are counts.** `niceDomain`'s 1/2/2.5/5 step ladder is right for
+   a measurement and wrong for a count. `wholeNumbers` snaps the step to an
+   integer — the same rule ADR-104 states for Habits' adherence chart.
+2. **The bound was already correct.** Labels resolve by bucket KEY, never by
+   position, because the overdue read carries its own `MAX_OVERDUE_MOMENTS`
+   limit and is not always parallel to the window. Untouched.
+3. **An axis tick is a point in time, not a bucket.** `MeasurementTrend` spaces
+   its ticks evenly across the time domain, so a tick usually lands BETWEEN two
+   buckets. A first draft looked each tick up in the bucket map and fell back to
+   the raw ISO when it missed — which it did for half of them, and the axis read
+   "28 June, 2026-07-24, 2026-08-18, 13 Sept". A tick is formatted as a date.
+
+### Rejected, and why
+
+- **TipTap, which both Untitled editorial templates depend on.** It is
+  Untitled's answer to a rich-text surface and it is a rich-text model: a
+  document tree serialised on save. ADR-006 stores exact Markdown SOURCE, and
+  every round trip through a document tree is a chance to normalise a list
+  marker or drop a trailing space the owner typed. The composition was adopted
+  and CodeMirror kept, which is what the brief asks for in as many words.
+- **Untitled's `DatePicker` wrapper** (as opposed to its `Calendar`). It is a
+  trigger plus a Cancel/Apply pair, and a navigation does not need to be
+  confirmed — Back already undoes it. The `Calendar` inside it is the part with
+  the value.
+- **The shared `IconButton` as the calendar's trigger.** `DialogTrigger` hands
+  its press behaviour to its first child through React Aria's `PressResponder`
+  CONTEXT, and a plain `<button>` does not consume it. A draft using
+  `IconButton` looked identical, reported no error, and **never opened the
+  popover at all** — verified in the browser, not only in a test. React Aria's
+  own `Button`, painted with `iconButtonClassName`, which is precisely the case
+  that export exists for.
+- **The shared `ViewSwitcher` for the Diary type filter.** A VIEW is not a
+  FILTER, which is that component's own first rule. The switcher selects a
+  collection's principal mode — Day or Timeline, which `DiaryModeTabs` does use
+  it for. The type filter narrows within the current mode, composes with the
+  selected day, carries an open vocabulary and shows per-option counts.
+- **Untitled's `role="tab"` semantics for that filter.** Its options navigate,
+  and the chronology each selects is rendered elsewhere in the document, so no
+  `tabpanel` here could hold it. `overrides/link-tab-rail` takes the appearance
+  and leaves the semantics as the labelled group of anchors it always was.
+- **A second column on the Diary page.** The obvious cure for the empty
+  half-page, and it would have needed a new page-level query and a new product
+  decision about what belongs there. Centring the measure and bringing the
+  navigator over it is the presentation fix for a presentation problem.
+- **A properties sidebar on the Note record.** The brief rules it out and so
+  does the note itself: a note is a thing you write, and the fastest way to stop
+  someone writing is to ask them to classify first.
+
+### Defects the migration surfaced
+
+Each was a real defect the paint or the empty state had been hiding:
+
+- **The Notes list's date disagreed with its own order.** See the table above.
+- **The Diary timeline gave a phone 168px for its content.** At 393px the time
+  gutter, the node column, their two gaps and an always-visible 44px Edit button
+  left the entry's own words under half the screen; at 320px, 95px. Measured,
+  not estimated. It is 237px and 164px now — and the fix was removing
+  decoration, not compressing anything.
+- **The week strip's steps were 4px short of the touch floor.** `diary.css` set
+  `min-inline-size: var(--app-space-10)` (40px) on a control that is now the
+  shared `IconButton`, which already takes 44px under `(pointer: coarse)`. The
+  rule was unlayered and Tailwind's utilities are layered, so the narrower value
+  won unconditionally. The same cascade defect Phase 5 found in `premium.css`
+  and UNTITLED-11 found in `ui.css`, for the third time.
+- **`iconButtonClassName` was not exported from `~/shared/ui`.** UNTITLED-11
+  built it and exported it from its own module only, so the next consumer that
+  needed it would have had to reach past the barrel to a file path — which is
+  how a second source of paint starts.
+
+### The fixtures
+
+`scripts/notes-diary-seed.mjs` and `scripts/notes-diary-shot.mjs`, siblings of
+`ux-02-seed.mjs` / `ux-02-shot.mjs` and written for the same reason: on the
+shared E2E seed both of this pass's surfaces are their own empty state, so the
+row grammar, the tag column, the rail and the chronology had nothing to draw.
+The seed adds fourteen Notes of genuinely different lengths, a real tag
+vocabulary applied unevenly, one archived Note, and thirty-four Diary entries
+across three weeks in all nine entry types with two deliberately empty days and
+two backdated entries. The shooter photographs and MEASURES: it reports the
+writing column, the editor scroller and the rendered line width separately,
+because "does the writing dominate?" is a question with a number behind it.
+
+### Documentation consulted
+
+[Introduction](https://www.untitledui.com/react/docs/introduction),
+[Theming](https://www.untitledui.com/react/docs/theming),
+[Dark mode](https://www.untitledui.com/react/docs/dark-mode),
+[MCP](https://www.untitledui.com/react/docs/mcp),
+[Date pickers](https://www.untitledui.com/react/components/date-pickers),
+[Tabs](https://www.untitledui.com/react/components/tabs),
+[Buttons](https://www.untitledui.com/react/components/buttons),
+[Badges](https://www.untitledui.com/react/components/badges),
+[Tables](https://www.untitledui.com/react/components/tables) and
+[Charts](https://www.untitledui.com/react/components/charts).
+
+No screenshot, historical visual audit or legacy Material/MD3/DHDS stylesheet is
+an implementation reference for any surface in this pass. The Pro template
+screenshots above were studied for COMPOSITION and are not reproduced.

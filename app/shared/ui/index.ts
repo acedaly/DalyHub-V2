@@ -52,6 +52,19 @@ export {
 } from "./Button";
 export {
   IconButton,
+  /**
+   * The class list for an icon-only control, for an element that cannot BE
+   * `IconButton` — a menu trigger forwarding a React Aria prop set, a toolbar
+   * button inside a roving-tabindex model that owns its own `<button>`. The
+   * same device `buttonClassName` is, and the reason `.dh-icon-button` and
+   * `.dh-md-toolbar__button` no longer carry paint in any stylesheet.
+   *
+   * UNTITLED-11 built it and exported it only from its own module, so the one
+   * consumer that needed it next (`~/shared/markdown-editor/EditorToolbar`)
+   * would have had to reach past the barrel to a file path — which is exactly
+   * how a second source of paint starts.
+   */
+  iconButtonClassName,
   type IconButtonProps,
   type IconButtonSize,
   type IconButtonVariant,

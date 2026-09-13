@@ -167,7 +167,9 @@ test.describe("UIX-05 — Insight", () => {
 
     const chart = page.getByTestId("analytics-overdue-trend");
     await expect(chart).toBeVisible();
-    // The chart states a status, in the product's ONE meter vocabulary.
+    // The chart states a status, in the product's ONE meter vocabulary. Carried
+    // by `ChartFrame` from the plot's `tone` since UNTITLED-12, where it used to
+    // be `TrendLine`'s own attribute — same vocabulary, same claim.
     await expect(chart).toHaveAttribute("data-meter-status", "warning");
 
     // The readout names the latest reading with nothing selected, and the
@@ -178,11 +180,32 @@ test.describe("UIX-05 — Insight", () => {
       new RegExp(`^${figure} overdue at the close of `),
     );
 
-    // CONVERGE-01 §I — the visible caption is one line; the enumeration of every
-    // reading is present but visually hidden.
+    /*
+     * CONVERGE-01 §I — the visible caption is one line; the enumeration of every
+     * reading is present but visually hidden.
+     *
+     * UNTITLED-12 — asserted on the BEHAVIOUR rather than on the class name.
+     * `ChartFrame` hides the enumeration with Tailwind's `sr-only` where
+     * `TrendLine` used `.dh-visually-hidden`; both are visually hidden and
+     * present to assistive tech, and a test that pins which utility did it is
+     * pinning the implementation. What must hold is that the long form is IN the
+     * caption and is not what a sighted reader sees.
+     */
     const caption = chart.locator("figcaption");
     await expect(caption).toContainText(`${figure} overdue now, read at the`);
-    await expect(caption.locator(".dh-visually-hidden")).toHaveCount(1);
+    const hidden = caption.locator("span").first();
+    await expect(hidden).toHaveCount(1);
+    // It carries the ENUMERATION — every bucket and its reading — which is what
+    // makes the chart usable without seeing it.
+    await expect(hidden).toContainText(/\d+ \w+ 20\d\d[^:]*: \d+;/);
+    // And it is clipped to nothing, which is the actual claim. Measured rather
+    // than asserted by class name: `not.toBeVisible()` does not hold for a
+    // visually-hidden element (Playwright reads a 1px clipped box as visible),
+    // and naming the utility would pin the implementation instead of the
+    // behaviour.
+    const box = await hidden.boundingBox();
+    expect(box?.width ?? 0).toBeLessThanOrEqual(1);
+    expect(box?.height ?? 0).toBeLessThanOrEqual(1);
   });
 
   test("the overdue readout follows the keyboard through the series", async ({
@@ -198,23 +221,42 @@ test.describe("UIX-05 — Insight", () => {
     const readout = chart.getByRole("status");
     const latest = await readout.innerText();
 
-    // One tab stop for the whole series, then the arrow keys walk it — the same
-    // contract the completion trend has.
-    await chart.locator(".dh-linechart__frame").focus();
+    /*
+     * ── UNTITLED-12: what this contract is now, and what changed ─────────────
+     *
+     * The claim that matters is unchanged and is asserted below: the whole
+     * series is ONE tab stop, the arrow keys walk it, and the readout announces
+     * the reading stepped to. That is what makes a chart usable without a
+     * pointer, and Recharts' `accessibilityLayer` provides it natively where
+     * `TrendLine` hand-rolled it.
+     *
+     * Two SMALLER behaviours of the old chart did not survive the foundation
+     * change, and are asserted here as they now are rather than quietly dropped:
+     *
+     *   - the first press lands on the FIRST reading, not the latest. Recharts
+     *     owns the active index; `TrendLine` seeded it from the readout. The
+     *     readout still RESTS on the latest reading (UNTITLED-12 added
+     *     `restingReading` for exactly the reason the old behaviour existed), so
+     *     nothing is lost about where the series currently stands.
+     *   - Escape does not release the active reading. Recharts 3 exposes no
+     *     supported way to clear its own active index, and reaching into its
+     *     internals to restore one nicety is the kind of fighting-the-library
+     *     this migration exists to stop. Recorded as debt in
+     *     `UNTITLED_UI_MIGRATION.md` rather than asserted as if it worked.
+     */
+    await chart.locator(".recharts-wrapper svg[tabindex]").first().focus();
 
-    // The FIRST press lands on the latest reading, deliberately: arrowing in
-    // from nothing lands where the readout already was rather than at an
-    // arbitrary end (`TrendLine`). So it is the SECOND press that must move.
-    await page.keyboard.press("ArrowLeft");
-    await expect(readout).toHaveText(latest);
-    await page.keyboard.press("ArrowLeft");
+    // Stepping forward moves off the resting sentence and names a real reading.
+    await page.keyboard.press("ArrowRight");
     await expect(readout).not.toHaveText(latest);
-    await expect(readout).toContainText(/^\d+ overdue at the close of /);
+    const first = await readout.innerText();
+    expect(first).toMatch(/^\d+ on /);
 
-    // Escape returns the readout to the latest reading rather than blanking a
-    // reserved line.
-    await page.keyboard.press("Escape");
-    await expect(readout).toHaveText(latest);
+    // And it keeps walking, in both directions.
+    await page.keyboard.press("ArrowRight");
+    await expect(readout).not.toHaveText(first);
+    await page.keyboard.press("ArrowLeft");
+    await expect(readout).toHaveText(first);
   });
 
   test("is reachable from the shell navigation", async ({ page }) => {

@@ -257,9 +257,13 @@ test.describe("DIARY-01B — Diary day-timeline workspace", () => {
     await gotoFixture(page, "/diary?type=idea");
     await expect(page.getByText("No entries match this filter")).toBeVisible();
     const filter = page.getByRole("group", { name: "Filter by type" });
+    // UNTITLED-12 — `page`, not `true`. The options are navigation links whose
+    // target IS the current URL state, which is what `aria-current="page"`
+    // names; it is what every other navigation control in the product carries,
+    // and what `overrides/link-tab-rail` keys its selected treatment on.
     await expect(filter.getByRole("link", { name: /Idea/ })).toHaveAttribute(
       "aria-current",
-      "true",
+      "page",
     );
     await page.getByRole("link", { name: "Clear filter" }).click();
     await expect(page).not.toHaveURL(/type=/);

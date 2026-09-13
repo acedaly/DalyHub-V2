@@ -1,21 +1,53 @@
 /**
- * DIARY-01B — the visual timeline body.
+ * DIARY-01B — the chronology.
  *
- * A real timeline, not a stack of independent cards: a continuous vertical rule with
- * icon-based nodes, a fixed time gutter, and compact rows aligned to their occurred
- * time. Each row shows the type glyph, a strong title, an optional one-line plain-text
- * excerpt and a restrained type badge — the FULL Markdown body belongs to the details
- * panel, never the row, so the timeline stays scannable.
+ * A diary is read in one direction, so this is a semantic ordered list of days,
+ * each an ordered list of entries. Each row shows the time it happened, the type
+ * glyph, a strong title, an optional two-line plain-text excerpt and the quiet
+ * facts that qualify it — the FULL Markdown body belongs to the details panel,
+ * never the row, so the chronology stays scannable.
  *
- * Accessibility: the chronology is a semantic ordered list; in Timeline mode each
- * local day is a heading. The row's primary action is a single title button that
+ * Accessibility: in Timeline mode each local day is a heading; in Day mode the
+ * navigator already names the day, so the heading is visually hidden and kept for
+ * the document outline. The row's primary action is a single title button that
  * stretches over the whole row (so the row is clickable) while the separate Edit
  * button stays independently operable — no interactive control is nested inside
  * another. The open entry is marked with `aria-current` (not colour alone) and a
  * visible selected treatment.
+ *
+ * ── UNTITLED-12: the timeline theatre is gone ───────────────────────────────
+ *
+ * This drew a continuous 2px vertical rule down a node column, with every entry
+ * carrying a 28px bordered ring around its glyph, on a rounded filled slab per
+ * day. That is the "giant dots, heavy vertical lines, timeline theatre" the
+ * brief rules out by name, and the measurement was worse than the look: at 393px
+ * the time gutter, the node column, their two gaps and an always-visible 44px
+ * Edit button left the entry's own CONTENT 168px — under half a phone screen for
+ * the only thing on the row anyone reads.
+ *
+ * Untitled's own chronology (the `informational-02/13` activity feed) does none
+ * of it. A row is a leading glyph, a strong name, a quiet timestamp and the
+ * content, and what separates one row from the next is a HAIRLINE. That is what
+ * this is now, inside `application/table`'s card anatomy — the same bounded
+ * card, in-card header and divided body that Habits and Today already draw —
+ * with three things that are the product's rather than Untitled's:
+ *
+ *   - **The time leads the row.** Untitled's feed puts the timestamp beside the
+ *     actor's name because the actor is what its rows are about. A diary's rows
+ *     are about WHEN, so the time is a fixed tabular column the eye runs down —
+ *     the one piece of the old timeline that was earning its place.
+ *   - **The glyph column drops below `sm`.** It is decorative (the type is named
+ *     in the meta line, which is what assistive tech reads), so on a phone it is
+ *     28px plus a gap spent on something that carries nothing. Dropping it and
+ *     tightening the time gutter is most of the 168px defect above.
+ *   - **The day card has no header in Day mode.** The navigator names the day
+ *     directly above it; a card header repeating it is the same date twice.
  */
 
 import { NOTE_ENTRY } from "~/kernel/diary";
+import { EditIcon } from "~/shared/icons";
+import { IconButton } from "~/shared/ui";
+import { cx } from "~/shared/ui/untitled/utils/cx";
 
 import type { DiaryMode } from "./routes/index";
 import { entryTypeIcon } from "./diary-icons";
@@ -53,7 +85,14 @@ export function DiaryTimelineBody({
   return (
     <ol className="dh-diary-timeline" aria-label="Diary timeline">
       {groups.map((group) => (
-        <li key={group.day} className="dh-diary-day">
+        <li
+          key={group.day}
+          /*
+           * `application/table`'s `TableCard.Root`: one bounded surface with the
+           * card's own ring, radius and lift, clipping its divided body.
+           */
+          className="dh-diary-day overflow-hidden rounded-xl bg-primary shadow-xs ring-1 ring-secondary"
+        >
           {/* The day heading stays an h2 in BOTH modes so the outline is
            * h1 → h2 → h3 (no skipped level). In Day mode the date already lives in
            * the navigator, so the heading is visually hidden but kept for the
@@ -61,13 +100,13 @@ export function DiaryTimelineBody({
           <h2
             className={
               mode === "timeline"
-                ? "dh-diary-day__heading"
+                ? "dh-diary-day__heading m-0 border-b border-secondary px-5 py-3 text-sm font-semibold text-primary max-md:px-4"
                 : "dh-diary-day__heading dh-visually-hidden"
             }
           >
             {diaryDayHeading(group.day, todayKey)}
           </h2>
-          <ol className="dh-diary-day__entries">
+          <ol className="dh-diary-day__entries m-0 list-none p-0">
             {group.entries.map((entry) => (
               <DiaryEntryRow
                 key={entry.id}
@@ -93,6 +132,26 @@ function excerptOf(source: string | null): string | null {
     : collapsed;
 }
 
+/**
+ * The row.
+ *
+ * `grid`, not `flex`, because the time column has to be the SAME width on every
+ * row for the eye to run down it — which is the entire argument for keeping a
+ * time gutter at all. Below `md` the glyph column is removed from the template
+ * rather than hidden, so it costs no track and no gap.
+ */
+const ROW = cx(
+  "dh-diary-entry group/entry relative grid items-start gap-x-3 px-5 py-3",
+  "grid-cols-[3.25rem_1.25rem_minmax(0,1fr)_auto]",
+  "max-md:grid-cols-[2.75rem_minmax(0,1fr)_auto] max-md:gap-x-2 max-md:px-4",
+  "border-b border-secondary last:border-b-0",
+  // Untitled's own row hover. The selected row is the ACTIVE surface — a real
+  // container change, so it survives forced colours and is visible without a
+  // pointer (and it is not the legacy accent tint this row used to carry).
+  "hover:bg-secondary",
+  "data-[selected=true]:bg-active data-[selected=true]:hover:bg-active",
+);
+
 function DiaryEntryRow({
   entry,
   selected,
@@ -107,21 +166,29 @@ function DiaryEntryRow({
   const Icon = entryTypeIcon(entry.entryType);
   const excerpt = excerptOf(entry.bodySource);
   return (
-    <li
-      className="dh-diary-entry md-state-layer"
-      data-selected={selected ? "true" : "false"}
-    >
-      <time className="dh-diary-entry__time" dateTime={entry.occurredAtIso}>
+    <li className={ROW} data-selected={selected ? "true" : "false"}>
+      <time
+        className="dh-diary-entry__time pt-px text-right text-sm font-medium whitespace-nowrap text-tertiary tabular-nums"
+        dateTime={entry.occurredAtIso}
+      >
         {entry.occurredTimeLabel}
       </time>
-      <span className="dh-diary-entry__node" aria-hidden="true">
+      {/*
+        The glyph, at Untitled's quaternary foreground: decorative, subordinate
+        to the words, and gone below `md` where the column it needs is worth more
+        to the entry than to the ornament.
+      */}
+      <span
+        className="dh-diary-entry__node mt-0.5 inline-flex size-5 shrink-0 items-center justify-center text-fg-quaternary *:size-4 max-md:hidden"
+        aria-hidden="true"
+      >
         <Icon />
       </span>
-      <div className="dh-diary-entry__main">
-        <h3 className="dh-diary-entry__title">
+      <div className="dh-diary-entry__main flex min-w-0 flex-col gap-1">
+        <h3 className="dh-diary-entry__title m-0 text-sm leading-snug font-semibold text-primary">
           <button
             type="button"
-            className="dh-diary-entry__select"
+            className="dh-diary-entry__select cursor-pointer border-0 bg-transparent p-0 text-left font-inherit text-inherit [overflow-wrap:anywhere] after:absolute after:inset-0 after:content-['']"
             aria-current={selected ? "true" : undefined}
             onClick={() => onSelect(entry.id)}
           >
@@ -129,7 +196,9 @@ function DiaryEntryRow({
           </button>
         </h3>
         {excerpt !== null ? (
-          <p className="dh-diary-entry__excerpt">{excerpt}</p>
+          <p className="dh-diary-entry__excerpt m-0 line-clamp-2 text-sm text-tertiary">
+            {excerpt}
+          </p>
         ) : null}
         {/*
           UIX-04 §19 — the entry TYPE is named once per row, not twice.
@@ -145,45 +214,48 @@ function DiaryEntryRow({
           Backdating is different and keeps its emphasis: it is the one thing on
           a row that contradicts where the row is SITTING.
         */}
-        <div className="dh-diary-entry__meta">
+        <div className="dh-diary-entry__meta flex flex-wrap items-center gap-2">
           {/*
             "NOTE" on every row of a diary of notes is a word that never varies,
             and a chronology reads worse for it. The NEUTRAL default type is
             therefore announced but not drawn; every other type — Meeting,
             Decision, Reflection, Travel — is genuinely distinguishing and is
             shown. Nothing is lost to assistive tech either way, which matters
-            because the timeline node's glyph is decorative.
+            because the row's glyph is decorative.
           */}
           <span
-            className={
-              entry.entryType === NOTE_ENTRY
-                ? "dh-diary-entry__type dh-visually-hidden"
-                : "dh-diary-entry__type"
-            }
+            className={cx(
+              "dh-diary-entry__type text-xs font-medium text-tertiary",
+              entry.entryType === NOTE_ENTRY && "dh-visually-hidden",
+            )}
           >
             {entry.entryTypeLabel}
           </span>
           {entry.backdated ? (
-            <span className="dh-diary-entry__backdated">Backdated</span>
+            <span className="dh-diary-entry__backdated rounded-full px-2 text-xs text-tertiary ring-1 ring-secondary ring-inset">
+              Backdated
+            </span>
           ) : null}
         </div>
       </div>
-      <button
-        type="button"
-        className="dh-diary-entry__edit md-state-layer"
-        aria-label={`Edit ${entry.title}`}
+      {/*
+        The Edit affordance, as the product's own icon button rather than a
+        hand-rolled 44px circle around a hand-drawn `<svg>` pencil — which is
+        what this was, the last inline path data in the module.
+
+        It is never hover-only: `opacity-0` with a hover/focus reveal fails a
+        touch user and a keyboard user alike unless every state is remembered,
+        and this one only remembered because `@media (hover: none)` had been
+        patched in afterwards. It is simply always there, at the quaternary
+        weight an always-present secondary action should carry.
+      */}
+      <IconButton
+        icon={<EditIcon />}
+        label={`Edit ${entry.title}`}
+        size="sm"
+        className="dh-diary-entry__edit relative z-10"
         onClick={() => onEdit(entry.id)}
-      >
-        <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-          <path
-            d="M11.5 3.5l3 3L7 14l-3.5.5.5-3.5 7.5-7.5z"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.4"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
+      />
     </li>
   );
 }

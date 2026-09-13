@@ -35,6 +35,19 @@ export const CHART_SERIES_COLOR =
 export const CHART_PROJECTION_COLOR = CHART_SERIES_COLOR;
 
 /**
+ * A series whose EXISTENCE is the attention — a backlog, a level that should be
+ * near zero — rather than a measurement whose direction depends on the Goal.
+ *
+ * Untitled's own SEMANTIC warning foreground, not a step of a raw ramp — so it
+ * is the same amber the product's warning badges and states already carry, and
+ * it has its own dark-appearance arm (`yellow-600` light, `yellow-500` dark)
+ * rather than needing one written here. Never the meaning: a chart drawn in it
+ * still states its latest reading in words and enumerates its series in the
+ * accessible summary.
+ */
+export const CHART_WARNING_COLOR = "var(--color-fg-warning-primary)";
+
+/**
  * A reference rule — a target, a threshold, a budget. Never the series' hue,
  * because a reference is a fact about the scale rather than a second series.
  *

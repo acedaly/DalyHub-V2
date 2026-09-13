@@ -60,7 +60,11 @@ import {
   type InsightWindowId,
 } from "~/kernel/analytics";
 import { DashboardCard } from "~/shared/card";
-import { Sparkline, TrendLine, type TrendLinePoint } from "~/shared/charts";
+import {
+  MeasurementTrend,
+  Sparkline,
+  type MeasurementTrendPoint,
+} from "~/shared/charts";
 import {
   CollectionLayout,
   useCollectionLoading,
@@ -302,6 +306,35 @@ function bucketLabelsByKey(
 }
 
 /**
+ * One date tick on a chart axis, as "3 Aug".
+ *
+ * NOT the bucket's own short label, and the difference is the bug this replaced.
+ * `MeasurementTrend` plots time as a real numeric day axis and picks its ticks
+ * by SPACING them evenly across the domain — so a tick usually lands between two
+ * buckets rather than on one. A first draft looked each tick up in the bucket
+ * map and fell back to the raw ISO string when it missed, which it did for half
+ * of them: the axis read "28 June, 2026-07-24, 2026-08-18, 13 Sept".
+ *
+ * A tick is a POINT IN TIME, so it is formatted as one. The bucket's long label
+ * is still what the accessible summary enumerates and what the tooltip names,
+ * which is where the reader needs "22 Jun 2026 – 28 Jun 2026" rather than a day.
+ *
+ * Formatted in UTC because a bucket date is an owner-calendar day key
+ * (`YYYY-MM-DD`), not an instant — reading it in the browser's zone would move
+ * the label a day west of the International Date Line (ADR-022).
+ */
+const AXIS_DATE = new Intl.DateTimeFormat("en-AU", {
+  day: "numeric",
+  month: "short",
+  timeZone: "UTC",
+});
+
+function formatAxisDate(iso: string): string {
+  const parsed = Date.parse(`${iso}T00:00:00Z`);
+  return Number.isNaN(parsed) ? iso : AXIS_DATE.format(parsed);
+}
+
+/**
  * The metric row.
  *
  * Each figure is a LINK to the records behind it, which is the whole difference
@@ -347,11 +380,37 @@ function MetricRow({ model }: { readonly model: AnalyticsModel }) {
 /**
  * The completion trend.
  *
- * The shared `TrendLine`, with no target and no baseline — an Analytics series
- * has neither, and `scaleToTarget={false}` keeps the plot scaled to the readings
- * as it must be when there is nothing to reach. Two buckets is the minimum a
- * line means anything at, which every range in the table exceeds; the panel
- * still guards it rather than drawing a dot and calling it a trend.
+ * ── UNTITLED-12 — the last `TrendLine` in the product, and what moved ────────
+ *
+ * `TrendLine` was a hand-written 100×100 SVG stretched with
+ * `preserveAspectRatio="none"`, with no value axis at all: its scale was
+ * communicated by four loose strings the caller had to compute and pass in —
+ * `startLabel`, `endLabel`, `lowLabel`, `highLabel` — printed as text around the
+ * plot. ADR-126 already replaced it for Goals and Habits; UNTITLED-11 left these
+ * two Analytics plots behind on the stated grounds that "its series are derived
+ * differently from a Goal's readings; the axis and the bound need their own
+ * pass". This is that pass, and it found two things:
+ *
+ *   1. **The series are COUNTS.** Tasks completed in a bucket; open items at the
+ *      close of one. `niceDomain`'s 1/2/2.5/5 step ladder is right for a
+ *      measurement and wrong for a count — "2.5 Tasks" does not exist — so
+ *      `wholeNumbers` snaps the step to an integer. Same rule as ADR-104's for
+ *      Habits, for the same reason.
+ *   2. **The bound was already handled correctly and stays that way.** Labels
+ *      are resolved by bucket KEY, never by position, because the overdue read
+ *      carries its own `MAX_OVERDUE_MOMENTS` limit and is not always parallel to
+ *      the window. That rule is untouched; only the axis it feeds changed.
+ *
+ * There is no target and no baseline — an Analytics series has neither — which
+ * is what `scaleToTarget={false}` used to say and what omitting both now says.
+ * Two buckets is the minimum a line means anything at, which every range in the
+ * table exceeds; the panel still guards it rather than drawing a dot and calling
+ * it a trend.
+ *
+ * What the four label strings bought is not lost, it is drawn properly: the date
+ * axis names real dates at even intervals, the value axis is real text on a
+ * round scale, and the tooltip and the keyboard readout name each reading — all
+ * from `MeasurementTrend`, which is `application/charts-base` over Recharts.
  */
 function TrendPanel({
   data,
@@ -364,14 +423,11 @@ function TrendPanel({
   // By key, not by position — the same rule the overdue panel needs and this
   // one would need the moment the completion series ever grew a bound.
   const labels = bucketLabelsByKey(data);
-  const points: TrendLinePoint[] = model.series.map((point) => ({
+  const points: MeasurementTrendPoint[] = model.series.map((point) => ({
     key: point.key,
     date: labels.get(point.key)?.date ?? data.bucketDates[0] ?? "",
     value: point.tasksCompleted,
   }));
-  const values = points.map((point) => point.value);
-  const high = values.length > 0 ? Math.max(...values) : 0;
-  const low = values.length > 0 ? Math.min(...values) : 0;
   /*
    * The figure beside a series is the WINDOW'S OWN total — its own read, never
    * the sum of the buckets (RECALL-02's reopen rule; and a Project completed
@@ -465,20 +521,18 @@ function TrendPanel({
       {points.length < 2 ? (
         <p className="dh-analytics__absent">{headline}</p>
       ) : (
-        <TrendLine
+        <MeasurementTrend
           points={points}
           summary={summary}
           caption={headline}
-          scaleToTarget={false}
-          startLabel={data.bucketShortLabels[0] ?? ""}
-          endLabel={
-            data.bucketShortLabels[data.bucketShortLabels.length - 1] ?? ""
-          }
-          lowLabel={`${low} Tasks`}
-          highLabel={`${high} Tasks`}
-          describePoint={(point) =>
-            `${point.value} completed — ${labels.get(point.key)?.label ?? ""}`
-          }
+          wholeNumbers
+          seriesLabel="Tasks completed"
+          /* A short date rather than the bucket's long label — "3 Aug" rather
+             than "Week of 3 August 2026" — because a dense date axis is the
+             first thing to become unreadable at 320px, and the summary and the
+             tooltip both carry the long form. */
+          formatDate={formatAxisDate}
+          formatValue={(value) => String(value)}
           data-testid="analytics-trend"
         />
       )}
@@ -564,14 +618,12 @@ function OverduePanel({ data }: { readonly data: AnalyticsPageData }) {
    * that way, which is a chart that is wrong rather than bounded.
    */
   const labels = bucketLabelsByKey(data);
-  const points: TrendLinePoint[] = model.overdueSeries.map((point) => ({
+  const points: MeasurementTrendPoint[] = model.overdueSeries.map((point) => ({
     key: point.key,
     date: labels.get(point.key)?.date ?? data.bucketDates[0] ?? "",
     value: point.overdue,
   }));
   const values = points.map((point) => point.value);
-  const high = values.length > 0 ? Math.max(...values) : 0;
-  const low = values.length > 0 ? Math.min(...values) : 0;
   const latest = values.length > 0 ? values[values.length - 1] : 0;
 
   /*
@@ -603,27 +655,37 @@ function OverduePanel({ data }: { readonly data: AnalyticsPageData }) {
       {points.length < 2 ? (
         <p className="dh-analytics__absent">{headline}</p>
       ) : (
-        <TrendLine
+        <MeasurementTrend
           points={points}
           summary={summary}
           caption={headline}
-          scaleToTarget={false}
-          status="warning"
+          wholeNumbers
           /*
-           * The axis ends name the FIRST and LAST reading drawn, which on a
-           * bounded series is not the first and last bucket of the window. The
+           * A BACKLOG, not a measurement: its existence is the attention
+           * whichever way it is moving, which is what `TrendLine`'s
+           * `status="warning"` said and what this says. The caption still
+           * states the latest reading in words, so nothing is carried by hue.
+           */
+          tone="warning"
+          seriesLabel="Overdue at each close"
+          /*
+           * The readout's resting sentence names the LATEST reading, which is
+           * the figure the Overdue card above states — so the card and the
+           * chart can be read against each other without touching either, and
+           * a disagreement between them is visible rather than inferred. It is
+           * also what the chart this replaced said with nothing selected.
+           */
+          restingReading={`${latest} overdue at the close of ${
+            labels.get(points[points.length - 1]!.key)?.label ?? ""
+          }`}
+          /*
+           * The axis is built from the POINTS, so on a bounded series it names
+           * the readings actually drawn rather than the window's own ends. The
            * `overdueMoments` note says how many readings there are; the axis
            * must not then claim they span a period they do not cover.
            */
-          startLabel={labels.get(points[0]!.key)?.short ?? ""}
-          endLabel={labels.get(points[points.length - 1]!.key)?.short ?? ""}
-          lowLabel={`${low} overdue`}
-          highLabel={`${high} overdue`}
-          describePoint={(point) =>
-            `${point.value} overdue at the close of ${
-              labels.get(point.key)?.label ?? ""
-            }`
-          }
+          formatDate={formatAxisDate}
+          formatValue={(value) => String(value)}
           data-testid="analytics-overdue-trend"
         />
       )}

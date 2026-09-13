@@ -79,10 +79,32 @@ describe("NotesList", () => {
         .getAllByRole("listitem")
         .map((item) => item.textContent),
     ).toEqual(["oppo", "policy"]);
-    expect(screen.getByText("8 Aug 2026")).toBeInTheDocument();
+    // UNTITLED-12 — the row's date is the one the LIST IS ORDERED BY, and the
+    // collection's default order is `created`. The fixture was created on 1
+    // August and last written on the 8th, and the row used to print the 8th
+    // under a list sorted by the 1st: the default view read 12 Sep, 11 Sep, 9
+    // Sep, 7 Sep, 12 Sep, 30 Aug and looked broken.
+    expect(screen.getByText("1 Aug 2026")).toBeInTheDocument();
     // The gallery's per-row noise, gone: no type label, no link count.
     expect(screen.queryByText("Note")).not.toBeInTheDocument();
     expect(screen.queryByText(/^Links/)).not.toBeInTheDocument();
+  });
+
+  /*
+   * The other half of the same contract: a list ordered by the recently-updated
+   * moment prints THAT moment. The two orders must never both print the same
+   * column, which is the defect above stated from the other side.
+   */
+  it("prints the moment the list is ordered by, and names it", () => {
+    renderIn(<NotesList notes={[note()]} ariaLabel="Notes" sort="recent" />);
+    expect(screen.getByText("8 Aug 2026")).toBeInTheDocument();
+    expect(screen.queryByText("1 Aug 2026")).not.toBeInTheDocument();
+
+    // "12 Sep 2026" does not say WHICH date it is, so the word is carried for
+    // anyone who cannot see the column it sits in.
+    const stamp = screen.getByText("8 Aug 2026").closest("time");
+    expect(stamp?.textContent).toContain("Updated");
+    expect(stamp).toHaveAttribute("datetime", "2026-08-08T09:00:00.000Z");
   });
 
   /*

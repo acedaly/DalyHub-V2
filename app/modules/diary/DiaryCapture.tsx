@@ -32,6 +32,7 @@ import {
   FormErrorSummary,
   TextField,
   required as requiredRule,
+  toggleOptionClassName,
   useForm,
   type SubmitOutcome,
 } from "~/shared/forms";
@@ -234,9 +235,25 @@ export function DiaryCapture({ todayKey, onCaptured }: DiaryCaptureProps) {
               const Icon = entryTypeIcon(option.value);
               const checked = typeField.value === option.value;
               return (
+                /*
+                  UNTITLED-12 — the chip takes the SHARED toggle-option recipe.
+
+                  It drew its own pill: a `--dh-color-border` hairline, a
+                  `--dh-color-accent-subtle` checked fill with an accent border
+                  and accent text, and the M3 `md-state-layer` wash on top for
+                  hover — one of the last three module surfaces still hosting
+                  that layer. The recipe it takes instead is the one Habits'
+                  cadence field already uses, so the two controls in the product
+                  that are "a row of pills, pick from a known set" are now one
+                  appearance from one source.
+
+                  What does NOT change is what it IS: a real `<input
+                  type="radio">` in a real `<label>`, visually hidden and
+                  keyboard-operable, inside a form that posts.
+                */
                 <label
                   key={option.value}
-                  className="dh-diary-capture__chip md-state-layer"
+                  className={`dh-diary-capture__chip ${toggleOptionClassName({ checked })}`}
                   data-checked={checked ? "true" : "false"}
                 >
                   <input
@@ -247,7 +264,7 @@ export function DiaryCapture({ todayKey, onCaptured }: DiaryCaptureProps) {
                     checked={checked}
                     onChange={() => typeField.onChange(option.value)}
                   />
-                  <Icon aria-hidden="true" />
+                  <Icon aria-hidden="true" className="size-4 shrink-0" />
                   <span>{option.label}</span>
                 </label>
               );

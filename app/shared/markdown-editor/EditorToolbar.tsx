@@ -63,6 +63,7 @@ import {
 
 import { MoreIcon, RedoIcon, UndoIcon } from "~/shared/icons";
 import { Tooltip, composeRefs } from "~/shared/tooltip";
+import { iconButtonClassName } from "~/shared/ui";
 
 import {
   MARKDOWN_FORMATTING_ACTIONS,
@@ -122,6 +123,44 @@ export interface EditorToolbarProps {
   readonly activeIds?: ReadonlySet<string>;
   /** Undo/redo, when the live surface can both perform and report them. */
   readonly history?: EditorHistoryCommands;
+}
+
+/**
+ * UNTITLED-12 — a toolbar control is the product's ICON BUTTON.
+ *
+ * `.dh-md-toolbar__button` used to draw its own 44px square, its own radius, its
+ * own `--dh-color-text-muted` glyph, its own hover lift and its own
+ * `--dh-color-accent-subtle` pressed fill — which is a second icon button beside
+ * the one `IconButton` already is, and it showed: the active-formatting fill was
+ * the legacy lavender while every other toggle in the product had moved to
+ * Untitled's ACTIVE surface.
+ *
+ * It composes `iconButtonClassName` now, which is built on
+ * `base/buttons/button-utility`'s own exported styles, so a formatting control
+ * and a record's overflow trigger are the same control. The class name survives
+ * as a HOOK (`editor-geometry.spec.ts` and the toolbar E2E both address it) and
+ * carries no paint.
+ *
+ * Three things upstream has no opinion about are stated here.
+ *
+ * The row is a horizontal scroller, so the control never shrinks and it is a
+ * scroll snap point.
+ *
+ * And the TOUCH FLOOR is unconditional rather than `(pointer: coarse)` only.
+ * The shared icon button takes `--dh-control-height`, which is 36px on a fine
+ * pointer and 32px inside a compact density region — and a Note record is one.
+ * MEASURED, that made every formatting control 32px where the CSS this replaced
+ * held 44px at every pointer, deliberately: "an earlier draft shrank it to 36px
+ * on fine pointers for compactness; that traded an accessibility contract for a
+ * visual one, which is the wrong way round." That decision is the product's and
+ * it survives the change of paint, so it is restated on the control rather than
+ * inherited from a density preset that does not know what this row is.
+ */
+function toolbarButtonClassName(pressed?: boolean, extra?: string): string {
+  return iconButtonClassName({
+    pressed,
+    className: `dh-md-toolbar__button shrink-0 snap-start min-h-[var(--app-touch-target-min)] min-w-[var(--app-touch-target-min)]${extra ? ` ${extra}` : ""}`,
+  });
 }
 
 const NO_COMMANDS: readonly EditorToolbarCommand[] = [];
@@ -237,7 +276,7 @@ export function EditorToolbar({
               <button
                 ref={composeRefs(registerButton(index), tip.ref)}
                 type="button"
-                className="dh-md-toolbar__button"
+                className={toolbarButtonClassName(pressed)}
                 data-action={action.id}
                 aria-label={action.label}
                 aria-describedby={tip.describedBy}
@@ -273,7 +312,7 @@ export function EditorToolbar({
               <button
                 ref={composeRefs(registerButton(index), tip.ref)}
                 type="button"
-                className="dh-md-toolbar__button"
+                className={toolbarButtonClassName()}
                 data-action="undo"
                 aria-label="Undo"
                 aria-describedby={tip.describedBy}
@@ -300,7 +339,7 @@ export function EditorToolbar({
               <button
                 ref={composeRefs(registerButton(index), tip.ref)}
                 type="button"
-                className="dh-md-toolbar__button"
+                className={toolbarButtonClassName()}
                 data-action="redo"
                 aria-label="Redo"
                 aria-describedby={tip.describedBy}
@@ -342,7 +381,7 @@ export function EditorToolbar({
               <button
                 ref={composeRefs(registerButton(index), tip.ref)}
                 type="button"
-                className="dh-md-toolbar__button"
+                className={toolbarButtonClassName(command.expanded)}
                 data-action={command.id}
                 aria-label={command.label}
                 aria-describedby={tip.describedBy}
@@ -379,7 +418,10 @@ export function EditorToolbar({
             <button
               ref={composeRefs(registerButton(index), tip.ref)}
               type="button"
-              className="dh-md-toolbar__button dh-md-toolbar__more"
+              className={toolbarButtonClassName(
+                moreOpen,
+                "dh-md-toolbar__more",
+              )}
               data-action="more"
               aria-label={
                 moreOpen

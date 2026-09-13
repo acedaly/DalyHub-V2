@@ -97,6 +97,12 @@ export { TagsField, type TagsFieldProps } from "./TagsField";
  */
 export {
   ToggleGroupField,
+  /**
+   * The option RECIPE, for a control with the same look and different form
+   * semantics — Diary's single-select capture type picker is the second
+   * consumer. See the function's own header.
+   */
+  toggleOptionClassName,
   type ToggleGroupFieldProps,
   type ToggleGroupOption,
 } from "./ToggleGroupField";

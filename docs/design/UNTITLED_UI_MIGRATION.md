@@ -873,3 +873,130 @@ Phase 7's list was re-run against this branch rather than carried forward:
    need it, and the `.dh-input` / `.dh-control` layout bridges.
 8. `.dh-btn--danger-quiet` in `tasks.css` has no consumer in `app/` — verify and
    delete.
+
+## UNTITLED-12 — Notes, Diary, the writing surface and the last chart
+
+The per-surface inventory (Untitled source, how it is used, what stays custom
+and why) is in
+[`UNTITLED_UI_IMPLEMENTATION.md`](UNTITLED_UI_IMPLEMENTATION.md#untitled-12-completion-record--notes-diary-the-writing-surface-and-the-last-chart).
+This records what MOVED and what is left behind.
+
+### What moved
+
+| Surface | Untitled source | Before → after | Kept deliberately |
+| --- | --- | --- | --- |
+| Notes collection row | Untitled card boundary | A full-width excerpt — roughly ninety words on one "two-line" row at 1440 — became prose at the product's own measure, with the metadata column where it was | The title leads and the date column stays straight at every width |
+| Notes row date | — | It printed the effective UPDATED moment under a list sorted by CREATED, so the default view read 12 Sep, 11 Sep, 9 Sep, 7 Sep, 12 Sep, 30 Aug. It states the moment the list is ordered by, and names it for assistive tech | Both orders, and neither prints the other's column |
+| Notes rail | `application/app-navigation`'s `nav-item` | 110 lines of `--dh-color-surface-selected` / `--dh-color-accent` / `--dh-color-bg-sunken` became Untitled's nav treatment | The leading brand bar on the current row — a fill alone is not enough down a column of forty near-identical documents |
+| Editor toolbar | `base/buttons/button-utility`'s exported styles via `iconButtonClassName` | A second icon button, painted with the legacy lavender pressed fill, became the product's one icon button | The roving-tabindex model, the scroller and its overflow cue |
+| Editor bar | Untitled's `bg-primary` / `border-secondary` | A grey band across a white document — it carried the app CANVAS while stuck — became the paper the words are on | The sticky behaviour, and that a compact editor does not pin its toolbar |
+| Read/Write toggle | `buttonClassName({ variant: "subtle" })` | Its own height, radius and accent-subtle pressed fill | The LABEL carries the state, so it is never colour-only |
+| Diary chronology | `application/table` card anatomy + `informational-02/13`'s activity-feed rows | A continuous 2px rule down a node column, a 28px ring around every glyph and a filled slab per day became one bounded card of hairline rows | The TIME leads the row — a diary's rows are about when |
+| Diary row actions | The shared `IconButton` + `@untitledui/icons` `Edit01` | A hand-drawn `<svg>` pencil in a hover-only 44px circle | It is always present now, at the weight a secondary action should carry |
+| Diary week strip | Untitled's surface, hover and `bg-brand-solid` roles | `--dh-color-accent` and `--dh-color-bg-sunken` | The measured phone arrangement, which is the module's own composition |
+| Diary date picker | **The genuine vendored `application/date-picker` `Calendar`** | A native `<input type="date">` stretched INVISIBLY at `opacity: 0` across a 44px well, with the focus ring moved onto the well because the real control could not be seen | Choosing a date navigates immediately; Back undoes it |
+| Diary type filter | `overrides/link-tab-rail` + the genuine `Badge` | The M3 `md-state-layer` wash | Navigation semantics — these options navigate, so they are anchors with `aria-current`, not tabs |
+| Diary capture chips | The shared `toggleOptionClassName` | Its own pill and the same `md-state-layer` | A real radio group in a form that posts |
+| Analytics trends | `application/charts-base` via `MeasurementTrend` | A hand-written 100×100 SVG with NO value axis, whose scale was four label strings the caller computed and passed in, became a real plot with real axes | The bucket-key label resolution, which was already right |
+
+### Stylesheets cut
+
+- `diary.css` — 1,160 → 618 lines. The timeline's rule and nodes, the day slab,
+  the whole week-strip and type-filter paint, the capture chip and the detail
+  pills all went. What survives is the reading measure, the Inspector body's
+  structure and the measured phone arrangement.
+- `charts.css` — 844 → 532 lines. The entire `--dh-linechart` vocabulary,
+  including the five-paint `data-meter-status` tone map and the dotted
+  projection path.
+- `notes.css` — 339 → 202 lines. The rail's paint; its PLACEMENT survives.
+- `markdown-editor.css` — 818 → 760 lines. The toolbar button, the mode toggle
+  and the bar's ground.
+- `base.css` — `.dh-md-toolbar__button` and `.dh-md-editor__mode-toggle` removed
+  from all six `md-state-layer` host lists. The third time a control has left
+  that list on being rebuilt on Untitled, after the button (Phase 5) and the
+  icon button (UNTITLED-11).
+
+### Deleted
+
+`app/shared/charts/TrendLine.tsx`. The last chart DalyHub drew itself.
+
+### Correcting this document's own record
+
+The chart-debt table in UNTITLED-11 named three `TrendLine` surfaces —
+Analytics, Reports and Reviews. Reports and Reviews draw `TrendBars` and
+`CategoryBars`, which are different components. `TrendLine` had ONE consumer.
+The debt was smaller than recorded and is now closed; `TrendBars` and
+`CategoryBars` are unaffected by this pass and carry no debt of their own (each
+is a labelled list with a bar per row, readable with the SVG removed — see
+`~/shared/charts/index.ts` for why those are deliberately not Recharts).
+
+### Defects surfaced, and what they were
+
+- **The Diary timeline gave a phone 168px of content** at 393px and 95px at
+  320px, because the time gutter, the node column, two gaps and an
+  always-visible Edit button took the rest. Measured. It is 237px and 164px now,
+  and the fix was removing decoration.
+- **The week strip's step controls were 40×44** against a 44px floor:
+  `diary.css` set a 40px `min-inline-size` on a control whose component already
+  held 44px under `(pointer: coarse)`, and the unlayered rule beat the layered
+  utility. The third instance of that exact cascade defect.
+- **The date picker's popover never opened** in a first draft that used the
+  shared `IconButton` as its trigger: React Aria's `DialogTrigger` passes press
+  behaviour through `PressResponder` context, which a plain `<button>` does not
+  consume. It looked identical and reported no error. Found by driving the real
+  browser, not by a test.
+- **`iconButtonClassName` was not in the `~/shared/ui` barrel**, so its second
+  consumer would have had to import it by file path.
+
+### Pre-existing failures, re-checked rather than inherited
+
+The full unit suite (7,741 tests) is green. Four tests were updated because
+their CONTRACTS changed in this pass, and each change is argued in the test:
+
+- `NotesRail.test.tsx` — the row date. The old assertion pinned the defect.
+- `DiaryTypeFilter.test.tsx` — `aria-current="page"` rather than `"true"`.
+- `DiaryDayNavigator.test.tsx` — the picker is a calendar in a popover, so the
+  test drives what a person does. `@testing-library/user-event` is deliberately
+  still not a dependency (see `AttachmentsSection.test.tsx` for the same call);
+  three `fireEvent`s cost less than a package.
+- `goal-charts.test.tsx` — rewritten onto `niceDomain`, which is where the
+  chart's scale correctness actually lives and which is now exported for test.
+  Every contract UIX-03 pinned survives: a target far below every reading still
+  frames, a measure with a floor of zero gets no negative tick, and the chart
+  refuses to draw a line from one point. A count axis offering no halves is new.
+
+### Remaining, and named
+
+1. **The Diary week strip uses CSS `order` at phone width.** Its DOM order is
+   `‹`, seven days, `›`, caption, picker, Today; its phone visual order puts the
+   arrows on the control line with the picker and Today, and the days on a line
+   of their own. MOBILE-01 arrived at that arrangement by measurement — seven
+   45px days, two arrows, a picker and Today need 372px of a 358px content box
+   at 390 — and it is genuinely the right layout. It also means focus order
+   jumps between the two lines. Resolving it needs a markup change that serves
+   both widths, which is an information-architecture decision rather than a
+   paint one; it is deliberately not taken here and is the navigator's one
+   outstanding item.
+2. **A chart's Escape key does not release the active reading.** `TrendLine`
+   cleared its own readout on Escape; Recharts 3 owns the active index and
+   exposes no supported way to clear it, and reaching into its internals to
+   restore one nicety is the fighting-the-library this migration exists to stop.
+   It affects every `MeasurementTrend` — the Goal trend has had it since
+   UNTITLED-11 — and the mitigation is already in place: the readout RESTS on a
+   sentence naming the latest reading rather than on a blank line, so a reader
+   who steps into the series can always see where it currently stands. Worth
+   revisiting if Recharts exposes an imperative API for it.
+3. **The Diary phone header is tall.** The page title, the date subtitle, the
+   full-width create action, the mode switch, the week strip and the type filter
+   put the first entry around 410px down an 844px screen. Most of that band is
+   `CollectionLayout`'s shared phone composition rather than Diary's.
+4. **Settings** — record Settings tabs still draw the shared settings groups
+   inside a record panel, and `tone="danger"` paints a reversible Archive group
+   as destructive.
+5. **Goals** — a Project inside a Goal record still carries no HEALTH.
+6. **Meeting record** — the notebook and agenda sections. Untouched by this
+   pass, which stopped where the brief said to stop.
+7. **People, Assets, Reviews, Obligations, Finance** — their row/table
+   structures.
+8. The inert legacy class names, the `.dh-btn` hook and the `.dh-input` /
+   `.dh-control` layout bridges.

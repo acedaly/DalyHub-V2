@@ -39,6 +39,7 @@ import { LinkedItemsSection } from "~/shared/linked-items";
 import { MarkdownEditorField } from "~/shared/markdown-editor";
 import { MarkdownContent } from "~/shared/markdown";
 import { OverflowMenu } from "~/shared/overflow-menu";
+import { Badge } from "~/shared/ui";
 import {
   useRecordLifecycle,
   useReversibleDelete,
@@ -241,9 +242,14 @@ function DiaryReadView({
         <div className="dh-diary-detail__fact">
           <dt>Type</dt>
           <dd>
-            <span className="dh-diary-detail__type">
+            {/*
+              UNTITLED-12 — the shared `Badge`, where this drew its own pill
+              over `--dh-color-bg-sunken`. The type is a closed, known
+              vocabulary stated in words, which is what a neutral badge is for.
+            */}
+            <Badge tone="neutral" className="dh-diary-detail__type">
               {entry.entryTypeLabel}
-            </span>
+            </Badge>
           </dd>
         </div>
         <div className="dh-diary-detail__fact">
@@ -253,7 +259,16 @@ function DiaryReadView({
               {entry.occurredDateLabel} at {entry.occurredTimeLabel}
             </time>
             {entry.backdated ? (
-              <span className="dh-diary-detail__badge">Backdated</span>
+              // Backdating contradicts where the entry is sitting, so it is
+              // the one fact here drawn as an outline rather than a fill —
+              // present, and not competing with the type beside it.
+              <Badge
+                tone="neutral"
+                variant="outline"
+                className="dh-diary-detail__badge"
+              >
+                Backdated
+              </Badge>
             ) : null}
           </dd>
         </div>

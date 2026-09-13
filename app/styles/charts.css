@@ -81,283 +81,31 @@
 }
 
 /* -------------------------------------------------------------------------- */
-/* TrendLine                                                                   */
-/* -------------------------------------------------------------------------- */
-
-.dh-linechart {
-  display: grid;
-  gap: var(--app-space-2);
-  margin: 0;
-  min-inline-size: 0;
-}
-
-/*
- * The plot stretches to the container (`preserveAspectRatio="none"`), which is
- * what lets one chart serve a desktop panel and a phone. Every stroke inside
- * uses `vector-effect: non-scaling-stroke`, so the distortion never reaches the
- * line weight or the readings' dots.
- */
-.dh-linechart__plot {
-  inline-size: 100%;
-  display: block;
-  overflow: visible;
-}
-
-/* The frame owns the plot's height (it is the positioning context for the
- * reference tags), so the SVG fills it rather than setting it. */
-.dh-linechart__frame > .dh-linechart__plot {
-  block-size: 100%;
-}
-
-/*
- * VIS-01 — a thinner line and quieter readings.
- *
- * At 2px, with a 5px dot on every reading and an 8px dot on the last, a Goal's
- * trend read as an analytics chart: the DOTS were the drawing and the line was
- * what joined them. A weight going down is a shape, and the shape is the point.
- * 1.5px is still comfortably visible at any width (`non-scaling-stroke` keeps it
- * exact however the plot is stretched), and the readings drop to a size that
- * marks where a measurement was taken without competing with the curve.
- *
- * The latest reading keeps its emphasis, because it is the number the page's
- * headline states — it is simply no longer twice the line's own weight.
- */
-.dh-linechart__line {
-  stroke: var(--dh-color-accent);
-  stroke-width: 1.5;
-}
-
-.dh-linechart__point {
-  stroke: var(--dh-color-accent);
-  stroke-width: 3;
-}
-
-/*
- * IDENTITY-01 — a chart drawn inside a RECORD is drawn in that record's hue.
- *
- * `mockup3.png` draws the goal chart's line in the same green as that goal's
- * icon and its progress bar, and that agreement is the whole reason a reader
- * can look at one card and know everything on it belongs to one thing. The
- * series colour is therefore inherited from the element the resolver stamped,
- * exactly as the tile and the meter are.
- *
- * A chart on a page that is NOT about one record — the analytics surfaces —
- * matches nothing here and keeps `primary`. The latest-reading dot keeps the
- * text colour either way: it is an emphasis within the series, and painting it
- * in the series colour would erase the distinction.
- */
-[data-identity] .dh-linechart__line,
-[data-identity] .dh-linechart__point {
-  stroke: var(--dh-identity);
-}
-
-/*
- * CONVERGE-01 §8 — a chart whose subject IS a status takes the status ramp.
- *
- * Analytics' completion trend keeps `primary`, because more completions is not
- * "good" and fewer is not "bad" — a line with no judgement in it should not be
- * painted as though it had one. The overdue trend is different: the backlog is a
- * status, and the product already has exactly one vocabulary for saying so.
- *
- * These rules therefore reuse `data-meter-status` — the SAME attribute
- * `progress.css` maps for every meter in the product — rather than inventing a
- * chart-specific tone. One status, one mapping, five paints, and nothing new to
- * keep in step.
- *
- * Specificity is deliberate: two classes plus an attribute outranks the
- * `[data-identity]` rule above, so a toned chart inside a record's identity
- * scope still says its status.
- *
- * The LATEST and the SELECTED readings are excluded by the selector rather than
- * by source order, because a tone rule that merely came first would still win on
- * specificity and silently erase both emphases. Each is an emphasis WITHIN the
- * series — "this is the number the headline states", "this is the one you are
- * pointing at" — and painting either in the series colour is exactly the
- * distinction it exists to make, lost.
- */
-.dh-linechart[data-meter-status="success"]
-  :is(
-    .dh-linechart__line,
-    .dh-linechart__point:not([data-latest="true"], [data-selected="true"])
-  ) {
-  stroke: var(--dh-color-meter-success);
-}
-
-.dh-linechart[data-meter-status="info"]
-  :is(
-    .dh-linechart__line,
-    .dh-linechart__point:not([data-latest="true"], [data-selected="true"])
-  ) {
-  stroke: var(--dh-color-meter-info);
-}
-
-.dh-linechart[data-meter-status="warning"]
-  :is(
-    .dh-linechart__line,
-    .dh-linechart__point:not([data-latest="true"], [data-selected="true"])
-  ) {
-  stroke: var(--dh-color-meter-warning);
-}
-
-.dh-linechart[data-meter-status="danger"]
-  :is(
-    .dh-linechart__line,
-    .dh-linechart__point:not([data-latest="true"], [data-selected="true"])
-  ) {
-  stroke: var(--dh-color-meter-danger);
-}
-
-/* The most recent reading is the one the page's headline states, so it carries
- * a heavier dot — an emphasis, never the only way to find it. */
-.dh-linechart__point[data-latest="true"] {
-  stroke: var(--dh-color-text);
-  stroke-width: 5;
-}
-
-/* The target: quiet, dashed, and always named in the caption beside it. */
-.dh-linechart__target {
-  stroke: var(--dh-color-border-strong);
-  stroke-width: 1;
-  stroke-dasharray: 4 4;
-}
-
-.dh-linechart__axis {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--app-space-1) var(--app-space-3);
-  justify-content: space-between;
-  font-size: var(--dh-text-meta-size);
-  color: var(--dh-color-text-muted);
-  min-inline-size: 0;
-}
-
-.dh-linechart__axis-dates {
-  display: flex;
-  gap: var(--app-space-3);
-}
-
-.dh-linechart__summary {
-  margin: 0;
-  font-size: var(--dh-text-meta-size);
-  color: var(--dh-color-text-muted);
-  overflow-wrap: anywhere;
-}
-
-.dh-linechart__ref-note {
-  color: var(--dh-color-text-muted);
-}
-
-/* -------------------------------------------------------------------------- */
-/* UIX-03 — journey references, grid and the interactive readout               */
+/* TrendLine — DELETED (UNTITLED-12)                                           */
 /* -------------------------------------------------------------------------- */
 
 /*
- * The focusable plot frame. ONE tab stop for the whole series, so the ring is
- * drawn around the chart rather than around each of fifty readings.
- */
-.dh-linechart__frame {
-  position: relative;
-  border-radius: var(--dh-radius-control);
-  min-inline-size: 0;
-}
-
-/*
- * A reference line's short label, pinned to its own height.
+ * `TrendLine` and everything that painted it are gone: the plot frame, the
+ * line, the points, the target and baseline references, the grid, the pointer
+ * bands, the interactive readout, the identity and `data-meter-status` tone
+ * maps, the dotted projection path and its key, and their forced-colours arms.
+ * About 340 lines.
  *
- * HTML rather than SVG `<text>`: the plot is stretched with
- * `preserveAspectRatio="none"`, which would squash a glyph by whatever factor
- * the container imposes. `translateY(-50%)` centres the label on the rule, and
- * it sits at the inline end so it never covers the start of the series.
+ * It was a hand-written 100x100 SVG stretched with `preserveAspectRatio="none"`
+ * and it was the last chart in the product that DalyHub drew itself. ADR-126
+ * replaced it for Goals and Habits; UNTITLED-12 moved its final two consumers
+ * (Analytics' completion and overdue trends) onto `MeasurementTrend` over
+ * `application/charts-base`, which is the removal criterion
+ * `UNTITLED_UI_MIGRATION.md` states: when the last caller moves, the file and
+ * the component go together.
+ *
+ * The tone map is worth one line of its own, because it did not simply move. It
+ * keyed five paints off `data-meter-status`, reusing the meter vocabulary so a
+ * chart and a progress bar would agree. Recharts takes its strokes as ATTRIBUTE
+ * strings rather than through the cascade, so the equivalent now lives in
+ * `chart-theme.ts` as `CHART_WARNING_COLOR` — one role rather than five,
+ * because only one of the five ever had a consumer.
  */
-.dh-linechart__tag {
-  position: absolute;
-  inset-inline-end: 0;
-  transform: translateY(-50%);
-  padding-inline: var(--app-space-1);
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-  font-variant-numeric: tabular-nums;
-  color: var(--dh-color-text-muted);
-  /* A sliver of the surface behind the text, so the dashed rule does not run
-   * through the glyphs. */
-  background: var(--dh-color-surface);
-  border-radius: var(--dh-radius-sm);
-  pointer-events: none;
-  white-space: nowrap;
-}
-
-/*
- * The grid. Deliberately at the very bottom of the contrast range: it exists so
- * the eye can judge a level, and the moment it is legible in its own right it
- * competes with the line it is there to support.
- */
-.dh-linechart__grid {
-  stroke: var(--dh-color-border);
-  stroke-width: 1;
-  opacity: 0.65;
-}
-
-/*
- * The BASELINE — where the owner started. Dotted, and quieter than the target:
- * it is context behind the line, not the thing being aimed at. Distinguished
- * from the target by its dash pattern as well as its tone, because the two
- * references must not be told apart by colour alone.
- */
-.dh-linechart__baseline {
-  stroke: var(--dh-color-border-strong);
-  stroke-width: 1;
-  stroke-dasharray: 1 3;
-  opacity: 0.7;
-}
-
-/* The target: quiet, dashed, and always named in the caption beside it. */
-.dh-linechart__target {
-  stroke: var(--dh-color-border-strong);
-  stroke-width: 1;
-  stroke-dasharray: 4 4;
-}
-
-/* The pointer bands. Invisible, full height, and one per reading, so a
-   fingertip selects the nearest measurement rather than having to find a dot. */
-.dh-linechart__hit {
-  fill: transparent;
-  cursor: pointer;
-}
-
-/* The selected reading, while pointing at or arrowing through the chart. */
-.dh-linechart__point[data-selected="true"] {
-  stroke: var(--dh-color-accent);
-  stroke-width: 8;
-}
-
-/*
- * The readout keeps its box when nothing is selected, so pointing at the chart
- * never reflows the page under the cursor.
- */
-.dh-linechart__readout {
-  margin: 0;
-  min-block-size: 1.5em;
-  font-size: var(--dh-text-meta-size);
-  font-variant-numeric: tabular-nums;
-  color: var(--dh-color-text);
-  overflow-wrap: anywhere;
-}
-
-.dh-linechart__readout[data-empty="true"] {
-  color: var(--dh-color-text-muted);
-}
-
-@media (forced-colors: active) {
-  .dh-linechart__line,
-  .dh-linechart__point {
-    stroke: CanvasText;
-  }
-  .dh-linechart__target,
-  .dh-linechart__baseline,
-  .dh-linechart__grid {
-    stroke: GrayText;
-  }
-}
 
 /* -------------------------------------------------------------------------- */
 /* Sparkline                                                                   */
@@ -552,66 +300,6 @@
   font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
   overflow-wrap: anywhere;
-}
-
-/* ==========================================================================
-   REDESIGN-04 — the dotted path to the target (`mockup3.png`).
-
-   Dotted rather than dashed, so it is distinguishable from the target
-   REFERENCE line (dashed) and the baseline (finely dotted, horizontal) by
-   pattern as well as by position — the chart's rule that nothing is carried by
-   colour alone applies to the projection too. The sentence beneath the plot
-   states it in words regardless.
-   ========================================================================== */
-
-.dh-linechart__projection {
-  stroke: var(--dh-color-accent);
-  stroke-width: 2;
-  stroke-dasharray: 2 4;
-  stroke-linecap: round;
-  opacity: 0.7;
-}
-
-/*
- * The target point: a RING, not a filled dot. A filled dot is what a recorded
- * reading looks like on this chart, and the destination has not been reached —
- * drawing it the same way would assert that it had.
- */
-.dh-linechart__projection-point {
-  stroke: var(--dh-color-accent);
-  stroke-width: 9;
-  fill: none;
-  opacity: 0.28;
-}
-
-.dh-linechart__projection-note {
-  display: flex;
-  align-items: center;
-  gap: var(--dh-space-2);
-  margin: var(--dh-space-2) 0 0;
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-  color: var(--dh-color-text-muted);
-}
-
-/* The key repeats the dotted pattern beside the words, so the sentence and the
- * line on the plot are recognisably the same object. */
-.dh-linechart__projection-key {
-  flex: none;
-  inline-size: 1.25rem;
-  block-size: 0;
-  border-block-start: 2px dotted var(--dh-color-accent);
-}
-
-@media (forced-colors: active) {
-  .dh-linechart__projection,
-  .dh-linechart__projection-point {
-    stroke: CanvasText;
-    opacity: 1;
-  }
-  .dh-linechart__projection-key {
-    border-block-start-color: CanvasText;
-  }
 }
 
 /* -------------------------------------------------------------------------- */
