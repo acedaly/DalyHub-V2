@@ -78,7 +78,17 @@ describe("MeetingItemRow", () => {
       </ul>,
     );
     expect(screen.getByText("Prep deck")).toBeInTheDocument();
-    expect(screen.getByText("Agenda item")).toBeInTheDocument();
+    /*
+     * UNTITLED-13 — the KIND chip is gone, and this assertion went with it.
+     *
+     * Every row in a list headed "Agenda items" is an agenda item, so the chip
+     * was a label repeating its own section on every line — in the notebook,
+     * where the heading above says it, and in the Follow-up tab's "Unconverted
+     * action items", where the heading above says it too. The kind survives
+     * where it is still doing work: as the accessible name of the row's
+     * context menu ("Actions for this agenda item").
+     */
+    expect(screen.queryByText("Agenda item")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Create task" }));
     expect(onConvert).toHaveBeenCalledWith("i1");
     expect(screen.queryByRole("button", { name: "Open task" })).toBeNull();
@@ -101,7 +111,10 @@ describe("MeetingItemRow", () => {
         />
       </ul>,
     );
-    expect(screen.getByText(/Linked task · Ship it/)).toBeInTheDocument();
+    // The phrase is two elements now, because a long task title has to be able
+    // to truncate without taking the words "Linked task" with it.
+    expect(screen.getByText("Linked task")).toBeInTheDocument();
+    expect(screen.getByText("Ship it")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Open task" }));
     expect(onOpenTask).toHaveBeenCalledWith("t2");
   });
@@ -138,7 +151,21 @@ describe("MeetingItemRow", () => {
         />
       </ul>,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Remove outcome" }));
+    /*
+     * §14 — Remove is in the shared context MENU now, not a permanent
+     * destructive button beside every line.
+     *
+     * It used to be a always-rendered "Remove" faded to `opacity: 0` by a
+     * `@media (hover: hover)` block with a `:focus-within` escape hatch — three
+     * CSS mechanisms keeping one control simultaneously hidden and reachable.
+     * The test drives what a person does: open the row's menu, choose the item.
+     * The menu's own name still carries the kind, so several rows' menus are
+     * still told apart by a screen-reader user.
+     */
+    fireEvent.click(
+      screen.getByRole("button", { name: "Actions for this outcome" }),
+    );
+    fireEvent.click(screen.getByRole("menuitem", { name: "Remove outcome" }));
     expect(onRemove).toHaveBeenCalledWith("i4");
     // No nested interactive controls: no button contains another button/link.
     for (const button of screen.getAllByRole("button")) {
@@ -202,15 +229,20 @@ describe("MeetingFollowUpTab", () => {
         onAddFollowUp={vi.fn()}
       />,
     );
+    /*
+     * UNTITLED-13 — the count is a badge beside the heading, so the heading is
+     * the state and the badge names its noun. "Open (1)" put a parenthesised
+     * digit inside a heading's accessible name; "Open" + "1 task" is two facts
+     * a screen reader can tell apart.
+     */
+    expect(screen.getByRole("heading", { name: "Open" })).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Open \(1\)/ }),
+      screen.getByRole("heading", { name: "Waiting or delegated" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Waiting or delegated \(1\)/ }),
+      screen.getByRole("heading", { name: "Completed" }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: /Completed \(1\)/ }),
-    ).toBeInTheDocument();
+    expect(screen.getAllByText("1 task")).toHaveLength(3);
 
     fireEvent.click(
       screen.getByRole("button", { name: "Open task: Open one" }),

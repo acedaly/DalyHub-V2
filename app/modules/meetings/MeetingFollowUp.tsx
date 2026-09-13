@@ -1,17 +1,44 @@
 /**
  * MEET-02 — the Meeting follow-through UI.
  *
- * Renders (1) the Follow-up tab (canonical Tasks related to the meeting, grouped
- * Open / Waiting-or-delegated / Completed from the CANONICAL Task display state,
- * plus unconverted explicit Action items and an "Add follow-up task" action),
- * (2) the structured-item sections (agenda / decisions / outcomes / actions) each showing item
- * text, a stable textual kind tag, whether it has a linked Task, and a single
- * Create-task / Open-task control, and (3) the drawer form host.
+ * Renders (1) the structured-item sections the notebook is built from (agenda /
+ * decisions / outcomes / actions), (2) the Follow-up tab — canonical Tasks
+ * related to the meeting, grouped Open / Waiting-or-delegated / Completed from
+ * the CANONICAL Task display state, plus unconverted Action items — and (3) the
+ * drawer form host.
+ *
+ * ── UNTITLED-13: the agenda is a list you can work down, not a page of boxes ──
+ *
+ * §14 of the brief asks agenda items to be quick to scan DURING a live meeting,
+ * and names what to avoid: giant cards, repeated borders, oversized metadata and
+ * always-visible destructive buttons. Every one of those was here.
+ *
+ *   - Each item was a bordered, filled, rounded box (`meetings.css` drew it,
+ *     then a second rule in the same file unset the border and background
+ *     again for the notebook's copy — the module was arguing with itself).
+ *   - Each carried a KIND chip ("Agenda item") under a heading that already said
+ *     "Agenda items", so every line repeated its own section.
+ *   - Each ended in two full-weight text buttons, one of which was Remove, both
+ *     faded to `opacity: 0` on a fine pointer and restored by a `@media (hover:
+ *     hover)` block plus a `:focus-within` rule. That is three CSS mechanisms
+ *     keeping a destructive control simultaneously hidden and reachable.
+ *
+ * It is Untitled's divided list now: a hairline between rows, the row's own
+ * words at the top of the reading order, the conversion state as quiet
+ * supporting text, ONE visible conversion control and a context menu for the
+ * rest. The menu is the shared `OverflowMenu`, so Remove sits where every other
+ * destructive row action in the product sits and is never a button that appears
+ * on hover.
+ *
+ * The conversion control stays VISIBLE rather than moving into the menu with
+ * Remove, and that is a live-meeting decision rather than an oversight: turning
+ * an action item into a Task is the single most frequent thing done on this
+ * surface, and two presses for it during a meeting is one too many.
  *
  * Accessibility: every control is a real button/link (no nested interactive
- * controls); state is always carried by text (never colour alone); long text wraps;
- * touch targets inherit the 44px `.dh-btn` floor; the Task Drawer opener is the exact
- * control clicked, so focus returns to it on close (the DrawerProvider captures it).
+ * controls); state is always carried by text (never colour alone); long text
+ * wraps; the Task Drawer opener is the exact control clicked, so focus returns
+ * to it on close (the DrawerProvider captures it).
  */
 
 import { useCallback, useMemo, useState } from "react";
@@ -20,6 +47,9 @@ import { useRevalidator } from "react-router";
 import { useDrawer } from "~/shared/drawer";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
+import { OverflowMenu } from "~/shared/overflow-menu";
+import { Badge, Button, Input } from "~/shared/ui";
+import { SectionHeading } from "~/shared/ui/untitled/overrides/section-heading";
 import type { SerializedTaskView } from "~/shared/task-record/task-view";
 
 import type { MeetingItemKind } from "~/kernel/meetings";
@@ -32,7 +62,6 @@ import {
   meetingItemKindLabel,
   type FollowUpTaskEntry,
 } from "./follow-up-view";
-import { buttonClassName, inputClassName } from "~/shared/ui";
 
 type SerializedMeetingItem = SerializedMeeting["items"][number];
 
@@ -52,47 +81,6 @@ export function liveTaskByItem(
   return map;
 }
 
-interface ItemConversionControlProps {
-  readonly itemId: string;
-  readonly convertedTask: SerializedTaskView | null;
-  readonly readOnly: boolean;
-  readonly onConvert: (itemId: string) => void;
-  readonly onOpenTask: (taskId: string) => void;
-}
-
-/** The single Create-task / Open-task control + textual conversion state. */
-function ItemConversionControl({
-  itemId,
-  convertedTask,
-  readOnly,
-  onConvert,
-  onOpenTask,
-}: ItemConversionControlProps) {
-  if (convertedTask) {
-    return (
-      <button
-        type="button"
-        className={buttonClassName({ variant: "secondary" })}
-        onClick={() => onOpenTask(convertedTask.id)}
-      >
-        Open task
-      </button>
-    );
-  }
-  if (readOnly) {
-    return <span className="dh-follow-up-row__state">Not converted</span>;
-  }
-  return (
-    <button
-      type="button"
-      className={buttonClassName({ variant: "secondary" })}
-      onClick={() => onConvert(itemId)}
-    >
-      Create task
-    </button>
-  );
-}
-
 interface MeetingItemRowProps {
   readonly item: SerializedMeetingItem;
   readonly convertedTask: SerializedTaskView | null;
@@ -110,40 +98,77 @@ export function MeetingItemRow({
   onOpenTask,
   onRemove,
 }: MeetingItemRowProps) {
+  const kind = meetingItemKindLabel(item.kind).toLowerCase();
+
   return (
-    <li className="dh-meeting-item">
-      <div className="dh-meeting-item__body">
-        <span className="dh-meeting-item__text">{item.bodyMarkdown}</span>
-        <span className="dh-meeting-item__meta">
-          <span className="dh-meeting-item__tag">
-            {meetingItemKindLabel(item.kind)}
-          </span>
-          {convertedTask ? (
-            <span>Linked task · {convertedTask.title}</span>
-          ) : (
-            <span>
-              {item.kind === "action" ? "Action item" : "No task linked"}
-            </span>
-          )}
+    <li className="dh-meeting-item flex items-start gap-3 border-b border-secondary py-2.5 last:border-b-0">
+      <div className="dh-meeting-item__body flex min-w-0 flex-1 flex-col gap-0.5">
+        {/*
+          The item's own words lead, at the reading size. They used to sit under
+          a kind chip repeating the section heading above them.
+        */}
+        <span className="dh-meeting-item__text text-sm break-words text-primary">
+          {item.bodyMarkdown}
         </span>
+        {/*
+          The one thing that genuinely varies per row: whether this has become a
+          Task, and which one. `meetingItemKindLabel` survives as the row's
+          accessible naming for the controls, not as a visible chip.
+        */}
+        {convertedTask ? (
+          <span className="dh-meeting-item__meta flex min-w-0 items-center gap-1.5 text-xs text-tertiary">
+            <span className="shrink-0">Linked task</span>
+            <span
+              className="min-w-0 truncate font-medium text-secondary"
+              title={convertedTask.title}
+            >
+              {convertedTask.title}
+            </span>
+          </span>
+        ) : item.kind === "action" ? (
+          <span className="dh-meeting-item__meta text-xs text-tertiary">
+            Not yet a task
+          </span>
+        ) : null}
       </div>
-      <div className="dh-meeting-item__actions">
-        <ItemConversionControl
-          itemId={item.id}
-          convertedTask={convertedTask}
-          readOnly={readOnly}
-          onConvert={onConvert}
-          onOpenTask={onOpenTask}
-        />
-        {!readOnly && onRemove ? (
-          <button
-            type="button"
-            className={buttonClassName({ variant: "subtle" })}
-            aria-label={`Remove ${meetingItemKindLabel(item.kind).toLowerCase()}`}
-            onClick={() => onRemove(item.id)}
+
+      <div className="dh-meeting-item__actions flex shrink-0 items-center gap-1">
+        {convertedTask ? (
+          <Button
+            variant="subtle"
+            size="sm"
+            onClick={() => onOpenTask(convertedTask.id)}
           >
-            Remove
-          </button>
+            Open task
+          </Button>
+        ) : readOnly ? (
+          <span className="dh-follow-up-row__state text-xs text-tertiary">
+            Not converted
+          </span>
+        ) : (
+          <Button variant="subtle" size="sm" onClick={() => onConvert(item.id)}>
+            Create task
+          </Button>
+        )}
+        {/*
+          §14 — the destructive action lives in the shared context menu, not as
+          a permanently-rendered "Remove" beside every line. It was drawn at
+          `opacity: 0` under a hover rule with a `:focus-within` escape hatch,
+          which is three mechanisms to make one control both hidden and
+          reachable; a menu is one.
+        */}
+        {!readOnly && onRemove ? (
+          <OverflowMenu
+            label={`Actions for this ${kind}`}
+            items={[
+              {
+                id: "remove",
+                label: `Remove ${kind}`,
+                tone: "danger",
+                onSelect: () => onRemove(item.id),
+              },
+            ]}
+          />
         ) : null}
       </div>
     </li>
@@ -185,20 +210,21 @@ export function MeetingItemsSection({
   return (
     /*
      * UIX-04 §26 — inside the notebook this is a LIST under a section heading
-     * the notebook already drew, so it renders no `<h2>` of its own: "AGENDA"
+     * the notebook already drew, so it renders no heading of its own: "AGENDA"
      * immediately followed by a second, larger "Agenda items" was the same word
      * twice at two sizes. The heading survives as the list's accessible name, so
      * a screen-reader user still knows which of the four lists they are in.
-     *
-     * `.dh-record-section` is dropped with it: that class draws the record-editor
-     * card, and five of them stacked down a page is the composition §26 is
-     * getting away from.
      */
-    <section className="dh-meeting-items-section" aria-label={heading}>
+    <section
+      className="dh-meeting-items-section flex min-w-0 flex-col gap-2"
+      aria-label={heading}
+    >
       {rows.length === 0 ? (
-        <p className="dh-follow-up-empty">No {label}s yet.</p>
+        <p className="dh-follow-up-empty m-0 text-sm text-tertiary">
+          No {label}s yet.
+        </p>
       ) : (
-        <ul className="dh-meeting-items">
+        <ul className="dh-meeting-items m-0 flex list-none flex-col p-0">
           {rows.map((item) => (
             <MeetingItemRow
               key={item.id}
@@ -214,6 +240,7 @@ export function MeetingItemsSection({
       )}
       {!readOnly ? (
         <form
+          className="flex flex-wrap items-end gap-2"
           onSubmit={(event) => {
             event.preventDefault();
             if (!body.trim() || saving) return;
@@ -227,35 +254,45 @@ export function MeetingItemsSection({
         >
           {/*
             RECORD-01 — "Add {label}" once, not twice. The section already has a
-            heading ("Agenda items"), so the visible button stays the bare verb
-            and keeps the specific ACCESSIBLE name, which is what a screen-reader
-            user needs when four of these forms sit on one record.
+            heading, so the visible button stays the bare verb and keeps the
+            specific ACCESSIBLE name, which is what a screen-reader user needs
+            when four of these forms sit on one record.
 
             The field names the NOUN, not the act. It used to say "Add {label}"
-            too, which gave the textbox and the submit button one accessible name
-            between them: a screen reader announced "Add action item, edit text"
-            then "Add action item, button", and there was no way to ask for
-            either one unambiguously. Two controls, two names — the field is what
-            you are writing, the button is what happens to it.
+            too, which gave the textbox and the submit button one accessible
+            name between them: a screen reader announced "Add action item, edit
+            text" then "Add action item, button", and there was no way to ask
+            for either one unambiguously.
+
+            UNTITLED-13 — it is the shared `Input` (Untitled's `base/input`
+            recipe) rather than a `.dh-field` label wrapping a bare `<input>`,
+            so the field's height, corner, ground and focus ring are the
+            product's one control rather than this module's.
           */}
-          <label className="dh-field">
-            <span className="dh-field__label">New {label}</span>
-            <input
+          <label className="flex min-w-0 flex-1 basis-64 flex-col gap-1.5">
+            {/* Untitled's own label recipe (`base/input/label`'s type ramp and
+             * colour) on a native `<label>`. The component itself is React
+             * Aria's `Label`, which needs a `TextField` context this one-line
+             * inline form has no reason to introduce — the native element
+             * associates by containment and reads identically. */}
+            <span className="text-sm font-medium text-secondary">
+              New {label}
+            </span>
+            <Input
               name="body"
-              className={inputClassName()}
               value={body}
               onChange={(event) => setBody(event.target.value)}
               required
             />
           </label>
-          <button
+          <Button
             type="submit"
-            className={buttonClassName({ variant: "secondary" })}
+            variant="secondary"
             aria-label={`Add ${label}`}
             disabled={saving}
           >
             Add
-          </button>
+          </Button>
         </form>
       ) : null}
     </section>
@@ -271,7 +308,14 @@ interface FollowUpTabProps {
   readonly onAddFollowUp: () => void;
 }
 
-/** The Follow-up tab: grouped canonical follow-up Tasks + unconverted items. */
+/**
+ * The Follow-up tab: grouped canonical follow-up Tasks + unconverted items.
+ *
+ * §16 — every Task here is a DalyHub Task and is opened in the shared Task
+ * drawer; nothing in this file draws a task card, a task status or a task
+ * action of its own. The grouping is the canonical Task display state
+ * (`groupFollowUps`), not a Meetings-local one.
+ */
 export function MeetingFollowUpTab({
   items,
   followUps,
@@ -289,17 +333,13 @@ export function MeetingFollowUpTab({
   const allDone = allFollowUpsComplete(followUps);
 
   return (
-    <section className="dh-record-section">
-      <div className="dh-follow-up-group__heading">
-        <h2>Follow-up</h2>
+    <section className="dh-record-section flex min-w-0 flex-col gap-6">
+      <div className="dh-follow-up-group__heading flex flex-wrap items-center justify-between gap-3">
+        <h2 className="m-0 text-md font-semibold text-primary">Follow-up</h2>
         {!readOnly ? (
-          <button
-            type="button"
-            className={buttonClassName({ variant: "primary" })}
-            onClick={onAddFollowUp}
-          >
+          <Button variant="primary" size="sm" onClick={onAddFollowUp}>
             Add follow-up task
-          </button>
+          </Button>
         ) : null}
       </div>
 
@@ -310,35 +350,62 @@ export function MeetingFollowUpTab({
           description="Add an action item or follow-up task when this meeting creates work."
         />
       ) : allDone ? (
-        <p className="dh-follow-up-empty">
+        <p className="dh-follow-up-empty m-0 text-sm text-tertiary">
           Everything from this meeting is complete.
         </p>
       ) : null}
 
       {!noneYet
         ? groups.map((group) => (
-            <div key={group.key} className="dh-follow-up-group">
-              <h3 className="dh-follow-up-group__heading">
-                {group.label}{" "}
-                <span className="dh-follow-up-group__count">
-                  ({group.entries.length})
-                </span>
-              </h3>
+            <div
+              key={group.key}
+              className="dh-follow-up-group flex min-w-0 flex-col gap-2"
+            >
+              {/*
+                UNTITLED-13 — the count is a BADGE BESIDE the heading, and it
+                names its noun.
+                
+                It used to be inside the heading as "Open (1)", so the heading's
+                accessible name carried a parenthesised digit. The badge sits
+                outside now, exactly as the Meetings collection's day heading
+                does, and for the same reason: a bare figure welded onto a label
+                is a worse heading than a label, and a badge that does not say
+                what it counts is a worse badge than one that does.
+              */}
+              <div className="dh-follow-up-group__heading flex flex-wrap items-center gap-2">
+                <SectionHeading level={3} title={group.label} />
+                <Badge tone="neutral" variant="outline">
+                  {group.entries.length === 1
+                    ? "1 task"
+                    : `${group.entries.length} tasks`}
+                </Badge>
+              </div>
               {group.entries.length === 0 ? (
-                <p className="dh-follow-up-empty">{group.emptyHint}</p>
+                <p className="dh-follow-up-empty m-0 text-sm text-tertiary">
+                  {group.emptyHint}
+                </p>
               ) : (
-                <ul className="dh-follow-up-list">
+                /*
+                 * UNTITLED-13 — the divided list, not a stack of stadium-radius
+                 * outlined boxes. `.dh-follow-up-row` drew a `--dh-radius-pill`
+                 * border around every task title, which is the geometry the
+                 * product reserves for a CONTROL; these are rows.
+                 */
+                <ul className="dh-follow-up-list m-0 list-none overflow-hidden rounded-xl bg-primary p-0 shadow-xs ring-1 ring-secondary">
                   {group.entries.map((entry) => (
-                    <li key={entry.task.id} className="dh-follow-up-row">
+                    <li
+                      key={entry.task.id}
+                      className="dh-follow-up-row flex items-center gap-3 border-b border-secondary px-4 py-3 last:border-b-0 hover:bg-secondary"
+                    >
                       <button
                         type="button"
-                        className="dh-entity-link dh-follow-up-row__title"
+                        className="dh-follow-up-row__title min-w-0 flex-1 cursor-pointer border-0 bg-transparent p-0 text-left text-sm font-medium break-words text-primary underline-offset-2 outline-focus-ring hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
                         onClick={() => onOpenTask(entry.task.id)}
                         aria-label={`Open task: ${entry.task.title}`}
                       >
                         {entry.task.title}
                       </button>
-                      <span className="dh-follow-up-row__state">
+                      <span className="dh-follow-up-row__state shrink-0 text-xs whitespace-nowrap text-tertiary">
                         {group.label}
                       </span>
                     </li>
@@ -349,14 +416,14 @@ export function MeetingFollowUpTab({
           ))
         : null}
 
-      <div className="dh-follow-up-group">
-        <h3>Unconverted action items</h3>
+      <div className="dh-follow-up-group flex min-w-0 flex-col gap-2">
+        <SectionHeading level={3} title="Unconverted action items" />
         {unconvertedActions.length === 0 ? (
-          <p className="dh-follow-up-empty">
+          <p className="dh-follow-up-empty m-0 text-sm text-tertiary">
             No explicit action items are waiting to become tasks.
           </p>
         ) : (
-          <ul className="dh-meeting-items">
+          <ul className="dh-meeting-items m-0 flex list-none flex-col p-0">
             {unconvertedActions.map((item) => (
               <MeetingItemRow
                 key={item.id}

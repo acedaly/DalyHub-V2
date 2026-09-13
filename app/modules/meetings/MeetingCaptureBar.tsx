@@ -33,7 +33,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { MeetingItemKind } from "~/kernel/meetings";
-import { buttonClassName, inputClassName } from "~/shared/ui";
+import { toggleOptionClassName } from "~/shared/forms";
+import { Button, Input } from "~/shared/ui";
+import { cx } from "~/shared/ui/untitled/utils/cx";
 
 /** What the bar can capture. `note` is the Markdown field; the rest are items. */
 export type MeetingCaptureKind = "note" | MeetingItemKind;
@@ -148,7 +150,22 @@ export function MeetingCaptureBar({
           <button
             key={option.kind}
             type="button"
-            className="dh-meeting-capturebar__type md-state-layer"
+            /*
+             * UNTITLED-13 — the shared toggle-option recipe (Untitled's pill
+             * geometry), and the FOURTH control to leave `md-state-layer` on
+             * being rebuilt on Untitled, after the button (Phase 5), the icon
+             * button (UNTITLED-11) and the editor toolbar (UNTITLED-12). It
+             * used to be a bespoke chip in `meetings.css` with its own border,
+             * radius, ground and pressed fill, sitting under an M3 wash.
+             *
+             * `aria-pressed` still carries the state and the LABEL still says
+             * which type is selected, so meaning is never colour alone. The
+             * 44px floor comes with the recipe.
+             */
+            className={cx(
+              "dh-meeting-capturebar__type",
+              toggleOptionClassName({ checked: option.kind === kind }),
+            )}
             aria-pressed={option.kind === kind}
             onClick={() => choose(option.kind)}
             data-testid={`meeting-capture-${option.kind}`}
@@ -171,12 +188,10 @@ export function MeetingCaptureBar({
         >
           {active.label}
         </label>
-        <input
+        <Input
           id="dh-meeting-capture-input"
           ref={inputRef}
-          className={inputClassName({
-            className: "dh-meeting-capturebar__input",
-          })}
+          className="dh-meeting-capturebar__input"
           type="text"
           value={value}
           placeholder={active.placeholder}
@@ -184,16 +199,14 @@ export function MeetingCaptureBar({
           onChange={(event) => setValue(event.target.value)}
           data-testid="meeting-capture-input"
         />
-        <button
+        <Button
           type="submit"
-          className={buttonClassName({
-            variant: "primary",
-            className: "dh-meeting-capturebar__save",
-          })}
+          variant="primary"
+          className="dh-meeting-capturebar__save"
           disabled={busy || value.trim().length === 0}
         >
           Add
-        </button>
+        </Button>
       </form>
 
       {/* Saves and failures are announced, never silent. */}

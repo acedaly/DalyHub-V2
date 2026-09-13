@@ -1,138 +1,104 @@
-/* MEET-02 — Meeting follow-up, structured items and attendees. Token-only; state is
- * carried by text (never colour alone); long text wraps; 44px touch targets. */
+/*
+ * MEET-02 / UIX-04 — the Meeting record's remaining module CSS.
+ *
+ * UNTITLED-13 cut this file from 631 lines to what is below. Everything that
+ * went was PAINT for a component the product already had, or a rule that
+ * existed only to undo another rule in this same file:
+ *
+ *   - `.dh-meeting-item*` — a bordered, filled, rounded box per agenda item,
+ *     decision, outcome and action, which a SECOND rule in this file then unset
+ *     (`border: none; background: none; border-radius: 0`) for the notebook's
+ *     copy of the same list. Both halves have gone: the row is Untitled's
+ *     divided list;
+ *   - `.dh-meeting-item__tag` — the kind chip, a stadium-radius hairline pill
+ *     repeating its own section heading on every line, and then `display: none`
+ *     inside the notebook. Deleted, not hidden;
+ *   - the `@media (hover: hover)` / `:focus-within` / `prefers-reduced-motion`
+ *     trio that faded a row's actions to `opacity: 0` and restored them. Three
+ *     CSS mechanisms keeping one destructive control simultaneously hidden and
+ *     reachable; it is in the shared `OverflowMenu` now, so there is nothing to
+ *     hide and nothing to un-hide;
+ *   - `.dh-follow-up-row` — a `--dh-radius-pill` border around every follow-up
+ *     task's title, which is the geometry the product reserves for a CONTROL;
+ *   - `.dh-meeting-attendees` / `.dh-meeting-attendee` — a flex column of
+ *     `EntityLink` beside a Remove button. The attendee list carries the shared
+ *     Person mark now (§17/§34);
+ *   - `.dh-meeting-context*` — including `__mark`, this module's PRIVATE second
+ *     avatar, written here because the first one lived inside `~/modules/people`
+ *     and Meetings could not import it;
+ *   - `.dh-meeting-notebook__heading` — a bespoke uppercase, letter-spaced rule
+ *     with its own hairline, and the only heading in the product spelled that
+ *     way. It is the shared `SectionHeading` (Untitled's `section-headers`
+ *     recipe) at the `h2` rank a record demands;
+ *   - `.dh-meeting-capturebar__type`'s border, radius, ground, weight and
+ *     pressed fill — the shared `toggleOptionClassName` recipe, and the fourth
+ *     control to leave the M3 `md-state-layer` wash on being rebuilt;
+ *   - the phone `.dh-record-section dl` unset, with the fixed two-column grid
+ *     that needed it. The Details facts are the shared quiet strip now.
+ *
+ * The class NAMES survive in the markup as product/test hooks and are inert.
+ * What is left is the sticky capture bar's geometry, the notebook's writing
+ * measure and the two editor accommodations that depend on it — none of them
+ * expressible as a utility, and each states why below.
+ */
 
-/* PX-06: a meeting's tab sections use the SHARED `.dh-record-section` rhythm
- * (record-layout.css); only the intro paragraph is meeting-specific. */
+/* -------------------------------------------------------------------------- */
+/* UIX-04 §26 — the notebook's measure                                         */
+/* -------------------------------------------------------------------------- */
 
-/* Structured item list (agenda / decisions / outcomes / unconverted). */
-.dh-meeting-items {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+/*
+ * Agenda -> Notes -> Decisions -> Outcomes -> Actions, in the order a meeting
+ * happens. Every one is a real column of the schema; none is invented (§26/§30).
+ *
+ * The measure is the writing one, because four of the five sections ARE writing
+ * and a notebook whose sections disagree about where the text starts is not a
+ * notebook. The sections are separated by space and a heading, never by a card
+ * each: five outlined boxes down a page is the record-editor look §26 is
+ * getting away from.
+ */
+.dh-meeting-notebook {
   display: flex;
   flex-direction: column;
-  gap: var(--app-space-1);
-}
-
-.dh-meeting-item {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: var(--app-space-2) var(--app-space-3);
-  padding: var(--app-space-2) var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface);
-}
-
-.dh-meeting-item__body {
-  flex: 1 1 16rem;
+  gap: var(--app-space-8);
+  inline-size: 100%;
+  max-inline-size: var(--app-width-editor);
   min-inline-size: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-1);
 }
 
-/* Wrap long item text without widening the page. */
-.dh-meeting-item__text {
-  overflow-wrap: anywhere;
+/*
+ * The editor inside a notebook section fills the section, which already carries
+ * the measure — otherwise the shared writing column would be applied twice and
+ * the text would step in by a second margin at every section.
+ */
+.dh-meeting-notebook .dh-md-editor:not([data-density="compact"]) > * {
+  max-inline-size: none;
 }
 
-.dh-meeting-item__meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--app-space-2);
-  align-items: center;
-  font-size: var(--dh-text-meta-size);
-  color: var(--dh-color-text-muted);
+/* The two Markdown bodies have their own visible field label from
+ * `LiveMarkdownEditor`'s group name; inside a section that is already headed
+ * "Agenda", a second "Agenda" above the text is the same word twice. */
+.dh-meeting-notebook__section .dh-md-editor__bar {
+  padding-inline: 0;
 }
 
-.dh-meeting-item__tag {
-  display: inline-flex;
-  align-items: center;
-  padding: 0 var(--app-space-2);
-  min-block-size: 1.5rem;
-  border-radius: var(--dh-radius-pill);
-  border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
-  font-size: var(--dh-text-label-size);
-  font-weight: 500;
-}
-
-.dh-meeting-item__actions {
-  display: flex;
-  gap: var(--app-space-2);
-  flex: 0 0 auto;
-}
-
-/* Follow-up grouping. */
-.dh-follow-up-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-2);
-}
-
-.dh-follow-up-group__heading {
-  display: flex;
-  align-items: baseline;
-  gap: var(--app-space-2);
-}
-
-.dh-follow-up-group__count {
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-meta-size);
-  font-weight: 400;
-}
-
-.dh-follow-up-empty {
-  color: var(--dh-color-text-muted);
-  margin: 0;
-}
-
-.dh-follow-up-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-2);
-}
-
-.dh-follow-up-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--app-space-2) var(--app-space-3);
-  padding: var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-pill);
-}
-
-.dh-follow-up-row__title {
-  flex: 1 1 14rem;
-  min-inline-size: 0;
-  overflow-wrap: anywhere;
-}
-
-.dh-follow-up-row__state {
-  font-size: var(--dh-text-meta-size);
-  color: var(--dh-color-text-muted);
-  white-space: nowrap;
-}
-
-.dh-meeting-attendees {
-  list-style: none;
-  margin: 0 0 var(--app-space-3);
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-2);
-}
-
-.dh-meeting-attendee {
-  display: flex;
-  align-items: center;
-  gap: var(--app-space-3);
-  flex-wrap: wrap;
+/*
+ * §44 — a notebook section is not a half-screen box.
+ *
+ * The shared editor opens at `max(40dvh, 16rem)` because a Note's writing
+ * surface IS its page and should look like somewhere to write. A meeting's
+ * notebook has FIVE regions on one page, and five 400px minimums put the
+ * Actions list three screens below the title on a meeting whose agenda is three
+ * lines long. These editors size to their content from a much lower floor —
+ * still tall enough to write a paragraph into, never tall enough to bury the
+ * section under it.
+ */
+.dh-meeting-notebook
+  .dh-md-editor:not([data-density="compact"])
+  .dh-md-editor__cm
+  .cm-editor,
+.dh-meeting-notebook .dh-md-editor .dh-md-editor__fallback {
+  min-block-size: var(--app-editor-min-height-compact);
+  max-block-size: 60vh;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -184,46 +150,17 @@
   gap: var(--app-space-2);
 }
 
-.dh-meeting-capturebar__type {
-  flex: 1 1 auto;
-  /* Centred inline-flex, like every other chip in the product, so the label sits
-   * in the middle of the 44px target rather than at the top of it. */
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-block-size: var(--app-touch-target-min);
-  padding: var(--app-space-1) var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
-  border-radius: var(--dh-radius-pill);
-  background: var(--dh-color-surface);
-  color: var(--dh-color-text);
-  font: inherit;
-  font-size: var(--dh-text-meta-size);
-  font-weight: 500;
-  cursor: pointer;
-}
-
 /*
- * Selected: aria-pressed (semantic) + a filled container + weight — never
- * colour alone.
+ * UNTITLED-13 — the chip's own paint is GONE.
  *
- * RECORD-01 softened this. The four types were outlined in full `outline` with
- * the selected one in `primary-container` under an inset accent ring, which is
- * the weight the product spends on a PRIMARY action — so the capture strip read
- * as four primary buttons sitting on top of the meeting. The selection is still
- * a fill plus a border plus `aria-pressed`; it is simply no longer the loudest
- * thing on the record.
+ * Its border, radius, ground, weight, pressed fill and 44px floor all come from
+ * the shared `toggleOptionClassName` recipe now (Untitled's pill geometry), and
+ * `aria-pressed` still carries the state so meaning is never colour alone. What
+ * is left here is the one thing the recipe has no opinion about: on a phone the
+ * four types GROW to fill the row, so each is a comfortable thumb target.
  */
 .dh-meeting-capturebar__type {
-  border-color: var(--dh-color-border);
-  color: var(--dh-color-text-muted);
-}
-
-.dh-meeting-capturebar__type[aria-pressed="true"] {
-  border-color: var(--dh-color-border-strong);
-  background: var(--dh-color-bg-sunken);
-  color: var(--dh-color-text);
-  font-weight: 500;
+  flex: 1 1 auto;
 }
 
 .dh-meeting-capturebar__form {
@@ -349,223 +286,32 @@
     gap: var(--app-space-4);
   }
 
-  /* A meeting's detail list must never become a fixed-width two-column table on
-   * a phone — the values wrap under their labels instead. */
-  .dh-record-section dl {
-    display: block;
-  }
-
-  .dh-record-section dd {
-    margin-inline-start: 0;
-    margin-block-end: var(--app-space-2);
-    overflow-wrap: anywhere;
-  }
+  /*
+   * UNTITLED-13 — the `dl` unset is GONE with the grid that needed it.
+   *
+   * The Details tab drew `record-summary__meta`, a fixed two-column table that
+   * did not fit a 320px screen, so this block undid it on a phone: `display:
+   * block` on the list and a margin reset on every `dd`. The facts are the
+   * shared quiet strip now — one column below `sm`, wrapping upward — so there
+   * is nothing left to undo, and no rule here that can go stale.
+   */
 }
 
 /* -------------------------------------------------------------------------- */
-/* UIX-04 — the meeting CONTEXT row (§27/§28)                                 */
-/* -------------------------------------------------------------------------- */
-
-/*
- * One line under the title: when, where, and with whom.
- *
- * UNTITLED-13 — every rule that used to live here is DELETED, and the class
- * names survive only as hooks. The row's own arrangement is Untitled utilities
- * on the component; its people are the shared Person mark over `base/avatar`,
- * grouped as `informational-02/10`'s event panel groups guests; and
- * `.dh-meeting-context__mark` is gone entirely — it was this module's private
- * second avatar, written here because the first one lived inside
- * `~/modules/people` and Meetings could not import it (§34).
- */
-
-/* -------------------------------------------------------------------------- */
-/* UIX-04 — the meeting NOTEBOOK (§26)                                        */
-/* -------------------------------------------------------------------------- */
-
-/*
- * Agenda → Notes → Decisions → Outcomes → Actions, in the order a meeting
- * happens. Every one is a real column of the schema; none is invented (§26/§30).
- *
- * The measure is the writing one, because four of the five sections ARE writing
- * and a notebook whose sections disagree about where the text starts is not a
- * notebook. The sections are separated by space and a heading, never by a card
- * each: five outlined boxes down a page is the record-editor look §26 is trying
- * to get away from.
- */
-.dh-meeting-notebook {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-8);
-  inline-size: 100%;
-  max-inline-size: var(--app-width-editor);
-  min-inline-size: 0;
-}
-
-.dh-meeting-notebook__section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-2);
-  min-inline-size: 0;
-}
-
-/*
- * A section heading is a LABEL for the writing under it, not a title competing
- * with the meeting's own. Small, uppercase and quiet is how a printed notebook
- * marks its parts, and it keeps the writing the largest text in the region.
- */
-.dh-meeting-notebook__heading {
-  margin: 0;
-  padding-block-end: var(--app-space-1);
-  border-block-end: var(--app-border-width-thin) solid var(--dh-color-border);
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-label-size);
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-/*
- * The editor inside a notebook section fills the section, which already carries
- * the measure — otherwise the shared writing column would be applied twice and
- * the text would step in by a second margin at every section.
- */
-.dh-meeting-notebook .dh-md-editor:not([data-density="compact"]) > * {
-  max-inline-size: none;
-}
-
-/* The two Markdown bodies have their own visible field label from
- * `LiveMarkdownEditor`'s group name; inside a section that is already headed
- * "Agenda", a second "Agenda" above the text is the same word twice. */
-.dh-meeting-notebook__section .dh-md-editor__bar {
-  padding-inline: 0;
-}
-
-/* -------------------------------------------------------------------------- */
-/* UIX-04 — the notebook's structured item lists                              */
-/* -------------------------------------------------------------------------- */
-
-.dh-meeting-items-section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-2);
-  min-inline-size: 0;
-}
-
-/*
- * §26/§31 — a decision, an outcome and an action are LINES, not cards.
- *
- * Each was an outlined, filled, large-radius card carrying its own kind chip
- * ("Agenda item") under a heading that already said "Agenda items", plus two
- * text buttons at full weight. Five sections of those is a page of boxes, and
- * the reading order put the chrome before the sentence.
- *
- * They are now rows separated by a hairline, with the actions revealed on hover
- * and focus — the same treatment the Diary timeline gives its Edit control, so
- * the pattern transfers. The actions remain permanently present for keyboard and
- * touch (see below): "reveal on hover" must never mean "unreachable".
- */
-.dh-meeting-items .dh-meeting-item {
-  padding: var(--app-space-2) 0;
-  border: none;
-  border-radius: 0;
-  background: none;
-  align-items: center;
-}
-
-.dh-meeting-items .dh-meeting-item + .dh-meeting-item {
-  border-block-start: var(--app-border-width-thin) solid var(--dh-color-border);
-}
-
-.dh-meeting-items .dh-meeting-item__text {
-  font-size: var(--dh-text-lead-size);
-  line-height: 1.5;
-  color: var(--dh-color-text);
-}
-
-/*
- * The KIND chip goes. Every row in a list headed "Decisions" is a decision, so
- * the chip was a label repeating its own section on every line. What is left in
- * the meta line is the thing that actually varies: whether this item has become
- * a Task.
- */
-.dh-meeting-items .dh-meeting-item__tag {
-  display: none;
-}
-
-/*
- * The actions are quiet until the row is pointed at or focused within.
- *
- * `:focus-within` is doing the accessibility work: a keyboard user tabbing into
- * the row reveals them, and on a coarse pointer (where there is no hover) the
- * media query below keeps them visible at all times. Nothing is ever reachable
- * only by hovering.
- */
-@media (hover: hover) and (pointer: fine) {
-  .dh-meeting-items .dh-meeting-item__actions {
-    opacity: 0;
-    transition: opacity var(--dh-motion-instant) var(--dh-ease-standard);
-  }
-
-  .dh-meeting-items .dh-meeting-item:hover .dh-meeting-item__actions,
-  .dh-meeting-items .dh-meeting-item:focus-within .dh-meeting-item__actions {
-    opacity: 1;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .dh-meeting-items .dh-meeting-item__actions {
-    transition: none;
-  }
-}
-
-/*
- * §44 — a notebook section is not a half-screen box.
- *
- * The shared editor opens at `max(40dvh, 16rem)` because a Note's writing
- * surface IS its page and should look like somewhere to write. A meeting's
- * notebook has FIVE regions on one page, and five 400px minimums put the
- * Actions list three screens below the title on a meeting whose agenda is three
- * lines long. These editors size to their content from a much lower floor —
- * still tall enough to write a paragraph into, never tall enough to bury the
- * section under it.
- */
-.dh-meeting-notebook
-  .dh-md-editor:not([data-density="compact"])
-  .dh-md-editor__cm
-  .cm-editor,
-.dh-meeting-notebook .dh-md-editor .dh-md-editor__fallback {
-  min-block-size: var(--app-editor-min-height-compact);
-  max-block-size: 60vh;
-}
-
-/* The "New decision" / "New action" field is a quiet way to add a line, not a
- * form: it sits at the end of its list on one row with its button. */
-.dh-meeting-items-section form {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: end;
-  gap: var(--app-space-2);
-}
-
-.dh-meeting-items-section form .dh-field {
-  flex: 1 1 16rem;
-  min-inline-size: 0;
-}
-
-/* -------------------------------------------------------------------------- */
-/* The Meetings collection — MIGRATED to Untitled UI (UNTITLED-04)            */
+/* The meeting CONTEXT row and the Meetings collection — MIGRATED              */
 /* -------------------------------------------------------------------------- */
 /*
- * `.dh-meetings-filters`, `.dh-meetings-list` and its row elements are drawn by
- * the components now (`~/modules/meetings/MeetingsList.tsx` and
- * `MeetingsCollection.tsx`): each day is a bounded Untitled card with the day
- * heading as its section header, and the filter row is the shared collection
- * search field (Untitled's `base/input`) beside the shared sort menu.
+ * `.dh-meeting-context*`, `.dh-meetings-filters`, `.dh-meetings-list` and their
+ * row elements are drawn by the components (`MeetingContextRow.tsx`,
+ * `MeetingsList.tsx`, `MeetingsCollection.tsx`). Each day is the genuine
+ * `TableCard.Root` with `TableCard.Header` carrying its count badge; the filter
+ * row is the shared collection search field (Untitled's `base/input`) beside the
+ * shared sort menu; and the context row's people are the shared Person mark
+ * grouped as `informational-02/10` groups an event's guests.
  *
  * The reading is unchanged and is the point of the composition: a fixed leading
  * TIME column, so a day's meetings read down the page as a schedule rather than
  * as a list that happens to mention times. On a phone the time still moves above
- * the title rather than stealing 80px from it — a title truncated to make room
- * for "10:00 am" is the wrong trade — and that is now the row's own responsive
- * utilities. The class names survive in the markup as hooks.
+ * the title rather than stealing 80px from it. The class names survive in the
+ * markup as hooks.
  */
