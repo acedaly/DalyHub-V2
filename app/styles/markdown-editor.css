@@ -69,9 +69,10 @@
   gap: var(--app-space-2);
   min-inline-size: 0;
   padding: var(--app-space-1) var(--app-space-2);
+  /* UNTITLED-12 — the hairline and the stuck background are Untitled's now and
+   * are stated on the element (`border-b border-secondary`, `bg-primary`). This
+   * rule keeps only the bar's LAYOUT. */
   border: none;
-  border-block-end: var(--app-border-width-thin) solid var(--dh-color-border);
-  background: transparent;
 }
 
 /*
@@ -81,18 +82,14 @@
  * formatting a paragraph three screens down meant scrolling back up for a
  * button. The strip sticks to the top of the writing surface instead — the same
  * behaviour Docs and Notes have, and the reason neither of them needs a taller
- * toolbar. It carries the page colour only while it is stuck, so on a document
- * that fits there is no band at all.
+ * toolbar.
  *
- * `z-index` is the shared sticky-chrome level: below the app bar and the
- * overlays, above the text it is covering.
+ * UNTITLED-12 — the sticky position, its `--dh-layer-sticky` rung and the ground
+ * it carries while stuck are all stated on the element now, because they are
+ * conditional on the editor's own `density` and the component already knows it.
+ * The ground is Untitled's `bg-primary` — the paper — where this rule used the
+ * app CANVAS and therefore drew a grey band across a white document.
  */
-.dh-md-editor:not([data-density="compact"]) .dh-md-editor__bar {
-  position: sticky;
-  inset-block-start: 0;
-  z-index: var(--dh-layer-sticky);
-  background: var(--dh-color-bg);
-}
 
 .dh-md-editor__bar-end {
   display: inline-flex;
@@ -108,37 +105,13 @@
   font-weight: 500;
 }
 
-/* The Read/Write toggle. Its LABEL carries the state (it reads "Read" while
- * writing, "Write" while reading), so meaning is never colour-only; aria-pressed
- * carries it to assistive tech. */
-.dh-md-editor__mode-toggle {
-  display: inline-flex;
-  align-items: center;
-  min-block-size: var(--app-touch-target-min);
-  padding: var(--app-space-1) var(--app-space-3);
-  border: var(--app-border-width-thin) solid transparent;
-  border-radius: var(--dh-radius-control);
-  background: transparent;
-  color: var(--dh-color-text-muted);
-  font: inherit;
-  font-size: var(--dh-text-meta-size);
-  font-weight: 500;
-  cursor: pointer;
-  transition:
-    background-color var(--dh-motion-fast) var(--dh-ease-standard),
-    color var(--dh-motion-fast) var(--dh-ease-standard);
-}
-
-/* The fill is the shared state layer (M3-INT, `base.css`); the colour lift is
- * the toggle's own. */
-.dh-md-editor__mode-toggle:hover {
-  color: var(--dh-color-text);
-}
-
-.dh-md-editor__mode-toggle[aria-pressed="true"] {
-  color: var(--dh-color-text);
-  background: var(--dh-color-accent-subtle);
-}
+/*
+ * UNTITLED-12 — the Read/Write toggle is drawn by `buttonClassName({ variant:
+ * "subtle" })` in `~/shared/markdown-editor/LiveMarkdownEditor.tsx`, over
+ * `base/buttons/button`'s own recipe. Its height, radius, muted colour, hover
+ * lift and the `--dh-color-accent-subtle` pressed fill are all deleted; the
+ * class name survives as a hook and carries no paint.
+ */
 
 /* ------------------------------------------------------------------------- *
  * Formatting toolbar — a compact ICON row.
@@ -193,60 +166,25 @@
   background: var(--dh-color-border);
 }
 
-.dh-md-toolbar__button {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  /* A square icon target at the product's own 44px minimum — DalyHub holds that
-   * bar everywhere, on every pointer, and it is stricter than WCAG 2.2 AA's
-   * 24px. An earlier draft shrank it to 36px on fine pointers for compactness;
-   * that traded an accessibility contract for a visual one, which is the wrong
-   * way round. The compactness still arrives, from the ICON: thirteen 44px
-   * squares are narrower than eleven word-buttons, and they do not wrap. */
-  min-block-size: var(--app-touch-target-min);
-  min-inline-size: var(--app-touch-target-min);
-  padding: 0;
-  border: var(--app-border-width-thin) solid transparent;
-  border-radius: var(--dh-radius-control);
-  background: transparent;
-  color: var(--dh-color-text-muted);
-  font: inherit;
-  font-size: var(--dh-text-lead-size);
-  line-height: 0;
-  cursor: pointer;
-  scroll-snap-align: start;
-  transition:
-    background-color var(--dh-motion-fast) var(--dh-ease-standard),
-    color var(--dh-motion-fast) var(--dh-ease-standard);
-}
-
+/*
+ * UNTITLED-12 — a toolbar control is the product's ICON BUTTON.
+ *
+ * The 44px square, the radius, the muted glyph, the transparent border, the
+ * hover lift, the disabled opacity and the `--dh-color-accent-subtle` pressed
+ * fill all moved to `iconButtonClassName` in
+ * `~/shared/markdown-editor/EditorToolbar.tsx`, which composes
+ * `base/buttons/button-utility`'s own exported styles — so a formatting control
+ * and a record's overflow trigger are now one control from one source, and the
+ * active-formatting state is Untitled's ACTIVE surface rather than the legacy
+ * lavender.
+ *
+ * What survives is the GLYPH's size, which is this toolbar's own: the shared
+ * icon button sizes its glyph through an inset, and the editor's icons are
+ * plain SVG children that need a stated box.
+ */
 .dh-md-toolbar__button .dh-icon {
   inline-size: var(--app-space-5);
   block-size: var(--app-space-5);
-}
-
-/* Hover / focus / pressed fills are the shared state layer (M3-INT,
- * `base.css`). The toolbar's own pressed fill used to be 12% where every other
- * control in the product used M3's 10% — the exact silent divergence the audit
- * predicted a hand-rolled layer would produce. Only the colour lift is the
- * toolbar's. */
-.dh-md-toolbar__button:hover:not(:disabled) {
-  color: var(--dh-color-text);
-}
-
-/* ACTIVE formatting. A filled container plus `aria-pressed` — a state layer
- * alone would be colour-only, and a screen-reader user would have nothing. */
-.dh-md-toolbar__button[aria-pressed="true"],
-.dh-md-toolbar__button[aria-expanded="true"] {
-  color: var(--dh-color-text);
-  background: var(--dh-color-accent-subtle);
-}
-
-.dh-md-toolbar__button:disabled {
-  color: var(--dh-color-text-muted);
-  opacity: 0.38;
-  cursor: default;
 }
 
 @media (forced-colors: active) {
@@ -255,9 +193,13 @@
     mask-image: none;
   }
 
+  /* Untitled states "pressed" with a background, and forced colours discards
+   * backgrounds — so the one treatment that survives is stated here rather than
+   * left to a fill that will not be drawn. */
   .dh-md-toolbar__button[aria-pressed="true"],
   .dh-md-toolbar__button[aria-expanded="true"] {
-    border-color: Highlight;
+    outline: var(--app-border-width-thick) solid Highlight;
+    outline-offset: calc(-1 * var(--app-border-width-thick));
   }
 }
 

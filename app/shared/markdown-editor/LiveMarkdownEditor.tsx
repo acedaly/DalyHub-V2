@@ -52,6 +52,8 @@ import type { EditorView } from "@codemirror/view";
 import type { SanitizedMarkdownHtml } from "~/kernel/markdown";
 import { MarkdownContent } from "~/shared/markdown";
 import { LinkIcon } from "~/shared/icons";
+import { buttonClassName } from "~/shared/ui";
+import { cx } from "~/shared/ui/untitled/utils/cx";
 
 import {
   EditorToolbar,
@@ -615,7 +617,30 @@ export function LiveMarkdownEditor({
       role="group"
       aria-label={label}
     >
-      <div className="dh-md-editor__bar">
+      {/*
+        UNTITLED-12 — the controls sit on the PAPER, not on a band.
+
+        `.dh-md-editor__bar` carried `background: var(--dh-color-bg)` while it
+        was stuck, which is the app CANVAS rather than the surface the document
+        is written on — so on a Note record (drawn `surface="plain"`, on white)
+        the toolbar read as a grey strip laid over the page. That is the exact
+        object VIS-01 removed the border and the corners to get rid of, arrived
+        at through the background instead.
+
+        It takes Untitled's `bg-primary` now — the same ground the document
+        is on — and its hairline is Untitled's `border-secondary`, so what the
+        writer sees between the title and the first paragraph is one quiet line
+        and no band at all. The sticky arm is still only for the page-shaped
+        editor: a compact editor embedded in a form is a control, and a control
+        does not pin its own toolbar to the viewport.
+      */}
+      <div
+        className={cx(
+          "dh-md-editor__bar border-b border-secondary",
+          density !== "compact" &&
+            "sticky inset-block-start-0 z-[var(--dh-layer-sticky)] bg-primary",
+        )}
+      >
         {mode === "write" ? (
           <EditorToolbar
             onAction={applyAction}
@@ -635,9 +660,29 @@ export function LiveMarkdownEditor({
           <div className="dh-md-editor__bar-end">
             {statusSlot}
             {showModeToggle ? (
+              /*
+                UNTITLED-12 — the Read/Write toggle is the product's own text
+                button, not a control this file paints.
+
+                `.dh-md-editor__mode-toggle` drew its own height, radius, muted
+                colour and a `--dh-color-accent-subtle` pressed fill — the same
+                legacy lavender the formatting controls carried, on the one
+                control a reader looks at most. `buttonClassName({ variant:
+                "subtle" })` is Untitled's tertiary recipe, and `pressed` is its
+                ACTIVE surface, so this button and the formatting row beside it
+                now state "on" the same way.
+
+                The LABEL still carries the state — it reads "Read" while
+                writing and "Write" while reading — so the meaning is never
+                colour-only, and `aria-pressed` carries it to assistive tech.
+              */
               <button
                 type="button"
-                className="dh-md-editor__mode-toggle"
+                className={buttonClassName({
+                  variant: "subtle",
+                  size: "sm",
+                  className: "dh-md-editor__mode-toggle",
+                })}
                 aria-pressed={mode === "read"}
                 onClick={toggleMode}
               >

@@ -193,6 +193,13 @@ body {
  * of those is a second hover state, not the one shared one. `.dh-icon-button*`
  * is deleted from `ui.css` entirely; nothing emits the class any more.
  *
+ * ── UNTITLED-12 — the EDITOR's two controls left, for the third time ────────
+ * `.dh-md-toolbar__button` is `iconButtonClassName` now and
+ * `.dh-md-editor__mode-toggle` is `buttonClassName({ variant: "subtle" })`, so
+ * both are painted by Untitled's own recipes and both draw hover as a real
+ * container change. Same reasoning as the button and the icon button before
+ * them; `markdown-editor.css` no longer paints either.
+ *
  * The host list is spelled out on every rule rather than routed through a shared
  * custom property. A property would read better and would be a lie: DalyHub's
  * token-discipline test requires every `var(--md-*)`/`var(--app-*)` in `app/` to
@@ -206,8 +213,6 @@ body {
   .record-action,
   .dh-card__action,
   .dh-overflow-menu__trigger,
-  .dh-md-toolbar__button,
-  .dh-md-editor__mode-toggle,
   .dh-inline-edit__trigger,
   .dh-inline-edit__edit,
   .dh-filter-btn--ghost
@@ -221,8 +226,6 @@ body {
   .record-action,
   .dh-card__action,
   .dh-overflow-menu__trigger,
-  .dh-md-toolbar__button,
-  .dh-md-editor__mode-toggle,
   .dh-inline-edit__trigger,
   .dh-inline-edit__edit,
   .dh-filter-btn--ghost
@@ -263,8 +266,6 @@ body {
     .record-action,
     .dh-card__action,
     .dh-overflow-menu__trigger,
-    .dh-md-toolbar__button,
-    .dh-md-editor__mode-toggle,
     .dh-inline-edit__trigger,
     .dh-inline-edit__edit,
     .dh-filter-btn--ghost
@@ -287,8 +288,6 @@ body {
     .record-action,
     .dh-card__action,
     .dh-overflow-menu__trigger,
-    .dh-md-toolbar__button,
-    .dh-md-editor__mode-toggle,
     .dh-inline-edit__trigger,
     .dh-inline-edit__edit,
     .dh-filter-btn--ghost
@@ -305,8 +304,6 @@ body {
     .record-action,
     .dh-card__action,
     .dh-overflow-menu__trigger,
-    .dh-md-toolbar__button,
-    .dh-md-editor__mode-toggle,
     .dh-inline-edit__trigger,
     .dh-inline-edit__edit,
     .dh-filter-btn--ghost
@@ -323,8 +320,6 @@ body {
     .record-action,
     .dh-card__action,
     .dh-overflow-menu__trigger,
-    .dh-md-toolbar__button,
-    .dh-md-editor__mode-toggle,
     .dh-inline-edit__trigger,
     .dh-inline-edit__edit,
     .dh-filter-btn--ghost
