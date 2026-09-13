@@ -649,6 +649,24 @@
     display: flex;
   }
 
+  /*
+   * UNTITLED-13 — …and unless the band holds SEARCH.
+   *
+   * The sibling of the rule above, for the same shape of exception. A search
+   * box behind a button is a search box nobody uses, and the sheet is a
+   * deliberate act ("I want to filter") where reaching for search is not.
+   *
+   * People had this behaviour and implemented it in `people.css` as
+   * `:has(.dh-people-filters)` on the shared class — a module reaching into the
+   * shared layout's cascade because the layout offered no way to say it. It
+   * says it here now. The module still decides what inside the band survives
+   * the narrowing.
+   */
+  .dh-collection--has-mobile-controls.dh-collection--keep-filters
+    .dh-collection__filters {
+    display: block;
+  }
+
   .dh-collection__mobile-controls {
     display: block;
     padding: var(--app-space-2) var(--app-page-padding) var(--app-space-3);

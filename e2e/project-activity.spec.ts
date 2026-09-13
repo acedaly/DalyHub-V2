@@ -50,7 +50,7 @@ test.describe("PROJ-04 project Activity tab", () => {
     ]);
 
     await page.getByRole("tab", { name: "Activity" }).click();
-    const feed = page.getByRole("feed", { name: "Project activity" });
+    const feed = page.getByRole("group", { name: "Project activity" });
     await expect(feed).toBeVisible();
     // Real event articles from the shared Activity model (not a bespoke list).
     await expect(feed.getByRole("article").first()).toBeVisible();
@@ -63,9 +63,20 @@ test.describe("PROJ-04 project Activity tab", () => {
   test("loads a second page and never duplicates events", async ({ page }) => {
     await gotoFixture(page, RECORD);
     await page.getByRole("tab", { name: "Activity" }).click();
-    const feed = page.getByRole("feed", { name: "Project activity" });
+    const feed = page.getByRole("group", { name: "Project activity" });
     await expect(feed).toBeVisible();
 
+    /*
+     * UNTITLED-13 — wait for the first article before counting.
+     *
+     * The viewport is a labelled `group` now, and a `group` exists from the
+     * first paint; the old `role="feed"` was only applied once articles were
+     * rendered, so `toBeVisible()` above happened to double as a wait for
+     * content. It no longer does, and a bare `count()` samples one instant
+     * mid-load. The assertion is unchanged in strength — this still fails if
+     * the timeline never renders an event.
+     */
+    await expect(feed.getByRole("article").first()).toBeVisible();
     const firstPage = await feed.getByRole("article").count();
     expect(firstPage).toBeGreaterThan(0);
 
@@ -92,7 +103,7 @@ test.describe("PROJ-04 project Activity tab", () => {
     // pr-activity is seeded COMPLETED (so it stays out of Today's "Continue working").
     await gotoFixture(page, RECORD);
     await page.getByRole("tab", { name: "Activity" }).click();
-    const feed = page.getByRole("feed", { name: "Project activity" });
+    const feed = page.getByRole("group", { name: "Project activity" });
     await expect(feed).toBeVisible();
 
     // Reopening the project (a header action available from any tab) records a
@@ -115,7 +126,7 @@ test.describe("PROJ-04 project Activity tab", () => {
   }) => {
     await gotoFixture(page, RECORD);
     await page.getByRole("tab", { name: "Activity" }).click();
-    const feed = page.getByRole("feed", { name: "Project activity" });
+    const feed = page.getByRole("group", { name: "Project activity" });
     await expect(feed).toBeVisible();
 
     // A child-task link event references the task as a navigable entity.
@@ -144,7 +155,7 @@ test.describe("PROJ-04 project Activity tab", () => {
     await gotoFixture(page, RECORD);
     await page.getByRole("tab", { name: "Activity" }).click();
     await expect(
-      page.getByRole("feed", { name: "Project activity" }),
+      page.getByRole("group", { name: "Project activity" }),
     ).toBeVisible();
     // The selection is deep-linked into the URL (DESIGN_SYSTEM: record tabs are
     // preserved per record and deep-linkable).
@@ -161,7 +172,7 @@ test.describe("PROJ-04 project Activity tab", () => {
       "true",
     );
     await expect(
-      page.getByRole("feed", { name: "Project activity" }),
+      page.getByRole("group", { name: "Project activity" }),
     ).toBeVisible();
   });
 
@@ -193,7 +204,7 @@ test.describe("PROJ-04 project Activity tab", () => {
       "true",
     );
     await expect(
-      page.getByRole("feed", { name: "Project activity" }),
+      page.getByRole("group", { name: "Project activity" }),
     ).toBeVisible();
   });
 
@@ -228,7 +239,7 @@ test.describe("PROJ-04 accessibility (light)", () => {
 
     await page.getByRole("tab", { name: "Activity" }).click();
     await expect(
-      page.getByRole("feed", { name: "Project activity" }),
+      page.getByRole("group", { name: "Project activity" }),
     ).toBeVisible();
     await expectNoAxeViolations(page);
   });
@@ -245,7 +256,7 @@ test.describe("PROJ-04 accessibility (dark)", () => {
 
     await page.getByRole("tab", { name: "Activity" }).click();
     await expect(
-      page.getByRole("feed", { name: "Project activity" }),
+      page.getByRole("group", { name: "Project activity" }),
     ).toBeVisible();
     await expectNoAxeViolations(page);
   });
@@ -280,7 +291,7 @@ test.describe("PROJ-04 responsive", () => {
       await gotoFixture(page, RECORD);
       await page.getByRole("tab", { name: "Activity" }).click();
       await expect(
-        page.getByRole("feed", { name: "Project activity" }),
+        page.getByRole("group", { name: "Project activity" }),
       ).toBeVisible();
       await expectNoHorizontalOverflow(page);
     });

@@ -175,7 +175,7 @@ test.describe("AREA-04 — mobile Areas & Goals", () => {
       await expectNoHorizontalOverflow(page);
     }
     await expect(
-      page.getByRole("feed", { name: "Area activity" }),
+      page.getByRole("group", { name: "Area activity" }),
     ).toBeVisible();
 
     // 4. Create a Goal under the Area (route-backed New Goal Drawer).

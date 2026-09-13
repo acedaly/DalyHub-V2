@@ -6,6 +6,7 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
+  openRecordTab,
   postSameOrigin,
 } from "./helpers";
 import {
@@ -131,9 +132,21 @@ async function markAsHeld(page: Page, title: string): Promise<void> {
 }
 
 async function openPersonActivity(page: Page): Promise<void> {
-  await page.getByRole("tab", { name: "Activity" }).click();
+  /*
+   * Through the SHARED opener, which settles the page and then retries the
+   * click until the tab is actually selected.
+   *
+   * A bare click was enough while the Person's Summary was a grid of counting
+   * tiles. It now carries a bounded activity stream of its own, so hydration
+   * lands later and a click that arrives before React attaches is received by
+   * markup with no handler and silently lost — the tab stays on Summary and the
+   * assertion below fails somewhere else entirely. `openRecordTab` is the
+   * helper that already knows this; the assertion it makes is stronger than the
+   * bare click, not weaker (the tab must END UP selected).
+   */
+  await openRecordTab(page, "Activity");
   await expect(
-    page.getByRole("feed", { name: "Person timeline" }),
+    page.getByRole("group", { name: "Person timeline" }),
   ).toBeVisible();
 }
 
@@ -194,16 +207,30 @@ test.describe("MEET-03 — meetings on the People timeline", () => {
     await expect(
       page.locator('.dh-feedback-live[aria-live="polite"]'),
     ).toContainText("Added to the timeline of 1 attendee");
-    await expect(page.getByText(/Recorded as held on/)).toBeVisible();
+    /*
+     * UNTITLED-13 — the fact is a LABELLED fact now, so the value stops
+     * repeating the label. The Details tab's `<dl>` grid became the same
+     * label-over-value strip the Person workspace uses, where "Held" sits
+     * above "Recorded on <date>"; "Held: Recorded as held on <date>" said the
+     * word twice. Both halves are asserted, so the state is still legible on
+     * the record without opening a menu — which is what MEET-03 requires.
+     */
+    const heldFact = page
+      .locator(".record-summary__meta-item")
+      .filter({ hasText: "Held" })
+      .first();
+    await expect(heldFact).toContainText(/Recorded on /);
 
     // 5–6. The attendee's ONE existing Activity tab carries the event. There is
     //      no Meetings tab and no second feed on the Person record.
     await page.goto(attendeeUrl);
     await openPersonActivity(page);
-    const feed = page.getByRole("feed", { name: "Person timeline" });
+    const feed = page.getByRole("group", { name: "Person timeline" });
     await expect(feed.getByText("Meeting held").first()).toBeVisible();
     await expect(page.getByRole("tab", { name: "Meetings" })).toHaveCount(0);
-    await expect(page.getByRole("feed")).toHaveCount(1);
+    await expect(
+      page.getByRole("group", { name: "Person timeline" }),
+    ).toHaveCount(1);
 
     // 7. It survives the Conversations filter.
     await filterToConversations(page);
@@ -308,7 +335,19 @@ test.describe("MEET-03 — meetings on the People timeline", () => {
       page.keyboard.press("Enter"),
     ]);
     expect((await response.json()).ok).toBe(true);
-    await expect(page.getByText(/Recorded as held on/)).toBeVisible();
+    /*
+     * UNTITLED-13 — the fact is a LABELLED fact now, so the value stops
+     * repeating the label. The Details tab's `<dl>` grid became the same
+     * label-over-value strip the Person workspace uses, where "Held" sits
+     * above "Recorded on <date>"; "Held: Recorded as held on <date>" said the
+     * word twice. Both halves are asserted, so the state is still legible on
+     * the record without opening a menu — which is what MEET-03 requires.
+     */
+    const heldFact = page
+      .locator(".record-summary__meta-item")
+      .filter({ hasText: "Held" })
+      .first();
+    await expect(heldFact).toContainText(/Recorded on /);
   });
 
   test("no WCAG violations in light or dark, and no overflow at 390px or 320px", async ({

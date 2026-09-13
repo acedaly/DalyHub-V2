@@ -88,7 +88,7 @@ test.describe("PEOPLE-01 — the People foundation", () => {
     // "Timeline" so the shared tab vocabulary holds on every record).
     await page.getByRole("tab", { name: "Activity" }).click();
     await expect(
-      page.getByRole("feed", { name: "Person timeline" }),
+      page.getByRole("group", { name: "Person timeline" }),
     ).toBeVisible();
 
     // 5. Archive from Settings, then find in the Archived view and restore.

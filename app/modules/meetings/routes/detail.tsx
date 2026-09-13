@@ -1,7 +1,9 @@
 import { env } from "cloudflare:workers";
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   isRouteErrorResponse,
+  Link,
   useRevalidator,
   useSearchParams,
 } from "react-router";
@@ -20,13 +22,13 @@ import {
   type DrawerRenderResult,
 } from "~/shared/drawer";
 import { MEETING_TITLE_MAX_LENGTH } from "~/kernel/meetings";
-import { EntityIcon, EntityLink } from "~/shared/entity";
+import { EntityIcon } from "~/shared/entity";
 import { InlineTextField, type InlineSaveOutcome } from "~/shared/inline-edit";
 import { useCapture } from "~/shared/capture";
 import type { CaptureContextContract } from "~/shared/capture/capture-context";
 import { useFeedback } from "~/shared/feedback";
 import { CheckIcon } from "~/shared/icons";
-import type { OverflowMenuItem } from "~/shared/overflow-menu";
+import { OverflowMenu, type OverflowMenuItem } from "~/shared/overflow-menu";
 import {
   lifecycleActionLabel,
   useRecordLifecycle,
@@ -48,6 +50,7 @@ import {
 } from "~/shared/forms";
 import { AiExtractionSurface } from "~/shared/ai";
 import { attachmentsTab } from "~/shared/attachments";
+import { PersonAvatar } from "~/shared/person-identity";
 import { RecordLayout } from "~/shared/record-layout";
 import {
   TASK_DRAWER_TITLE,
@@ -56,7 +59,7 @@ import {
 import { serializeTaskView } from "~/shared/task-record/task-view";
 import { utcToOwnerLocal } from "~/shared/datetime";
 import { MeetingCaptureBar } from "../MeetingCaptureBar";
-import { MeetingContextRow } from "../MeetingContextRow";
+import { attendeeCountLabel, MeetingContextRow } from "../MeetingContextRow";
 import { MeetingMarkdown } from "../MeetingMarkdown";
 import type { MeetingConflictResponse } from "./mutate";
 import {
@@ -81,7 +84,8 @@ import {
 import { useAttendeeSearch } from "../use-attendee-search";
 import type { FollowUpTaskEntry } from "../follow-up-view";
 import type { Route } from "./+types/detail";
-import { buttonClassName } from "~/shared/ui";
+import { Button } from "~/shared/ui";
+import { SectionHeading } from "~/shared/ui/untitled/overrides/section-heading";
 
 /** A bound on how many follow-up Tasks a single meeting record resolves at once. */
 const FOLLOW_UP_CAP = 100;
@@ -567,6 +571,19 @@ function MeetingRecord({
     [m.detailsUpdatedAt, m.id, m.notesMarkdown, r],
   );
 
+  /*
+   * Whether the notebook draws its Agenda band.
+   *
+   * An agenda with anything in it is always worth reading. An EMPTY one is
+   * worth WRITING only while the meeting is still ahead — which is
+   * `heldAt === null` and a status that has not moved on, the same two facts
+   * MEET-03 uses to decide whether "Mark as held" is offered.
+   */
+  const showAgenda =
+    m.agendaMarkdown.trim().length > 0 ||
+    m.items.some((item) => item.kind === "agenda") ||
+    (m.heldAt === null && m.status === "planned" && !readOnly);
+
   const itemSection = (
     kind: "agenda" | "decision" | "outcome" | "action",
     heading: string,
@@ -764,22 +781,39 @@ function MeetingRecord({
                    * heading instead of in two different halves of the tab.
                    */
                   <div className="dh-meeting-notebook">
-                    <section className="dh-meeting-notebook__section">
-                      <h2 className="dh-meeting-notebook__heading">Agenda</h2>
-                      <MeetingMarkdown
-                        meetingId={m.id}
-                        field="agendaMarkdown"
-                        label="Agenda"
-                        initial={m.agendaMarkdown}
-                        version={m.detailsUpdatedAt}
-                        onSaved={() => r.revalidate()}
-                        readOnly={readOnly}
-                      />
-                      {itemSection("agenda", "Agenda items")}
-                    </section>
+                    {/*
+                      §7 — an EMPTY agenda is not drawn on a meeting that has
+                      already happened.
 
-                    <section className="dh-meeting-notebook__section">
-                      <h2 className="dh-meeting-notebook__heading">Notes</h2>
+                      The sections run in the order a meeting happens, and that
+                      order is right; what was wrong is that a completed meeting
+                      with nothing planned still opened on an empty agenda
+                      editor asking "What should this meeting cover?" — above
+                      the notes that say what it actually did cover. Writing an
+                      agenda for a meeting that is over is not a thing, and the
+                      first band of a past record should not be a prompt to do
+                      it.
+
+                      An agenda that HAS content stays, on any meeting: it is
+                      the record of what was planned, which is worth reading
+                      against what happened.
+                    */}
+                    {showAgenda ? (
+                      <NotebookSection title="Agenda">
+                        <MeetingMarkdown
+                          meetingId={m.id}
+                          field="agendaMarkdown"
+                          label="Agenda"
+                          initial={m.agendaMarkdown}
+                          version={m.detailsUpdatedAt}
+                          onSaved={() => r.revalidate()}
+                          readOnly={readOnly}
+                        />
+                        {itemSection("agenda", "Agenda items")}
+                      </NotebookSection>
+                    ) : null}
+
+                    <NotebookSection title="Notes">
                       <MeetingMarkdown
                         meetingId={m.id}
                         field="notesMarkdown"
@@ -789,24 +823,32 @@ function MeetingRecord({
                         onSaved={() => r.revalidate()}
                         readOnly={readOnly}
                       />
-                    </section>
+                    </NotebookSection>
 
-                    <section className="dh-meeting-notebook__section">
-                      <h2 className="dh-meeting-notebook__heading">
-                        Decisions
-                      </h2>
+                    {/*
+                      §15 — a DECISION is an outcome, not another paragraph, so
+                      the band says what it is for. The restraint the brief asks
+                      for is in what is NOT here: no callout, no coloured slab,
+                      no card per decision. A decision is a line in a list you
+                      can find later, and the heading is what makes it findable.
+                    */}
+                    <NotebookSection
+                      title="Decisions"
+                      description="What was settled, so it can be found later."
+                    >
                       {itemSection("decision", "Decisions")}
-                    </section>
+                    </NotebookSection>
 
-                    <section className="dh-meeting-notebook__section">
-                      <h2 className="dh-meeting-notebook__heading">Outcomes</h2>
+                    <NotebookSection title="Outcomes">
                       {itemSection("outcome", "Outcomes")}
-                    </section>
+                    </NotebookSection>
 
-                    <section className="dh-meeting-notebook__section">
-                      <h2 className="dh-meeting-notebook__heading">Actions</h2>
+                    <NotebookSection
+                      title="Actions"
+                      description="Each becomes a DalyHub Task."
+                    >
                       {itemSection("action", "Actions")}
-                    </section>
+                    </NotebookSection>
                   </div>
                 ),
             },
@@ -814,51 +856,25 @@ function MeetingRecord({
               id: "details",
               label: "Details",
               content: (
-                <section className="dh-record-section">
-                  <h2>Meeting details</h2>
-                  {/* UIQ-007 — the SHARED summary facts grid, not a bare
-                   * browser-default `<dl>`: the label-over-value presentation
-                   * every other record's metadata already uses. */}
-                  <dl className="record-summary__meta">
-                    {/* RECORD-01 — Status is NOT repeated here: the record header's
-                     * status pill, a few pixels above, already states it, and this
-                     * row was the same word again under a "Status" label. */}
-                    <div className="record-summary__meta-item">
-                      <dt>Duration</dt>
-                      <dd>{formatMeetingDuration(m.startsAt, m.endsAt)}</dd>
-                    </div>
-                    <div className="record-summary__meta-item">
-                      <dt>Timezone</dt>
-                      <dd>{m.timezone}</dd>
-                    </div>
-                    {/*
-                    MEET-03 — the held state, stated in words on the record itself
-                    so it is legible without opening a menu, and so the outcome of
-                    "Mark as held" is visible rather than implied.
+                <section className="dh-record-section flex min-w-0 flex-col gap-8">
+                  <h2 className="dh-visually-hidden">Meeting details</h2>
+
+                  {/*
+                    UNTITLED-13 — the quiet labelled fact strip, not a browser
+                    `<dl>` in a two-column table.
+
+                    `record-summary__meta` drew a grid whose phone arrangement
+                    `meetings.css` then had to unset with `display: block` and a
+                    margin reset on every `dd`. This is the same strip the Person
+                    workspace uses and the same one Untitled's own profile pages
+                    put reference facts in, so it needs no per-module phone rule:
+                    it is one column below `sm` and wraps upward from there.
+
+                    RECORD-01 — Status is NOT repeated here: the record header's
+                    status pill, a few pixels above, already states it.
                   */}
-                    <div className="record-summary__meta-item">
-                      <dt>Held</dt>
-                      <dd>
-                        {m.heldAt
-                          ? `Recorded as held on ${formatMeetingDate(m.heldAt, m.timezone)}`
-                          : "Not recorded as held yet"}
-                      </dd>
-                    </div>
-                    {m.meetingUrl && (
-                      <div className="record-summary__meta-item">
-                        <dt>Meeting link</dt>
-                        <dd>
-                          <a
-                            href={m.meetingUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            Open meeting link
-                          </a>
-                        </dd>
-                      </div>
-                    )}
-                  </dl>
+                  <MeetingFactStrip meeting={m} />
+
                   {!readOnly ? (
                     <MeetingDetailsEditor meeting={m} onSave={post} />
                   ) : null}
@@ -947,9 +963,8 @@ function MeetingRecord({
                           : "It leaves your active meetings, but stays readable and fully intact."
                       }
                       control={
-                        <button
-                          type="button"
-                          className={buttonClassName({ variant: "secondary" })}
+                        <Button
+                          variant="secondary"
                           onClick={() =>
                             void post({
                               intent: m.archivedAt ? "restore" : "archive",
@@ -959,7 +974,7 @@ function MeetingRecord({
                           {m.archivedAt
                             ? lifecycleActionLabel("restore", "meeting")
                             : lifecycleActionLabel("archive", "meeting")}
-                        </button>
+                        </Button>
                       }
                     />
                   </SettingsGroup>
@@ -997,6 +1012,112 @@ function MeetingRecord({
 
       {lifecycle.dialogs}
     </>
+  );
+}
+
+/**
+ * UNTITLED-13 — a Meeting's reference facts, as the product's quiet strip.
+ *
+ * The Details tab drew `record-summary__meta`: a labelled `<dl>` grid whose
+ * phone arrangement `meetings.css` then had to undo with `display: block` and a
+ * margin reset on every `dd`, because a fixed two-column table does not fit a
+ * 320px screen. The strip below is the same one the Person workspace and
+ * `StayInTouchPanel` use — a small quaternary label over a primary value, one
+ * column below `sm`, wrapping upward — so the module needs no phone rule of its
+ * own and a Meeting's facts and a Person's are the same object.
+ *
+ * A fact with no value is omitted, not printed as a dash. The exception is
+ * "Held", which states BOTH answers in words: MEET-03 needs the held state
+ * legible on the record without opening a menu, and "not recorded as held yet"
+ * is a real answer rather than an absence.
+ */
+function MeetingFactStrip({
+  meeting,
+}: {
+  readonly meeting: Route.ComponentProps["loaderData"]["meeting"];
+}) {
+  const facts: { id: string; label: string; value: ReactNode }[] = [];
+
+  const duration = formatMeetingDuration(meeting.startsAt, meeting.endsAt);
+  if (duration !== "Not set") {
+    facts.push({ id: "duration", label: "Duration", value: duration });
+  }
+  facts.push({ id: "timezone", label: "Timezone", value: meeting.timezone });
+  facts.push({
+    id: "held",
+    label: "Held",
+    value: meeting.heldAt
+      ? `Recorded on ${formatMeetingDate(meeting.heldAt, meeting.timezone)}`
+      : "Not recorded as held yet",
+  });
+  if (meeting.meetingUrl) {
+    facts.push({
+      id: "url",
+      label: "Meeting link",
+      value:
+        (
+          /* The same standalone-target rule as the Person's website link: a
+           * coarse pointer gets the 44px floor, a mouse sees no change. */
+          <a
+            className="block min-w-0 break-words text-brand-secondary outline-focus-ring [@media(hover:none)]:min-h-[var(--app-touch-target-min)] hover:text-brand-secondary_hover focus-visible:outline-2 focus-visible:outline-offset-2"
+            href={meeting.meetingUrl}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Open meeting link
+          </a>
+        ),
+    });
+  }
+
+  return (
+    <dl className="record-summary__meta m-0 grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+      {facts.map((fact) => (
+        <div
+          key={fact.id}
+          className="record-summary__meta-item flex min-w-0 flex-col gap-0.5"
+        >
+          <dt className="text-xs font-medium text-quaternary">{fact.label}</dt>
+          <dd className="m-0 text-sm font-medium break-words text-primary">
+            {fact.value}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/**
+ * UNTITLED-13 — one band of the notebook.
+ *
+ * The heading was `.dh-meeting-notebook__heading` in `meetings.css`: a bespoke
+ * uppercase, letter-spaced, quiet rule with its own hairline underneath, on a
+ * record whose every other section heading is Untitled's `section-headers`
+ * recipe. It reads as a printed notebook's part marker, which was the argument
+ * for it — and it was also the only place in the product that spelled a heading
+ * that way, so a Meeting's Agenda and a Person's "What you share" were two
+ * different kinds of object for no reason a reader could name.
+ *
+ * `SectionHeading` is that recipe at the heading LEVEL a record demands (an `h2`
+ * directly under the record's `h1`, never upstream's hard-coded `h3`, which axe
+ * reports as a skipped level). The `description` slot is what the old heading
+ * had no room for: a band can now say what it is for in one quiet line, which
+ * is where "each becomes a DalyHub Task" belongs.
+ */
+function NotebookSection({
+  title,
+  description,
+  children,
+}: {
+  readonly title: string;
+  readonly description?: string;
+  readonly children: ReactNode;
+}) {
+  return (
+    <section className="dh-meeting-notebook__section flex min-w-0 flex-col gap-3">
+      <SectionHeading level={2} title={title} description={description} />
+      {children}
+    </section>
   );
 }
 
@@ -1170,6 +1291,26 @@ function MeetingDetailsEditor({
   );
 }
 
+/**
+ * UNTITLED-13 — the attendee list, as People rather than as link-plus-Remove
+ * pairs.
+ *
+ * §17 asks participants to use the shared Person identity system, and §34 makes
+ * it a rule: no Meeting-specific representation. This list had none at all — it
+ * was a bare `<ul>` of `EntityLink` beside a "Remove" button, with the whole
+ * arrangement drawn by `.dh-meeting-attendees` and `.dh-meeting-attendee` in
+ * `meetings.css`. A person with a photograph on `/people` was a line of blue
+ * text here.
+ *
+ * It is Untitled's divided list now, each row carrying the shared Person mark,
+ * the person's name as a real link to their record, and Remove in the shared
+ * context menu rather than as a permanent destructive button per line (the same
+ * §14 rule the agenda rows follow).
+ *
+ * The marks are generated from the display title and take the NEUTRAL disc,
+ * because an EntityLink counterpart carries an id and a title and nothing else —
+ * see `MeetingContextRow` for the full reasoning and the named follow-up.
+ */
 function MeetingAttendees({
   meetingId,
   attendees,
@@ -1193,40 +1334,74 @@ function MeetingAttendees({
   const options = attendeeSearch.optionsWithSelected(selected);
 
   return (
-    <section className="dh-record-section">
-      <h3>Attendees</h3>
+    <section className="dh-record-section flex min-w-0 flex-col gap-3">
+      <SectionHeading
+        level={3}
+        title="Attendees"
+        description={
+          attendees.length === 0
+            ? undefined
+            : attendeeCountLabel(attendees.length)
+        }
+      />
       {attendees.length ? (
-        <ul className="dh-meeting-attendees">
+        <ul className="dh-meeting-attendees m-0 list-none overflow-hidden rounded-xl bg-primary p-0 shadow-xs ring-1 ring-secondary">
           {attendees.map((attendee) => (
-            <li key={attendee.id} className="dh-meeting-attendee">
-              <EntityLink
-                type="person"
-                id={attendee.id}
-                title={attendee.title}
-              />
+            <li
+              key={attendee.id}
+              className="dh-meeting-attendee flex items-center gap-3 border-b border-secondary px-4 py-2.5 last:border-b-0 hover:bg-secondary"
+            >
+              {/*
+                The mark is decorative — the name beside it is the link and the
+                accessible name, so nothing depends on two letters being legible.
+              */}
+              <span aria-hidden="true" className="shrink-0">
+                <PersonAvatar name={attendee.title} size="sm" />
+              </span>
+              {/*
+                The link fills the row's HEIGHT, not just its text box.
+
+                MEASURED: as an inline anchor it came out at 196×20 on a 393px
+                phone, inside a row that is over 50px tall — so the words were
+                the target and the space around them was not. `self-stretch
+                flex items-center` makes the anchor the row, which is the same
+                thing `.dh-prow__open`'s stretched `::after` does for a Person
+                row and what the product means by a row being clickable.
+              */}
+              <Link
+                to={`/person/${encodeURIComponent(attendee.id)}`}
+                className="flex min-w-0 flex-1 items-center self-stretch truncate text-sm font-medium text-primary underline-offset-2 outline-focus-ring hover:underline focus-visible:outline-2 focus-visible:-outline-offset-2"
+              >
+                {attendee.title}
+              </Link>
               {!readOnly ? (
-                <button
-                  type="button"
-                  className={buttonClassName({ variant: "subtle" })}
-                  aria-label={`Remove attendee ${attendee.title}`}
-                  onClick={() =>
-                    void onPost({
-                      intent: "remove_attendee",
-                      linkId: attendee.linkId,
-                    })
-                  }
-                >
-                  Remove
-                </button>
+                <OverflowMenu
+                  label={`Actions for ${attendee.title}`}
+                  items={[
+                    {
+                      id: "remove",
+                      label: "Remove from meeting",
+                      tone: "danger",
+                      onSelect: () =>
+                        void onPost({
+                          intent: "remove_attendee",
+                          linkId: attendee.linkId,
+                        }),
+                    },
+                  ]}
+                />
               ) : null}
             </li>
           ))}
         </ul>
       ) : (
-        <p className="dh-follow-up-empty">No attendees yet.</p>
+        <p className="dh-follow-up-empty m-0 text-sm text-tertiary">
+          No attendees yet.
+        </p>
       )}
       {!readOnly ? (
         <form
+          className="flex flex-wrap items-end gap-2"
           onSubmit={(event) => {
             event.preventDefault();
             void (async () => {
@@ -1239,6 +1414,7 @@ function MeetingAttendees({
         >
           <SelectField
             label="Add attendees"
+            className="min-w-0 flex-1 basis-64"
             multiple
             placeholder="Search People"
             options={options}
@@ -1251,13 +1427,13 @@ function MeetingAttendees({
               attendeeSearch.rememberSelected(ids);
             }}
           />
-          <button
+          <Button
             type="submit"
-            className={buttonClassName({ variant: "secondary" })}
+            variant="secondary"
             disabled={selected.length === 0}
           >
             Add selected
-          </button>
+          </Button>
         </form>
       ) : null}
     </section>

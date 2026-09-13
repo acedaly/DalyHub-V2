@@ -8,69 +8,71 @@
  */
 
 /* -------------------------------------------------------------------------- */
-/* Avatar                                                                     */
+/* The Person mark's CIRCLE ACCENT — MIGRATED to Untitled UI (UNTITLED-13)     */
 /* -------------------------------------------------------------------------- */
 
 /*
- * The one CIRCULAR identity mark in DalyHub. Every other record's mark is a
- * rounded square, because those records are containers and a person is not.
- */
-.dh-person-avatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--dh-radius-pill);
-  overflow: hidden;
-  flex: none;
-  /* The neutral disc — a Person with no relationship recorded. It is a real
-   * answer ("not classified"), not a fallback colour, and it is legible in both
-   * appearances without any accent at all. */
-  background: var(--dh-color-surface-subtle);
-  color: var(--dh-color-text-muted);
-  font-weight: 500;
-  line-height: 1;
-}
-
-/*
- * UIX-05 — the generated avatar takes its CIRCLE's accent, at the same generated
- * identity strength `.dh-accent-icon` uses (D17/D4).
+ * The mark itself is Untitled's `base/avatar`, through the shared
+ * `~/shared/person-identity` component. Its circle, its size scale, its image
+ * treatment and `onError` fallback, its initials type ramp and its focus ring
+ * are all upstream's; the ~60 lines that used to draw them here are gone, along
+ * with the inline `inlineSize`/`blockSize`/`fontSize` the old component
+ * computed from a pixel number.
  *
- * One authored rule and one generated percentage per appearance, so a list of
- * People is a soft palette in light and a calm one in dark rather than a row of
- * saturated discs. The mix is contrast-safe by construction — moving a container
- * toward the card always moves it away from its own `on-` role — which is what
- * lets the initials stay legible on all six ramps without a per-accent override.
+ * What survives is the ONE thing Untitled has no role for: UIX-05's circle
+ * accent. A GENERATED initials disc takes the identity tint of the Person's
+ * CIRCLE — a pure function of the relationship the owner recorded (ADR-068 §5),
+ * never a hash of an id and never a status — so a directory of twenty People is
+ * a legible palette rather than twenty identical discs. A photograph takes no
+ * tint: it is the strongest identity a row can carry and a ring of colour would
+ * only compete with it.
+ *
+ * ── Why this reaches one element deeper than the component's API ────────────
+ *
+ * `Avatar` exposes `contentClassName` for exactly this and the small mark uses
+ * it, so the class lands ON the tinted box. `AvatarProfilePhoto` — the large
+ * record mark — builds its own inner box and exposes no hook for it, so there
+ * the class sits on the root and the tint has to reach its only `div` child.
+ * Both spellings are stated once, here, rather than by forking upstream.
+ *
+ * The initials colour needs the `span` either way: upstream paints them
+ * `text-quaternary` on the element itself, which an inherited colour cannot
+ * reach.
  */
-.dh-person-avatar[data-accent] {
+.dh-person-avatar__accent,
+.dh-person-avatar__accent > div {
   background: color-mix(
     in srgb,
     var(--person-avatar-container) var(--app-tint-strength-identity),
     var(--dh-color-surface)
   );
+}
+
+.dh-person-avatar__accent span {
   color: var(--person-avatar-on-container);
 }
 
-.dh-person-avatar[data-accent="1"] {
+.dh-person-avatar__accent--1 {
   --person-avatar-container: var(--dh-color-area-1-subtle);
   --person-avatar-on-container: var(--dh-color-text-on-area-1-subtle);
 }
-.dh-person-avatar[data-accent="2"] {
+.dh-person-avatar__accent--2 {
   --person-avatar-container: var(--dh-color-area-2-subtle);
   --person-avatar-on-container: var(--dh-color-text-on-area-2-subtle);
 }
-.dh-person-avatar[data-accent="3"] {
+.dh-person-avatar__accent--3 {
   --person-avatar-container: var(--dh-color-area-3-subtle);
   --person-avatar-on-container: var(--dh-color-text-on-area-3-subtle);
 }
-.dh-person-avatar[data-accent="4"] {
+.dh-person-avatar__accent--4 {
   --person-avatar-container: var(--dh-color-area-4-subtle);
   --person-avatar-on-container: var(--dh-color-text-on-area-4-subtle);
 }
-.dh-person-avatar[data-accent="5"] {
+.dh-person-avatar__accent--5 {
   --person-avatar-container: var(--dh-color-area-5-subtle);
   --person-avatar-on-container: var(--dh-color-text-on-area-5-subtle);
 }
-.dh-person-avatar[data-accent="6"] {
+.dh-person-avatar__accent--6 {
   --person-avatar-container: var(--dh-color-area-6-subtle);
   --person-avatar-on-container: var(--dh-color-text-on-area-6-subtle);
 }
@@ -83,129 +85,30 @@
   }
 }
 
-.dh-person-avatar__img {
-  inline-size: 100%;
-  block-size: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.dh-person-avatar__initials {
-  letter-spacing: 0.02em;
-}
-
 /* -------------------------------------------------------------------------- */
-/* Collection controls (search / sort / view switch)                          */
+/* Collection controls — MIGRATED to Untitled UI (UNTITLED-13)                */
 /* -------------------------------------------------------------------------- */
-
 /*
- * `inline-size: 100%` is load-bearing, not tidiness.
+ * `.dh-people-filters` and everything inside it are drawn by the component now.
+ * What went:
  *
- * The shared filter slot is itself a flex row, so a filter bar that does not
- * claim the row is sized to its own content — which came out at about half the
- * pane, and the sort select wrapped onto a second line with the whole right-hand
- * half of the row empty beside it. Every other collection's filter bar states
- * this; People's did not.
- */
-.dh-people-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--app-space-2);
-  align-items: center;
-  inline-size: 100%;
-  padding: var(--app-space-3) var(--app-space-4);
-  border: var(--app-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface-subtle);
-}
-
-.dh-people-filters__search {
-  flex: 1 1 16rem;
-  min-inline-size: 0;
-}
-
-/*
- * LAYOUT only (UIX-06). The height, padding, border, corner, surface, font and
- * — for the select — the drawn chevron all come from the shared control
- * baseline in `base.css`. This rule used to restate them, and had drifted: a
- * 36px control on 4px corners beside a 44px 8px-cornered toggle in the same
- * row, which is the mismatch §15 names. The select also keeps its intrinsic
- * width rather than `inline-size: 100%`, so its longest option is never clipped.
- */
-.dh-people-filters__input {
-  inline-size: 100%;
-}
-
-/*
- * DHDS-09 — the sort is the shared `SortMenu`, so this rule is layout only.
+ *   - the band's own border, radius, ground and padding — it is a filter row,
+ *     and the shared collection layout already gives it one;
+ *   - `.dh-people-filters__toggle`, ~35 lines of hand-painted chip with its own
+ *     border, radius, ground, weight, pressed fill and forced-colours arm, on a
+ *     product where the Diary capture chip and the Meeting capture chip had both
+ *     already been rebuilt on the shared `toggleOptionClassName` recipe
+ *     (Untitled's pill geometry). `aria-pressed` still carries the state;
+ *   - the search field's layout, now the component's utilities, with the control
+ *     itself on Untitled's `base/input` recipe through `inputClassName()`;
+ *   - the whole phone block, including the `:has(.dh-people-filters)` override
+ *     HARDEN-02 added to bring the filter band back below 48rem and the two
+ *     `display: none`s that then re-hid the controls inside it. Three rules
+ *     undoing each other for a behaviour the shared layout has a prop for:
+ *     People passes `persistentControls`, as Assets has since TASKS-03.
  *
- * It used to also carry `.dh-people-filters__select`, a module-private native
- * `<select>` treatment beside a Meetings collection that had a different one and
- * a Reviews collection that had a third. The control's own appearance now comes
- * from `collection-layout.css`, at the same height and corner as the search
- * field beside it.
+ * The class NAMES survive in the markup as product/test hooks and are inert.
  */
-.dh-people-filters__sort {
-  flex: 0 1 auto;
-}
-
-/*
- * UIX-05 — the "Needs a catch-up" toggle.
- *
- * A filter, not a view: it narrows which People are included within whichever
- * circle is active, so it lives in the filter row rather than in the header's
- * view slot (DESIGN_SYSTEM.md → Collection header). It is a toggle button with a
- * real `aria-pressed`, so its state is announced rather than only tinted, and it
- * carries its own count so an owner knows before pressing it whether it will
- * show anything.
- */
-.dh-people-filters__toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--app-space-2);
-  flex: none;
-  /* The same rung as the select and the search field beside it (UIX-06), and
-   * the product's touch floor. */
-  min-block-size: var(--app-control-height-lg);
-  padding: var(--app-space-2) var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
-  border-radius: var(--app-shape-control);
-  background: var(--dh-color-surface);
-  color: var(--dh-color-text);
-  font: inherit;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-/* Pressed is a SURFACE and a border, never a tone alone — and `aria-pressed`
- * carries it for anyone who cannot see either. */
-.dh-people-filters__toggle[aria-pressed="true"] {
-  background: var(--dh-color-accent-subtle);
-  border-color: var(--dh-color-accent-subtle);
-  color: var(--dh-color-text);
-}
-
-.dh-people-filters__toggle-count {
-  font-variant-numeric: tabular-nums;
-  color: var(--dh-color-text-muted);
-}
-
-.dh-people-filters__toggle[aria-pressed="true"]
-  .dh-people-filters__toggle-count {
-  color: inherit;
-}
-
-@media (forced-colors: active) {
-  .dh-people-filters__toggle[aria-pressed="true"] {
-    border: var(--app-border-width-thick) solid CanvasText;
-  }
-}
-
-/* UIQ-013 — People's pill-tab view nav and its bordered icon toggle group are
-   both retired: the collection renders the ONE shared view switcher
-   (`segmented-filter.css`) in the pane header's view slot instead. UIX-05
-   retired the list/grid toggle entirely — a Person is a row (see
-   `PersonRow.tsx`), so there is no second presentation to switch to. */
 
 /* -------------------------------------------------------------------------- */
 /* Create page                                                                */
@@ -240,252 +143,34 @@
   color: var(--dh-color-text-muted);
 }
 
-/* -------------------------------------------------------------------------- */
-/* Summary tab                                                                */
-/* -------------------------------------------------------------------------- */
-
-.dh-person-summary {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-5);
-}
-
-.dh-person-summary__head {
-  display: flex;
-  gap: var(--app-space-4);
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.dh-person-summary__identity {
-  min-inline-size: 0;
-}
-
-.dh-person-summary__name {
-  margin: 0;
-  font-size: var(--dh-text-metric-size);
-  font-weight: 500;
-}
-
-.dh-person-summary__pronouns,
-.dh-person-summary__context {
-  color: var(--dh-color-text-muted);
-  font-weight: 500;
-}
-
-.dh-person-summary__context {
-  margin: var(--app-space-1) 0 0;
-}
-
-.dh-person-summary__relationship {
-  margin: var(--app-space-2) 0 0;
-}
-
-/*
- * CONVERGE-01 §6 — `.dh-person-summary__tag` is GONE; tags render the shared
- * `.dh-tagchip` (`ui.css`). The relationship chip keeps this rule because it is
- * not a tag: it states one value from a closed set, and its corner is the
- * module's own.
- */
-.dh-person-summary__relationship-chip {
-  display: inline-flex;
-  align-items: center;
-  padding: var(--app-space-1) var(--app-space-2);
-  border-radius: var(--dh-radius-sm);
-  background: var(--dh-color-accent-subtle);
-  color: var(--dh-color-accent);
-  font-size: var(--dh-text-meta-size);
-}
-
-.dh-person-summary__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--app-space-2);
-}
-
-/* PEOPLE-03 — the relationship summary and stay-in-touch regions. Both are plain
- * labelled sections around SHARED components (DS-13 summary cards, the shared
- * stay-in-touch panel); nothing about their internals is styled here. */
-.dh-person-summary__section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-3);
-  min-width: 0;
-}
-
-.dh-person-summary__section-heading {
-  margin: 0;
-  font-size: var(--dh-text-meta-size);
-  font-weight: 500;
-  color: var(--dh-color-text-muted);
-}
-
-.dh-person-summary__facts {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
-  gap: var(--app-space-3);
-  margin: 0;
-}
-
-.dh-person-summary__fact dt {
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-meta-size);
-}
-
-.dh-person-summary__fact dd {
-  margin: var(--app-space-1) 0 0;
-  font-weight: 500;
-}
-
-.dh-person-summary__tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--app-space-2);
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.dh-person-summary__edit {
-  margin: 0;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Timeline / Linked tabs                                                     */
-/* -------------------------------------------------------------------------- */
-
-.dh-person-linked {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-5);
-}
-
-.dh-person-linked__heading {
-  display: flex;
-  align-items: center;
-  gap: var(--app-space-2);
-  margin: 0 0 var(--app-space-2);
-  font-size: var(--dh-text-lead-size);
-  font-weight: 500;
-}
-
-.dh-person-linked__icon {
-  color: var(--dh-color-text-muted);
-  display: inline-flex;
-}
-
-.dh-person-linked__count {
-  color: var(--dh-color-text-muted);
-  font-weight: 500;
-}
-
-.dh-person-linked__empty {
-  margin: 0;
-  color: var(--dh-color-text-muted);
-}
-
-.dh-person-linked__list {
-  margin: 0;
-  padding-inline-start: var(--app-space-4);
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-1);
-}
-
-/* -------------------------------------------------------------------------- */
-/* Not-found / new placeholders                                               */
-/* -------------------------------------------------------------------------- */
-
-.dh-person-not-found {
-  padding: var(--app-space-8) var(--app-page-padding);
-}
-
 @media (max-width: 48rem) {
   .dh-person-new {
     padding-block: var(--app-space-4) var(--app-space-6);
   }
-  .dh-people-filters__sort,
-  .dh-people-filters__search {
-    flex-basis: 100%;
-  }
+}
 
-  /*
-   * HARDEN-02 — People keeps its SEARCH BOX at phone width.
-   *
-   * UIX-05 gave People the shared phone control sheet and wrote the rule beside
-   * it: "Search stays visible at every width, because a search box behind a
-   * button is a search box nobody uses" (`PeopleCollection`, and the same
-   * sentence in the UIX-05 record). Supplying `mobileControls` also turns on the
-   * shared rule that hides the WHOLE desktop filter bar below 48rem
-   * (`collection-layout.css`), and the search box is inside it — so the rule
-   * above was inert from the moment it was written, and the one control an owner
-   * reaches for without deciding to filter disappeared on the device the module
-   * is most used on. Assets, which states the identical rule, keeps its search
-   * because it composes `persistentControls` instead; People states the rule and
-   * does not.
-   *
-   * This is the smallest correct repair: the filters band comes back at phone
-   * width carrying ONLY the search, while the catch-up toggle and the sort stay
-   * where the phone composition put them — in the sheet, where they are the same
-   * URL-backed controls. Nothing is offered twice, and the desktop composition is
-   * untouched.
-   *
-   * The `:has()` is what lets one module opt out of a shared rule without a new
-   * layout prop; the extra class keeps this above the shared rule's specificity
-   * regardless of stylesheet order.
-   */
-  .dh-collection--has-mobile-controls
-    .dh-collection__filters:has(.dh-people-filters) {
-    display: block;
-  }
-
-  .dh-people-filters__toggle,
-  .dh-people-filters__sort {
-    display: none;
-  }
-}
-/* MEET-01 uses the shared collection/record primitives; these rules only provide module rhythm. */
-.dh-meeting-new {
-  max-width: 44rem;
-  margin: 0 auto;
-  padding: var(--space-6);
-}
-.dh-meeting-new form {
-  display: grid;
-  gap: var(--space-4);
-}
-.dh-meeting-list {
-  list-style: none;
-  margin: 0;
-  padding: var(--space-3) var(--space-5);
-  display: grid;
-  gap: var(--space-2);
-}
-.dh-meeting-card {
-  min-height: 44px;
-  display: flex;
-  gap: var(--space-3);
-  align-items: center;
-  padding: var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--dh-radius-pill);
-  text-decoration: none;
-  color: inherit;
-}
-.dh-meeting-card span {
-  display: grid;
-  min-width: 0;
-}
-.dh-meeting-card small {
-  color: var(--color-text-muted);
-  overflow-wrap: anywhere;
-}
-@media (max-width: 30rem) {
-  .dh-meeting-new,
-  .dh-meeting-list {
-    padding: var(--space-3);
-  }
-}
+/* -------------------------------------------------------------------------- */
+/* The Person workspace — MIGRATED to Untitled UI (UNTITLED-13)               */
+/* -------------------------------------------------------------------------- */
+/*
+ * `.dh-person-summary` and its children are drawn by the component. What went:
+ *
+ *   - `__head`, `__identity`, `__name`, `__pronouns`, `__context`, `__actions`
+ *     and `__relationship-chip` — the identity block, now the shared
+ *     `PersonIdentityBand` over Untitled's `AvatarProfilePhoto` with the
+ *     relationship as the product's own `Badge`;
+ *   - `__section`, `__section-heading`, `__facts`, `__fact` — the bands and the
+ *     quiet labelled fact strip, now Untitled's `section-headers` recipe and
+ *     utilities, shared with `StayInTouchPanel` so both halves of the rhythm
+ *     band sit in ONE grid;
+ *   - `__grid`, `.dh-person-quick-actions`, `.dh-person-linked*`,
+ *     `.dh-meeting-new`, `.dh-meeting-list` and `.dh-meeting-card` — every one
+ *     of them already had no consumer in `app/`. The Meetings block in
+ *     particular had been orphaned in this stylesheet since MEET-01 and still
+ *     spoke the pre-`--dh-*` vocabulary (`--space-6`, `--color-border`).
+ *
+ * The class NAMES survive where a test or a journey addresses them.
+ */
 
 /* -------------------------------------------------------------------------- */
 /* Timeline tab (PEOPLE-02)                                                   */
@@ -530,25 +215,24 @@
 /* -------------------------------------------------------------------------- */
 
 @media (max-width: 48rem) {
-  /* The summary grid stacks rather than forcing a 12rem minimum column that
-   * overflows a 320px phone. */
-  .dh-person-summary__grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  /* Quick actions fill the row so each is a comfortable thumb target, and they
-   * wrap rather than scroll — an action the user has to swipe to find is not a
-   * quick action. */
-  .dh-person-quick-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--app-space-2);
-  }
-
-  .dh-person-quick-actions > * {
-    flex: 1 1 9rem;
-    justify-content: center;
-    min-block-size: var(--app-touch-target-min);
+  /*
+   * The filter band comes back at phone width carrying ONLY the search.
+   *
+   * Whether the band survives the narrowing at all is the shared layout's
+   * decision and is stated there (`keepFiltersOnCompact`, the sibling of
+   * `keepViewsOnCompact`). What survives INSIDE it is the module's, and it is
+   * search alone: a search box behind a button is a search box nobody uses,
+   * while the catch-up toggle and the sort are both in the shared sheet, where
+   * offering them twice would be two places for a filter to hide.
+   *
+   * HARDEN-02 got the behaviour right and had to express it as a
+   * `:has(.dh-people-filters)` override on the shared class, because the layout
+   * had no way to say it. That override is gone; these two rules are what is
+   * genuinely this module's.
+   */
+  .dh-people-filters__toggle,
+  .dh-people-filters__sort {
+    display: none;
   }
 
   /* Timeline entries stay readable: the rail narrows, the prose keeps the width. */

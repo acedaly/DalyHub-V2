@@ -31,7 +31,12 @@ async function openRecordActivity(page: Page, record: string) {
   // Through the shared opener: at 320 px a six-tab record has Activity
   // off-screen inside the scrolling strip, and a bare click is dropped.
   await openRecordTab(page, "Activity");
-  const feed = page.getByRole("feed").first();
+  // UNTITLED-13: the shared stream's viewport is a labelled `group`. Every
+  // record names its own ("Project activity", "Person timeline", …), so the
+  // opener matches the naming convention rather than a bare role.
+  const feed = page
+    .getByRole("group", { name: /\b(activity|timeline)\b/i })
+    .first();
   await expect(feed).toBeVisible();
   await expect(feed.getByRole("article").first()).toBeVisible({
     timeout: 15_000,

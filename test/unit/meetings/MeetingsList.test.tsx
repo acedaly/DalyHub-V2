@@ -10,7 +10,7 @@ import {
   formatMeetingDayGroup,
   formatMeetingTime,
   meetingZoneLabel,
-  type SerializedMeeting,
+  type SerializedMeetingRow,
 } from "~/modules/meetings/meeting-view";
 
 /**
@@ -25,7 +25,19 @@ import {
 const SYDNEY = "Australia/Sydney";
 const TODAY = "2026-08-10";
 
-function meeting(over: Partial<SerializedMeeting> = {}): SerializedMeeting {
+/*
+ * UNTITLED-13 — the fixture is the ROW projection, which is what the collection
+ * is now given.
+ *
+ * The loaders used to hand every row `serializeMeeting`, so a page of thirty
+ * meetings shipped thirty complete notebooks — `agendaMarkdown`, `notesMarkdown`
+ * and every `meeting_items` row — to draw thirty one-line rows. They ship
+ * `serializeMeetingRow` now: the fields a row draws, plus the counts that let a
+ * PAST row say what came out of the meeting.
+ */
+function meeting(
+  over: Partial<SerializedMeetingRow> = {},
+): SerializedMeetingRow {
   return {
     id: "m1",
     title: "Pathway working group",
@@ -36,16 +48,14 @@ function meeting(over: Partial<SerializedMeeting> = {}): SerializedMeeting {
     mode: "online",
     meetingUrl: null,
     status: "planned",
-    agendaMarkdown: "",
-    notesMarkdown: "",
-    items: [],
     archivedAt: null,
     heldAt: null,
-    createdAt: "2026-08-01T00:00:00.000Z",
     updatedAt: "2026-08-01T00:00:00.000Z",
-    deletedAt: null,
+    agendaItems: 0,
+    hasAgendaBody: true,
+    outcomes: { decisions: 0, outcomes: 0, actions: 0, hasNotes: false },
     ...over,
-  } as SerializedMeeting;
+  };
 }
 
 function renderList(
@@ -86,21 +96,19 @@ describe("MeetingsList", () => {
     ]);
 
     /*
-     * REFINE — the count is INSIDE the heading, so it is inside the heading's
-     * NAME.
+     * UNTITLED-13 — the count is a BADGE beside the heading, not inside it.
      *
-     * The day heading took the Tasks group-heading language ("Tomorrow · 1"),
-     * and the count is a real part of it rather than an annotation beside it —
-     * a heading a screen reader announces as "Tomorrow" while the eye reads
-     * "Tomorrow · 1" is two different headings. The middot is `aria-hidden`, so
-     * the accessible name is the words and the figure with one space between
-     * them.
+     * REFINE had welded it into the `h2`, so the accessible name was
+     * "Tomorrow 1" — a date with a bare digit on the end. Untitled's own
+     * `TableCard.Header` puts the figure in a badge next to the title, and a
+     * badge has to say what it counts, so the heading is the day and the badge
+     * is "2 meetings". Both facts are still announced; neither is now a guess.
      */
     expect(
-      screen.getByRole("heading", { level: 2, name: "Today 1" }),
+      screen.getByRole("heading", { level: 2, name: "Today" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { level: 2, name: "Tomorrow 1" }),
+      screen.getByRole("heading", { level: 2, name: "Tomorrow" }),
     ).toBeInTheDocument();
   });
 
@@ -111,7 +119,7 @@ describe("MeetingsList", () => {
     expect(
       screen.getByRole("heading", {
         level: 2,
-        name: "Thursday, 13 August 2026 1",
+        name: "Thursday, 13 August 2026",
       }),
     ).toBeInTheDocument();
   });
@@ -149,7 +157,7 @@ describe("MeetingsList", () => {
       "2026-08-11",
     );
     expect(
-      screen.getByRole("heading", { level: 2, name: "Today 1" }),
+      screen.getByRole("heading", { level: 2, name: "Today" }),
     ).toBeInTheDocument();
   });
 
@@ -200,6 +208,117 @@ describe("MeetingsList", () => {
     expect(
       screen.queryByRole("link", { name: "Join Held already" }),
     ).not.toBeInTheDocument();
+  });
+
+  /*
+   * §7 — upcoming and past are not the same question, so they are not the same
+   * row. Before this the two views drew identical metadata, so a meeting from
+   * three weeks ago advertised how long it had been scheduled to run.
+   */
+  describe("the two readings", () => {
+    it("an upcoming row states how long and where, and offers Join", () => {
+      renderList(
+        [
+          meeting({
+            endsAt: "2026-08-10T05:30:00.000Z", // an hour later
+            meetingUrl: "https://example.org/meet/x",
+            outcomes: {
+              decisions: 2,
+              outcomes: 1,
+              actions: 3,
+              hasNotes: true,
+            },
+          }),
+        ],
+        "upcoming",
+      );
+      expect(screen.getByText("1h")).toBeInTheDocument();
+      expect(screen.getByText("Teams")).toBeInTheDocument();
+      // Outcomes belong to a history, even when the record happens to hold
+      // some: a meeting that has not happened is not read for what came of it.
+      expect(screen.queryByTestId("meeting-row-decisions")).toBeNull();
+      expect(screen.getByRole("link", { name: /^Join / })).toBeInTheDocument();
+    });
+
+    it("a past row states what came out of it, and offers no Join", () => {
+      renderList(
+        [
+          meeting({
+            status: "completed",
+            endsAt: "2026-08-10T05:30:00.000Z",
+            meetingUrl: "https://example.org/meet/x",
+            outcomes: {
+              decisions: 1,
+              outcomes: 0,
+              actions: 3,
+              hasNotes: true,
+            },
+          }),
+        ],
+        "recent",
+      );
+      expect(screen.getByTestId("meeting-row-decisions")).toHaveTextContent(
+        "1 decision",
+      );
+      expect(screen.getByTestId("meeting-row-actions")).toHaveTextContent(
+        "3 actions",
+      );
+      expect(screen.getByTestId("meeting-row-notes")).toHaveTextContent(
+        "Notes",
+      );
+      // The place still identifies WHICH weekly sync this was.
+      expect(screen.getByText("Teams")).toBeInTheDocument();
+      // The duration is a scheduling fact, and the call has finished.
+      expect(screen.queryByText("1h")).toBeNull();
+      expect(screen.queryByRole("link", { name: /^Join / })).toBeNull();
+    });
+
+    it("a past row with nothing recorded says nothing rather than zeros", () => {
+      renderList(
+        [meeting({ status: "completed", location: null, mode: null })],
+        "recent",
+      );
+      expect(screen.queryByText(/0 decisions/)).toBeNull();
+      expect(screen.queryByTestId("meeting-row-decisions")).toBeNull();
+      expect(screen.queryByTestId("meeting-row-notes")).toBeNull();
+    });
+
+    it("warns on an upcoming meeting with no agenda at all, and not otherwise", () => {
+      renderList(
+        [
+          meeting({
+            id: "m1",
+            title: "Bare",
+            hasAgendaBody: false,
+            agendaItems: 0,
+          }),
+          meeting({ id: "m2", title: "Written up", hasAgendaBody: true }),
+          meeting({
+            id: "m3",
+            title: "Listed",
+            hasAgendaBody: false,
+            agendaItems: 4,
+          }),
+        ],
+        "upcoming",
+      );
+      // One badge, on the one meeting with neither a body nor an item.
+      expect(screen.getAllByText("No agenda yet")).toHaveLength(1);
+    });
+
+    it("never warns about a past meeting's agenda", () => {
+      renderList(
+        [
+          meeting({
+            status: "completed",
+            hasAgendaBody: false,
+            agendaItems: 0,
+          }),
+        ],
+        "recent",
+      );
+      expect(screen.queryByText("No agenda yet")).toBeNull();
+    });
   });
 
   it("opens the record from the row itself", () => {

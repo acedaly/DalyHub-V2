@@ -26,12 +26,11 @@ import { LoadMore, useKeysetPagination } from "~/shared/load-more";
 import { ButtonLink } from "~/shared/ui";
 import { ViewSwitcher } from "~/shared/view-switcher";
 
-import { MeetingsList } from "./MeetingsList";
-import type { SerializedMeeting } from "./meeting-view";
+import { MeetingsList, type MeetingsListMeeting } from "./MeetingsList";
 
 /** The loader payload each `/meetings/*` view returns. */
 type MeetingsPageData = {
-  readonly meetings: readonly SerializedMeeting[];
+  readonly meetings: readonly MeetingsListMeeting[];
   readonly nextCursor: string | null;
   readonly failed: boolean;
 };
@@ -66,7 +65,7 @@ export function MeetingsCollection({
   todayKey,
   ownerTimezone,
 }: {
-  meetings: readonly SerializedMeeting[];
+  meetings: readonly MeetingsListMeeting[];
   view: string;
   failed: boolean;
   total: number;
@@ -94,13 +93,15 @@ export function MeetingsCollection({
     return qs ? `${viewHref}?${qs}` : viewHref;
   }, [viewHref, searchParams]);
 
-  const pagination = useKeysetPagination<SerializedMeeting, MeetingsPageData>({
-    firstPage: meetings,
-    initialCursor: hasMore ? nextCursor : null,
-    path,
-    select: selectMeetingsPage,
-    getId: meetingId,
-  });
+  const pagination = useKeysetPagination<MeetingsListMeeting, MeetingsPageData>(
+    {
+      firstPage: meetings,
+      initialCursor: hasMore ? nextCursor : null,
+      path,
+      select: selectMeetingsPage,
+      getId: meetingId,
+    },
+  );
 
   const subtitle = failed
     ? "We couldn’t load your Meetings."
@@ -249,6 +250,6 @@ function selectMeetingsPage(data: MeetingsPageData) {
   };
 }
 
-function meetingId(meeting: SerializedMeeting): string {
+function meetingId(meeting: MeetingsListMeeting): string {
   return meeting.id;
 }

@@ -1956,9 +1956,16 @@
 .dh-prow__rhythm[data-tone="info"] .dh-prow__dot {
   background: var(--dh-color-accent);
 }
-.dh-prow__rhythm[data-tone="warning"] .dh-prow__dot {
-  background: var(--dh-color-overdue);
-}
+/*
+ * UNTITLED-13 — there is no `warning` rhythm, and there was never meant to be.
+ *
+ * This rule painted a relationship's dot with `--dh-color-overdue`, the colour a
+ * Task wears when its due date has passed, for the states "due for follow-up"
+ * and "out of touch". AGENTS.md §5 and `person-relationship.ts` both rule it out
+ * by name ("no red 'overdue' relationship"), and `RelationshipTone` has no
+ * warning member — the row was reaching past the model to get emphasis the
+ * column's position and the default sort already provide.
+ */
 
 .dh-prow__overflow {
   position: relative;
