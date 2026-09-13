@@ -113,6 +113,27 @@ export function linkTabClassName(
 ): string {
   return cx(
     "z-10 flex h-max cursor-pointer items-center justify-center gap-2 rounded-md whitespace-nowrap text-quaternary no-underline transition duration-100 ease-linear",
+    /*
+     * UNTITLED-12 — `shrink-0`, which is NOT upstream's and is load-bearing.
+     *
+     * A tab is a flex item and a flex item shrinks by default, while this
+     * class also sets `whitespace-nowrap` — so an option compresses its BOX
+     * while its text keeps its full width, and the text spills. MEASURED at
+     * 320px, Diary's Day/Timeline switcher drew "Day" and "Timeline"
+     * overlapping each other, and the ten-option type filter drew all ten as
+     * one unreadable smear.
+     *
+     * It is safe because the rail is already a scroller: `ViewSwitcher` gives
+     * the `nav` `w-auto max-w-full overflow-x-auto` for precisely the reason
+     * its own comment states — a control that forces its own width pushes the
+     * DOCUMENT sideways instead of scrolling inside itself. Items that keep
+     * their intrinsic width inside a scroller scroll; they do not overflow the
+     * page.
+     *
+     * Untitled has no opinion here because its own rails never hold enough
+     * options to meet the case.
+     */
+    "shrink-0",
     "text-sm font-semibold *:data-icon:size-4",
     SIZE[type],
     TONE[type],

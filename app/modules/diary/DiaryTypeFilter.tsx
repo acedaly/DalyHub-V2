@@ -77,17 +77,11 @@ const RAIL = linkTabRailClassName(
 /**
  * One option.
  *
- * `shrink-0` is the rail's, not upstream's, and it is load-bearing: a tab is a
- * flex item, a flex item shrinks by default, and this rail holds ten of them
- * inside a horizontal SCROLLER. MEASURED at 393px without it, every option
- * compressed to 45px while its own `whitespace-nowrap` kept the text at full
- * width, so ten labels overprinted each other into an unreadable smear.
- * Untitled's own rails never hold enough options to meet the case.
+ * The `shrink-0` this needed now lives in `linkTabClassName` itself: the same
+ * omission was drawing the shared Day/Timeline switcher's two options over each
+ * other at 320px, so it belonged in the override rather than here.
  */
-const OPTION = linkTabClassName(
-  "underline",
-  "dh-diary-filter__option shrink-0",
-);
+const OPTION = linkTabClassName("underline", "dh-diary-filter__option");
 
 export function DiaryTypeFilter({
   activeType,
