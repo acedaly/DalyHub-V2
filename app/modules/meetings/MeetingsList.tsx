@@ -50,7 +50,7 @@
 
 import { Link } from "react-router";
 
-import { Badge, ButtonLink } from "~/shared/ui";
+import { ButtonLink } from "~/shared/ui";
 import { TableCard } from "~/shared/ui/untitled/application/table/table";
 import { cx } from "~/shared/ui/untitled/utils/cx";
 
@@ -275,6 +275,9 @@ function MeetingRow({
     ? retrospectiveFacts(meeting)
     : prospectiveFacts(meeting);
 
+  const unprepared =
+    !retrospective && !meeting.hasAgendaBody && meeting.agendaItems === 0;
+
   const joinable =
     !retrospective &&
     meeting.meetingUrl !== null &&
@@ -313,7 +316,7 @@ function MeetingRow({
           <span className="dh-meetings-list__title text-sm font-semibold text-primary">
             {meeting.title}
           </span>
-          {facts.length > 0 || who || status ? (
+          {facts.length > 0 || who || status || unprepared ? (
             <span className="dh-meetings-list__meta flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-sm text-tertiary">
               {facts.map((fact) => (
                 <span
@@ -341,29 +344,32 @@ function MeetingRow({
                   {status}
                 </span>
               ) : null}
+              {/*
+                An UPCOMING meeting with nothing written down is the one thing a
+                schedule can usefully say before the day arrives, and it belongs
+                with the row's other FACTS rather than in the trailing slot.
+
+                A first draft put it at the row's trailing edge beside Join,
+                which at 1440 left it floating 700px from the words it is about
+                and made a fact look like an action. The trailing slot is for
+                things you press.
+
+                It is deliberately quiet and deliberately not a warning: a
+                one-to-one or a phone call needs no agenda, so the row states
+                what is true rather than what to do.
+              */}
+              {unprepared ? (
+                <span
+                  className="dh-meetings-list__unprepared whitespace-nowrap text-quaternary before:pr-1.5 before:content-['·'] first:before:hidden"
+                  data-testid="meeting-row-unprepared"
+                >
+                  No agenda yet
+                </span>
+              ) : null}
             </span>
           ) : null}
         </span>
       </Link>
-
-      {/*
-        An UPCOMING meeting with nothing written down is the one thing a
-        schedule can usefully warn about before the day arrives, and it is the
-        product's only badge on this row: a quiet neutral outline, never an
-        alarm, stating the fact in words. A meeting nobody needs an agenda for
-        (a one-to-one, a call) is not wrong — which is why it is `Badge`
-        `outline` and not a warning tone, and why it says what is true rather
-        than what to do.
-      */}
-      {!retrospective && !meeting.hasAgendaBody && meeting.agendaItems === 0 ? (
-        <Badge
-          tone="neutral"
-          variant="outline"
-          className="dh-meetings-list__unprepared relative z-10 shrink-0 max-sm:hidden"
-        >
-          No agenda
-        </Badge>
-      ) : null}
 
       {/*
         MOBILE-01's one-tap Join, kept exactly: a labelled 44px control OUTSIDE

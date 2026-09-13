@@ -303,7 +303,7 @@ describe("MeetingsList", () => {
         "upcoming",
       );
       // One badge, on the one meeting with neither a body nor an item.
-      expect(screen.getAllByText("No agenda")).toHaveLength(1);
+      expect(screen.getAllByText("No agenda yet")).toHaveLength(1);
     });
 
     it("never warns about a past meeting's agenda", () => {
@@ -317,7 +317,7 @@ describe("MeetingsList", () => {
         ],
         "recent",
       );
-      expect(screen.queryByText("No agenda")).toBeNull();
+      expect(screen.queryByText("No agenda yet")).toBeNull();
     });
   });
 

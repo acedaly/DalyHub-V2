@@ -15,6 +15,8 @@
  * Structurally the sibling of `ProjectHealthPanel` (PROJ-02).
  */
 
+import type { ReactNode } from "react";
+
 import type { PersonRelationship } from "~/kernel/relationships";
 
 import {
@@ -23,21 +25,40 @@ import {
   relationshipReasonText,
 } from "./relationship-view";
 
+/** One labelled fact in the panel's strip. */
+export interface RelationshipFact {
+  readonly label: string;
+  readonly value: ReactNode;
+}
+
 interface StayInTouchPanelProps {
   readonly relationship: PersonRelationship;
   /** Heading id, so the Summary region can label the panel. */
   readonly headingId?: string;
+  /**
+   * UNTITLED-13 — facts the SURFACE owns, rendered at the head of this panel's
+   * own strip rather than in a second `<dl>` beneath it.
+   *
+   * The Person workspace states "Last spoke" and "Next follow-up", which are
+   * about what is happening NOW; this panel states the cadence facts, which are
+   * about the rhythm they sit inside. Both belong in one strip and neither
+   * belongs to the other component — so they arrive here and share the grid.
+   *
+   * MEASURED as the alternative's problem: with two separate `<dl>`s the two
+   * grids could not align, so at 1440 the cadence row filled three columns, the
+   * first interaction sat alone on a row of its own, and "Last spoke" started a
+   * third — three half-empty tables where there is one set of facts.
+   */
+  readonly leadingFacts?: readonly RelationshipFact[];
 }
 
 function days(count: number): string {
   return `${count} ${count === 1 ? "day" : "days"}`;
 }
 
-function factItems(
-  relationship: PersonRelationship,
-): { label: string; value: string }[] {
+function factItems(relationship: PersonRelationship): RelationshipFact[] {
   const { cadence, summary } = relationship;
-  const items: { label: string; value: string }[] = [];
+  const items: RelationshipFact[] = [];
 
   /*
    * RECORD-01 — "Last interaction" is NOT repeated here.
@@ -69,7 +90,16 @@ function factItems(
 
   if (cadence.expectedIntervalDays !== null) {
     items.push({
-      label: "Staying in touch",
+      /*
+       * "Your cadence", not "Staying in touch".
+       *
+       * The record already said those three words twice on one screen — once as
+       * the header's context label beside the derived badge, once as this
+       * panel's own section heading — and this fact made it three times, for
+       * three different things. The label says what the value is: the interval
+       * the follow-up signal was measured against.
+       */
+      label: "Your cadence",
       value:
         cadence.expectedIntervalSource === "follow_up_frequency"
           ? `You chose about every ${days(cadence.expectedIntervalDays)}`
@@ -108,8 +138,9 @@ function factItems(
 export function StayInTouchPanel({
   relationship,
   headingId,
+  leadingFacts = [],
 }: StayInTouchPanelProps) {
-  const facts = factItems(relationship);
+  const facts = [...leadingFacts, ...factItems(relationship)];
 
   return (
     <section

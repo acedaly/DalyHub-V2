@@ -135,8 +135,8 @@ export function PersonSummary({
         <StayInTouchPanel
           relationship={relationship}
           headingId={STAY_IN_TOUCH_HEADING_ID}
+          leadingFacts={upcoming}
         />
-        {upcoming.length > 0 ? <FactStrip items={upcoming} /> : null}
       </Band>
 
       {/*

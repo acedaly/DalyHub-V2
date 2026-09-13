@@ -571,6 +571,19 @@ function MeetingRecord({
     [m.detailsUpdatedAt, m.id, m.notesMarkdown, r],
   );
 
+  /*
+   * Whether the notebook draws its Agenda band.
+   *
+   * An agenda with anything in it is always worth reading. An EMPTY one is
+   * worth WRITING only while the meeting is still ahead — which is
+   * `heldAt === null` and a status that has not moved on, the same two facts
+   * MEET-03 uses to decide whether "Mark as held" is offered.
+   */
+  const showAgenda =
+    m.agendaMarkdown.trim().length > 0 ||
+    m.items.some((item) => item.kind === "agenda") ||
+    (m.heldAt === null && m.status === "planned" && !readOnly);
+
   const itemSection = (
     kind: "agenda" | "decision" | "outcome" | "action",
     heading: string,
@@ -768,18 +781,37 @@ function MeetingRecord({
                    * heading instead of in two different halves of the tab.
                    */
                   <div className="dh-meeting-notebook">
-                    <NotebookSection title="Agenda">
-                      <MeetingMarkdown
-                        meetingId={m.id}
-                        field="agendaMarkdown"
-                        label="Agenda"
-                        initial={m.agendaMarkdown}
-                        version={m.detailsUpdatedAt}
-                        onSaved={() => r.revalidate()}
-                        readOnly={readOnly}
-                      />
-                      {itemSection("agenda", "Agenda items")}
-                    </NotebookSection>
+                    {/*
+                      §7 — an EMPTY agenda is not drawn on a meeting that has
+                      already happened.
+
+                      The sections run in the order a meeting happens, and that
+                      order is right; what was wrong is that a completed meeting
+                      with nothing planned still opened on an empty agenda
+                      editor asking "What should this meeting cover?" — above
+                      the notes that say what it actually did cover. Writing an
+                      agenda for a meeting that is over is not a thing, and the
+                      first band of a past record should not be a prompt to do
+                      it.
+
+                      An agenda that HAS content stays, on any meeting: it is
+                      the record of what was planned, which is worth reading
+                      against what happened.
+                    */}
+                    {showAgenda ? (
+                      <NotebookSection title="Agenda">
+                        <MeetingMarkdown
+                          meetingId={m.id}
+                          field="agendaMarkdown"
+                          label="Agenda"
+                          initial={m.agendaMarkdown}
+                          version={m.detailsUpdatedAt}
+                          onSaved={() => r.revalidate()}
+                          readOnly={readOnly}
+                        />
+                        {itemSection("agenda", "Agenda items")}
+                      </NotebookSection>
+                    ) : null}
 
                     <NotebookSection title="Notes">
                       <MeetingMarkdown

@@ -41,7 +41,7 @@
  * to it on close (the DrawerProvider captures it).
  */
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useRevalidator } from "react-router";
 
 import { useDrawer } from "~/shared/drawer";
@@ -133,6 +133,18 @@ export function MeetingItemRow({
       </div>
 
       <div className="dh-meeting-item__actions flex shrink-0 items-center gap-1">
+        {/*
+          §14 — the visible conversion control belongs to an ACTION, and to the
+          context menu everywhere else.
+
+          Turning an action item into a Task is the most frequent thing done on
+          this surface and two presses for it during a live meeting is one too
+          many, so an action keeps its button. An AGENDA item is a topic and a
+          DECISION is a record of what was settled: offering "Create task" as a
+          full control on every one of those lines put three identical buttons
+          down an agenda of three topics and made the chrome the loudest thing
+          in the band. The action is still one menu away, on every kind.
+        */}
         {convertedTask ? (
           <Button
             variant="subtle"
@@ -145,28 +157,42 @@ export function MeetingItemRow({
           <span className="dh-follow-up-row__state text-xs text-tertiary">
             Not converted
           </span>
-        ) : (
+        ) : item.kind === "action" ? (
           <Button variant="subtle" size="sm" onClick={() => onConvert(item.id)}>
             Create task
           </Button>
-        )}
+        ) : null}
         {/*
-          §14 — the destructive action lives in the shared context menu, not as
-          a permanently-rendered "Remove" beside every line. It was drawn at
+          The destructive action lives in the shared context menu, not as a
+          permanently-rendered "Remove" beside every line. It was drawn at
           `opacity: 0` under a hover rule with a `:focus-within` escape hatch,
           which is three mechanisms to make one control both hidden and
           reachable; a menu is one.
         */}
-        {!readOnly && onRemove ? (
+        {!readOnly && (onRemove || item.kind !== "action") ? (
           <OverflowMenu
             label={`Actions for this ${kind}`}
             items={[
-              {
-                id: "remove",
-                label: `Remove ${kind}`,
-                tone: "danger",
-                onSelect: () => onRemove(item.id),
-              },
+              ...(convertedTask || item.kind === "action"
+                ? []
+                : [
+                    {
+                      id: "convert",
+                      label: "Create a task from this",
+                      onSelect: () => onConvert(item.id),
+                    },
+                  ]),
+              ...(onRemove
+                ? [
+                    {
+                      id: "remove",
+                      label: `Remove ${kind}`,
+                      tone: "danger" as const,
+                      separatorBefore: !convertedTask && item.kind !== "action",
+                      onSelect: () => onRemove(item.id),
+                    },
+                  ]
+                : []),
             ]}
           />
         ) : null}
@@ -203,10 +229,6 @@ export function MeetingItemsSection({
 }: MeetingItemsSectionProps) {
   const rows = items.filter((i) => i.kind === kind);
   const label = meetingItemKindLabel(kind).toLowerCase();
-  // Controlled so the entered text survives a failed save and is cleared only once
-  // the mutation succeeds (no `formEl.reset()` racing an async request).
-  const [body, setBody] = useState("");
-  const [saving, setSaving] = useState(false);
   return (
     /*
      * UIX-04 §26 — inside the notebook this is a LIST under a section heading
@@ -239,63 +261,119 @@ export function MeetingItemsSection({
         </ul>
       )}
       {!readOnly ? (
-        <form
-          className="flex flex-wrap items-end gap-2"
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (!body.trim() || saving) return;
-            setSaving(true);
-            void (async () => {
-              const ok = await onAddItem(kind, body);
-              if (ok) setBody("");
-              setSaving(false);
-            })();
-          }}
-        >
-          {/*
-            RECORD-01 — "Add {label}" once, not twice. The section already has a
-            heading, so the visible button stays the bare verb and keeps the
-            specific ACCESSIBLE name, which is what a screen-reader user needs
-            when four of these forms sit on one record.
-
-            The field names the NOUN, not the act. It used to say "Add {label}"
-            too, which gave the textbox and the submit button one accessible
-            name between them: a screen reader announced "Add action item, edit
-            text" then "Add action item, button", and there was no way to ask
-            for either one unambiguously.
-
-            UNTITLED-13 — it is the shared `Input` (Untitled's `base/input`
-            recipe) rather than a `.dh-field` label wrapping a bare `<input>`,
-            so the field's height, corner, ground and focus ring are the
-            product's one control rather than this module's.
-          */}
-          <label className="flex min-w-0 flex-1 basis-64 flex-col gap-1.5">
-            {/* Untitled's own label recipe (`base/input/label`'s type ramp and
-             * colour) on a native `<label>`. The component itself is React
-             * Aria's `Label`, which needs a `TextField` context this one-line
-             * inline form has no reason to introduce — the native element
-             * associates by containment and reads identically. */}
-            <span className="text-sm font-medium text-secondary">
-              New {label}
-            </span>
-            <Input
-              name="body"
-              value={body}
-              onChange={(event) => setBody(event.target.value)}
-              required
-            />
-          </label>
-          <Button
-            type="submit"
-            variant="secondary"
-            aria-label={`Add ${label}`}
-            disabled={saving}
-          >
-            Add
-          </Button>
-        </form>
+        <AddItemForm kind={kind} label={label} onAdd={onAddItem} />
       ) : null}
     </section>
+  );
+}
+
+/**
+ * UNTITLED-13 — adding an item is one control until you want it, then a field.
+ *
+ * §12 asks the notebook not to carry excessive persistent chrome and to use
+ * progressive disclosure. It carried five bands, and four of them held a visible
+ * label, a text field and an Add button whether or not anything was being
+ * added — so an upcoming meeting with an agenda and nothing else opened on four
+ * empty forms, and the forms outweighed the writing.
+ *
+ * The LIVE path is untouched and is not this: the capture bar pinned to the
+ * bottom of the workspace takes a note, an action, a decision or an outcome
+ * without scrolling anywhere (MOBILE-01). This is the considered path — you are
+ * already reading the band and you want to add to it — so it costs one press to
+ * open and focuses the field when it does.
+ *
+ * The text still survives a failed save: the field is cleared only on success,
+ * and the form only closes when it clears.
+ */
+function AddItemForm({
+  kind,
+  label,
+  onAdd,
+}: {
+  readonly kind: MeetingItemKind;
+  readonly label: string;
+  readonly onAdd: (kind: MeetingItemKind, body: string) => Promise<boolean>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [body, setBody] = useState("");
+  const [saving, setSaving] = useState(false);
+  const fieldRef = useRef<HTMLInputElement>(null);
+
+  if (!open) {
+    return (
+      <Button
+        variant="subtle"
+        size="sm"
+        className="self-start"
+        onClick={() => {
+          setOpen(true);
+          // The field is the point of pressing this, so focus lands in it.
+          requestAnimationFrame(() => fieldRef.current?.focus());
+        }}
+      >
+        Add {label}
+      </Button>
+    );
+  }
+
+  return (
+    <form
+      className="flex flex-wrap items-end gap-2"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (!body.trim() || saving) return;
+        setSaving(true);
+        void (async () => {
+          const ok = await onAdd(kind, body);
+          if (ok) {
+            setBody("");
+            setOpen(false);
+          }
+          setSaving(false);
+        })();
+      }}
+    >
+      {/*
+        RECORD-01 — "Add {label}" once, not twice. The section already has a
+        heading, so the visible button stays the bare verb and keeps the specific
+        ACCESSIBLE name, which is what a screen-reader user needs when four of
+        these forms sit on one record.
+
+        The field names the NOUN, not the act. It used to say "Add {label}" too,
+        which gave the textbox and the submit button one accessible name between
+        them: a screen reader announced "Add action item, edit text" then "Add
+        action item, button", and there was no way to ask for either one
+        unambiguously.
+      */}
+      <label className="flex min-w-0 flex-1 basis-64 flex-col gap-1.5">
+        {/* Untitled's own label recipe (`base/input/label`'s type ramp and
+         * colour) on a native `<label>`. The component itself is React Aria's
+         * `Label`, which needs a `TextField` context this one-line inline form
+         * has no reason to introduce — the native element associates by
+         * containment and reads identically. */}
+        <span className="text-sm font-medium text-secondary">New {label}</span>
+        <Input
+          ref={fieldRef}
+          name="body"
+          value={body}
+          onChange={(event) => setBody(event.target.value)}
+          onKeyDown={(event) => {
+            // Escape abandons an empty field rather than trapping the owner in
+            // a form they opened by accident.
+            if (event.key === "Escape" && body.length === 0) setOpen(false);
+          }}
+          required
+        />
+      </label>
+      <Button
+        type="submit"
+        variant="secondary"
+        aria-label={`Add ${label}`}
+        disabled={saving}
+      >
+        Add
+      </Button>
+    </form>
   );
 }
 

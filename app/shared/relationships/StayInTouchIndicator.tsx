@@ -78,7 +78,18 @@ export function StayInTouchIndicator({
       role={ariaLabel ? "text" : undefined}
     >
       {/*
-        UNTITLED-13 — the product's ONE badge, over Untitled's `base/badges`.
+        UNTITLED-13 — the product's ONE badge, over Untitled's `base/badges`,
+        in its OUTLINE variant.
+
+        MEASURED in both appearances, which is why it is outline and not soft:
+        the soft `info` container is `rgb(231, 222, 255)` in light — a quiet
+        lavender — and `rgb(75, 27, 195)` in dark, a saturated violet that was
+        the loudest thing on a Person record. That token pair is the product's
+        and is correct for a status a reader is meant to notice; a relationship
+        state is not one. The Badge's own note describes `outline` as the
+        variant "for a run of several badges where the tints would read as a
+        stripe", and a calm hairline with a toned dot is what a relationship
+        rates in both appearances.
 
         This was a hand-painted pill with its own stadium radius, its own
         minimum height, its own hairline and its own three-tone container map in
@@ -88,7 +99,7 @@ export function StayInTouchIndicator({
         always followed and the badge enforces: the LABEL carries the state, so
         meaning is never colour alone.
       */}
-      <Badge tone={BADGE_TONES[relationship.tone]} dot>
+      <Badge tone={BADGE_TONES[relationship.tone]} variant="outline" dot>
         {relationship.label}
       </Badge>
       {showReasonText ? (

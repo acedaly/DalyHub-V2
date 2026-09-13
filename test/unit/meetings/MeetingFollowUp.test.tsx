@@ -89,9 +89,47 @@ describe("MeetingItemRow", () => {
      * context menu ("Actions for this agenda item").
      */
     expect(screen.queryByText("Agenda item")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Create task" }));
+
+    /*
+     * §14 — the VISIBLE conversion control belongs to an ACTION item.
+     *
+     * An agenda item is a topic and a decision is a record of what was settled;
+     * offering "Create task" as a full control on each one put three identical
+     * buttons down an agenda of three topics. It is still one press away, in
+     * the row's own context menu, on every kind.
+     */
+    expect(screen.queryByRole("button", { name: "Create task" })).toBeNull();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Actions for this agenda item" }),
+    );
+    fireEvent.click(
+      screen.getByRole("menuitem", { name: "Create a task from this" }),
+    );
     expect(onConvert).toHaveBeenCalledWith("i1");
     expect(screen.queryByRole("button", { name: "Open task" })).toBeNull();
+  });
+
+  it("keeps the conversion control visible on an ACTION item", () => {
+    const onConvert = vi.fn();
+    render(
+      <ul>
+        <MeetingItemRow
+          item={item({
+            id: "a1",
+            kind: "action",
+            bodyMarkdown: "Book the van",
+          })}
+          convertedTask={null}
+          readOnly={false}
+          onConvert={onConvert}
+          onOpenTask={vi.fn()}
+        />
+      </ul>,
+    );
+    // Turning an action into a Task is the most frequent thing done on this
+    // surface, and two presses for it during a live meeting is one too many.
+    fireEvent.click(screen.getByRole("button", { name: "Create task" }));
+    expect(onConvert).toHaveBeenCalledWith("a1");
   });
 
   it("offers Open task once converted and identifies the linked task textually", () => {
