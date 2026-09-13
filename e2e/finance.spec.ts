@@ -409,6 +409,18 @@ test.describe("V2.12 — the phone, and the keyboard", () => {
 
 test.describe("V2.12 — accessibility", () => {
   test("the Finance surfaces are axe-clean", async ({ page }) => {
+    /*
+     * A real budget: this creates an account, imports a statement, and then
+     * loads SEVEN surfaces and runs a full axe scan on each.
+     *
+     * Measured at 27.8s locally against the default 30s, which is not a margin
+     * — and it duly TIMED OUT on a CI runner (run 34772177680, p10), where it
+     * is recorded as `timedOut` rather than as a violation. Nothing is skipped
+     * and no rule is disabled; all seven surfaces are still scanned. This is
+     * the same budget defect `goals-outcomes.spec.ts` states about its own
+     * eleven-width matrix.
+     */
+    test.setTimeout(120_000);
     await createAccount(page, "axe");
     await gotoFixture(page, "/finance/import");
     await importStatement(page, STATEMENT_CSV, "synthetica-axe.csv");
