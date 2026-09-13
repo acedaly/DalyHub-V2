@@ -29,10 +29,11 @@
  * them is readable with the SVG removed. Migrating them would be
  * re-implementing progress bars in Recharts.
  *
- * `TrendLine` is the exception and the debt: it IS a chart — axis, references, a
- * projection, an interactive readout — and `MeasurementTrend` replaces it for
- * Goals. Its remaining consumers (Analytics, Reports, Reviews) are recorded in
- * `UNTITLED_UI_MIGRATION.md` and follow.
+ * `TrendLine` was the exception and the debt: it IS a chart — axis, references,
+ * a projection, an interactive readout. UNTITLED-12 moved its last consumers
+ * (Analytics' completion and overdue trends) onto `MeasurementTrend` and deleted
+ * it, so every chart in this directory is now either an Untitled-backed plot or
+ * an indicator that has no business being one.
  *
  * Every primitive here carries `role="img"` and a generated text summary,
  * because a chart conveys information rather than decorating a number stated
@@ -67,6 +68,12 @@ export {
 } from "./untitled/PeriodicAdherence";
 export {
   MeasurementTrend,
+  /**
+   * The value-domain rule, exported for test. See its own header: the chart's
+   * scale correctness is decidable from the numbers, and asserting it against a
+   * rendered Recharts SVG would test jsdom's layout engine instead.
+   */
+  niceDomain,
   type MeasurementTrendPoint,
   type MeasurementTrendProjection,
   type MeasurementTrendProps,
@@ -81,12 +88,18 @@ export {
   type TrendBarsProps,
   type TrendBarPoint,
 } from "./TrendBars";
-/* GOAL-02 — a dated series, and a two-series period comparison. */
-export {
-  TrendLine,
-  type TrendLineProps,
-  type TrendLinePoint,
-} from "./TrendLine";
+/*
+ * UNTITLED-12 — `TrendLine` is DELETED.
+ *
+ * It was a hand-written 100×100 SVG with no value axis, whose scale was
+ * communicated by four label strings the caller computed and passed in. ADR-126
+ * replaced it for Goals and Habits; its last two consumers (Analytics'
+ * completion and overdue trends) moved to `MeasurementTrend` in UNTITLED-12, and
+ * the removal criterion `UNTITLED_UI_MIGRATION.md` states — "when the last
+ * caller moves, the file and the component go together" — is met.
+ *
+ * Every dated series in the product is now one chart on one foundation.
+ */
 export {
   ComparisonBars,
   type ComparisonBarsProps,

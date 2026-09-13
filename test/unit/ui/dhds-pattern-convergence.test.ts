@@ -83,22 +83,21 @@ describe("DHDS-05 — metric and chart framing", () => {
       read("app", "modules", "goals", "GoalMeasurementPanel.tsx"),
     ).toContain("<ProgressTrack");
     /*
-     * UNTITLED-08 — Goals draws the Untitled-backed chart; Analytics still draws
-     * the hand-rolled one.
+     * UNTITLED-08 left Goals on the Untitled-backed chart and Analytics on the
+     * hand-rolled one, and this test pinned both — the migration in progress
+     * rather than a divergence, because BOTH were the one shared primitive for
+     * their surface, which is what this test actually defends.
      *
-     * That is the migration in progress rather than a divergence: BOTH are the
-     * one shared chart primitive for their surface, taken from `~/shared/charts`,
-     * which is what this test defends. The remaining `TrendLine` consumers
-     * (Analytics, Reports, Reviews) are recorded as chart debt in
-     * `UNTITLED_UI_MIGRATION.md` and move to `MeasurementTrend`'s foundation
-     * next. What must never appear is a chart defined inside a module.
+     * UNTITLED-12 closed it: `TrendLine` is deleted and every dated series in
+     * the product is `MeasurementTrend` over `application/charts-base`. So the
+     * two assertions are now the same assertion, which is the point.
      */
     expect(
       read("app", "modules", "goals", "GoalMeasurementPanel.tsx"),
     ).toContain("<MeasurementTrend");
     expect(
       read("app", "modules", "analytics", "AnalyticsScreen.tsx"),
-    ).toContain("<TrendLine");
+    ).toContain("<MeasurementTrend");
   });
 });
 

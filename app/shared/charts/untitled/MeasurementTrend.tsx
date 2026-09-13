@@ -101,6 +101,7 @@ import { ChartFrame, ChartKeyItem } from "./ChartFrame";
 import {
   CHART_AXIS_COLOR,
   CHART_DASH,
+  CHART_WARNING_COLOR,
   CHART_GRID_COLOR,
   CHART_HEIGHT,
   CHART_MARGIN,
@@ -131,6 +132,12 @@ function isoFromDayNumber(day: number): string {
 /**
  * A value domain whose ticks land on round numbers.
  *
+ * Exported for test. This is where the chart's SCALE correctness lives — that a
+ * target far below every reading still frames, that a count axis offers no
+ * halves, that a measure with a natural floor of zero is not given a negative
+ * tick — and all three are decidable from the numbers alone. Asserting them
+ * against a rendered Recharts SVG would test jsdom's layout engine instead.
+ *
  * Padding the raw extremes by a fixed fraction gives a correct scale and an
  * unreadable axis — "93.4 kg, 88.6 kg, 82.6 kg, 76.6 kg" is four arbitrary
  * numbers, and an axis a reader has to decode is an axis they will not use. This
@@ -138,10 +145,20 @@ function isoFromDayNumber(day: number): string {
  * `steps` intervals across the padded range, then snap the ends outward onto it.
  * The domain can only ever GROW, so nothing is ever cropped out of the plot.
  */
-function niceDomain(
+export function niceDomain(
   min: number,
   max: number,
   steps: number,
+  /**
+   * UNTITLED-12 — snap the step to a WHOLE number.
+   *
+   * A count series has no fractional value: "2.5 Tasks completed" and "7.5
+   * overdue" do not exist, and an axis offering them is an axis that is wrong
+   * rather than merely ugly. This is the same rule ADR-104 states for Habits'
+   * adherence chart, which is why `PeriodicAdherence` already had it; a line of
+   * counts needs it for exactly the same reason a bar of counts does.
+   */
+  wholeNumbers = false,
 ): { domain: [number, number]; ticks: number[] } {
   const span = max - min;
   // A tenth of the range above and below, so a flat-ish series does not sit on
@@ -167,7 +184,7 @@ function niceDomain(
   const normalised = rough / magnitude;
   // 2.5 is on the ladder because quarters of a round number read as naturally
   // as halves do, and without it a 0–100 range has no better option than 50.
-  const step =
+  const rawStep =
     (normalised <= 1
       ? 1
       : normalised <= 2
@@ -177,6 +194,10 @@ function niceDomain(
           : normalised <= 5
             ? 5
             : 10) * magnitude;
+  // Rounding UP rather than to nearest: a step rounded down can be 0 on a
+  // series whose whole range is under one, and a zero step is a loop that
+  // never terminates.
+  const step = wholeNumbers ? Math.max(1, Math.ceil(rawStep)) : rawStep;
 
   const low = floorAtZero
     ? Math.max(0, Math.floor(lowRaw / step) * step)
@@ -277,6 +298,25 @@ export interface MeasurementTrendProps {
    * the whole series rather than one point.
    */
   readonly seriesLabel?: string;
+  /**
+   * UNTITLED-12 — the series' semantic role.
+   *
+   * `series` (the default) is the record's own identity colour, falling back to
+   * brand: the right answer for a measurement, whose direction is good or bad
+   * depending on the Goal. `warning` is for a series that is a BACKLOG — a level
+   * whose existence is the attention, whichever way it is moving — and is the
+   * one Analytics' overdue trend carries today.
+   *
+   * It is a reinforcement, never the meaning: the caption states the latest
+   * reading in words and the summary enumerates every one of them, so nothing
+   * here is carried by hue alone (AGENTS.md §15).
+   */
+  readonly tone?: "series" | "warning";
+  /**
+   * The series is COUNTS, so the value axis snaps to whole numbers. See
+   * {@link niceDomain}.
+   */
+  readonly wholeNumbers?: boolean;
   readonly height?: number;
   readonly "data-testid"?: string;
 }
@@ -316,9 +356,15 @@ export function MeasurementTrend({
   formatValue,
   formatDate,
   seriesLabel = "Recorded readings",
+  tone = "series",
+  wholeNumbers = false,
   height = CHART_HEIGHT,
   "data-testid": testId,
 }: MeasurementTrendProps) {
+  // The series' own colour, and the gradient beneath it. Both come from the one
+  // theme file; nothing here names a hue.
+  const seriesColor =
+    tone === "warning" ? CHART_WARNING_COLOR : CHART_SERIES_COLOR;
   /*
    * The stepped-to reading, lifted out of Recharts' own store by the probe
    * below so it can be announced in a live region OUTSIDE the SVG.
@@ -382,6 +428,7 @@ export function MeasurementTrend({
       Math.min(...domain),
       Math.max(...domain),
       Y_TICKS,
+      wholeNumbers,
     );
 
     /*
@@ -411,7 +458,7 @@ export function MeasurementTrend({
       xDomain: [firstDay, axisEndDay] as [number, number],
       byDay: new Map(rows.map((row) => [row.t, row])),
     };
-  }, [points, target, baseline, projection]);
+  }, [points, target, baseline, projection, wholeNumbers]);
 
   // Two readings are the minimum a line can honestly be drawn from. The caller
   // renders the "more measurements needed" state; this component never invents
@@ -427,7 +474,7 @@ export function MeasurementTrend({
       readout={reading}
       legend={
         <>
-          <ChartKeyItem color={CHART_SERIES_COLOR}>{seriesLabel}</ChartKeyItem>
+          <ChartKeyItem color={seriesColor}>{seriesLabel}</ChartKeyItem>
           {model.projection === null ? null : (
             <ChartKeyItem
               color={CHART_PROJECTION_COLOR}
@@ -476,16 +523,8 @@ export function MeasurementTrend({
                * fades out rather than filling a solid block.
                */}
               <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                <stop
-                  offset="0%"
-                  stopColor={CHART_SERIES_COLOR}
-                  stopOpacity={0.18}
-                />
-                <stop
-                  offset="100%"
-                  stopColor={CHART_SERIES_COLOR}
-                  stopOpacity={0}
-                />
+                <stop offset="0%" stopColor={seriesColor} stopOpacity={0.18} />
+                <stop offset="100%" stopColor={seriesColor} stopOpacity={0} />
               </linearGradient>
             </defs>
 
@@ -589,7 +628,7 @@ export function MeasurementTrend({
             <Area
               dataKey="measured"
               type="linear"
-              stroke={CHART_SERIES_COLOR}
+              stroke={seriesColor}
               strokeWidth={CHART_STROKE_WIDTH}
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -597,7 +636,7 @@ export function MeasurementTrend({
               dot={{
                 r: 3,
                 fill: "var(--color-bg-primary)",
-                stroke: CHART_SERIES_COLOR,
+                stroke: seriesColor,
                 strokeWidth: 2,
               }}
               activeDot={<ChartActiveDot />}
