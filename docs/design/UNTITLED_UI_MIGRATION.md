@@ -977,17 +977,26 @@ their CONTRACTS changed in this pass, and each change is argued in the test:
    both widths, which is an information-architecture decision rather than a
    paint one; it is deliberately not taken here and is the navigator's one
    outstanding item.
-2. **The Diary phone header is tall.** The page title, the date subtitle, the
+2. **A chart's Escape key does not release the active reading.** `TrendLine`
+   cleared its own readout on Escape; Recharts 3 owns the active index and
+   exposes no supported way to clear it, and reaching into its internals to
+   restore one nicety is the fighting-the-library this migration exists to stop.
+   It affects every `MeasurementTrend` — the Goal trend has had it since
+   UNTITLED-11 — and the mitigation is already in place: the readout RESTS on a
+   sentence naming the latest reading rather than on a blank line, so a reader
+   who steps into the series can always see where it currently stands. Worth
+   revisiting if Recharts exposes an imperative API for it.
+3. **The Diary phone header is tall.** The page title, the date subtitle, the
    full-width create action, the mode switch, the week strip and the type filter
    put the first entry around 410px down an 844px screen. Most of that band is
    `CollectionLayout`'s shared phone composition rather than Diary's.
-3. **Settings** — record Settings tabs still draw the shared settings groups
+4. **Settings** — record Settings tabs still draw the shared settings groups
    inside a record panel, and `tone="danger"` paints a reversible Archive group
    as destructive.
-4. **Goals** — a Project inside a Goal record still carries no HEALTH.
-5. **Meeting record** — the notebook and agenda sections. Untouched by this
+5. **Goals** — a Project inside a Goal record still carries no HEALTH.
+6. **Meeting record** — the notebook and agenda sections. Untouched by this
    pass, which stopped where the brief said to stop.
-6. **People, Assets, Reviews, Obligations, Finance** — their row/table
+7. **People, Assets, Reviews, Obligations, Finance** — their row/table
    structures.
-7. The inert legacy class names, the `.dh-btn` hook and the `.dh-input` /
+8. The inert legacy class names, the `.dh-btn` hook and the `.dh-input` /
    `.dh-control` layout bridges.
