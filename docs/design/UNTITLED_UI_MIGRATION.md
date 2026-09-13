@@ -1299,14 +1299,46 @@ RESTRICT` — so the script ran once and failed on the second run with a bare
 orphan an account's details. It clears its own prefix first and then inserts
 plainly.
 
+### CI's E2E suite is red on `main`, and the cause is the partition manifest
+
+Worth recording because it outlives this pass. Every `E2E p01`–`p13` and the
+`CI Gate` behind them fail on `main` at **`a98fd4b`** — this pass's own merge
+base — with `Scope`, `Static`, `Build` and `Unit` green; the four merges before
+it are red the same way, so the suite has been red across five consecutive
+merges.
+
+It is not a test failure. `p07` reports it in the repo's own words: "**DID NOT
+COMPLETE** — 31 of 120 assigned tests never executed (Playwright
+globalTimeout). This is a partition-budget failure, not a test failure … 
+Re-derive the split from measured time (`pnpm run e2e:partitions:generate`)
+rather than raising a timeout", at **25.0 min against a 16.6 min budget**.
+`globalTimeout` is 25 min, so Playwright kills the partition before it
+finishes. The manifest's estimates have drifted below real runtimes — it
+records `finance.spec.ts` at **114.9 s**, and on `main` that file measures
+**258 s** on one machine — and `e2e:partitions:check` cannot catch it, because
+it checks the manifest's own arithmetic rather than the clock.
+
+On this branch `p07` is strictly BETTER than on `main`: five failures against
+six and 27 starved tests against 31, with an identical failing set bar one.
+`the Finance surfaces are axe-clean` fails in both, at `:404` on `main` and
+`:411` here — the same test, moved down the file by edits above it. Measured
+back to back on one machine, this pass costs `finance.spec.ts` 258 s → 276 s
+and that axe test 26.2 s → 27.8 s: real, and nowhere near the eight and a half
+minutes `p07` is over by.
+
+The fix — regenerate the manifest from a run's `e2e-results-p*` artifacts — is
+a repo-wide change touching all 142 spec files and wants its own pass, so it is
+named here and on the PR rather than folded into a module migration.
+
 ### Pre-existing failures, re-checked rather than inherited
 
 The full unit suite (7,757 tests) is green. Eight tests were updated because
 their CONTRACTS changed in this pass, and each change is argued in the test:
 
-- `AssetObligationsTab.test.tsx` — the band heading is an `h2` (Untitled's
-  `TableCard.Header`), and Edit, Create task, Hold and Dismiss are menu items.
-  The tests take the journey a person now takes.
+- `AssetObligationsTab.test.tsx` — the band heading is an `h3` (Untitled's
+  `TableCard.Header`, through the `table-card-header` override), and Edit,
+  Create task, Hold and Dismiss are menu items. The tests take the journey a
+  person now takes.
 - `AssetHistoryTab.test.tsx` — the same, for Edit and Remove. The contract the
   tests exist for — that each action NAMES its entry — is unchanged and now
   covers the trigger as well.
