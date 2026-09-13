@@ -320,7 +320,7 @@ test.describe("TODAY-02 — desktop", () => {
     await dialog.getByRole("tab", { name: "Activity" }).click();
     // The shared Timeline (role=feed) renders the task's real activity.
     await expect(
-      dialog.getByRole("feed", { name: "Task activity" }),
+      dialog.getByRole("group", { name: "Task activity" }),
     ).toBeVisible();
     await expect(dialog.getByRole("article").first()).toBeVisible();
   });

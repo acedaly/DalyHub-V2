@@ -56,6 +56,20 @@ export interface LinkedItemsSectionProps {
    * heading after it. Group headings always sit one level below this one.
    */
   readonly headingLevel?: 2 | 3 | 4 | 5;
+  /**
+   * UNTITLED-14 — link types the SURFACE already renders itself.
+   *
+   * A Meeting's workspace draws its attendees as their own card, with each
+   * person's mark and a remove action; those attendees are EntityLinks of type
+   * `meeting.attendee`, so an unfiltered linked-records card sitting under it
+   * listed the same five names a second time. A surface that gives a link type
+   * a first-class home says so here, and the generic list stops repeating it.
+   *
+   * It filters PRESENTATION only. The links are unchanged, the picker still
+   * excludes them from its results (they are still linked), and no other
+   * surface's list is affected.
+   */
+  readonly excludeLinkTypes?: readonly string[];
 }
 
 function typeLabel(type: string): string {
@@ -99,6 +113,7 @@ export function LinkedItemsSection({
   transport,
   initialItems,
   headingLevel = 2,
+  excludeLinkTypes,
 }: LinkedItemsSectionProps) {
   // One authority for both levels, so a group can never outrank its section.
   const SectionHeading = `h${headingLevel}` as "h2" | "h3" | "h4" | "h5";
@@ -125,7 +140,21 @@ export function LinkedItemsSection({
     unlink,
   } = controller;
 
-  const groups = useMemo(() => groupLinkedItems(items), [items]);
+  /*
+   * What the generic list SHOWS, after the surface's own first-class link types
+   * are taken out. `items` itself is untouched — the picker below still reads
+   * the full set, so an already-linked target is still excluded from search
+   * results whether or not this list draws it.
+   */
+  const shown = useMemo(
+    () =>
+      excludeLinkTypes && excludeLinkTypes.length > 0
+        ? items.filter((item) => !excludeLinkTypes.includes(item.linkType))
+        : items,
+    [items, excludeLinkTypes],
+  );
+
+  const groups = useMemo(() => groupLinkedItems(shown), [shown]);
 
   // The DS-06 picker excludes already-linked targets from its results; feed it
   // the current selections in its own shape.

@@ -2,9 +2,9 @@
  * V2.8 CONV-02 / ADR-115 decision 3 — a REFERENCE to a Task is a link, not a
  * row.
  *
- * Four surfaces name a Task without being a place the Task is worked: a search
- * result, a `/views` row, a Meeting's follow-up row and the next-action line.
- * Each carries a title, a destination and at most the shared signal primitives
+ * Three surfaces name a Task without being a place the Task is worked: a search
+ * result, a `/views` row and the next-action line. Each carries a title, a
+ * destination and at most the shared signal primitives
  * (`PriorityIndicator`, `UrgencyChip`); none may grow a completion control, a
  * Task overflow menu, an inline editor or a metadata run — that would be a
  * third anatomy, and the fork this programme exists to close.
@@ -17,20 +17,28 @@
  * Falsified: giving any one of these a completion checkbox named
  * `Complete <title>` or a `More actions for <title>` menu fails exactly its
  * block below.
+ *
+ * ── UNTITLED-14: the Meeting left this set ──────────────────────────────────
+ *
+ * A Meeting's follow-up row was the fourth surface here, and it was right while
+ * the surface was a separate "Follow-up" tab — a place a Task was NAMED after
+ * the meeting ended. The Meeting workspace redesign folded that tab into the
+ * one screen a person has open while the meeting is running, which makes it a
+ * place work is done rather than referred to, so it renders the shared `TaskRow`
+ * and is enumerated in `shared-row-consumers.test.ts` with the reasoning. This
+ * file stopped asserting the opposite of it.
  */
 
 import { MemoryRouter, createRoutesStub } from "react-router";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import type { SerializedTaskView } from "~/shared/task-record/task-view";
 import { DrawerProvider } from "~/shared/drawer";
 import { NextActionLine } from "~/shared/task-record/NextActionLine";
 import SearchSurface from "~/shared/search/SearchSurface";
 import { assembleOutcome } from "~/shared/search/model";
 import type { SearchFn } from "~/shared/search/client";
 import type { SearchResultItem } from "~/shared/search/model";
-import { MeetingFollowUpTab } from "~/modules/meetings/MeetingFollowUp";
 import { ViewsWorkspace } from "~/modules/views/ViewsWorkspace";
 import type { ViewsPageData } from "~/modules/views/views-contract";
 import type { CrossViewResultDetail } from "~/kernel/views";
@@ -138,49 +146,6 @@ describe("a /views row is a link to the Task, never a row", () => {
     // as TEXT, not as the row's editors.
     expect(row).toHaveTextContent("Waiting");
     expect(row).toHaveTextContent("Launch");
-    expectReferenceOnly(container);
-  });
-});
-
-describe("a Meeting follow-up row is a link to the Task, never a row", () => {
-  it("names the Task, opens it, and offers no completion or menu", () => {
-    const task: SerializedTaskView = {
-      id: "t1",
-      title: TITLE,
-      createdAt: "2026-07-27T00:00:00.000Z",
-      updatedAt: "2026-07-27T00:00:00.000Z",
-      deletedAt: null,
-      completedAt: null,
-      status: "todo",
-      priority: "p1",
-      dueDate: "2026-08-20",
-      scheduledDate: null,
-      timeSector: null,
-      commitmentState: "active",
-      delegation: null,
-      description: null,
-      tags: [],
-      project: null,
-      goal: null,
-      area: null,
-      waiting: {
-        since: "2026-08-10T00:00:00.000Z",
-        subject: { kind: "text", note: "Sam" },
-      },
-    };
-    const onOpenTask = vi.fn();
-    const { container } = render(
-      <MeetingFollowUpTab
-        items={[]}
-        followUps={[{ task, itemId: null }]}
-        readOnly={false}
-        onConvert={vi.fn()}
-        onOpenTask={onOpenTask}
-        onAddFollowUp={vi.fn()}
-      />,
-    );
-    const open = screen.getByRole("button", { name: `Open task: ${TITLE}` });
-    expect(open).toBeInTheDocument();
     expectReferenceOnly(container);
   });
 });

@@ -5,7 +5,7 @@ import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { MeetingsCollection } from "../MeetingsCollection";
 import { loadMeetingRowAttendees } from "../meeting-attendees";
-import { serializeMeeting } from "../meeting-view";
+import { serializeMeetingRow } from "../meeting-view";
 import type { Route } from "./+types/archived";
 export async function loader({ request, context }: Route.LoaderArgs) {
   const s = requireAuthenticatedSession(context);
@@ -43,7 +43,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
     return {
       meetings: p.items.map((meeting) => ({
-        ...serializeMeeting(meeting),
+        ...serializeMeetingRow(meeting),
         attendees: attendees.get(meeting.id) ?? null,
       })),
       total: p.total,

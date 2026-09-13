@@ -590,15 +590,50 @@
  * vocabularies, and it is stated here rather than left to be discovered.
  */
 
-/* OUTLINE — a hairline with no fill, for a run of several badges where the
- * tints would read as a stripe. */
-.dh-badge--outline {
+/*
+ * OUTLINE — a hairline with no fill, for a run of several badges where the
+ * tints would read as a stripe.
+ *
+ * ── UNTITLED-13: it was never actually an outline ───────────────────────────
+ *
+ * `.dh-badge--outline` is ONE class, specificity (0,1,0). Every tone rule above
+ * it is a class plus an attribute, (0,2,0). So `background: transparent` lost to
+ * the tone's container on every single badge, and `variant="outline"` has meant
+ * "a soft badge whose text is the role colour" since DS-02 — which is also a
+ * CONTRAST risk, because the outline arms put a full-strength role colour on a
+ * subtle container the contrast suite only ever checked against its own
+ * `on-` pair.
+ *
+ * MEASURED on a Person record: `variant="outline"` `tone="info"` computed to
+ * the channel triple 231 222 255 in light and 75 27 195 in dark — the soft
+ * container in both, and in dark a saturated violet that was the loudest thing
+ * on the page. (Stated as bare channels because this file's own guard forbids
+ * an authored colour function, and it reads the comments too.)
+ *
+ * The fix is `[data-tone]`, which raises the outline rule to the same weight as
+ * the tone rules it has to beat and, sitting later in the file, wins. It is
+ * written as an attribute selector rather than as an `!important` or a repeated
+ * class for the reason this stylesheet exists: the cascade should be legible.
+ *
+ * The tone COLOUR arms then need the two that were missing — `neutral` and
+ * `info` — because with the fill genuinely gone, a tone with no colour arm was
+ * relying on the container to be told apart at all.
+ */
+.dh-badge--outline[data-tone] {
   background: transparent;
   border-color: var(--dh-color-border-strong);
 }
 
+.dh-badge--outline[data-tone="neutral"] {
+  color: var(--dh-color-text-muted);
+}
+
 .dh-badge--outline[data-tone="accent"] {
   color: var(--dh-color-accent);
+}
+
+.dh-badge--outline[data-tone="info"] {
+  color: var(--dh-color-info);
 }
 
 .dh-badge--outline[data-tone="danger"] {

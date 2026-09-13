@@ -1000,3 +1000,138 @@ their CONTRACTS changed in this pass, and each change is argued in the test:
    structures.
 8. The inert legacy class names, the `.dh-btn` hook and the `.dh-input` /
    `.dh-control` layout bridges.
+
+## UNTITLED-13 — Meetings, People and the shared Person identity
+
+The per-surface inventory (Untitled source, how it is used, what stays custom
+and why) is in
+[`UNTITLED_UI_IMPLEMENTATION.md`](UNTITLED_UI_IMPLEMENTATION.md#untitled-13-completion-record--meetings-people-and-the-shared-person-identity).
+This records what MOVED and what is left behind.
+
+### What moved
+
+| Surface | Untitled source | Before → after | Kept deliberately |
+| --- | --- | --- | --- |
+| Person mark | `base/avatar` (`Avatar`, and `AvatarProfilePhoto` newly vendored) | TWO marks — a `<span>` sized by inline style in `~/modules/people`, and a second disc in `meetings.css` written because the first was not importable. The same person was a 44px tinted disc on `/people` and a 20px grey one on their own meeting | UIX-05's circle accent, six generated rules instead of a parallel avatar. A photograph takes no tint |
+| Meeting header's people | `base/avatar` grouped as `informational-02/10` groups an event's guests | Four name-plus-initials pairs, or a "+N more" text link | The marks are DECORATIVE and the count is the target — measured at 24×25px as links, against a 44px floor |
+| Meeting attendee list | Untitled's divided list + the shared Person mark + `OverflowMenu` | A bare `<ul>` of `EntityLink` beside a "Remove" button; a person with a photograph was a line of blue text | Removing an attendee is a menu item, not a permanent destructive control |
+| Meetings collection day | `application/table`'s `TableCard.Root` / `.Header` | A hand-copied class string that happened to spell those components' output | The fixed leading TIME column: a day's meetings read as a schedule |
+| Meeting row | — | Upcoming and past drew identical metadata, so a meeting from three weeks ago advertised how long it was scheduled to run and offered Join for a finished call | Attendees stay TEXT: the batched read carries a title and nothing else, so marks would say less than the names |
+| Meeting items | Untitled's divided list, `base/buttons`, the shared `OverflowMenu` | A bordered filled box per item, which a second rule in the same file then unset for the notebook's copy; a kind chip repeating its own heading; two text buttons faded by `opacity: 0` under a hover rule with a `:focus-within` escape | ONE visible conversion control, on ACTION items, because converting is the point there and two presses in a live meeting is one too many |
+| Notebook headings | `overrides/section-heading` (`application/section-headers`) | A bespoke uppercase letter-spaced rule with its own hairline, the only heading in the product spelled that way | The writing MEASURE and the two editor accommodations that depend on it |
+| Notebook add forms | `base/input`, `base/buttons` | Four permanently-open label+field+button trios, so an upcoming meeting opened on four empty forms | The capture bar is the LIVE path and is untouched; the section form is the considered one and discloses |
+| Meeting capture chips | The shared `toggleOptionClassName` (Untitled's pill geometry) | A bespoke chip under the M3 `md-state-layer` wash — the FOURTH control to leave that list on being rebuilt | `aria-pressed`, and the label carrying the state |
+| Meeting Details facts | The shared quiet fact strip | `record-summary__meta`, a fixed two-column grid whose phone arrangement `meetings.css` then had to undo with `display: block` | — |
+| Person workspace | `overrides/section-heading`, Untitled's divided list and card anatomy, `base/badges` | A grid of up to nine counting tiles, two of which measured the relationship rather than describing it | The counts, as the rhythm band's supporting sentence — evidence, not a headline |
+| Person recent activity | The shared `Timeline` over the SAME `/person/:id/activity` endpoint | The tab that OPENS carried none of the history the record exists for | No second endpoint and no second projection |
+| Stay-in-touch pill | `base/badges` via the shared `Badge`, OUTLINE variant | A hand-drawn stadium with its own height, hairline and three-tone container map | The label always carries the state |
+| People filter bar | `base/input` via `inputClassName()`, `toggleOptionClassName` | A bare `<input>` on `base.css`'s control floor beside ~35 lines of hand-painted toggle | Search stays visible at phone width — now through the layout's own prop |
+
+### Stylesheets cut
+
+- `meetings.css` — 631 → 317 lines. The item rows, the kind chip, the
+  hover-reveal trio, the follow-up row's stadium border, the attendee list, the
+  context row including its private avatar, the notebook heading, the capture
+  chip's paint and the phone `dl` unset. What survives is the sticky capture
+  bar's geometry and the notebook's writing measure.
+- `people.css` — 558 → 240 lines. The avatar's geometry, the whole collection
+  controls block, the Person workspace's identity block and fact grid, and four
+  rule families with no consumer in `app/` — including a Meetings block orphaned
+  here since MEET-01 that still spoke the pre-`--dh-*` vocabulary.
+- `relationships.css` — 153 → 47 lines. The pill, its tone map, its dot, the
+  facts grid and both containers. What survives is the reason bullet's tone.
+- `card-family.css` — the `warning` rhythm dot, which painted a relationship
+  with `--dh-color-overdue`.
+
+### Defects surfaced, and what they were
+
+Each was real, each is fixed here, and none was visible to the tests that
+already existed:
+
+- **A relationship was painted with the product's OVERDUE red.**
+  `rhythmTone()` escalated `out_of_touch` and `due_for_follow_up` from the
+  kernel's `neutral` to the row's `warning`, which `card-family.css` painted
+  with `--dh-color-overdue`. AGENTS.md §5 and `person-relationship.ts` both rule
+  it out by name, and `RelationshipTone` has no `warning` member precisely so it
+  could not be expressed. The emphasis it wanted is the column's position and
+  the default sort, both of which already existed.
+- **`variant="outline"` never removed the badge's fill.** One class, (0,1,0),
+  against tone rules at (0,2,0) — so the variant has meant "a soft badge whose
+  text is the role colour" since DS-02, which is also a contrast risk. Fixed
+  with `[data-tone]`, and `neutral`/`info` gained the colour arms the container
+  had been covering for.
+- **`role="feed"` on the activity viewport was a promise the DOM has never
+  kept.** axe reported `aria-required-children` (critical) on every Activity
+  surface in the product. A day-grouped, virtualised chronology cannot be a flat
+  article list; the region is a labelled `group` in every state now.
+- **The phone search reveal was 32×32 against a 44px floor** — the vendored
+  `ButtonUtility` directly, on every collection in the product. It is the shared
+  `IconButton`, whose own note says Untitled's desktop dimensions are not
+  assumed sufficient.
+- **People's phone search rule was implemented against the shared layout.**
+  HARDEN-02 had to write `:has(.dh-people-filters)` on the shared class because
+  the layout offered no way to say it. `keepFiltersOnCompact` is that way, the
+  sibling of the `keepViewsOnCompact` it mirrors.
+- **The collection shipped its notebooks.** Every `/meetings/*` loader
+  serialised each row with the whole kernel record — `agendaMarkdown`,
+  `notesMarkdown` and every `meeting_items` row — so thirty rows meant thirty
+  complete notebooks in the browser.
+- **A past meeting opened on an empty agenda editor**, asking what a finished
+  meeting should cover, above the notes saying what it did.
+- **One fact printed three times.** For a Person with a single recorded moment,
+  "last spoke", "known since" and the panel's "first interaction" were the same
+  date under three names.
+
+### Two defects this pass INTRODUCED and then measured away
+
+Recorded because the measurement is the point, not the outcome:
+
+- linking every mark in the Meeting header's avatar group gave four 24×25px tap
+  targets against a 44px floor;
+- reaching for `persistentControls` by its name made the SHEET the control
+  surface at every width and left the hide rule in force, so at 393px the whole
+  People filter band vanished — the exact defect HARDEN-02 fixed. Caught by
+  driving a real browser at phone width; no test could see it, and the
+  class-level opt-in is asserted now so the next one can be.
+
+### Pre-existing failures, re-checked rather than inherited
+
+`AnalyticsScreen.test.tsx` fails two assertions about a bounded overdue series'
+axis labelling. Reproduced on `origin/main` at 7326187 in a clean worktree, with
+the same two names and the same messages. Nothing in this pass touches Analytics
+or the chart foundation.
+
+### The fixtures
+
+`scripts/meetings-people-seed.mjs` and `scripts/meetings-people-shot.mjs`,
+siblings of `notes-diary-seed.mjs` / `-shot.mjs` and written for the same
+reason. The seed adds fourteen People across every circle with deliberately
+uneven contact data, twenty Meetings with real outcomes behind them and real
+agendas ahead, and — the part a first draft omitted — the Activity events the
+relationship model is actually DERIVED from. Without them every row read "No
+shared history yet", because the product correctly refuses to call a
+hand-entered date an interaction.
+
+The shooter photographs and MEASURES, in two contexts: a desktop one, and a
+`hasTouch` one at 430px and below. That second context is the whole reason its
+touch report means anything — a headless desktop Chromium reports
+`hover: hover`, so every coarse-pointer rule in the product measures as absent
+and a first version of the script reported floor breaches that do not exist.
+
+### Next
+
+1. **A bounded `people.getByIds`.** A Meeting resolves attendees through
+   EntityLinks, which carry an id and a title, so its Person marks are generated
+   from the display name and take the neutral disc. The photograph and the
+   circle accent need the Person record, and one read per attendee is the N+1
+   DEBT-124 exists to avoid.
+2. **Assets claims People's phone-search rule and does not have it.** Its own
+   note says "search stays visible" and the shared hide rule still applies to
+   it; `keepFiltersOnCompact` is now available to say it properly.
+3. **`SummaryCards` is still M3.** It carries `md-state-layer` and `card.css`
+   paint, and Projects, Areas and Assets still draw it. People no longer does.
+4. **The `EntityLink` and `SelectField` clear affordances measure 22–28px** at
+   phone width. Both are shared controls with many consumers and neither is this
+   pass's; the measurement is in `meetings-people-shot.mjs` whenever they are.
+5. Settings, Goals' Project health, the Diary week strip's focus order, and the
+   inert legacy class names — all carried forward from UNTITLED-12 unchanged.

@@ -41,6 +41,18 @@ import {
 import { DrawerProvider } from "~/shared/drawer";
 import type { DrawerEntry, DrawerRenderResult } from "~/shared/drawer";
 
+/*
+ * UNTITLED-13 — the viewport is a labelled `group`, not a `feed`.
+ *
+ * `role="feed"` owns `article` CHILDREN, and this region's are
+ * `viewport > canvas > virtualisation wrapper > day heading | article` — three
+ * levels down, with day headings interleaved. axe reported
+ * `aria-required-children` (critical) on every Activity surface in the product,
+ * and no arrangement of presentation roles can make the claim true without
+ * giving up the day grouping the surface exists for. Each moment is still a real
+ * `<article>` with a real heading, which is how assistive tech navigates it.
+ */
+
 const WS = parseWorkspaceId("ws-test");
 const SYSTEM: ActivityActor = { type: "system", id: null };
 const USER: ActivityActor = { type: "user", id: "u-1" };
@@ -137,7 +149,7 @@ describe("Timeline and Activity Feed are the same renderer", () => {
         </DrawerProvider>
       </MemoryRouter>,
     );
-    await within(feed.container).findByRole("feed");
+    await within(feed.container).findByRole("group");
     expect(feed.container.querySelectorAll(".dh-activity-item")).toHaveLength(
       1,
     );
@@ -150,7 +162,7 @@ describe("Timeline and Activity Feed are the same renderer", () => {
         </DrawerProvider>
       </MemoryRouter>,
     );
-    await within(timeline.container).findByRole("feed");
+    await within(timeline.container).findByRole("group");
     expect(
       timeline.container.querySelectorAll(".dh-activity-item"),
     ).toHaveLength(1);
@@ -182,7 +194,7 @@ describe("accessible structure", () => {
       ]),
     });
 
-    const feed = await screen.findByRole("feed", { name: "Activity" });
+    const feed = await screen.findByRole("group", { name: "Activity" });
     expect(feed).toBeInTheDocument();
 
     // Two day-group headings, in the accessibility tree at the default level 3,
@@ -291,9 +303,11 @@ describe("states", () => {
 
   // Regression: the viewport used to carry `aria-label` with NO role while it was
   // empty, loading or errored — a serious axe `aria-prohibited-attr` violation, and
-  // an accessible name assistive tech simply drops. It is a `feed` while showing
-  // articles and a labelled `group` otherwise, but it is NEVER an unlabelled or
+  // an accessible name assistive tech simply drops. It is NEVER an unlabelled or
   // roleless region.
+  //
+  // UNTITLED-13 — and it is a labelled `group` in EVERY state now, including the
+  // one that used to be `role="feed"`. See the note at the head of this file.
   it("keeps the viewport a labelled region in EVERY state", async () => {
     const { unmount } = renderStream({
       loadPage: async () => ({ items: [], nextCursor: null, hasMore: false }),
@@ -327,7 +341,17 @@ describe("states", () => {
     expect(screen.queryByRole("feed")).not.toBeInTheDocument();
   });
 
-  it("becomes a labelled feed once it has articles to show", async () => {
+  /*
+   * UNTITLED-13 — it stays a labelled GROUP once it has articles, and the
+   * articles are what assistive tech navigates.
+   *
+   * This used to assert that the region became a `feed`. It cannot be one: a
+   * `feed` owns `article` children and these are three levels down behind
+   * virtualisation wrappers, with day headings interleaved at the same level.
+   * axe reported `aria-required-children` (critical) on every Activity surface
+   * in the product. The busy state is the half that mattered and it is kept.
+   */
+  it("stays a labelled, busy group once it has articles to show", async () => {
     renderStream({
       loadPage: async () => ({
         items: toActivityItems([rec({ id: "a" })], { resolveEntity }),
@@ -336,7 +360,7 @@ describe("states", () => {
       }),
     });
     expect(await screen.findByRole("article")).toBeInTheDocument();
-    expect(screen.getByRole("feed", { name: "Activity" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Activity" })).toBeInTheDocument();
   });
 
   it("shows an error and retries", async () => {
@@ -414,7 +438,7 @@ describe("DS-07 filtering — empty vs filtered-empty", () => {
       </MemoryRouter>,
     );
     // No filter → both events.
-    await screen.findByRole("feed");
+    await screen.findByRole("group");
     expect(screen.getAllByRole("article")).toHaveLength(2);
 
     // A filter that matches nothing → filtered-empty with recovery.

@@ -123,7 +123,7 @@ test.describe("PEOPLE-02 — the unified relationship timeline", () => {
 
     // 1. Before linking, the Timeline carries only the Person's own record events.
     await openTimeline(page);
-    const feed = page.getByRole("feed", { name: "Person timeline" });
+    const feed = page.getByRole("group", { name: "Person timeline" });
     await expect(feed).toBeVisible();
     await expect(feed.getByText(new RegExp(noteTitle))).toHaveCount(0);
 
@@ -196,7 +196,7 @@ test.describe("PEOPLE-02 — the unified relationship timeline", () => {
     await expect(page.getByRole("tab", { name: "Activity" })).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(
-      page.getByRole("feed", { name: "Person timeline" }),
+      page.getByRole("group", { name: "Person timeline" }),
     ).toBeVisible();
 
     // The filter bar's entry point is a real, focusable control, and opens and
@@ -213,7 +213,7 @@ test.describe("PEOPLE-02 — the unified relationship timeline", () => {
       0,
     );
     await expect(
-      page.getByRole("feed", { name: "Person timeline" }),
+      page.getByRole("group", { name: "Person timeline" }),
     ).toBeVisible();
 
     // The tab that reaches the timeline meets the shared 44px target floor.

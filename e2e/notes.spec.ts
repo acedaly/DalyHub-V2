@@ -285,7 +285,7 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
 
     // 10. Activity holds note.content_updated.
     await page.getByRole("tab", { name: "Activity" }).click();
-    const activityFeed = page.getByRole("feed", { name: "Note activity" });
+    const activityFeed = page.getByRole("group", { name: "Note activity" });
     await expect(activityFeed.getByText("Updated note content")).toBeVisible();
     await expectNoAxeViolations(page);
 

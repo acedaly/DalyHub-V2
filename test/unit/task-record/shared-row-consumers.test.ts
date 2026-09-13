@@ -60,6 +60,27 @@ const ACTIONABLE_TASK_SURFACES = [
   "app/modules/projects/ProjectTasksTab.tsx",
   // V2.8 CONV-02 — the Waiting list, the layer's last Card consumer.
   "app/modules/today/task/WaitingTasks.tsx",
+  /*
+   * UNTITLED-14 — the Meeting's Actions band CROSSED OVER, and that is a
+   * product decision rather than a drift.
+   *
+   * ADR-115 decision 3 put a Meeting's follow-up row in the REFERENCE set, and
+   * the reasoning was sound for what the surface then was: a separate
+   * "Follow-up" tab, a place a Task was named after the meeting had ended.
+   *
+   * The Meeting workspace redesign removed that tab. A meeting's actions and
+   * the Tasks they became are now one band of the one screen a person has open
+   * WHILE the meeting is running, which makes it a place work is done: you tick
+   * off what was already agreed, you set a due date on what was just decided.
+   * The redesign brief states it directly — "Actions that are Tasks MUST use
+   * DalyHub's shared Task system. Do not create another task UI. Meeting-
+   * generated tasks should feel exactly like Tasks elsewhere."
+   *
+   * So the Meeting joins the actionable set and leaves the reference one, and
+   * the file it used to be listed under (`MeetingFollowUp.tsx`) no longer draws
+   * a Task at all — the 142-line tab that did was deleted with the tab.
+   */
+  "app/modules/meetings/routes/detail.tsx",
 ] as const;
 
 const WAITING_SURFACE = "app/modules/today/task/WaitingTasks.tsx";
@@ -74,7 +95,6 @@ const WAITING_ROUTE = "app/modules/today/routes/waiting.tsx";
 const TASK_REFERENCE_SURFACES = [
   "app/shared/search/SearchSurface.tsx",
   "app/modules/views/ViewsWorkspace.tsx",
-  "app/modules/meetings/MeetingFollowUp.tsx",
   "app/shared/task-record/NextActionLine.tsx",
 ] as const;
 

@@ -137,7 +137,7 @@ test.describe("AREA-02 — Goals", () => {
     // can never revert the other). That is the intended trade: two honest
     // events instead of one covering a write the user did not make.
     await page.getByRole("tab", { name: "Activity" }).click();
-    const activityFeed = page.getByRole("feed", { name: "Goal activity" });
+    const activityFeed = page.getByRole("group", { name: "Goal activity" });
     await expect(activityFeed.getByText("Updated goal details")).toHaveCount(2);
 
     await page.getByRole("button", { name: /^Target date: / }).click();
@@ -236,11 +236,11 @@ test.describe("AREA-02 — Goals", () => {
     // 9. Review Activity.
     await page.getByRole("tab", { name: "Activity" }).click();
     await expect(
-      page.getByRole("feed", { name: "Goal activity" }),
+      page.getByRole("group", { name: "Goal activity" }),
     ).toBeVisible();
     await expect(
       page
-        .getByRole("feed", { name: "Goal activity" })
+        .getByRole("group", { name: "Goal activity" })
         .getByRole("article")
         .first(),
     ).toBeVisible();

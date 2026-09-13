@@ -223,26 +223,55 @@ export function ActivityStream(props: ActivityStreamProps): ReactNode {
   }
 
   /**
-   * The viewport is ALWAYS a labelled region, never a bare labelled div:
+   * The viewport is ALWAYS a labelled `group`, never a bare labelled div and
+   * never a `feed`.
+   *
    * `aria-label` on an element with no role is prohibited (axe
-   * `aria-prohibited-attr`, serious) and the accessible name is simply dropped by
-   * assistive tech. It is a `feed` while it is showing articles, and a plain
-   * labelled `group` while it is empty, loading or errored — so the bounded,
-   * focusable scroll region keeps its name in every state.
+   * `aria-prohibited-attr`, serious) and the accessible name is simply dropped
+   * by assistive tech, so the bounded, focusable scroll region keeps a role —
+   * and its name — in every state.
+   *
+   * ── UNTITLED-13: the `feed` was a promise this DOM has never kept ──────────
+   *
+   * While it was showing articles this was `role="feed"`, and axe reported
+   * `aria-required-children` (CRITICAL) against it on every Activity surface in
+   * the product. It is not a lint quibble and it is not fixable by adding a
+   * `role="presentation"` somewhere: `feed` owns `article` children, and this
+   * region's children are
+   *
+   *     viewport > canvas > virtualisation wrapper > day heading | article
+   *
+   * — the articles are three levels down, the wrappers exist whether or not
+   * virtualisation is engaged, and DAY HEADINGS are interleaved with the
+   * articles at the same level. A chronology grouped by day is not the flat
+   * article list `feed` describes, so no arrangement of presentation roles can
+   * make the claim true; making the DOM flat would mean giving up the day
+   * grouping, which is the thing the surface is FOR.
+   *
+   * What is lost by dropping it: the feed role's own reading mode, the one a
+   * screen reader offers for stepping article-by-article through a stream.
+   * What is NOT lost is the position information that mode reads. Each moment
+   * still carries `aria-posinset`/`aria-setsize` — `article` supports both
+   * natively, independently of any ancestor role — so a windowed article still
+   * announces "7 of 120" rather than "7 of 12 rendered". Each moment is also
+   * still a real `<article>` with a real heading, which is how assistive tech
+   * actually navigates this region today.
+   *
+   * `aria-busy` is unaffected — it is a global attribute and says the same
+   * thing on a `group`.
+   *
+   * This is UNTITLED-12's "shared activity viewport semantics" residual,
+   * root-caused. It surfaced here because this pass gave the Person workspace a
+   * second consumer of the component and then ran axe over it.
    */
-  const viewportRegionProps = showingFeed
-    ? {
-        role: "feed",
-        "aria-label": ariaLabel,
-        "aria-busy": stream.isLoadingMore || undefined,
-      }
-    : {
-        role: "group",
-        "aria-label": ariaLabel,
-        // A labelled region that is busy should say so — otherwise the initial
-        // load is silent to assistive tech.
-        "aria-busy": showInitialLoading || undefined,
-      };
+  const viewportRegionProps = {
+    role: "group",
+    "aria-label": ariaLabel,
+    // A labelled region that is busy should say so — otherwise neither the
+    // initial load nor a load-more is announced at all.
+    "aria-busy":
+      (showingFeed ? stream.isLoadingMore : showInitialLoading) || undefined,
+  };
 
   return (
     <section className="dh-activity" data-scope={scope}>

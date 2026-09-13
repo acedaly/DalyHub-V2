@@ -10,6 +10,17 @@ import type { Locator, Page } from "@playwright/test";
  * virtualised-window behaviour, load-more scroll preservation and layout invariants
  * — never pixel snapshots. Covered at desktop and a 320px mobile viewport, and in
  * both colour schemes.
+ *
+ * UNTITLED-13 — the viewport is a labelled `group`, not a `feed`.
+ *
+ * `role="feed"` owns `article` CHILDREN; this region's are three levels down
+ * (viewport > canvas > virtualisation wrapper) with DAY HEADINGS interleaved
+ * among them, so axe reported `aria-required-children` (critical) against every
+ * Activity surface in the product. Flattening the DOM would mean giving up the
+ * day grouping the surface exists for, so the role went instead. These queries
+ * follow the DOM; the behaviour each test asserts is unchanged, and the articles
+ * still carry `aria-posinset`/`aria-setsize` (which `article` supports on its
+ * own), so the windowing assertion below still reads real position data.
  */
 
 const FIXTURE = "/design/activity-feed";
@@ -24,8 +35,14 @@ async function gotoFixture(page: Page) {
     page.getByRole("heading", { name: "Timeline & Activity Feed", level: 1 }),
   ).toBeVisible();
   // Both configurations of the one renderer are present.
-  await expect(page.getByTestId("af-feed").getByRole("feed")).toBeVisible();
-  await expect(page.getByTestId("af-timeline").getByRole("feed")).toBeVisible();
+  await expect(
+    page.getByTestId("af-feed").getByRole("group", { name: "Activity feed" }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByTestId("af-timeline")
+      .getByRole("group", { name: "Website relaunch timeline" }),
+  ).toBeVisible();
 }
 
 async function hasNoHorizontalOverflow(page: Page) {
@@ -53,7 +70,7 @@ async function addEventTypeFilter(page: Page, valueLabel: string) {
 test.describe("DS-05 — desktop", () => {
   test("Timeline shows a record’s history grouped by day", async ({ page }) => {
     await gotoFixture(page);
-    const timeline = page.getByTestId("af-timeline").getByRole("feed");
+    const timeline = page.getByTestId("af-timeline").getByRole("group");
     await expect(timeline.getByRole("article").first()).toBeVisible();
     // Accessible day-group headings group the events.
     await expect(
@@ -74,7 +91,7 @@ test.describe("DS-05 — desktop", () => {
     await expect.poll(() => page.url()).toContain("activityType");
 
     // The feed now only shows task-completed events (their subject links).
-    const feed = page.getByTestId("af-feed").getByRole("feed");
+    const feed = page.getByTestId("af-feed").getByRole("group");
     await expect(feed.getByRole("article").first()).toBeVisible();
     await expect(feed.getByText("completed").first()).toBeVisible();
   });
@@ -86,7 +103,7 @@ test.describe("DS-05 — desktop", () => {
     await addEventTypeFilter(page, "Task completed");
     await expect.poll(() => page.url()).toContain("activityType");
 
-    const feed = page.getByTestId("af-feed").getByRole("feed");
+    const feed = page.getByTestId("af-feed").getByRole("group");
     await feed.getByRole("link").first().click();
 
     // The drawer opens over the current context…
@@ -100,7 +117,7 @@ test.describe("DS-05 — desktop", () => {
     page,
   }) => {
     await gotoFixture(page);
-    const feed = page.getByTestId("af-feed").getByRole("feed");
+    const feed = page.getByTestId("af-feed").getByRole("group");
 
     // Load a few pages so many events are loaded.
     for (let i = 0; i < 3; i += 1) {
@@ -144,7 +161,7 @@ test.describe("DS-05 — desktop", () => {
     await gotoFixture(page);
     const link = page
       .getByTestId("af-feed")
-      .getByRole("feed")
+      .getByRole("group")
       .getByRole("link")
       .first();
     await link.focus();

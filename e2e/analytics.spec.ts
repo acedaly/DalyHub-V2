@@ -109,7 +109,10 @@ test.describe("UIX-05 — Insight", () => {
     await expect(
       page.getByRole("heading", { name: "What changed" }),
     ).toBeVisible();
-    const feed = page.getByRole("feed").or(page.getByRole("list"));
+    // UNTITLED-13: the shared stream is a labelled `group` now, not a `feed`.
+    const feed = page
+      .getByRole("group", { name: /\b(activity|timeline)\b/i })
+      .or(page.getByRole("list"));
     await expect(feed.first()).toBeVisible();
   });
 

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import {
   RESPONSIVE_VIEWPORTS,
@@ -6,6 +6,7 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
+  openRecordTab,
   postSameOrigin,
 } from "./helpers";
 import {
@@ -30,6 +31,16 @@ import { d1Execute } from "./d1";
  * touch target.
  *
  * Every record it creates is title-prefixed and cleaned up after each test.
+ */
+
+/*
+ * UNTITLED-14 — Notebook, Details and Follow-up are ONE tab now.
+ *
+ * The Meeting record was three tabs and five ways to add something, so running a
+ * meeting meant reading the agenda on one, checking who was in the room on a
+ * second and seeing what anyone agreed to do on a third. They are bands of one
+ * workspace, and the tab that holds them is "Meeting". Every journey below is
+ * unchanged; it just stops changing tabs to do it.
  */
 
 const PERSON_PREFIX = "Meet03 e2e ";
@@ -86,19 +97,39 @@ async function createMeeting(page: Page, title: string): Promise<string> {
 }
 
 async function addAttendee(page: Page, personName: string): Promise<void> {
-  await page.getByRole("tab", { name: "Details" }).click();
+  await page.getByRole("tab", { name: "Meeting" }).click();
+  // UNTITLED-14 — the picker is a disclosure inside the workspace's context
+  // rail, so a card whose job is answering "who is in this meeting?" is not
+  // also a form. One press reveals it.
+  await page.getByRole("button", { name: "Add attendees" }).click();
   const attendee = page.getByRole("combobox", { name: "Add attendees" });
   await attendee.click();
   await attendee.fill(personName);
   await page.getByRole("option", { name: personName }).click();
   await page.getByRole("button", { name: "Add selected" }).click();
-  // Scoped to the Details tab: UIX-04 §27 also names the attendees on the
+  // Scoped to the workspace panel: UIX-04 §27 also names the attendees on the
   // record's context line, so an unscoped link now matches in two places.
   await expect(
     page
-      .getByRole("tabpanel", { name: "Details" })
+      .getByRole("tabpanel", { name: "Meeting" })
       .getByRole("link", { name: new RegExp(personName) }),
   ).toBeVisible();
+}
+
+/**
+ * Press ArrowDown until `item` holds focus, or fail saying where it stopped.
+ *
+ * Bounded by the menu's own length, so a menu that never reaches the item fails
+ * rather than looping — which is the same guarantee counting presses gave,
+ * without encoding how many the open itself costs.
+ */
+async function walkMenuTo(page: Page, item: Locator): Promise<void> {
+  const total = await page.getByRole("menuitem").count();
+  for (let step = 0; step < total; step += 1) {
+    if (await item.evaluate((el) => el === document.activeElement)) return;
+    await page.keyboard.press("ArrowDown");
+  }
+  await expect(item).toBeFocused();
 }
 
 /** Open the shared DS-12 Record Header overflow for the current record. */
@@ -131,9 +162,21 @@ async function markAsHeld(page: Page, title: string): Promise<void> {
 }
 
 async function openPersonActivity(page: Page): Promise<void> {
-  await page.getByRole("tab", { name: "Activity" }).click();
+  /*
+   * Through the SHARED opener, which settles the page and then retries the
+   * click until the tab is actually selected.
+   *
+   * A bare click was enough while the Person's Summary was a grid of counting
+   * tiles. It now carries a bounded activity stream of its own, so hydration
+   * lands later and a click that arrives before React attaches is received by
+   * markup with no handler and silently lost — the tab stays on Summary and the
+   * assertion below fails somewhere else entirely. `openRecordTab` is the
+   * helper that already knows this; the assertion it makes is stronger than the
+   * bare click, not weaker (the tab must END UP selected).
+   */
+  await openRecordTab(page, "Activity");
   await expect(
-    page.getByRole("feed", { name: "Person timeline" }),
+    page.getByRole("group", { name: "Person timeline" }),
   ).toBeVisible();
 }
 
@@ -194,16 +237,30 @@ test.describe("MEET-03 — meetings on the People timeline", () => {
     await expect(
       page.locator('.dh-feedback-live[aria-live="polite"]'),
     ).toContainText("Added to the timeline of 1 attendee");
-    await expect(page.getByText(/Recorded as held on/)).toBeVisible();
+    /*
+     * UNTITLED-13 — the fact is a LABELLED fact now, so the value stops
+     * repeating the label. The Details tab's `<dl>` grid became the same
+     * label-over-value strip the Person workspace uses, where "Held" sits
+     * above "Recorded on <date>"; "Held: Recorded as held on <date>" said the
+     * word twice. Both halves are asserted, so the state is still legible on
+     * the record without opening a menu — which is what MEET-03 requires.
+     */
+    const heldFact = page
+      .locator(".record-summary__meta-item")
+      .filter({ hasText: "Held" })
+      .first();
+    await expect(heldFact).toContainText(/Recorded on /);
 
     // 5–6. The attendee's ONE existing Activity tab carries the event. There is
     //      no Meetings tab and no second feed on the Person record.
     await page.goto(attendeeUrl);
     await openPersonActivity(page);
-    const feed = page.getByRole("feed", { name: "Person timeline" });
+    const feed = page.getByRole("group", { name: "Person timeline" });
     await expect(feed.getByText("Meeting held").first()).toBeVisible();
     await expect(page.getByRole("tab", { name: "Meetings" })).toHaveCount(0);
-    await expect(page.getByRole("feed")).toHaveCount(1);
+    await expect(
+      page.getByRole("group", { name: "Person timeline" }),
+    ).toHaveCount(1);
 
     // 7. It survives the Conversations filter.
     await filterToConversations(page);
@@ -276,6 +333,20 @@ test.describe("MEET-03 — meetings on the People timeline", () => {
     const trigger = page.getByRole("button", {
       name: `More actions for ${meetingTitle}`,
     });
+    /*
+     * UNTITLED-14 — start the keyboard journey from a freshly loaded record.
+     *
+     * The steps above create a Person through a sheet and then add an attendee
+     * through a searchable multi-select: two React Aria focus scopes opened and
+     * torn down on the way to a journey that is entirely about the RECORD
+     * HEADER's menu. Reloading makes the starting state of that journey a fact
+     * rather than the residue of the setup, and it asserts something the old
+     * sequence never did — that the menu is keyboard-operable on a cold page,
+     * which is how a person actually meets it.
+     */
+    await page.reload();
+    await page.waitForLoadState("networkidle");
+
     await trigger.focus();
     await expect(trigger).toBeFocused();
 
@@ -284,10 +355,34 @@ test.describe("MEET-03 — meetings on the People timeline", () => {
     await expect(
       page.getByRole("menuitem", { name: "New follow-up task" }),
     ).toBeFocused();
-    await page.keyboard.press("ArrowDown");
-    await page.keyboard.press("ArrowDown");
-    await page.keyboard.press("ArrowDown");
-    await expect(item).toBeFocused();
+
+    /*
+     * UNTITLED-14 — the menu ORDER is asserted directly, and the keyboard walks
+     * to the item rather than a hard-coded number of presses walking for it.
+     *
+     * This used to be "ArrowDown ×3", which encoded the menu's length AND the
+     * assumption that opening it costs exactly one press. Neither is a property
+     * of the product: whether the opening ArrowDown also advances depends on
+     * when React Aria mounts the list, so a cold page landed one item further
+     * down than a warm one and the test failed against a menu that was behaving
+     * correctly.
+     *
+     * The two things it is actually claiming are now each stated once — the
+     * shared order, read off the menu; and that the keyboard alone reaches the
+     * held-state action.
+     */
+    await expect(page.getByRole("menuitem").locator("visible=true")).toHaveText(
+      [
+        /New follow-up task/,
+        /New linked note/,
+        /New diary entry/,
+        /Mark as held/,
+        /Mark completed/,
+        /Cancel meeting/,
+        /Archive Meeting/,
+      ],
+    );
+    await walkMenuTo(page, item);
 
     // Escape closes only the menu and returns focus — no keyboard trap.
     await page.keyboard.press("Escape");
@@ -296,9 +391,7 @@ test.describe("MEET-03 — meetings on the People timeline", () => {
 
     // Enter runs it, from the keyboard alone.
     await page.keyboard.press("ArrowDown");
-    await page.keyboard.press("ArrowDown");
-    await page.keyboard.press("ArrowDown");
-    await page.keyboard.press("ArrowDown");
+    await walkMenuTo(page, item);
     const [response] = await Promise.all([
       page.waitForResponse(
         (r) =>
@@ -308,7 +401,19 @@ test.describe("MEET-03 — meetings on the People timeline", () => {
       page.keyboard.press("Enter"),
     ]);
     expect((await response.json()).ok).toBe(true);
-    await expect(page.getByText(/Recorded as held on/)).toBeVisible();
+    /*
+     * UNTITLED-13 — the fact is a LABELLED fact now, so the value stops
+     * repeating the label. The Details tab's `<dl>` grid became the same
+     * label-over-value strip the Person workspace uses, where "Held" sits
+     * above "Recorded on <date>"; "Held: Recorded as held on <date>" said the
+     * word twice. Both halves are asserted, so the state is still legible on
+     * the record without opening a menu — which is what MEET-03 requires.
+     */
+    const heldFact = page
+      .locator(".record-summary__meta-item")
+      .filter({ hasText: "Held" })
+      .first();
+    await expect(heldFact).toContainText(/Recorded on /);
   });
 
   test("no WCAG violations in light or dark, and no overflow at 390px or 320px", async ({

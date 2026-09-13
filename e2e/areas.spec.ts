@@ -223,11 +223,11 @@ test.describe("AREA-01 — Areas", () => {
     await expect(page.getByText("No Projects in this Area")).toBeVisible();
     await page.getByRole("tab", { name: "Activity" }).click();
     await expect(
-      page.getByRole("feed", { name: "Area activity" }),
+      page.getByRole("group", { name: "Area activity" }),
     ).toBeVisible();
     await expect(
       page
-        .getByRole("feed", { name: "Area activity" })
+        .getByRole("group", { name: "Area activity" })
         .getByRole("article")
         .first(),
     ).toBeVisible();

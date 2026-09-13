@@ -169,8 +169,16 @@ const MANIFEST = [
  * regenerates it nor deletes it as an orphan. Move it into `MANIFEST` — the path
  * is already the one it occupies in the Untitled `src/` tree — the first time
  * this script is run against a real licensed checkout.
+ *
+ * UNTITLED-13 added `base/avatar/avatar-profile-photo.tsx` the same way, from
+ * the same route (component `avatar`, which serves the whole avatar folder).
+ * It is the large identity mark Untitled's own profile pages use — a ringed,
+ * padded disc at 72/96/160px — and the Person record's identity band is it.
  */
-const API_SOURCED = new Set(["application/charts/charts-base.tsx"]);
+const API_SOURCED = new Set([
+  "application/charts/charts-base.tsx",
+  "base/avatar/avatar-profile-photo.tsx",
+]);
 
 /**
  * PATCHES — narrow, named edits applied after copying.

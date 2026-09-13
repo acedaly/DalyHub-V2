@@ -1,40 +1,68 @@
 /**
- * PEOPLE-01 / PEOPLE-03 — the Person "Summary" tab.
+ * UNTITLED-13 — the Person's relationship workspace.
  *
- * The at-a-glance relationship view, and the surface that answers the questions the
- * Person record exists to answer: who is this, when did we last interact, how often
- * do we interact, and what have we shared. It renders, in order:
+ * ── What this was, and why it changed ───────────────────────────────────────
  *
- *   1. identity — the person's face, their preferred name and the relationship
- *      word. RECORD-01 removed the name, pronouns, organisation and role from
- *      here: the record header states each of them once, directly above;
- *   2. contact actions — Call / Email (and Message where a mobile exists) act on
- *      real contact data through standard `tel:`/`mailto:`/`sms:` URIs, never a
- *      fake integration. UIQ-011 reduced this from eight equally-weighted pills
- *      to these: a control is rendered only where the data behind it exists, and
- *      creating a Task, Meeting, Note or Diary entry moved to the record
- *      header's overflow, which passes this Person's context to the ONE shared
- *      capture sheet;
- *   3. the PEOPLE-03 **relationship summary** — DS-13 shared summary cards over the
- *      derived aggregate, every card leading to the surface that opens the records
- *      behind it;
- *   4. the PEOPLE-03 **stay-in-touch** panel — the derived rhythm, explained;
- *   5. the Person's own key dates and tags.
+ * PEOPLE-01/03 built a "Summary" tab and it was, structurally, a stack of five
+ * unrelated regions: an identity head, a grid of up to nine counting tiles, an
+ * explanatory cadence panel, a `<dl>` of key dates, a tag row and a text link.
+ * Everything on it was true. None of it answered the question §21 of the brief
+ * says a Person record exists to answer — *how do I know them, what is between
+ * us, and is anything coming up?* — because the answers were spread across
+ * three other tabs (Linked, Activity, Contact) and the tab that opened first
+ * led with a scoreboard.
  *
- * Nothing in 3 or 4 is computed here: the loader evaluates the kernel model
- * server-side and this component only lays it out.
+ * Two of those tiles were the scoreboard specifically. "Total interactions: 47"
+ * is a CRM metric wearing DalyHub's vocabulary: it counts a relationship. §21
+ * rules that out by name, and the honest version of the same fact — that you
+ * have 47 recorded moments across 22 days — is CONTEXT for the rhythm, so it
+ * moved under the rhythm rather than being deleted. Nothing is lost; one thing
+ * stopped being a headline.
+ *
+ * ── The order now, which is §25's ───────────────────────────────────────────
+ *
+ *   identity                → who they are, and the two things you would do next
+ *   what is happening now   → the rhythm, and anything genuinely upcoming
+ *   what you share          → Meetings, Notes, commitments, Projects
+ *   recent meaningful activity → the real timeline, bounded, leading to all of it
+ *   secondary details       → dates, preference, tags
+ *
+ * ── The Pro composition ─────────────────────────────────────────────────────
+ *
+ * `informational-01/17` and `informational-02/12` (both Pro, both studied from
+ * their screenshots — the connector will not release Pro source here). Their
+ * profile pages are: a large mark with a name and ONE line about the person,
+ * the actions beside it, then prose, then a QUIET two-column labelled strip of
+ * reference facts, then a divided list of history. Not one labelled field grid
+ * anywhere. That is the shape below, and it is why the dates and the contact
+ * preference are a quiet strip near the bottom rather than a table near the top.
+ *
+ * Nothing here is computed: the loader evaluates the kernel's relationship model
+ * server-side and this component lays it out.
  */
 
 import type { ReactNode } from "react";
+import { Link } from "react-router";
 
 import type { PersonRelationship } from "~/kernel/relationships";
-import { StayInTouchPanel } from "~/shared/relationships";
-import { SummaryCards } from "~/shared/summary-cards";
-import { buttonClassName, TagChipList } from "~/shared/ui";
+import { PersonIdentityBand } from "~/shared/person-identity";
+import {
+  StayInTouchPanel,
+  formatRelationshipDate,
+  lastInteractionPhrase,
+} from "~/shared/relationships";
+import { Badge, ButtonLink, TagChipList } from "~/shared/ui";
+import { SectionHeading } from "~/shared/ui/untitled/overrides/section-heading";
+import { cx } from "~/shared/ui/untitled/utils/cx";
 
-import { PersonAvatar } from "./PersonAvatar";
 import { personCircle, personCircleRank } from "./person-circles";
-import { personRelationshipCards } from "./person-relationship-view";
+import {
+  personActivityHref,
+  personLinkedHref,
+  personSharedRecords,
+  type PersonSharedRecord,
+} from "./person-relationship-view";
+import { PersonRecentActivity } from "./PersonRecentActivity";
 import {
   formatBirthday,
   formatPersonDate,
@@ -48,216 +76,468 @@ interface PersonSummaryProps {
   readonly onEditContact: () => void;
 }
 
-const RELATIONSHIP_HEADING_ID = "dh-person-relationship-heading";
 const STAY_IN_TOUCH_HEADING_ID = "dh-person-stay-in-touch-heading";
+const SHARED_HEADING_ID = "dh-person-shared-heading";
 
 export function PersonSummary({
   person,
   relationship,
   onEditContact,
 }: PersonSummaryProps) {
-  const phone = person.mobile ?? person.workPhone;
+  const shared = personSharedRecords(relationship);
+  const upcoming = upcomingItems(person, relationship);
+  const details = detailItems(person, relationship);
 
-  const facts: { id: string; label: string; value: string }[] = [];
-  // PEOPLE-03 — the hand-entered `lastInteraction` field is now a FALLBACK, shown
-  // only while nothing has actually been recorded. Once the relationship has real
-  // history the derived "Last interaction" card above is the honest answer, and two
-  // fields of the same name that can disagree would be worse than one.
-  const noteworthyLastInteraction =
-    relationship.summary.lastInteractionDate === null
-      ? formatPersonDate(person.lastInteraction)
-      : null;
-  if (noteworthyLastInteraction) {
-    facts.push({
-      id: "last",
-      label: "Last interaction (noted)",
-      value: noteworthyLastInteraction,
+  return (
+    <div className="dh-person-summary flex flex-col gap-8">
+      <h2 className="dh-visually-hidden">Summary</h2>
+
+      <PersonIdentityBand
+        name={person.title}
+        initials={person.initials}
+        photoUrl={person.photoUrl}
+        colourRank={personCircleRank(personCircle(person.relationship))}
+        /*
+         * RECORD-01's rule, unchanged: the record's `h1` above already states
+         * the title, the role and the organisation, so this band carries only
+         * what a header cannot — the face, what they are actually called, and
+         * the relationship word that makes this a relationship record rather
+         * than a contact row.
+         */
+        preferredName={
+          person.preferredName && person.preferredName !== person.title
+            ? person.preferredName
+            : null
+        }
+        relationship={
+          person.relationshipLabel ? (
+            <p className="m-0">
+              <Badge tone="accent">{person.relationshipLabel}</Badge>
+            </p>
+          ) : null
+        }
+        actions={contactActions(person)}
+      />
+
+      {/*
+        WHAT IS HAPPENING NOW — the rhythm, and anything genuinely ahead.
+
+        §30's rule is the load-bearing one here: upcoming context is surfaced
+        only where the DATA supports it. A Person with no follow-up date and no
+        birthday recorded gets no band at all, rather than an empty one telling
+        them what they have not filled in.
+      */}
+      <Band
+        title="Staying in touch"
+        headingId={STAY_IN_TOUCH_HEADING_ID}
+        description={rhythmContext(relationship)}
+      >
+        <StayInTouchPanel
+          relationship={relationship}
+          headingId={STAY_IN_TOUCH_HEADING_ID}
+          leadingFacts={upcoming}
+        />
+      </Band>
+
+      {/*
+        WHAT YOU SHARE — the linked records, as one divided band of links.
+
+        This replaces the DS-13 summary-card grid on this record only (Projects,
+        Areas and Assets keep it). Nine tiles of counts down a Person record is
+        the "dashboard-card overload" DESIGN_DIRECTION rules out, and a count
+        with nowhere to go is a number rather than a relationship. Every row
+        here leads to the Linked tab, which is the surface that opens the record
+        behind it.
+      */}
+      {shared.length > 0 ? (
+        <Band
+          title="What you share"
+          headingId={SHARED_HEADING_ID}
+          description="Every record you have linked to this person."
+        >
+          <SharedRecordList
+            records={shared}
+            href={personLinkedHref(person.id)}
+            headingId={SHARED_HEADING_ID}
+          />
+        </Band>
+      ) : null}
+
+      {/*
+        RECENT MEANINGFUL ACTIVITY — the real timeline, bounded.
+
+        §28/§29: the shared activity composition, over the same one
+        `/person/:id/activity` endpoint the Activity tab reads, showing the most
+        recent moments and leading to all of them. Nothing is fabricated and
+        nothing is duplicated — it IS the Activity tab's stream, read short.
+      */}
+      <PersonRecentActivity
+        personId={person.id}
+        reloadKey={person.updatedAt}
+        allHref={personActivityHref(person.id)}
+      />
+
+      {/* SECONDARY DETAILS — reference, in the quiet strip the Pro profile
+          pages put reference facts in. Tags come with them, because a tag is
+          the same kind of thing: something you filed, not something you do. */}
+      {details.length > 0 || person.tags.length > 0 ? (
+        <Band title="Details">
+          {details.length > 0 ? <FactStrip items={details} /> : null}
+          <TagChipList
+            tags={person.tags}
+            label="Tags"
+            className="dh-person-summary__tags flex list-none flex-wrap gap-2 p-0"
+          />
+          {/*
+            §36 — this NAVIGATES, so it is a link with a real href. It used to
+            be a `<button>` calling `onTabChange("contact")`, which meant the
+            one control on the record for "let me fix their phone number" could
+            not be opened in a new tab, middle-clicked or copied. The tab is
+            URL state on this record already, so the href is the whole
+            behaviour and the callback only keeps the switch client-side.
+          */}
+          <p className="dh-person-summary__edit m-0">
+            <Link
+              to={`/person/${encodeURIComponent(person.id)}?tab=contact`}
+              className="inline-flex items-center text-sm font-semibold text-brand-secondary outline-focus-ring [@media(hover:none)]:min-h-[var(--app-touch-target-min)] hover:text-brand-secondary_hover focus-visible:outline-2 focus-visible:outline-offset-2"
+              onClick={() => onEditContact()}
+            >
+              Edit contact details
+            </Link>
+          </p>
+        </Band>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * One region of the workspace.
+ *
+ * Untitled's own band grammar: a `SectionHeading` (its `section-headers`
+ * recipe, at the heading LEVEL a record demands) over content, separated from
+ * its neighbours by space rather than by a card each. §44 — the record panel is
+ * already a surface, and five boxes inside it is the card-inside-a-card the
+ * brief rules out.
+ */
+function Band({
+  title,
+  description,
+  headingId,
+  children,
+}: {
+  readonly title: string;
+  readonly description?: string | null;
+  readonly headingId?: string;
+  readonly children: ReactNode;
+}) {
+  return (
+    <section className="dh-person-summary__section flex min-w-0 flex-col gap-4">
+      <SectionHeading
+        level={2}
+        title={title}
+        description={description ?? undefined}
+        id={headingId}
+      />
+      {children}
+    </section>
+  );
+}
+
+/**
+ * The quiet labelled fact strip.
+ *
+ * `informational-01/17`'s right-hand column: a small quaternary label over a
+ * primary value, two or more per row, wrapping down to one on a phone. It is a
+ * `<dl>` because that is what it is, and the labels are what keep a bare date
+ * from being ambiguous.
+ */
+function FactStrip({
+  items,
+}: {
+  readonly items: readonly { id: string; label: string; value: ReactNode }[];
+}) {
+  return (
+    <dl className="dh-person-summary__facts m-0 grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+      {items.map((item) => (
+        <div
+          key={item.id}
+          className="dh-person-summary__fact flex min-w-0 flex-col gap-0.5"
+        >
+          <dt className="text-xs font-medium text-quaternary">{item.label}</dt>
+          <dd className="m-0 text-sm font-medium break-words text-primary">
+            {item.value}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/**
+ * The shared-records band: a divided list, each row a link to the Linked tab.
+ *
+ * The anatomy is `application/table`'s divided body — a bounded surface whose
+ * rows are separated by hairlines and light up on hover — because that is what
+ * this is: a short table of one column. It is deliberately NOT the table
+ * component itself; a React Aria `grid` for four rows of "Meetings … 4" would
+ * cost a keyboard user a grid to navigate out of for no benefit.
+ */
+function SharedRecordList({
+  records,
+  href,
+  headingId,
+}: {
+  readonly records: readonly PersonSharedRecord[];
+  readonly href: string;
+  readonly headingId: string;
+}) {
+  return (
+    <ul
+      className="dh-person-shared m-0 list-none overflow-hidden rounded-xl bg-primary p-0 shadow-xs ring-1 ring-secondary"
+      aria-labelledby={headingId}
+      data-testid="person-shared-records"
+    >
+      {records.map((record) => (
+        <li
+          key={record.id}
+          className="border-b border-secondary last:border-b-0"
+        >
+          <Link
+            to={href}
+            className={cx(
+              "flex items-center gap-3 px-4 py-3 outline-focus-ring transition duration-100 ease-linear",
+              "hover:bg-secondary focus-visible:outline-2 focus-visible:-outline-offset-2",
+            )}
+            // The count and the noun both, so a screen-reader user hears the
+            // whole fact rather than "4, link".
+            aria-label={`${record.label}: ${record.value}`}
+          >
+            <span className="min-w-0 flex-1 truncate text-sm font-medium text-primary">
+              {record.label}
+            </span>
+            <span className="shrink-0 text-sm text-tertiary tabular-nums">
+              {record.value}
+            </span>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * UIQ-011 — the Person's PRIMARY actions are Call and Email, and only when the
+ * contact data supports them.
+ *
+ * A greyed-out Call on someone with no number is a control that can never do
+ * anything, so it is not rendered rather than rendered disabled — the Contact
+ * tab is where a missing number gets added. `sms:` needs a MOBILE specifically,
+ * so a person with only a work number gets two actions and not a third that
+ * would text a landline. Everything else this row used to carry (create a Task,
+ * a Meeting, a Note, a Diary entry; copy a field) is in the record header's
+ * overflow with this Person's context attached — see `PersonRecord`.
+ *
+ * This is a FUNCTION and not a component on purpose. `PersonIdentityBand` wraps
+ * whatever it is handed in a `role="group"` named "Contact actions", and an
+ * element is truthy even when it renders nothing — so a component here would
+ * hand the band an empty labelled group for a Person with no contact data at
+ * all, which is the same lie as a disabled Call button, told to assistive tech
+ * instead of to the eye. Called as a function, the emptiness is decidable at
+ * the call site, and the band gets `null`.
+ */
+function contactActions(person: SerializedPerson): ReactNode | null {
+  const phone = person.mobile ?? person.workPhone;
+  const actions: ReactNode[] = [];
+  if (phone) {
+    actions.push(
+      <ButtonLink
+        key="call"
+        variant="secondary"
+        size="sm"
+        href={`tel:${phone}`}
+      >
+        Call
+      </ButtonLink>,
+    );
+  }
+  if (person.email) {
+    actions.push(
+      <ButtonLink
+        key="email"
+        variant="secondary"
+        size="sm"
+        href={`mailto:${person.email}`}
+      >
+        Email
+      </ButtonLink>,
+    );
+  }
+  if (person.mobile) {
+    actions.push(
+      <ButtonLink
+        key="message"
+        variant="secondary"
+        size="sm"
+        href={`sms:${person.mobile}`}
+      >
+        Message
+      </ButtonLink>,
+    );
+  }
+  return actions.length > 0 ? <>{actions}</> : null;
+}
+
+/**
+ * The rhythm band's supporting line — and the new home of the two facts that
+ * used to be counting tiles.
+ *
+ * "47 moments across 22 days" under a heading about staying in touch is the
+ * evidence the rhythm rests on. The same two numbers in their own tiles, at the
+ * top of the record, were a score. Nothing is computed here: both come from the
+ * kernel's evaluator.
+ */
+function rhythmContext(relationship: PersonRelationship): string | null {
+  const { summary, cadence } = relationship;
+  if (summary.totalInteractions === 0) return null;
+  const moments =
+    summary.totalInteractions === 1
+      ? "1 recorded moment"
+      : `${summary.totalInteractions} recorded moments`;
+  return cadence.interactionDays > 1
+    ? `${moments} across ${cadence.interactionDays} days.`
+    : `${moments}.`;
+}
+
+/**
+ * §30 — genuinely upcoming context, and nothing manufactured.
+ *
+ * Only two things about a Person are actually AHEAD of the owner: a follow-up
+ * they chose a date for, and a birthday. Neither is invented and neither is
+ * given urgency; a Person with neither recorded gets no strip.
+ */
+function upcomingItems(
+  person: SerializedPerson,
+  relationship: PersonRelationship,
+): { id: string; label: string; value: ReactNode }[] {
+  const items: { id: string; label: string; value: ReactNode }[] = [];
+
+  /*
+   * "When did I last speak to them" leads, because it is the single most-asked
+   * question on a Person record.
+   *
+   * It used to be the first of up to nine counting TILES, and dropping the tile
+   * grid nearly dropped the fact with it. Stated as "3 days ago" with the date
+   * beneath, it is the same answer `lastInteractionPhrase` gives the header and
+   * the collection row — one derivation, so the three can never drift.
+   */
+  const last = formatRelationshipDate(relationship.summary.lastInteractionDate);
+  if (last) {
+    items.push({
+      id: "last-interaction",
+      label: "Last spoke",
+      value: (
+        <>
+          {lastInteractionPhrase(relationship)}
+          <span className="block text-xs font-normal text-tertiary">
+            {last}
+          </span>
+        </>
+      ),
     });
   }
+
   const nextFollowUp = formatPersonDate(person.nextFollowUp);
   if (nextFollowUp) {
-    facts.push({ id: "next", label: "Next follow-up", value: nextFollowUp });
+    items.push({ id: "next", label: "Next follow-up", value: nextFollowUp });
   }
   const birthday = formatBirthday(person.birthday);
   if (birthday) {
-    facts.push({ id: "birthday", label: "Birthday", value: birthday });
+    items.push({ id: "birthday", label: "Birthday", value: birthday });
+  }
+  /*
+   * "Known since" is NOT here, and a test is why.
+   *
+   * A first draft put the first interaction in this strip beside the last one.
+   * `PersonSummary.test.tsx` then found the same date three times on one tab for
+   * a Person with a single recorded moment: here, in `StayInTouchPanel`'s own
+   * "First interaction" cadence fact, and as the last interaction — because when
+   * there is one moment it is both. The panel is where it belongs: a first
+   * interaction is evidence for a RHYTHM, not something that is coming up.
+   */
+  return items;
+}
+
+/**
+ * The reference facts.
+ *
+ * PEOPLE-03's rule survives: the hand-entered `lastInteraction` field is a
+ * FALLBACK, shown only while nothing has actually been recorded. Once the
+ * relationship has real history the derived answer above is the honest one, and
+ * two fields of the same name that can disagree would be worse than one.
+ */
+function detailItems(
+  person: SerializedPerson,
+  relationship: PersonRelationship,
+): { id: string; label: string; value: ReactNode }[] {
+  const items: { id: string; label: string; value: ReactNode }[] = [];
+  const noted =
+    relationship.summary.lastInteractionDate === null
+      ? formatPersonDate(person.lastInteraction)
+      : null;
+  if (noted) {
+    items.push({
+      id: "last",
+      label: "Last interaction (noted)",
+      value: noted,
+    });
   }
   if (person.favouriteContactMethodLabel) {
-    facts.push({
+    items.push({
       id: "prefers",
       label: "Prefers",
       value: person.favouriteContactMethodLabel,
     });
   }
-
-  /*
-   * UIQ-011 — the Person's PRIMARY actions are Call and Email, and only when
-   * the contact data supports them.
-   *
-   * The record used to carry eight tonal pills at one weight: Call, Email, New
-   * Task, Diary entry, New Meeting, New Note, Copy email and Copy phone. Two of
-   * those act on this person; four create some OTHER record and are the global
-   * capture sheet's job; two were clipboard conveniences that sat greyed out on
-   * every person with no email or phone. A greyed-out Call on someone with no
-   * number is a control that can never do anything, so it is not rendered at
-   * all rather than rendered disabled — the Contact tab is where a missing
-   * number gets added.
-   *
-   * A message action appears only where the data supports it: `sms:` needs a
-   * MOBILE, not any phone, so a person with only a work number gets Call and
-   * Email and no third button that would dial a landline by SMS.
-   *
-   * Everything demoted is reachable: the four capture actions are in the record
-   * header's overflow (with this Person's context attached), and copying is
-   * there too. Nothing was removed from the product — see `PersonRecord`.
-   */
-  const preferredName =
-    person.preferredName && person.preferredName !== person.title
-      ? person.preferredName
-      : null;
-
-  const primaryActions: ReactNode[] = [];
-  if (phone) {
-    primaryActions.push(
-      <a
-        key="call"
-        className={buttonClassName({ variant: "secondary" })}
-        href={`tel:${phone}`}
-      >
-        Call
-      </a>,
-    );
+  if (person.followUpFrequencyLabel) {
+    items.push({
+      id: "cadence",
+      label: "Catch up",
+      value: person.followUpFrequencyLabel,
+    });
   }
-  if (person.email) {
-    primaryActions.push(
-      <a
-        key="email"
-        className={buttonClassName({ variant: "secondary" })}
-        href={`mailto:${person.email}`}
-      >
-        Email
-      </a>,
-    );
-  }
-  if (person.mobile) {
-    primaryActions.push(
-      <a
-        key="message"
-        className={buttonClassName({ variant: "secondary" })}
-        href={`sms:${person.mobile}`}
-      >
-        Message
-      </a>,
-    );
-  }
-
-  return (
-    <div className="dh-person-summary">
-      <h2 className="dh-visually-hidden">Summary</h2>
-      {/*
-        RECORD-01 / UIQ-011 — the identity block, and the two actions that are
-        genuinely primary.
-
-        This block used to restate the record's own header: the name (which is
-        the h1 directly above it), the pronouns, and "Site foreman · Whitfield
-        Building Co." — all of which the header's context line now carries once.
-        What is left is what the header genuinely cannot show: the person's
-        face, their preferred name, and the relationship word that makes this a
-        relationship record rather than a contact row.
-      */}
-      <div className="dh-person-summary__head">
-        {/* UIX-05 — the SAME circle accent the collection row paints, so a
-         * Person is recognisably the same object in both places. Resolved from
-         * the relationship the record itself already shows one line below. */}
-        <PersonAvatar
-          name={person.title}
-          initials={person.initials}
-          photoUrl={person.photoUrl}
-          colourRank={personCircleRank(personCircle(person.relationship))}
-          size={72}
-        />
-        <div className="dh-person-summary__identity">
-          {preferredName ? (
-            <p className="dh-person-summary__name">{preferredName}</p>
-          ) : null}
-          {person.relationshipLabel ? (
-            <p className="dh-person-summary__relationship">
-              <span className="dh-person-summary__relationship-chip">
-                {person.relationshipLabel}
-              </span>
-            </p>
-          ) : null}
-        </div>
-        {primaryActions.length > 0 ? (
-          <div
-            className="dh-person-summary__actions"
-            role="group"
-            aria-label="Contact actions"
+  if (person.website) {
+    items.push({
+      id: "website",
+      label: "Website",
+      value:
+        (
+          /*
+           * MEASURED at 289×16 on a 430px phone: a standalone navigational
+           * target, not a link inside a sentence, so WCAG 2.5.8's inline
+           * exception does not cover it. The coarse-pointer floor gives it the
+           * height without changing a thing for a mouse — the same rule the
+           * attendee count and the "All activity" link already carry.
+           *
+           * BLOCK, not `inline-flex`: a first attempt used the flex box, and a
+           * 43-character URL then became one unbreakable inline box that
+           * pushed the page 18px wide at 1024 — caught by the shooter on the
+           * next pass. A block anchor wraps, fills its grid column, and is a
+           * larger target for it.
+           */
+          <a
+            className="block min-w-0 break-words text-brand-secondary outline-focus-ring [@media(hover:none)]:min-h-[var(--app-touch-target-min)] hover:text-brand-secondary_hover focus-visible:outline-2 focus-visible:outline-offset-2"
+            href={person.website}
+            target="_blank"
+            rel="noreferrer"
           >
-            {primaryActions}
-          </div>
-        ) : null}
-      </div>
-
-      {/* Each region is labelled EXACTLY once: the heading labels the shared
-       * component itself (the DS-13 list, the stay-in-touch section), never a
-       * wrapper as well — two nested landmarks with the same name is a screen-reader
-       * dead end, not extra structure. */}
-      <div className="dh-person-summary__section">
-        <h3
-          className="dh-person-summary__section-heading"
-          id={RELATIONSHIP_HEADING_ID}
-        >
-          Relationship
-        </h3>
-        <SummaryCards
-          items={personRelationshipCards(relationship)}
-          label="Relationship"
-          labelledBy={RELATIONSHIP_HEADING_ID}
-        />
-      </div>
-
-      <div className="dh-person-summary__section">
-        <h3
-          className="dh-person-summary__section-heading"
-          id={STAY_IN_TOUCH_HEADING_ID}
-        >
-          Staying in touch
-        </h3>
-        <StayInTouchPanel
-          relationship={relationship}
-          headingId={STAY_IN_TOUCH_HEADING_ID}
-        />
-      </div>
-
-      {facts.length > 0 ? (
-        <dl className="dh-person-summary__facts">
-          {facts.map((fact) => (
-            <div key={fact.id} className="dh-person-summary__fact">
-              <dt>{fact.label}</dt>
-              <dd>{fact.value}</dd>
-            </div>
-          ))}
-        </dl>
-      ) : null}
-
-      {/* CONVERGE-01 §6 — the ONE shared tag chip. This module's own copy and
-          Assets' differed only in corner radius; both now render `TagChip`. */}
-      <TagChipList
-        tags={person.tags}
-        label="Tags"
-        className="dh-person-summary__tags"
-      />
-
-      <p className="dh-person-summary__edit">
-        <button
-          type="button"
-          className={buttonClassName({ variant: "subtle" })}
-          onClick={onEditContact}
-        >
-          Edit contact details
-        </button>
-      </p>
-    </div>
-  );
+            {person.website}
+          </a>
+        ),
+    });
+  }
+  if (person.address) {
+    items.push({ id: "address", label: "Address", value: person.address });
+  }
+  return items;
 }

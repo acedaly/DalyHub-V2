@@ -27,9 +27,21 @@ import {
   type SerializedProjectActivityItem,
 } from "~/modules/projects/project-activity";
 
+/*
+ * UNTITLED-13 — the viewport is a labelled `group`, not a `feed`.
+ *
+ * `role="feed"` owns `article` CHILDREN, and this region's are
+ * `viewport > canvas > virtualisation wrapper > day heading | article` — three
+ * levels down, with day headings interleaved. axe reported
+ * `aria-required-children` (critical) on every Activity surface in the product,
+ * and no arrangement of presentation roles can make the claim true without
+ * giving up the day grouping the surface exists for. Each moment is still a real
+ * `<article>` with a real heading, which is how assistive tech navigates it.
+ */
+
 /**
  * PROJ-04 — the project Activity tab as behaviour: it renders the SHARED DS-05
- * Timeline (a `role="feed"`), fetches pages from `/projects/:id/activity`, appends
+ * Timeline (a labelled `group`), fetches pages from `/projects/:id/activity`, appends
  * the next page without losing what is loaded, de-duplicates across a page boundary,
  * recovers from a failed load with retry, opens a referenced task through the shared
  * Drawer trigger, and re-reads the first page when `reloadKey` changes (a mutation
@@ -134,7 +146,7 @@ describe("ProjectActivityTab", () => {
 
     renderTab();
 
-    const feed = await screen.findByRole("feed", { name: "Project activity" });
+    const feed = await screen.findByRole("group", { name: "Project activity" });
     expect(feed).toBeInTheDocument();
     // Real event articles (not a bespoke list).
     expect(within(feed).getAllByRole("article").length).toBe(2);
@@ -178,7 +190,7 @@ describe("ProjectActivityTab", () => {
 
     renderTab();
 
-    const feed = await screen.findByRole("feed", { name: "Project activity" });
+    const feed = await screen.findByRole("group", { name: "Project activity" });
     expect(within(feed).getAllByRole("article").length).toBe(1);
 
     fireEvent.click(screen.getByRole("button", { name: /load more/i }));
@@ -214,7 +226,7 @@ describe("ProjectActivityTab", () => {
     fireEvent.click(retry);
 
     expect(
-      await screen.findByRole("feed", { name: "Project activity" }),
+      await screen.findByRole("group", { name: "Project activity" }),
     ).toBeInTheDocument();
   });
 
@@ -248,7 +260,7 @@ describe("ProjectActivityTab", () => {
 
     renderTab();
 
-    await screen.findByRole("feed", { name: "Project activity" });
+    await screen.findByRole("group", { name: "Project activity" });
     // The referenced task is a keyboard-focusable Drawer trigger (an anchor deep
     // link that opens the shared Task Drawer on top of the project record).
     const taskLink = screen.getByRole("link", { name: /Task t-9/i });
@@ -291,7 +303,7 @@ describe("ProjectActivityTab", () => {
       .mockResolvedValueOnce(jsonResponse(after));
 
     const view = renderTab("2026-07-19T09:00:00.000Z");
-    const feed = await screen.findByRole("feed", { name: "Project activity" });
+    const feed = await screen.findByRole("group", { name: "Project activity" });
     await waitFor(() =>
       expect(within(feed).getAllByRole("article").length).toBe(1),
     );
@@ -311,7 +323,7 @@ describe("ProjectActivityTab", () => {
     await waitFor(() =>
       expect(
         within(
-          screen.getByRole("feed", { name: "Project activity" }),
+          screen.getByRole("group", { name: "Project activity" }),
         ).getAllByRole("article").length,
       ).toBe(2),
     );

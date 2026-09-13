@@ -150,3 +150,48 @@ describe("DS-02 the button family is not a stadium (D33)", () => {
     expect(fixed, "a primitive hard-coded a private control size").toEqual([]);
   });
 });
+
+/**
+ * UNTITLED-13 — the outline badge must actually outrank the tone it wears.
+ *
+ * `variant="outline"` was documented as "a hairline with no fill" and was not
+ * one: `.dh-badge--outline` is a single class, (0,1,0), and every tone rule it
+ * has to beat is a class plus an attribute, (0,2,0). So `background:
+ * transparent` lost on every badge, and the variant meant "a soft badge whose
+ * text is the role colour" — which is also a contrast risk, because a
+ * full-strength role colour was landing on a subtle container the contrast
+ * suite only ever checked against its own `on-` pair.
+ *
+ * MEASURED before the fix: `variant="outline"` `tone="info"` computed to
+ * `rgb(231, 222, 255)` in light and `rgb(75, 27, 195)` in dark — the container
+ * in both.
+ *
+ * A cascade defect is invisible to a component test (the class is on the
+ * element either way) and to a snapshot (the markup is unchanged), so it is
+ * asserted where it lives: in the stylesheet's own selectors.
+ */
+describe("UNTITLED-13 the outline badge is an outline", () => {
+  it("qualifies its fill reset so it outranks every tone rule", () => {
+    // `[data-tone]` is what lifts it to (0,2,0). A bare `.dh-badge--outline`
+    // block declaring `background` would be the defect back again.
+    expect(UI_CSS).toContain(".dh-badge--outline[data-tone] {");
+    const bare = UI_CSS.match(/\.dh-badge--outline\s*\{[^}]*background[^}]*\}/);
+    expect(bare).toBeNull();
+  });
+
+  it("gives every tone in the badge's vocabulary its own outline colour", () => {
+    // With the fill genuinely gone, a tone with no colour arm has nothing left
+    // to tell it apart — which is how `neutral` and `info` went missing while
+    // the container was still doing the work.
+    for (const tone of [
+      "neutral",
+      "accent",
+      "info",
+      "success",
+      "warning",
+      "danger",
+    ]) {
+      expect(UI_CSS).toContain(`.dh-badge--outline[data-tone="${tone}"] {`);
+    }
+  });
+});

@@ -1,34 +1,29 @@
 /**
  * DS-10b Settings layout — small decorative glyphs.
  *
- * In-house inline SVGs (no icon dependency, consistent with the PX-02 in-house
- * icon set and the DS-10 feedback glyphs). All are `aria-hidden`: the dangerous
- * region's meaning is ALSO carried by its heading text and border, never by the
- * icon or colour alone, so a colour-blind or screen-reader user loses nothing.
+ * UNTITLED-15 — this was a hand-drawn warning triangle, and it was the SAME
+ * hand-drawn warning triangle as `feedback-icons.tsx`'s: two copies of one
+ * shape, in two modules, because neither could reach a shared set that did not
+ * have it. Both are `@untitledui/icons` `AlertTriangle` now, so the dangerous
+ * region of a Settings page and a warning notification wear one mark.
+ *
+ * `aria-hidden`: the dangerous region's meaning is ALSO carried by its heading
+ * text and border, never by the icon or colour alone.
  */
 
-type GlyphProps = { readonly className?: string };
+import { AlertTriangle } from "@untitledui/icons";
 
-const BASE_PROPS = {
-  width: 18,
-  height: 18,
-  viewBox: "0 0 20 20",
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: 1.8,
-  strokeLinecap: "round" as const,
-  strokeLinejoin: "round" as const,
-  "aria-hidden": true,
-  focusable: false,
-};
+type GlyphProps = { readonly className?: string };
 
 /** A warning triangle used to badge the dangerous-settings region. */
 export function DangerGlyph({ className }: GlyphProps) {
   return (
-    <svg {...BASE_PROPS} className={className}>
-      <path d="M10 2.6 18 16.4H2z" />
-      <path d="M10 8v3.4" />
-      <path d="M10 14h.01" />
-    </svg>
+    <AlertTriangle
+      width={18}
+      height={18}
+      className={className}
+      aria-hidden="true"
+      focusable="false"
+    />
   );
 }

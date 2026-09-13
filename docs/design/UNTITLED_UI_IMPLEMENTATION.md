@@ -1220,3 +1220,305 @@ because "does the writing dominate?" is a question with a number behind it.
 No screenshot, historical visual audit or legacy Material/MD3/DHDS stylesheet is
 an implementation reference for any surface in this pass. The Pro template
 screenshots above were studied for COMPOSITION and are not reproduced.
+
+## UNTITLED-13 completion record — Meetings, People and the shared Person identity
+
+### Pro research, and what it actually returned
+
+The authenticated connector reports `has_pro_access: true` and was searched
+before anything was built. Searches run for this pass: `meetings list upcoming
+events schedule agenda`, `activity feed timeline of recent events with avatars
+and timestamps`, `team members directory list with avatars roles and contact
+details`, plus the page-template searches `contact or person profile page with
+details, activity history and related records` and `event or meeting detail page
+with attendees, agenda and notes`, and the component probes `avatar`,
+`avatar-group`, `avatar-profile-photo`, `badges`, `dropdown`, `section-headers`,
+`activity-feed`, `empty-state`, `table` and `tabs`.
+
+Pro entries come back as metadata plus a screenshot URL and the `npx untitledui
+add` command; `get_component` on a Pro entry answers with the lock and that
+command rather than with source. The CLI remains unauthenticatable in this
+container for the reason Phase 4 recorded, so Pro source came from the vendored
+tree under `app/shared/ui/untitled/`. Nothing was recreated from memory and no
+unavailable example name, snippet or screenshot was invented.
+
+**Two things the probe settled that are worth recording.**
+`application/activity-feed` and `application/section-headers` are **Pro** — the
+public component API answers `{"components":[],"pro":["application/…"]}` for
+both, with no source. So Untitled's own activity-feed implementation is
+genuinely unavailable here; what is adopted from it is the COMPOSITION, from
+`informational-02/13`'s screenshot, exactly as UNTITLED-12 adopted it for the
+Diary chronology. And `avatar-group` **is not a component in the catalogue at
+all** (the API answers 404): every Pro template that shows grouped avatars
+composes `Avatar` with negative margins inline, which is what
+`PersonAvatarGroup` does, named once.
+
+**One thing the probe RETURNED that the repository did not have.** The public
+component API serves the whole `base/avatar` folder, including
+`avatar-profile-photo.tsx` — the large ringed, padded mark Untitled's own
+profile pages use, at 72/96/160px. It is vendored now, through the same
+`API_SOURCED` route `charts-base` came by and with the same provenance header,
+and it is the Person record's identity mark.
+
+**Page templates studied rather than merely listed.** Their screenshots were
+downloaded and read:
+
+| Template | What it settled |
+| --- | --- |
+| `informational-01/17` (Pro) | The PROFILE page: a large mark over a cover band, the name, ONE line about the person, the actions beside it — then prose, then a QUIET two-column labelled strip of reference facts, then a divided list of history. Not one labelled field grid anywhere. This is the Person workspace's order, and why its dates and contact preference are a quiet strip near the bottom rather than a table near the top. |
+| `informational-02/12` (Pro) | The same grammar as a side panel: avatar, name, email, a divided fact strip, two actions, About, then quiet icon-led lines and a list of history rows. Confirmed the arrangement is the pattern rather than one example's choice. |
+| `informational-02/10` (Pro) | The EVENT panel, and the most load-bearing find: a title, a quiet icon-led fact stack, then a short run of OVERLAPPING guest avatars with a "+" and a caption naming how many. The Meeting header's context row is that. |
+| `settings-01/07` (Pro) | The member table: `AvatarLabelGroup` as the name cell, a quiet role cell, text actions at the trailing edge. The directory row's density. |
+| `informational-01/15` (Pro) | A searchable event log beside a detail pane — a bounded table with pagination inside a page that also scrolls. The reading for the activity band's own viewport. |
+| `informational-01/13`, `informational-02/13` (Pro) | The record page and the activity feed, both carried forward from UNTITLED-12 unchanged. |
+
+### Meetings
+
+| Meetings surface | Untitled source | How it is used | Custom remaining, and why |
+| --- | --- | --- | --- |
+| Collection frame | Shared `CollectionLayout` over `application/tabs` | Title, scope rail, search, sort, empty and error states | Migrated in Phase 4; this pass changed only the search field's phone floor |
+| Day group | `application/table`'s `TableCard.Root` and `TableCard.Header` | One bounded card per day, the heading as its card header, the count as its `Badge` | The badge names its noun ("2 meetings"). It was a bare digit INSIDE the `h2`, whose accessible name was then "Tomorrow 1" |
+| Row | Untitled's divided body and hover | A fixed leading TIME column, the title, one metadata line, one trailing action | The two READINGS. An upcoming row answers "is this ready, and can I get in?"; a past row answers "what came out of it?" — decisions, actions, outcomes, notes, every one a stored `meeting_items` tally |
+| Row attendees | — | Names, in the metadata line | TEXT, deliberately. `listForEntities` returns a counterpart's title and nothing else, so marks here would be initials-only discs carrying less than the names they replaced |
+| Record shell | The shared Record Layout, `.dh-writing-record` | Title, one context line, the tab rail, the notebook | Unchanged; shared with the Note record |
+| Header context | `base/avatar` grouped as `informational-02/10` groups guests | When · where · overlapping marks · "N attendees" | The marks are DECORATIVE and the count is the target. Measured at 24×25px as links against a 44px floor, and four 44px targets do not fit beside a date |
+| Notebook | The shared writing system, unchanged | `LiveMarkdownEditor`, `useAutosaveField`, `RemoteChangeBanner`, `SaveStatusIndicator` and the version-quoting conflict contract | CodeMirror, for ADR-006's reason. The notebook was already a real consumer of #287's work and stays one |
+| Notebook bands | `overrides/section-heading` over `application/section-headers` | An `h2` per band, with a `description` slot | The `h2` rank: upstream hard-codes `h3`, which axe reports as a skipped level under a record's `h1` |
+| Agenda / decisions / outcomes / actions | Untitled's divided list, `base/buttons`, the shared `OverflowMenu` | A hairline per row, the words first, the conversion state as quiet supporting text | ONE visible conversion control and only on ACTIONS. A decision is a record of what was settled; three "Create task" buttons down an agenda of three topics made the chrome the loudest thing in the band |
+| Adding an item | `base/input`, `base/buttons` | One control that discloses the field and focuses it | The LIVE path is the capture bar and is untouched. This is the considered path |
+| Empty agenda on a past meeting | — | Not drawn | An agenda WITH content stays on any meeting: it is the record of what was planned |
+| Attendee list | Untitled's divided list, the shared Person mark, `OverflowMenu` | A row per attendee: mark, name as a link filling the row's height, actions in a menu | The link is `self-stretch`, measured: as an inline anchor it was 196×20 inside a 50px row |
+| Details facts | The shared quiet fact strip | Duration, timezone, held state, meeting link | "Held" states BOTH answers in words — MEET-03 needs the state legible without opening a menu |
+| Capture bar | The shared `toggleOptionClassName` (Untitled's pill geometry), `base/input`, `base/buttons` | Four `aria-pressed` type chips, a field and Add | The bar's fixed geometry, its keyboard and safe-area insets, and the record's height reservation — all token arithmetic no utility expresses |
+| Creation | Untouched | `/new/meeting` and the global capture sheet | Proportionate already: a title and a start is all a meeting needs to exist |
+
+### People
+
+| People surface | Untitled source | How it is used | Custom remaining, and why |
+| --- | --- | --- | --- |
+| Collection frame | Shared `CollectionLayout` | Circle rail, search, catch-up filter, sort, empty states | `keepFiltersOnCompact`, new: the layout's own way to keep a band with SEARCH in it at phone width |
+| Search field | `base/input` via `inputClassName()` | The collection's instant search | A native `<input type="search">` in a `<label>`, as Assets composes it — the shared `CollectionSearchField` hides behind a toggle below `md`, which is the opposite of this module's stated rule |
+| Catch-up filter | The shared `toggleOptionClassName` | One `aria-pressed` toggle carrying its own count | The count, so an owner knows before pressing whether it will show anything |
+| Row | — | Face, identity, reach, rhythm | `PersonRow` is unchanged apart from its tone vocabulary. It is a documented DalyHub composition (UIX-05) and its grid is what makes a directory's columns agree down the page |
+| Row mark | `base/avatar` | The shared Person mark at Untitled's `md` rung | UIX-05's circle accent, and only on a GENERATED disc |
+| Rhythm | — | The derived state, in words, with a dot that agrees | The tone is now exactly the kernel's `RelationshipTone`. It used to escalate to `warning`, painted with the product's OVERDUE colour |
+| Identity band | `base/avatar`'s `AvatarProfilePhoto` (newly vendored), `base/badges`, `base/buttons` | The face, the preferred name, the relationship word, Call / Email / Message | A control is rendered only where the data behind it exists; `sms:` needs a MOBILE specifically |
+| Rhythm band | `overrides/section-heading`, the shared quiet fact strip | The reasons, the cadence facts and what is genuinely ahead, in ONE grid | `StayInTouchPanel` takes the workspace's leading facts rather than the workspace drawing a second `<dl>` beneath it — measured as three half-empty tables at 1440 |
+| What you share | `application/table`'s divided body anatomy | A row per kind of linked record, each a link to the Linked tab | Deliberately NOT the table component: a React Aria `grid` for four rows of one column costs a keyboard user a grid to navigate out of |
+| Recent activity | The shared `Timeline`, over the SAME `/person/:id/activity` endpoint | The most recent moments, bounded, leading to all of them | No filter bar — a filter that narrows five rows is chrome, and the tab has the real one |
+| Stay-in-touch badge | `base/badges` via the shared `Badge`, `variant="outline"` | The derived state in the record header and on the row | Outline, not soft: measured, the soft `info` container is quiet in light and saturated in dark, and a relationship state is not a status a reader is meant to notice |
+| Contact / Notes / Settings tabs | Shared forms and `SettingsLayout` | Unchanged | Out of this pass's scope; the shared form primitives are already Untitled's |
+
+### Rejected, and why
+
+- **Untitled's `application/activity-feed` source.** It is Pro and the connector
+  will not release it here. The composition was adopted from
+  `informational-02/13`'s screenshot, as UNTITLED-12 did for the Diary.
+- **Avatars on the Meetings collection row.** The batched relationship read
+  returns a counterpart's title and nothing else, so the row's marks would be
+  initials-only discs replacing the names a schedule is actually scanned by.
+  The record header is different: names do not fit there anyway.
+- **Untitled's `getInitials`** (`base/avatar/utils.ts`), which comes with the
+  avatar folder. It is `name.split(" ")` and takes the first character of the
+  first and second words — so "Dr Helena Vasquez-Moreau" yields DH and a
+  bracketed or punctuated name yields punctuation. `initialsFromName` skips
+  words with no letter in them and iterates code points.
+- **The shared `CollectionSearchField` for People.** It is Untitled's
+  `base/input` and it is what Meetings uses, and below `md` it hides the field
+  behind a toggle — which is the opposite of the rule People has stated since
+  UIX-05 and HARDEN-02 fixed. Reconciling the two is a product decision about
+  every collection in the product, not a Meetings-and-People one.
+- **A React Aria `grid` for "What you share".** Four rows of one column is a
+  table a keyboard user has to navigate out of, for a list of links.
+- **Reordering the notebook's bands on a past meeting.** §26's order is the
+  order a meeting happens in and it is right; making the record's shape depend
+  on its state would cost more than the empty agenda band did. Not drawing the
+  empty band is the proportionate fix.
+- **Extending `PersonAvatarGroup` to the Today panel or the Linked tab.** It has
+  ONE consumer today. It lives in the shared identity module because §24 asks
+  for one shared Person identity model and a set of People is part of that
+  model's vocabulary — but a second consumer has not been invented to justify
+  it.
+
+### Dependency report
+
+No new runtime dependency. One new vendored file,
+`base/avatar/avatar-profile-photo.tsx`, MIT, retrieved from Untitled's public
+component API on 2026-09-13 and recorded in `scripts/vendor-untitled.mjs`'s
+`API_SOURCED` set with its provenance header, per AGENTS.md §11.
+
+### Documentation consulted
+
+[Introduction](https://www.untitledui.com/react/docs/introduction),
+[Theming](https://www.untitledui.com/react/docs/theming),
+[Dark mode](https://www.untitledui.com/react/docs/dark-mode),
+[MCP](https://www.untitledui.com/react/docs/mcp),
+[Avatars](https://www.untitledui.com/react/components/avatars),
+[Badges](https://www.untitledui.com/react/components/badges),
+[Buttons](https://www.untitledui.com/react/components/buttons),
+[Tables](https://www.untitledui.com/react/components/tables),
+[Tabs](https://www.untitledui.com/react/components/tabs) and
+[Empty states](https://www.untitledui.com/react/components/empty-states).
+
+No screenshot, historical visual audit or legacy Material/MD3/DHDS stylesheet is
+an implementation reference for any surface in this pass. The Pro template
+screenshots above were studied for COMPOSITION and are not reproduced.
+
+### The review pass, and what the pictures and the numbers found
+
+The captures were taken with `scripts/meetings-people-shot.mjs` over the
+`scripts/meetings-people-seed.mjs` fixture, at 1440 / 1280 / 1024 / 820 / 430 /
+393 / 320 in both appearances, and then LOOKED at rather than filed. Six things
+came out of that review; each is fixed, and each is the kind of defect a
+measurement alone or a screenshot alone would have missed.
+
+| Found by | Defect | Fix |
+| --- | --- | --- |
+| Looking, 393px | A seven-attendee header read `AN ⌐F ⌐R ⌐O +3` — at `xs` the marks overlap by 6px and the leftmost is on top, so every later monogram lost its first letter | One letter at `xs`; two at `sm` and `md`, which have the room. The overflow disc moves to the top of the stack, because a half-covered figure is a different figure |
+| Looking, 393px | A wrapped meta line began `· Marcus Oyelaran, …` — a leading separator reads as a bullet | The separator hangs off the part BEFORE it, so a wrapped line ends `Whitfield site ·` |
+| Looking, directory | `Last spoke 6 August 2026` beside `No shared history yet` on one row | The hand-entered date says `(noted)`, as the record has always said it |
+| Measuring, 430px | The Person's website link at 289×16, and the Meeting's link — standalone targets, not inline-in-a-sentence, so 2.5.8's exception does not cover them | The coarse-pointer floor, as BLOCK anchors |
+| Measuring, 1024px | The first attempt at that fix used `inline-flex`, and a 43-character URL became one unbreakable box that pushed the page 18px wide | Block, `break-words` |
+| Running axe over the new consumer | `role="feed"` claimed `article` children three levels down with day headings interleaved — critical `aria-required-children` on every Activity surface in the product | A labelled `group`. `aria-posinset`/`aria-setsize` stay on the articles, which `article` supports natively, so windowed position survives |
+
+Known and NOT changed here, because both are shared components used by every
+record type in the product and neither is this pass's to change without
+measuring every consumer: `EntityLink` is 22px tall inside `ReferenceList`
+(inside activity prose it is an inline link in a sentence, which WCAG 2.5.8
+exempts), and `SelectField`'s clear button is 28×28.
+
+## UNTITLED-14 — the Meeting workspace redesign
+
+The product owner reviewed the Meeting record and rejected it. The objection was
+about an ARRANGEMENT, not a finish: agenda items, decisions, outcomes, actions
+and notes "feel clunky, fragmented and visually messy", and the record read as
+"several forms for adding different kinds of meeting record". It did.
+
+### The old interaction problems, named
+
+| Problem | What it actually was |
+| --- | --- |
+| Three tabs for one meeting | Notebook / Details / Follow-up. Running a meeting meant reading the agenda on one, checking who was in the room on a second, and finding what anyone agreed to on a third |
+| Five ways to add something | Four per-band disclosure forms plus the capture bar |
+| Every artifact was a form | `Add → reveal a labelled field and an Add button → Save → it closes → press Add again` for the next line |
+| A second Task UI | The Follow-up tab drew a title button and a state word, so a Task created in a meeting had no completion control, no due date, no priority and no overflow menu on the meeting that created it |
+| Context was a tab away | Who is in the room, when it is and where, all behind "Details" — unreachable while writing notes |
+
+### Pro pages and components researched
+
+`has_pro_access: true`. Page-template searches: *event or meeting detail page
+with attendees, agenda, notes and activity*, across `informational`,
+`dashboards` and `settings`. Component searches: *command menu / command palette
+with searchable grouped actions and keyboard navigation*.
+
+| Considered | What it offered | Verdict |
+| --- | --- | --- |
+| `informational-01/13` | Project detail: dominant main column of bands, a bounded activity rail on the right, a segmented strip inside the workspace card | **Selected** — this is the workspace/context anatomy §M describes |
+| `informational-02/13` | The same anatomy at a header layout, plus a single compact `Add` pill on a hairline between sections | **Selected** — the add affordance belongs to the list, not beside a heading |
+| `informational-01/14` | Main content + a collapsible chat rail | Rejected: the rail is a conversation, and a Meeting's rail is reference |
+| `informational-01/10`, `02/08`, `02/09`, `02/10` | Calendar/scheduling surfaces with an event summary and guest avatars | Rejected as a page; the avatar-group and event-summary COMPOSITION was already adopted in UNTITLED-13 |
+| `command-menu-actions`, `-stacked`, `-users`, `-empty-state` | Searchable grouped action lists with shortcut hints | Rejected as the "Add to meeting" mechanism — see below |
+| `settings-01/07` | Member table with role controls and an invite list | Rejected: an attendee list is not a permissions table |
+
+### Why NOT a command menu for "Add to meeting"
+
+§F asks whether one prominent contextual creation mechanism should replace the
+scattered Add controls. Researched, and rejected on its merits: a command menu
+is a CHOOSER, and it adds a step to an act whose whole cost is the typing. `+ Add
+to meeting → choose "Agenda item" → type → Enter` is strictly worse than
+`+ Add agenda item → type → Enter`, and it moves the act away from the list it
+lands in.
+
+What §F actually asks for — "fewer disconnected Add X controls" and one mental
+model — is satisfied by making the add row part of the LIST rather than a
+control beside it. There are two capture paths now, and they are one idea at two
+scopes: the list's own last row (you are reading the agenda; you add to it), and
+the pinned capture bar (you are in the meeting; capture anything). DalyHub
+already has a command menu (⌘K) and the Meeting registers its follow-up action
+there.
+
+### The selected composition
+
+    ┌──────────────────────────────────┬────────────────────┐
+    │  THE WORK (flex-1, prose measure) │  THE CONTEXT (20rem)│
+    │   Agenda                          │   When and where    │
+    │   Notes                           │   Attendees         │
+    │   Decisions                       │   Linked records    │
+    │   Outcomes                        │                     │
+    │   Actions                         │                     │
+    └──────────────────────────────────┴────────────────────┘
+
+Below `xl` the two stack, work first. §M's rule is enforced once, on the rail:
+fixed width so the work keeps every pixel a wider screen adds, hairline ring
+rather than a fill, and it is the half that goes below.
+
+### Agenda / Decision / Outcome / Action UX
+
+- **Agenda** — the writing surface, then a divided list of rows ending in
+  `+ Add agenda item`. No cards per item, no forms, one context menu per row.
+- **Decision** — the same row, plus a small circular mark. §I asks a decision to
+  be findable when scanning a finished meeting; the mark is the whole difference.
+- **Outcome** — the same row, deliberately UNMARKED. An outcome is a consequence,
+  a decision is a commitment; marking both would say they are one kind of thing.
+  The schema distinction (`meeting_items.kind`, migration 0021) is untouched and
+  the semantics are unchanged.
+- **Action** — the band shows the real Tasks through the shared `TaskList` /
+  `TaskRow`, then the lines that are not yet anyone's work. An action keeps a
+  promoted "Create task" because it is already a commitment and converting it is
+  the most frequent act on the surface.
+- **Notes** — the shared #287 editor at the workspace's width, no card, growing
+  to 60vh before it scrolls.
+
+### Mobile live-meeting workflow (§P)
+
+Measured at 390px on the loaded fixture. Open the meeting → the capture bar is
+on screen immediately (note / action / decision / outcome, type, Add) → scroll
+to the agenda and add an item inline → write a note in place → add a decision
+inline → create a follow-up Task from an action's own control. No page changes,
+no modal except the shared Task form. The context rail is below the work, which
+is the right order for a phone during a meeting.
+
+## UNTITLED-15 — the icon convergence
+
+| Entity / surface | Previous icon source | Untitled icon source | Mapping strategy | Legacy remaining |
+| --- | --- | --- | --- | --- |
+| **Projects** | `entity-glyphs.tsx` (DalyHub stroke art) via the catalogue; `ProjectIcon` (Material Symbols `folder`) in the frame | `Folder`; 84 catalogue keys upstream | Stored semantic key → catalogue → `fromUntitled` adapter. **No key changed, no migration** | None |
+| **Areas** | as above; `AreaIcon` (Material Symbols `layers`) | `LayersThree01` | as above | None |
+| **Goals** | as above; `GoalIcon` (Material Symbols `flag`) | `Flag05` | as above | None |
+| People | `PersonIcon` (Material Symbols `person`) | `User01` | Entity-identity map | None |
+| Meetings | `MeetingIcon` (Material Symbols `groups`) | `Users01` | Entity-identity map | None |
+| Habits | `HabitIcon` (Material Symbols `repeat`) | `Repeat01` | Entity-identity map | None |
+| Asset subtypes | `asset-icons.tsx` → `~/shared/icons` | via the same re-exports | Registry unchanged; the source beneath it moved | None |
+| Diary subtypes | `diary-icons.tsx` → `~/shared/icons` | via the same re-exports | as above | None |
+| DS-10 feedback | 6 inline SVGs | `CheckCircle`, `AlertTriangle`, `XCircle`, `InfoCircle`, `XClose`, `Loading01` | Direct | None |
+| DS-10b settings | 1 inline SVG (a duplicate of the above) | `AlertTriangle` | Direct | None |
+| Filter chips | 1 inline SVG on a 12-unit grid | `XClose` | Direct | None |
+| Lifestyle entity keys | `entity-glyphs.tsx` | — | **17 keys kept** — the package has no paw, leaf, tent, coffee, plate of food, mountain, guitar, pram, flower, sofa or wine glass | 17 glyphs, enumerated and test-bounded |
+| Brand mark | `BrandMark.tsx` (generated geometry) | — | Product identity, not an icon | 1, by design |
+| Priority flag | `PriorityIndicator.tsx` | — | Encodes P1–P4 by shape; a product signal rather than a generic icon | 1, by design |
+
+**Legacy icon systems found: 3** (hand-copied Material Symbols in `icons.tsx`;
+DalyHub stroke art in `entity-glyphs.tsx`; module-local inline SVGs in
+`feedback-icons.tsx`, `settings-icons.tsx` and `FilterChip.tsx`).
+**Retired: 3.** 1,830 lines of hand-maintained geometry became 686, of which 174
+of 190 exports are upstream.
+
+**Shared registry**: `app/kernel/entities/entity-icon-keys.ts` (the vocabulary,
+kernel-validated) → `app/shared/entity/entity-icon-catalogue.tsx` (key → glyph +
+label + category) → `app/shared/icons/` (`fromUntitled` over
+`@untitledui/icons`). **Persistent icon keys: unchanged. Migrations: none.**
+
+**Picker**: audited, unchanged, because it was already the right composition —
+the shared `Sheet` (one focus trap; bottom sheet on a phone, centred dialog above
+48rem), search, categories, keyboard navigation, current selection, and selection
+signalled by `aria-pressed` + a check badge + a border so it is never colour
+alone. It stays a CURATED subset deliberately: the kernel file is explicit that a
+stored key is "never a React component name", so exposing 1,179 raw upstream
+names would mean persisting library identifiers as data.
+
+**UI icons vs entity icons.** Both come from `@untitledui/icons`; their TREATMENT
+differs and that is the grammar. A UI action icon follows its label at `1em` and
+is decorative. An entity identity icon is resolved from a stored key and rendered
+inside the identity tile at `--app-entity-icon-size` in the record's own hue,
+with the tile's three rungs (`sm`/default/`lg`) carrying both the glyph size and
+the radius. Neither ever carries meaning alone.

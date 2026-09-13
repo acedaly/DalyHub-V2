@@ -76,8 +76,9 @@ import {
 } from "~/shared/relationships";
 import type { RelationshipTone } from "~/kernel/relationships";
 
+import { PersonAvatar } from "~/shared/person-identity";
+
 import { NewPersonForm } from "./NewPersonForm";
-import { PersonAvatar } from "./PersonAvatar";
 import {
   PERSON_CIRCLES,
   parsePersonCircle,
@@ -88,7 +89,9 @@ import {
 } from "./person-circles";
 import { formatPersonDate, type SerializedPersonListItem } from "./person-view";
 import type { PersonMutationResult } from "./routes/mutate";
-import { buttonClassName } from "~/shared/ui";
+import { buttonClassName, inputClassName } from "~/shared/ui";
+import { toggleOptionClassName } from "~/shared/forms";
+import { cx } from "~/shared/ui/untitled/utils/cx";
 
 const NEW_PERSON_KEY = "new-person";
 
@@ -189,21 +192,33 @@ const RHYTHM_RANK: Readonly<Record<string, number>> = {
 };
 
 /**
- * The row's tone vocabulary from the relationship kernel's.
+ * The row's tone, straight from the relationship kernel's.
  *
- * `out_of_touch` and `due_for_follow_up` both arrive as the kernel's `neutral`
- * tone — correct for a pill that must not shout, and not enough for a column the
- * eye is meant to land on. The escalation is made HERE, from the state rather
- * than from the tone, and it is still never colour alone: the state is spelled
- * out beside the dot on every row.
+ * ── UNTITLED-13: the red dot is gone, and it was a real defect ──────────────
+ *
+ * This function used to ESCALATE. `out_of_touch` and `due_for_follow_up` both
+ * arrive as the kernel's `neutral` tone, and UIX-05 promoted them to the row's
+ * `warning` — which `card-family.css` painted with `--dh-color-overdue`, the
+ * product's OVERDUE colour, the one a Task wears when a due date has passed.
+ * Four red dots down a People list, on the surface whose whole brief is that it
+ * is not a CRM.
+ *
+ * The escalation's own reasoning was about emphasis: `neutral` is "correct for
+ * a pill that must not shout, and not enough for a column the eye is meant to
+ * land on". The premise is right and the remedy was wrong. AGENTS.md §5 and the
+ * relationship kernel's own header both rule this out in as many words — "no
+ * streaks, no scores, no badges and no red 'overdue' relationship" — and
+ * `RelationshipTone` has no `warning` and no `danger` for exactly that reason,
+ * so the escalation was reaching past a vocabulary that had deliberately left
+ * the colour out.
+ *
+ * The emphasis it wanted is still there and comes from the things that do not
+ * shout: the column's POSITION (last, where the eye lands and stays), the
+ * default SORT (these rows are first), and the words themselves. A friend you
+ * have not rung is not an overdue task, and the product should not say it is.
  */
-function rhythmTone(state: string, tone: RelationshipTone): PersonRowTone {
-  if (state === "out_of_touch" || state === "due_for_follow_up") {
-    return "warning";
-  }
-  if (tone === "success") return "success";
-  if (tone === "info") return "info";
-  return "neutral";
+function rhythmTone(tone: RelationshipTone): PersonRowTone {
+  return tone;
 }
 
 export interface PeopleCollectionViewProps {
@@ -320,8 +335,23 @@ function lastSharedPhrase(person: SerializedPersonListItem): string | null {
     );
     return `Last spoke ${dated ?? relativeDayPhrase(days)}`;
   }
+  /*
+   * The hand-entered field says "NOTED", because next to it the row prints a
+   * DERIVED state — and for a Person with nothing linked that state reads "No
+   * shared history yet".
+   *
+   * Seen on the seeded directory: "Last spoke 6 August 2026 · Supplier · Site
+   * foreman" and "No shared history yet" on one line, which is a row
+   * contradicting itself. Both statements are true and they are about
+   * different things: one is what the owner typed into the Contact tab, the
+   * other is what the workspace can actually see. The Person record already
+   * makes the distinction ("Last interaction (noted)", and only while nothing
+   * has been recorded); the row was the one surface still calling them the
+   * same thing, against this function's own stated rule that every branch is
+   * prefixed with what its date MEANS.
+   */
   const entered = formatPersonDate(person.lastInteraction);
-  if (entered) return `Last spoke ${entered}`;
+  if (entered) return `Last spoke ${entered} (noted)`;
   const followUp = formatPersonDate(person.nextFollowUp);
   if (followUp) return `Follow up ${followUp}`;
   return null;
@@ -649,16 +679,24 @@ function PeopleCollection({
   );
 
   const filterBar = (
-    <div className="dh-people-filters">
-      <label className="dh-people-filters__search">
+    <div className="dh-people-filters flex w-full flex-wrap items-center gap-2">
+      <label className="dh-people-filters__search min-w-0 flex-1 basis-64">
         <span className="dh-visually-hidden">Search people</span>
+        {/*
+          UNTITLED-13 — Untitled's `base/input` recipe through
+          `inputClassName()`, not a bare `<input>` leaning on `base.css`'s
+          control floor. It is the same composition Assets uses and for the same
+          reason: the control's height, corner, ground, focus ring and
+          coarse-pointer floor come from the product's one input rather than
+          from this module.
+        */}
         <input
           type="search"
           inputMode="search"
           placeholder="Search name, organisation, email or tag"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          className="dh-people-filters__input"
+          className={inputClassName({ className: "dh-people-filters__input" })}
           autoComplete="off"
         />
       </label>
@@ -668,16 +706,26 @@ function PeopleCollection({
        * toggle rather than a select because there is exactly one answer, and it
        * states its own count so the owner knows before pressing it whether it
        * will show anything.
+       *
+       * UNTITLED-13 — the shared `toggleOptionClassName` recipe (Untitled's pill
+       * geometry), which is where its border, radius, ground, pressed fill and
+       * 44px floor come from now. It was ~35 lines of hand-painted CSS in
+       * `people.css` with its own `aria-pressed` fill, beside a Diary chip and a
+       * Meeting capture chip that had each been rebuilt on this recipe already.
+       * `aria-pressed` still carries the state, so it is never colour alone.
        */}
       {view !== "archived" ? (
         <button
           type="button"
-          className="dh-people-filters__toggle"
+          className={cx(
+            "dh-people-filters__toggle gap-2",
+            toggleOptionClassName({ checked: onlyCatchUp }),
+          )}
           aria-pressed={onlyCatchUp}
           onClick={() => setParam("catch_up", onlyCatchUp ? null : "1")}
         >
           Needs a catch-up
-          <span className="dh-people-filters__toggle-count">
+          <span className="dh-people-filters__toggle-count tabular-nums">
             {catchUpCount}
           </span>
         </button>
@@ -693,7 +741,7 @@ function PeopleCollection({
        * search field beside it.
        */}
       <SortMenu
-        className="dh-people-filters__sort"
+        className="dh-people-filters__sort shrink-0"
         subject="people"
         value={sortKey}
         options={SORT_OPTIONS}
@@ -711,8 +759,25 @@ function PeopleCollection({
    * this: the phone gets one Filter button and the shared sheet, and it can only
    * do that because the sort and the catch-up filter are both URL-backed.
    *
-   * Search stays visible at every width (see `people.css`), because a search box
-   * behind a button is a search box nobody uses.
+   * Search stays visible at every width, because a search box behind a button
+   * is a search box nobody uses.
+   *
+   * UNTITLED-13 — that is `keepFiltersOnCompact` now, a prop on the shared
+   * layout beside the `keepViewsOnCompact` it mirrors.
+   *
+   * People had written the rule as a comment and then had to defeat the layout
+   * to get it: supplying `mobileControls` turns on the shared rule that hides
+   * the whole desktop filter band below 48rem, so HARDEN-02 brought it back with
+   * a `:has(.dh-people-filters)` override in `people.css` — a module reaching
+   * into the shared layout's cascade because the layout offered no way to say
+   * it. The layout says it now; the module still decides what inside the band
+   * survives the narrowing, which is search alone.
+   *
+   * `persistentControls` is NOT this and a first draft of this pass reached for
+   * it by its name. It makes the SHEET the control surface at every width and
+   * leaves the hide rule in force, so at 393px the band, the toggle, the sort
+   * and the search all disappeared together — the exact defect HARDEN-02 fixed,
+   * reintroduced. Caught by driving a real phone-width browser, not by a test.
    */
   const mobileControls = (
     <CollectionControls
@@ -735,6 +800,7 @@ function PeopleCollection({
       viewSwitcher={viewSwitcher}
       filterBar={filterBar}
       mobileControls={mobileControls}
+      keepFiltersOnCompact
       // The circles and Archived are principal collections, not filters — they
       // are not among the control groups, so hiding the switcher on a phone left
       // no route to them at all.
@@ -845,7 +911,12 @@ function PeopleCollection({
                 initials={person.initials}
                 photoUrl={person.photoUrl}
                 colourRank={personCircleRank(personCircle(person.relationship))}
-                size={44}
+                // UNTITLED-13 — Untitled's `md` rung (40px), which is the size
+                // its own member tables draw a directory row at. It replaces a
+                // bespoke `size={44}` that existed only because the old
+                // component took a pixel number; the row's grid track follows
+                // the mark rather than the other way round.
+                size="md"
               />
             }
             title={person.title}
@@ -856,10 +927,7 @@ function PeopleCollection({
               person.stayInTouch
                 ? {
                     text: person.stayInTouch.label,
-                    tone: rhythmTone(
-                      person.stayInTouch.state,
-                      person.stayInTouch.tone,
-                    ),
+                    tone: rhythmTone(person.stayInTouch.tone),
                     /*
                      * CONVERGE-01 §7 — "No shared history yet" is DEMOTED, not
                      * deleted.

@@ -116,6 +116,59 @@ export function createIcon(displayName: string, children: React.ReactNode) {
 }
 
 /**
+ * UNTITLED-15 — wrap an `@untitledui/icons` glyph in DalyHub's icon contract.
+ *
+ * This is the adapter the icon convergence rests on, and the reason no call site
+ * had to move. DalyHub's contract is: `size` defaults to `1em` so an icon
+ * follows its label and honours OS text scaling; `title` promotes the glyph to
+ * `role="img"` with an accessible name; everything else is decorative and
+ * `aria-hidden`, because meaning is never carried by an icon alone (AGENTS.md
+ * §15). Untitled's contract is a numeric `size` defaulting to 24, a `color`
+ * prop, and `aria-hidden="true"` — close, but not the same object.
+ *
+ * So the name, the props and the accessibility behaviour stay DalyHub's, and the
+ * GEOMETRY becomes Untitled's. `width`/`height` are passed explicitly rather
+ * than through `size` because ours may be a CSS length (`1em`) and theirs is
+ * typed as a number; they spread our props last, so ours win — including
+ * `aria-hidden: undefined`, which is what lets a titled icon actually be
+ * announced.
+ *
+ * Untitled's glyphs are STROKED at weight 2 on the 24-unit grid. That is one
+ * weight for the whole product, which is what §AA asks for, and it is why the
+ * old `createStrokeIcon` weight of 1.75 survives only on the handful of
+ * DalyHub-drawn glyphs Untitled has no equivalent for.
+ */
+export function fromUntitled(
+  displayName: string,
+  Glyph: React.FC<
+    Omit<SVGProps<SVGSVGElement>, "color"> & {
+      color?: string;
+      size?: number;
+    }
+  >,
+) {
+  function IconComponent({ size = "1em", title, ...rest }: IconProps) {
+    const accessible = title !== undefined;
+    return (
+      <Glyph
+        width={size}
+        height={size}
+        className="dh-icon"
+        role={accessible ? "img" : undefined}
+        aria-hidden={accessible ? undefined : true}
+        aria-label={accessible ? title : undefined}
+        focusable="false"
+        {...rest}
+      >
+        {title !== undefined ? <title>{title}</title> : null}
+      </Glyph>
+    );
+  }
+  IconComponent.displayName = displayName;
+  return IconComponent;
+}
+
+/**
  * Build a named STROKE icon component from geometry authored on the 24×24 grid.
  *
  * Identical accessibility and sizing behaviour to {@link createIcon} — the same

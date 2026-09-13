@@ -31,6 +31,16 @@ import {
  * cleaned up after each test.
  */
 
+/*
+ * UNTITLED-14 — Notebook, Details and Follow-up are ONE tab now.
+ *
+ * The Meeting record was three tabs and five ways to add something, so running a
+ * meeting meant reading the agenda on one, checking who was in the room on a
+ * second and seeing what anyone agreed to do on a third. They are bands of one
+ * workspace, and the tab that holds them is "Meeting". Every journey below is
+ * unchanged; it just stops changing tabs to do it.
+ */
+
 const owned = new Set<string>();
 
 /** The Notebook has TWO editors (Agenda and Notes), so every locator is scoped
@@ -52,7 +62,7 @@ async function waitForEditor(
 }
 
 async function openNotebook(page: Page): Promise<void> {
-  await page.getByRole("tab", { name: "Notebook" }).click();
+  await page.getByRole("tab", { name: "Meeting" }).click();
   await waitForEditor(page, "Notes");
 }
 

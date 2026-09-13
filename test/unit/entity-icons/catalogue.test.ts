@@ -60,20 +60,26 @@ describe("the entity icon catalogue", () => {
   });
 
   /*
-   * IDENTITY-01 — ONE IDIOM.
+   * UNTITLED-15 — ONE IDIOM, and a BOUNDED exception list.
    *
-   * The catalogue used to point at the application frame's Material Symbols,
-   * which are FILLED shapes. Inside the rebuilt identity tile — a whisper of the
-   * record's hue as the fill, a fine edge, and the saturated hue as the glyph —
-   * a filled symbol reads as a solid blob of colour, which is exactly the look
-   * the tile was rebuilt to leave behind.
+   * The original rule (IDENTITY-01): every glyph an owner can pick is a STROKE
+   * glyph, never a filled Material Symbol, because inside the identity tile — a
+   * whisper of the record's hue as the fill and the saturated hue as the glyph
+   * — a filled symbol reads as a solid blob of colour.
    *
-   * So this asserts what the eye would otherwise have to catch: every glyph an
-   * owner can pick is a STROKE glyph at the set's one weight. Adding a hundredth
-   * icon by reaching for the nearest Material Symbol fails here rather than in a
-   * screenshot six weeks later.
+   * That rule is unchanged. What changed is the SOURCE: eighty-four of the keys
+   * are now `@untitledui/icons`, which strokes at weight 2, and seventeen are
+   * still DalyHub drawings at 1.75, because the package has no paw, leaf,
+   * campsite, coffee, plate of food, mountain, guitar or pram and DalyHub lets
+   * an owner name an Area "Pets" or "Camping".
+   *
+   * So the assertion is stricter than "one weight" rather than looser: exactly
+   * two weights exist, and the hand-drawn set is exactly seventeen. An
+   * eighteenth hand-drawn glyph fails HERE, which is the point — it forces
+   * whoever adds it to have first failed to find it upstream.
    */
-  it("draws every glyph in the one STROKE idiom, at the one weight", () => {
+  it("draws every glyph as a stroke, in exactly the two documented weights", () => {
+    const byWeight = new Map<string, string[]>();
     for (const option of ENTITY_ICON_OPTIONS) {
       const markup = renderToStaticMarkup(createElement(option.Icon));
       expect(markup, `${option.key} must not be a filled glyph`).toContain(
@@ -82,16 +88,26 @@ describe("the entity icon catalogue", () => {
       expect(markup, `${option.key} must be stroked`).toContain(
         'stroke="currentColor"',
       );
-      expect(markup, `${option.key} must use the set's weight`).toContain(
-        'stroke-width="1.75"',
-      );
       // A Material Symbol arrives through `createIcon`, which wraps its geometry
       // in the 960-unit transform. Nothing in this set may carry one.
       expect(
         markup,
         `${option.key} must not be Material Symbols geometry`,
       ).not.toContain("scale(0.025)");
+
+      const weight = /stroke-width="([^"]+)"/.exec(markup)?.[1];
+      expect(
+        weight,
+        `${option.key} must declare a stroke weight`,
+      ).toBeDefined();
+      byWeight.set(weight!, [...(byWeight.get(weight!) ?? []), option.key]);
     }
+
+    expect([...byWeight.keys()].sort()).toEqual(["1.75", "2"]);
+    expect(
+      byWeight.get("1.75") ?? [],
+      "a hand-drawn glyph beyond the documented seventeen — search @untitledui/icons first",
+    ).toHaveLength(17);
   });
 
   /*

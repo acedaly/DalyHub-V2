@@ -96,7 +96,23 @@ export function toggleOptionClassName(options: {
     "relative inline-flex min-h-[var(--app-touch-target-min)] min-w-12 cursor-pointer",
     "items-center justify-center gap-1.5 rounded-full px-3 text-sm ring-1 select-none",
     "transition duration-100 ease-linear",
+    /*
+     * The focus ring is stated for BOTH hosts this recipe has.
+     *
+     * `has-[:focus-visible]` is for a `<label>` wrapping a real `<input>` —
+     * the Diary capture chip and this file's own radio group, where the
+     * focusable element is a descendant. UNTITLED-13 added the second host: the
+     * Meeting capture bar's type chips are `aria-pressed` BUTTONS in a
+     * `role="group"` (they select a capture mode in component state, not a
+     * value in a form that posts), so the focusable element IS the styled box
+     * and `has-[…]` can never match it. A first draft took the recipe without
+     * this arm and silently lost the ring on four controls.
+     *
+     * Neither arm can fire on the wrong host: a `<label>` is not focusable and
+     * a `<button>` has no focusable descendant.
+     */
     "has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus-ring",
+    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring",
     checked
       ? "bg-brand-solid font-semibold text-white ring-transparent forced-colors:bg-[Highlight] forced-colors:text-[HighlightText]"
       : "bg-primary text-secondary ring-primary hover:ring-brand",

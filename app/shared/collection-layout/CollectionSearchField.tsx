@@ -45,7 +45,7 @@ import { useRef, useState } from "react";
 
 import { SearchLg, XClose } from "@untitledui/icons";
 
-import { ButtonUtility } from "~/shared/ui/untitled/base/buttons/button-utility";
+import { IconButton } from "~/shared/ui/IconButton";
 import { Input as UntitledInput } from "~/shared/ui/untitled/base/input/input";
 
 export type CollectionSearchFieldProps = {
@@ -112,13 +112,31 @@ export function CollectionSearchField({
       data-testid={testId}
       data-untitled-source="base/input"
     >
-      <ButtonUtility
+      {/*
+        UNTITLED-13 — the shared `IconButton`, not the vendored `ButtonUtility`
+        directly.
+        
+        MEASURED: `meetings-people-shot.mjs` reported this control at **32×32**
+        on a 393px phone with touch emulated, against DalyHub's 44px
+        coarse-pointer floor. It is upstream's `h-max p-1.5` around a 20px
+        glyph — right for a desktop toolbar, and exactly the case the shared
+        `IconButton` was built for: its own note says "Untitled's desktop
+        dimensions are not assumed sufficient" and it takes
+        `--dh-control-height` in both axes for that reason.
+        
+        This is the PHONE reveal for search on every collection in the product
+        — Meetings, Notes, Tasks, Projects, Areas, Goals, Habits, Assets — so it
+        was the one control an owner reaches for on the device the floor exists
+        for, four pixels short in each direction. Pre-existing since DS-02 and
+        unrelated to this pass except that this pass is the one that measured
+        it.
+      */}
+      <IconButton
         ref={toggleRef}
-        size="sm"
-        color="tertiary"
-        icon={SearchLg}
-        tooltip={label}
-        aria-label={label}
+        icon={<SearchLg aria-hidden="true" />}
+        label={label}
+        tooltip
+        variant="subtle"
         aria-expanded={open}
         className={["dh-csearch__toggle", open ? "hidden" : "md:hidden"]
           .filter(Boolean)
@@ -163,7 +181,14 @@ export function CollectionSearchField({
         {hasQuery ? (
           <button
             type="button"
-            className="absolute inset-y-0 right-1.5 my-auto flex size-6 cursor-pointer items-center justify-center rounded-md text-fg-quaternary outline-focus-ring transition duration-100 ease-linear hover:bg-primary_hover hover:text-fg-quaternary_hover focus-visible:outline-2 focus-visible:outline-offset-2"
+            /*
+             * Clear stays a 24px MARK inside the field — it cannot be 44px
+             * without being taller than the control it sits in — but its hit
+             * area takes the floor on a coarse pointer through the inset
+             * `::after` the row links use, so a thumb gets 44px while the
+             * drawn box stays where it belongs.
+             */
+            className="absolute inset-y-0 right-1.5 my-auto flex size-6 cursor-pointer items-center justify-center rounded-md text-fg-quaternary outline-focus-ring transition duration-100 ease-linear after:absolute after:top-1/2 after:left-1/2 after:size-11 after:-translate-x-1/2 after:-translate-y-1/2 after:content-[''] hover:bg-primary_hover hover:text-fg-quaternary_hover focus-visible:outline-2 focus-visible:outline-offset-2"
             onClick={() => {
               onChange("");
               inputRef.current?.focus();

@@ -95,8 +95,20 @@ async function linkNote(page: Page, noteTitle: string): Promise<void> {
   ).toBeVisible();
 }
 
-function summaryCards(page: Page) {
-  return page.getByRole("list", { name: "Relationship" });
+/*
+ * UNTITLED-13 — the DS-13 counting-tile grid is gone from this record.
+ *
+ * The Summary opened on up to NINE tiles of figures, two of which ("Total
+ * interactions", "First interaction") were measuring the relationship rather
+ * than describing it — and a count of a friendship is a CRM metric, which
+ * People is explicitly not. The same questions are answered by two bands now:
+ * "What you share" (one navigable row per kind of linked record) and "Staying
+ * in touch" (the rhythm, its reasons, and the cadence facts behind them, with
+ * the evidence counts as the band's own supporting line). Every assertion below
+ * asks the same question of whichever band now answers it.
+ */
+function sharedRecords(page: Page) {
+  return page.getByRole("list", { name: "What you share" });
 }
 
 function stayInTouch(page: Page) {
@@ -127,10 +139,10 @@ test.describe("PEOPLE-03 — relationship intelligence", () => {
     const personUrl = await createPerson(page, name);
 
     // 1. A brand-new Person reads as an invitation, never as a scoreboard of zeros.
-    await expect(
-      summaryCards(page).getByText("Last interaction"),
-    ).toBeVisible();
-    await expect(summaryCards(page).getByText("None yet")).toBeVisible();
+    //    With nothing shared there is no "What you share" band at all — an empty
+    //    band telling the owner what they have not filled in is the scoreboard
+    //    in another shape.
+    await expect(sharedRecords(page)).toHaveCount(0);
     /*
      * The derived STATE is on the record's header context line, not inside the
      * panel: RECORD-01 removed the panel's own pill because the header already
@@ -143,17 +155,24 @@ test.describe("PEOPLE-03 — relationship intelligence", () => {
     await expect(
       stayInTouch(page).getByText("Not enough history yet"),
     ).toBeVisible();
-    await expect(summaryCards(page).getByText("Notes")).toHaveCount(0);
+    await expect(page.getByText("recorded moment")).toHaveCount(0);
 
     // 2. Sharing a record with them changes the answer immediately — nothing is
     //    stored, so the next load simply tells the truth.
     await linkNote(page, noteTitle);
     await page.goto(personUrl);
 
-    await expect(summaryCards(page).getByText("Notes")).toBeVisible();
-    await expect(
-      summaryCards(page).getByText("Total interactions"),
-    ).toBeVisible();
+    await expect(sharedRecords(page).getByText("Notes")).toBeVisible();
+    /*
+     * The count that survives, and the one that does not.
+     *
+     * "Total interactions" was a tile — a bare figure at the top of the record,
+     * which is a score. The same number is evidence when it sits under the
+     * heading it explains, so it is the rhythm band's supporting line: "1
+     * recorded moment". Nothing is recomputed; both came from the kernel's
+     * evaluator then and now.
+     */
+    await expect(page.getByText(/\b1 recorded moment\b/)).toBeVisible();
     // The STATE is on the record's header context line, for the same RECORD-01
     // reason as in step 1: the panel states WHY, and only why.
     await expect(
@@ -169,21 +188,27 @@ test.describe("PEOPLE-03 — relationship intelligence", () => {
 
     // 3. Cross-module navigation: a shared-record card opens the surface that lists
     //    and opens those records…
-    await summaryCards(page)
+    await sharedRecords(page)
       .getByRole("link", { name: /^Notes: 1$/ })
       .click();
     await expect(page).toHaveURL(/\?tab=linked/);
+    // Scoped to the panel that opened. The Summary tab now carries a bounded
+    // activity stream of its own, whose entity links name the same Note, so an
+    // unscoped query matched the outgoing panel as well as the incoming one.
     await expect(
-      page.getByRole("link", { name: new RegExp(noteTitle) }),
+      page
+        .getByRole("tabpanel", { name: "Linked" })
+        .getByRole("link", { name: new RegExp(noteTitle) })
+        .first(),
     ).toBeVisible();
 
-    // …and an interaction card opens the ONE relationship timeline.
+    // …and the bounded recent-activity band opens the ONE relationship timeline.
+    // It used to be a counting tile linking to the same place; it is the real
+    // stream now, read short, over the same `/person/:id/activity` endpoint.
     await page.goto(personUrl);
-    await summaryCards(page)
-      .getByRole("link", { name: /^Last interaction:/ })
-      .click();
+    await page.getByRole("link", { name: "All activity" }).click();
     await expect(page).toHaveURL(/\?tab=activity/);
-    const feed = page.getByRole("feed", { name: "Person timeline" });
+    const feed = page.getByRole("group", { name: "Person timeline" });
     await expect(feed).toBeVisible();
 
     // 4. And every timeline item opens its ORIGINATING record, in its own module.
@@ -214,28 +239,43 @@ test.describe("PEOPLE-03 — relationship intelligence", () => {
   test("is keyboard-operable, with real headings and large touch targets", async ({
     page,
   }) => {
-    test.setTimeout(120_000);
+    test.setTimeout(180_000);
     const name = `${TITLE_PREFIX}${Date.now()}`;
-    await createPerson(page, name);
+    const noteTitle = uniqueNoteTitle("person-relationship-keys");
 
-    // Both regions are real, named headings on the Summary tab.
-    await expect(
-      page.getByRole("heading", { name: "Relationship", level: 3 }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("heading", { name: "Staying in touch", level: 3 }),
-    ).toBeVisible();
+    await createNote(page, noteTitle);
+    const personUrl = await createPerson(page, name);
+    await linkNote(page, noteTitle);
+    await page.goto(personUrl);
 
-    // Each navigable summary card is a single keyboard-reachable link that clears
-    // the shared 44px target floor.
-    const firstCard = summaryCards(page).getByRole("link").first();
-    await firstCard.focus();
-    await expect(firstCard).toBeFocused();
-    await expectMinTouchTarget(firstCard);
+    /*
+     * Each band is a real heading on the Summary tab, at LEVEL 2.
+     *
+     * They were `h3`s under a `h2` the tab no longer draws — a band is now a
+     * direct child of the record's `h1`, so `h3` would be a skipped level (axe
+     * `heading-order`). The guarantee the test is making is unchanged: the
+     * regions this record is built from are named headings, not styled divs.
+     */
+    for (const band of [
+      "Staying in touch",
+      "What you share",
+      "Recent activity",
+    ]) {
+      await expect(
+        page.getByRole("heading", { name: band, level: 2 }),
+      ).toBeVisible();
+    }
+
+    // Each navigable shared-record row is a single keyboard-reachable link that
+    // clears the shared 44px target floor.
+    const firstRow = sharedRecords(page).getByRole("link").first();
+    await firstRow.focus();
+    await expect(firstRow).toBeFocused();
+    await expectMinTouchTarget(firstRow);
 
     // Enter follows it, exactly like any other link in the product.
     await page.keyboard.press("Enter");
-    await expect(page).toHaveURL(/\?tab=(linked|activity)/);
+    await expect(page).toHaveURL(/\?tab=linked/);
   });
 
   test("no WCAG violations in light or dark, and no overflow from 320px up", async ({
@@ -249,7 +289,7 @@ test.describe("PEOPLE-03 — relationship intelligence", () => {
     const personUrl = await createPerson(page, name);
     await linkNote(page, noteTitle);
     await page.goto(personUrl);
-    await expect(summaryCards(page)).toBeVisible();
+    await expect(sharedRecords(page)).toBeVisible();
 
     for (const colorScheme of ["light", "dark"] as const) {
       await page.emulateMedia({ colorScheme });
@@ -264,7 +304,7 @@ test.describe("PEOPLE-03 — relationship intelligence", () => {
       });
       await expectNoHorizontalOverflow(page);
       // The summary cards reflow rather than scrolling sideways at every width.
-      await expect(summaryCards(page)).toBeVisible();
+      await expect(sharedRecords(page)).toBeVisible();
     }
 
     // The collection carries the signal at phone width too.

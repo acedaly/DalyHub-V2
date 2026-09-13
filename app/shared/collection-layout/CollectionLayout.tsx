@@ -151,6 +151,27 @@ export type CollectionLayoutProps = {
    * phone with no route to a deleted Note at all.
    */
   readonly keepViewsOnCompact?: boolean;
+  /**
+   * Keep the desktop FILTER band visible at phone widths, beside the control
+   * row.
+   *
+   * `mobileControls` normally replaces it — content before chrome — which is
+   * right when every control in the band is also in the sheet. It is wrong when
+   * one of them is SEARCH: a search box behind a button is a search box nobody
+   * uses, and the sheet is a deliberate act ("I want to filter") where reaching
+   * for search is not.
+   *
+   * UNTITLED-13 — this is the sibling of `keepViewsOnCompact` and exists for
+   * the same reason it does: People had stated the rule in a comment and then
+   * implemented it as a `:has(.dh-people-filters)` override in its own
+   * stylesheet, because the shared rule that hides the band is the shared
+   * layout's and a module cannot opt out of it. One prop, in the component that
+   * owns the decision, instead of a module reaching into the layout's cascade.
+   *
+   * The module still decides what inside the band survives the narrowing —
+   * People shows search only, because its toggle and its sort are in the sheet.
+   */
+  readonly keepFiltersOnCompact?: boolean;
 
   /* -- State slots (precedence: error → loading → filtered-empty → empty) -- */
   readonly error?: ReactNode;
@@ -187,6 +208,7 @@ export function CollectionLayout({
   mobileControls,
   persistentControls = false,
   keepViewsOnCompact = false,
+  keepFiltersOnCompact = false,
   error,
   isLoading = false,
   loadingSlot,
@@ -208,6 +230,7 @@ export function CollectionLayout({
     mobileControls ? "dh-collection--has-mobile-controls" : null,
     persistentControls ? "dh-collection--persistent-controls" : null,
     keepViewsOnCompact ? "dh-collection--keep-views" : null,
+    keepFiltersOnCompact ? "dh-collection--keep-filters" : null,
     className,
   ]
     .filter(Boolean)

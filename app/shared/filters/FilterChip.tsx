@@ -9,6 +9,8 @@
 
 import type { MouseEvent } from "react";
 
+import { XClose } from "@untitledui/icons";
+
 import type { ClauseDescription } from "./display";
 
 interface FilterChipProps {
@@ -18,17 +20,15 @@ interface FilterChipProps {
   readonly onRemove: () => void;
 }
 
+/**
+ * UNTITLED-15 — the chip's remove mark, from the shared set.
+ *
+ * A hand-drawn ✕ at a bespoke 12px on a bespoke 12-unit grid. It is the most
+ * generic glyph in the product and the library already draws it; the size stays
+ * 12px so the chip's geometry is unchanged.
+ */
 function RemoveGlyph() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-      <path
-        d="M2.5 2.5l7 7M9.5 2.5l-7 7"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
+  return <XClose width={12} height={12} aria-hidden="true" focusable="false" />;
 }
 
 export function FilterChip({

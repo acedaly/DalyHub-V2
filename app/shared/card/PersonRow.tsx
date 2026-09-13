@@ -56,8 +56,15 @@ import type { ReactNode } from "react";
 import { Children } from "react";
 import { Link } from "react-router";
 
-/** The tone vocabulary the rhythm dot understands. Meaning is in the words. */
-export type PersonRowTone = "neutral" | "success" | "info" | "warning";
+/**
+ * The tone vocabulary the rhythm dot understands. Meaning is in the words.
+ *
+ * UNTITLED-13 removed `warning`. It was painted with `--dh-color-overdue` — the
+ * product's overdue red — on a surface AGENTS.md §5 and the relationship kernel
+ * both say must never carry one. The set is now exactly the kernel's own
+ * `RelationshipTone`, so the row cannot express a state the model refuses to.
+ */
+export type PersonRowTone = "neutral" | "success" | "info";
 
 /** One reachable contact — already resolved to a real `href` by the caller. */
 export type PersonRowReach = {

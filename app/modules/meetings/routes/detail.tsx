@@ -1,7 +1,9 @@
 import { env } from "cloudflare:workers";
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   isRouteErrorResponse,
+  Link,
   useRevalidator,
   useSearchParams,
 } from "react-router";
@@ -16,17 +18,18 @@ import {
 import {
   DrawerProvider,
   useDrawer,
+  withDrawerPushed,
   type DrawerEntry,
   type DrawerRenderResult,
 } from "~/shared/drawer";
 import { MEETING_TITLE_MAX_LENGTH } from "~/kernel/meetings";
-import { EntityIcon, EntityLink } from "~/shared/entity";
+import { EntityIcon } from "~/shared/entity";
 import { InlineTextField, type InlineSaveOutcome } from "~/shared/inline-edit";
 import { useCapture } from "~/shared/capture";
 import type { CaptureContextContract } from "~/shared/capture/capture-context";
 import { useFeedback } from "~/shared/feedback";
 import { CheckIcon } from "~/shared/icons";
-import type { OverflowMenuItem } from "~/shared/overflow-menu";
+import { OverflowMenu, type OverflowMenuItem } from "~/shared/overflow-menu";
 import {
   lifecycleActionLabel,
   useRecordLifecycle,
@@ -48,23 +51,33 @@ import {
 } from "~/shared/forms";
 import { AiExtractionSurface } from "~/shared/ai";
 import { attachmentsTab } from "~/shared/attachments";
+import { PersonAvatar } from "~/shared/person-identity";
 import { RecordLayout } from "~/shared/record-layout";
 import {
   TASK_DRAWER_TITLE,
   TaskRecordDrawer,
 } from "~/shared/task-record/TaskRecordDrawer";
-import { serializeTaskView } from "~/shared/task-record/task-view";
+import {
+  serializeTaskView,
+  toTaskRowProjection,
+} from "~/shared/task-record/task-view";
+import { TaskList } from "~/shared/task-record/TaskList";
+import { TaskRow } from "~/shared/task-record/TaskRow";
+import type { TaskParentOption } from "~/shared/task-record/TaskRowFields";
+import { buildTaskRowActions } from "~/shared/task-record/task-row-actions";
+import { useTaskSurfaceActions } from "~/shared/task-record/use-task-surface-actions";
+import { loadTaskParentOptions } from "~/shared/task-record/task-parent-options.server";
+import { ownerCalendarIso } from "~/shared/datetime";
 import { utcToOwnerLocal } from "~/shared/datetime";
 import { MeetingCaptureBar } from "../MeetingCaptureBar";
-import { MeetingContextRow } from "../MeetingContextRow";
+import { attendeeCountLabel, MeetingContextRow } from "../MeetingContextRow";
 import { MeetingMarkdown } from "../MeetingMarkdown";
 import type { MeetingConflictResponse } from "./mutate";
 import {
   DIRECT_FOLLOW_UP_DRAWER_KEY,
   MeetingFollowUpFormHost,
-  MeetingFollowUpTab,
-  MeetingItemsSection,
 } from "../MeetingFollowUp";
+import { MeetingItemList } from "../MeetingItemList";
 import {
   MEETING_HELD_ERROR_MESSAGE,
   meetingHeldActionItem,
@@ -79,9 +92,11 @@ import {
   serializeMeeting,
 } from "../meeting-view";
 import { useAttendeeSearch } from "../use-attendee-search";
-import type { FollowUpTaskEntry } from "../follow-up-view";
+import { toFollowUpListItem, type FollowUpTaskEntry } from "../follow-up-view";
 import type { Route } from "./+types/detail";
-import { buttonClassName } from "~/shared/ui";
+import { Button } from "~/shared/ui";
+import { SectionHeading } from "~/shared/ui/untitled/overrides/section-heading";
+import { cx } from "~/shared/ui/untitled/utils/cx";
 
 /** A bound on how many follow-up Tasks a single meeting record resolves at once. */
 const FOLLOW_UP_CAP = 100;
@@ -134,7 +149,21 @@ export async function loader({ context, params }: Route.LoaderArgs) {
     }
   }
 
+  /*
+   * UNTITLED-14 — what the SHARED Task row needs, and nothing more.
+   *
+   * The Actions band renders `TaskRow`, so it needs the owner's calendar day
+   * (a date says "Today" rather than guessing) and the bounded parent
+   * candidates its inline project editor offers. Both come from the same
+   * shared authorities every other Task surface reads — `ownerTimeZone` +
+   * `ownerCalendarIso`, and `loadTaskParentOptions` — so a Meeting cannot
+   * disagree with `/tasks` about what day it is or where a Task can go.
+   */
+  const timezone = await scope.ownerTimeZone();
+
   return {
+    todayIso: ownerCalendarIso(new Date(), timezone),
+    taskParents: await loadTaskParentOptions(scope.tasks),
     // AI-01 — availability only: whether the action can run, never a credential.
     aiAvailability: await readAiAvailability(
       scope,
@@ -431,6 +460,26 @@ function MeetingRecord({
     return map;
   }, [followUps]);
 
+  /** The same map as titles, which is all a row needs to say "Linked task: X". */
+  const convertedTitles = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const [itemId, task] of liveTasks) map.set(itemId, task.title);
+    return map;
+  }, [liveTasks]);
+
+  /**
+   * ONE polite announcer for the whole workspace.
+   *
+   * Five lists that each drew their own `role="status"` would race each other
+   * (AGENTS.md §15). The inline add rows take this instead of announcing for
+   * themselves, so "Added agenda item." and "Added decision." arrive in one
+   * region in the order they happened.
+   */
+  const announce = useCallback(
+    (message: string) => feedback.notifySuccess(message),
+    [feedback],
+  );
+
   // A meeting-aware ⌘K action: "New Meeting follow-up" navigates to this meeting's
   // Follow-up tab with the direct follow-up drawer open (a `navigate` action, never
   // a focus-moving `run`, per COMMAND_PALETTE.md). Hidden on an archived meeting.
@@ -447,7 +496,7 @@ function MeetingRecord({
               kind: "navigate",
               target: {
                 kind: "route",
-                to: `/meeting/${m.id}?tab=follow-up&drawer=${DIRECT_FOLLOW_UP_DRAWER_KEY}`,
+                to: `/meeting/${m.id}?tab=meeting&drawer=${DIRECT_FOLLOW_UP_DRAWER_KEY}`,
               },
             },
           ],
@@ -567,20 +616,32 @@ function MeetingRecord({
     [m.detailsUpdatedAt, m.id, m.notesMarkdown, r],
   );
 
-  const itemSection = (
+  /**
+   * UNTITLED-14 — one list component for all four kinds, and the add row is IN
+   * the list.
+   *
+   * `MeetingItemsSection` drew a heading, a list and a disclosure form per kind
+   * — four forms on one record. This hands the same data to the one list, whose
+   * last row is the capture. See `MeetingItemList`.
+   */
+  const itemList = (
     kind: "agenda" | "decision" | "outcome" | "action",
-    heading: string,
+    label: string,
   ) => (
-    <MeetingItemsSection
+    <MeetingItemList
       kind={kind}
-      heading={heading}
+      label={label}
       items={m.items}
-      liveTasks={liveTasks}
       readOnly={readOnly}
+      onAdd={(k, body) => post({ intent: "add_item", kind: k, body })}
+      onRemove={(itemId) => void post({ intent: "remove_item", itemId })}
       onConvert={onConvert}
-      onOpenTask={onOpenTask}
-      onAddItem={(k, body) => post({ intent: "add_item", kind: k, body })}
-      onRemoveItem={(itemId) => void post({ intent: "remove_item", itemId })}
+      onOpenTask={(itemId) => {
+        const task = liveTasks.get(itemId);
+        if (task) onOpenTask(task.id);
+      }}
+      convertedTitles={convertedTitles}
+      announce={announce}
     />
   );
 
@@ -729,7 +790,7 @@ function MeetingRecord({
                   when={formatMeetingInstant(m.startsAt, m.timezone)}
                   where={m.location ?? meetingModeLabel(m.mode)}
                   attendees={loaderData.attendees}
-                  allAttendeesHref={`/meeting/${m.id}?tab=details`}
+                  allAttendeesHref={`/meeting/${m.id}?tab=meeting`}
                 />
               ),
             },
@@ -740,157 +801,23 @@ function MeetingRecord({
           tabs={[
             {
               id: "meeting",
-              label: "Notebook",
-              /* The notebook brings its own writing surfaces, so the panel does
-               * not draw a card around a page of writing (§8, §26). */
+              label: "Meeting",
+              /* The workspace brings its own surfaces, so the panel does not
+               * draw a card around a page of writing (§8, §26). */
               surface: "plain",
-              content:
-                (
-                  /*
-                   * UIX-04 §26 — the sections run in the order a meeting HAPPENS:
-                   * what we said we would cover, what was actually said, what was
-                   * decided, what that means, and what someone now has to do.
-                   *
-                   * Every section here is a real column of the schema — the two
-                   * Markdown bodies on `meeting_details`, and the four
-                   * `meeting_items.kind` values migration 0021 defines (agenda,
-                   * decision, outcome, action). Nothing is invented, which is what
-                   * §26 and §30 both insist on.
-                   *
-                   * Agenda items and the Agenda body are NOT merged: the body is
-                   * prose the owner writes, the items are the structured rows a
-                   * follow-up Task can be created from. Both existed before; what
-                   * changes is that they now sit next to each other under one
-                   * heading instead of in two different halves of the tab.
-                   */
-                  <div className="dh-meeting-notebook">
-                    <section className="dh-meeting-notebook__section">
-                      <h2 className="dh-meeting-notebook__heading">Agenda</h2>
-                      <MeetingMarkdown
-                        meetingId={m.id}
-                        field="agendaMarkdown"
-                        label="Agenda"
-                        initial={m.agendaMarkdown}
-                        version={m.detailsUpdatedAt}
-                        onSaved={() => r.revalidate()}
-                        readOnly={readOnly}
-                      />
-                      {itemSection("agenda", "Agenda items")}
-                    </section>
-
-                    <section className="dh-meeting-notebook__section">
-                      <h2 className="dh-meeting-notebook__heading">Notes</h2>
-                      <MeetingMarkdown
-                        meetingId={m.id}
-                        field="notesMarkdown"
-                        label="Notes"
-                        initial={m.notesMarkdown}
-                        version={m.detailsUpdatedAt}
-                        onSaved={() => r.revalidate()}
-                        readOnly={readOnly}
-                      />
-                    </section>
-
-                    <section className="dh-meeting-notebook__section">
-                      <h2 className="dh-meeting-notebook__heading">
-                        Decisions
-                      </h2>
-                      {itemSection("decision", "Decisions")}
-                    </section>
-
-                    <section className="dh-meeting-notebook__section">
-                      <h2 className="dh-meeting-notebook__heading">Outcomes</h2>
-                      {itemSection("outcome", "Outcomes")}
-                    </section>
-
-                    <section className="dh-meeting-notebook__section">
-                      <h2 className="dh-meeting-notebook__heading">Actions</h2>
-                      {itemSection("action", "Actions")}
-                    </section>
-                  </div>
-                ),
-            },
-            {
-              id: "details",
-              label: "Details",
               content: (
-                <section className="dh-record-section">
-                  <h2>Meeting details</h2>
-                  {/* UIQ-007 — the SHARED summary facts grid, not a bare
-                   * browser-default `<dl>`: the label-over-value presentation
-                   * every other record's metadata already uses. */}
-                  <dl className="record-summary__meta">
-                    {/* RECORD-01 — Status is NOT repeated here: the record header's
-                     * status pill, a few pixels above, already states it, and this
-                     * row was the same word again under a "Status" label. */}
-                    <div className="record-summary__meta-item">
-                      <dt>Duration</dt>
-                      <dd>{formatMeetingDuration(m.startsAt, m.endsAt)}</dd>
-                    </div>
-                    <div className="record-summary__meta-item">
-                      <dt>Timezone</dt>
-                      <dd>{m.timezone}</dd>
-                    </div>
-                    {/*
-                    MEET-03 — the held state, stated in words on the record itself
-                    so it is legible without opening a menu, and so the outcome of
-                    "Mark as held" is visible rather than implied.
-                  */}
-                    <div className="record-summary__meta-item">
-                      <dt>Held</dt>
-                      <dd>
-                        {m.heldAt
-                          ? `Recorded as held on ${formatMeetingDate(m.heldAt, m.timezone)}`
-                          : "Not recorded as held yet"}
-                      </dd>
-                    </div>
-                    {m.meetingUrl && (
-                      <div className="record-summary__meta-item">
-                        <dt>Meeting link</dt>
-                        <dd>
-                          <a
-                            href={m.meetingUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            Open meeting link
-                          </a>
-                        </dd>
-                      </div>
-                    )}
-                  </dl>
-                  {!readOnly ? (
-                    <MeetingDetailsEditor meeting={m} onSave={post} />
-                  ) : null}
-                  <MeetingAttendees
-                    meetingId={m.id}
-                    attendees={loaderData.attendees}
-                    readOnly={readOnly}
-                    onPost={post}
-                  />
-                  <LinkedItemsTab
-                    anchorId={m.id}
-                    anchorType="meeting"
-                    readOnly={readOnly}
-                    linkCommandTarget={{
-                      kind: "route",
-                      to: `/meeting/${m.id}`,
-                    }}
-                  />
-                </section>
-              ),
-            },
-            {
-              id: "follow-up",
-              label: "Follow-up",
-              content: (
-                <MeetingFollowUpTab
-                  items={m.items}
-                  followUps={followUps}
+                <MeetingWorkspace
+                  meeting={m}
                   readOnly={readOnly}
-                  onConvert={onConvert}
-                  onOpenTask={onOpenTask}
+                  attendees={loaderData.attendees}
+                  followUps={followUps}
+                  todayIso={loaderData.todayIso}
+                  parents={loaderData.taskParents}
+                  itemList={itemList}
+                  onSaved={() => r.revalidate()}
+                  onPost={post}
                   onAddFollowUp={onAddFollowUp}
+                  onOpenTask={onOpenTask}
                 />
               ),
             },
@@ -947,9 +874,8 @@ function MeetingRecord({
                           : "It leaves your active meetings, but stays readable and fully intact."
                       }
                       control={
-                        <button
-                          type="button"
-                          className={buttonClassName({ variant: "secondary" })}
+                        <Button
+                          variant="secondary"
                           onClick={() =>
                             void post({
                               intent: m.archivedAt ? "restore" : "archive",
@@ -959,7 +885,7 @@ function MeetingRecord({
                           {m.archivedAt
                             ? lifecycleActionLabel("restore", "meeting")
                             : lifecycleActionLabel("archive", "meeting")}
-                        </button>
+                        </Button>
                       }
                     />
                   </SettingsGroup>
@@ -997,6 +923,467 @@ function MeetingRecord({
 
       {lifecycle.dialogs}
     </>
+  );
+}
+
+/**
+ * UNTITLED-14 — the Meeting WORKSPACE: one place to run a meeting.
+ *
+ * ── The problem this replaces ───────────────────────────────────────────────
+ *
+ * The record was three tabs — Notebook, Details, Follow-up — and five ways to
+ * add something. Running a real meeting meant: read the agenda on one tab,
+ * check who is in the room on a second, write a note back on the first, and open
+ * a third to see what anyone had agreed to do. Each of the four artifact kinds
+ * carried its own disclosure form, so an upcoming meeting opened on four empty
+ * forms and the chrome outweighed the words. That is the "several forms for
+ * adding different kinds of meeting record" the product owner rejected, and no
+ * amount of restyling fixes an arrangement.
+ *
+ * ── The composition, and where it comes from ────────────────────────────────
+ *
+ * Untitled UI Pro `informational-01/13` and `informational-02/13` — the project
+ * detail pages — both draw the same anatomy, and it is the one this needs:
+ *
+ *     ┌──────────────────────────────────┬────────────────────┐
+ *     │  THE WORK (flex-1, min-w-0)      │  THE CONTEXT (rail)│
+ *     │   Agenda                         │   When and where   │
+ *     │   Notes                          │   Attendees        │
+ *     │   Decisions                      │   Linked records   │
+ *     │   Outcomes                       │                    │
+ *     │   Actions                        │                    │
+ *     └──────────────────────────────────┴────────────────────┘
+ *
+ * The main column is where the meeting is RUN and takes the width; the rail is a
+ * bounded stack of quiet cards carrying what a record knows about itself. §M's
+ * rule is the load-bearing one: context must not take the same visual weight as
+ * the work, so the rail is fixed at 20rem, its cards are hairline-ringed rather
+ * than filled, and it is the thing that goes below when the screen narrows.
+ *
+ * Below `xl` the two stack, work first. On a phone that is exactly right: the
+ * agenda and the notes are what a meeting needs, and who is in the room is on
+ * the record's own context line a few pixels above (`MeetingContextRow`).
+ *
+ * ── What went, and where it went ────────────────────────────────────────────
+ *
+ *   - the **Details** tab → the rail. The facts are the rail's first card; the
+ *     editor is a disclosure inside it; the attendees are their own card; the
+ *     linked records are the third.
+ *   - the **Follow-up** tab → the Actions band, which is the only honest home
+ *     for it: a meeting's actions and the Tasks they became are one list of one
+ *     kind of thing, and splitting them across two tabs is what made "Create
+ *     task" feel like filing rather than deciding.
+ *   - the four **disclosure forms** → each list's own last row (`InlineAddRow`).
+ *
+ * Seven tabs became five, and the two that went are the two a person needs
+ * WHILE the meeting is happening. §N: "during a real meeting the user needs
+ * context together."
+ */
+function MeetingWorkspace({
+  meeting,
+  readOnly,
+  attendees,
+  followUps,
+  todayIso,
+  parents,
+  itemList,
+  onSaved,
+  onPost,
+  onAddFollowUp,
+  onOpenTask,
+}: {
+  readonly meeting: Route.ComponentProps["loaderData"]["meeting"];
+  readonly readOnly: boolean;
+  readonly attendees: Route.ComponentProps["loaderData"]["attendees"];
+  readonly followUps: readonly FollowUpTaskEntry[];
+  readonly todayIso: string;
+  readonly parents: readonly TaskParentOption[];
+  readonly itemList: (
+    kind: "agenda" | "decision" | "outcome" | "action",
+    label: string,
+  ) => ReactNode;
+  readonly onSaved: () => void;
+  readonly onPost: (data: Record<string, string>) => Promise<boolean>;
+  readonly onAddFollowUp: () => void;
+  readonly onOpenTask: (taskId: string) => void;
+}) {
+  const m = meeting;
+
+  /*
+   * Whether the workspace draws its Agenda band.
+   *
+   * An agenda with anything in it is always worth reading. An EMPTY one is
+   * worth WRITING only while the meeting is still ahead — which is
+   * `heldAt === null` and a status that has not moved on, the same two facts
+   * MEET-03 uses to decide whether "Mark as held" is offered.
+   */
+  const showAgenda =
+    m.agendaMarkdown.trim().length > 0 ||
+    m.items.some((item) => item.kind === "agenda") ||
+    (m.heldAt === null && m.status === "planned" && !readOnly);
+
+  return (
+    <div className="dh-meeting-workspace flex min-w-0 flex-col gap-8 xl:flex-row xl:items-start xl:gap-10">
+      <div className="dh-meeting-workspace__main flex min-w-0 flex-1 flex-col gap-10">
+        {showAgenda ? (
+          <MeetingBand
+            title="Agenda"
+            description="What this meeting needs to cover."
+          >
+            {/*
+              The writing surface and the list, in that order and with no card
+              between them: the body is the prose the owner writes, the items are
+              the lines you work down. Both existed before; what changed is that
+              adding a line no longer opens a form.
+            */}
+            <MeetingMarkdown
+              meetingId={m.id}
+              field="agendaMarkdown"
+              label="Agenda"
+              initial={m.agendaMarkdown}
+              version={m.detailsUpdatedAt}
+              onSaved={onSaved}
+              readOnly={readOnly}
+            />
+            {itemList("agenda", "Agenda items")}
+          </MeetingBand>
+        ) : null}
+
+        {/*
+          §L — the notes get the room. No card around the writing surface, no
+          card inside a card; the shared Notes/Diary editor, at the width of the
+          workspace it sits in.
+        */}
+        <MeetingBand title="Notes" description="What was actually said.">
+          <MeetingMarkdown
+            meetingId={m.id}
+            field="notesMarkdown"
+            label="Notes"
+            initial={m.notesMarkdown}
+            version={m.detailsUpdatedAt}
+            onSaved={onSaved}
+            readOnly={readOnly}
+          />
+        </MeetingBand>
+
+        <MeetingBand
+          title="Decisions"
+          description="What was settled, so it can be found later."
+        >
+          {itemList("decision", "Decisions")}
+        </MeetingBand>
+
+        <MeetingBand
+          title="Outcomes"
+          description="What followed from those decisions."
+        >
+          {itemList("outcome", "Outcomes")}
+        </MeetingBand>
+
+        <MeetingActionsBand
+          readOnly={readOnly}
+          followUps={followUps}
+          todayIso={todayIso}
+          parents={parents}
+          itemList={itemList}
+          onAddFollowUp={onAddFollowUp}
+          onOpenTask={onOpenTask}
+        />
+      </div>
+
+      {/*
+        THE CONTEXT RAIL — quiet, bounded, and never the reason the work is
+        narrower. `xl:w-80` rather than a fraction, so the work keeps every pixel
+        a wider screen adds.
+      */}
+      <aside
+        className="dh-meeting-workspace__rail flex w-full min-w-0 shrink-0 flex-col gap-4 xl:ml-auto xl:w-80"
+        aria-label="Meeting context"
+      >
+        <RailCard title="When and where">
+          <MeetingFactStrip meeting={m} />
+          {!readOnly ? (
+            <MeetingDetailsEditor meeting={m} onSave={onPost} />
+          ) : null}
+        </RailCard>
+
+        <RailCard title="Attendees">
+          <MeetingAttendees
+            meetingId={m.id}
+            attendees={attendees}
+            readOnly={readOnly}
+            onPost={onPost}
+            bare
+          />
+        </RailCard>
+
+        <RailCard title="Linked records">
+          <LinkedItemsTab
+            anchorId={m.id}
+            anchorType="meeting"
+            readOnly={readOnly}
+            headingLevel={3}
+            /*
+             * The attendees have their own card directly above, with each
+             * person's mark and a remove action. They are EntityLinks, so an
+             * unfiltered list repeated all five names underneath it.
+             */
+            excludeLinkTypes={["meeting.attendee"]}
+            linkCommandTarget={{ kind: "route", to: `/meeting/${m.id}` }}
+          />
+        </RailCard>
+      </aside>
+    </div>
+  );
+}
+
+/**
+ * UNTITLED-14 — the ACTIONS band, and the end of the second Task UI.
+ *
+ * §K: "Actions that are Tasks MUST use DalyHub's shared Task system. Do not
+ * create another task UI." The Follow-up tab was one: a title button and a state
+ * word in a list of its own, so the same Task carried a completion control, a
+ * due date, a priority and an overflow menu everywhere in the product EXCEPT on
+ * the meeting that created it.
+ *
+ * This band draws the shared `TaskList` / `TaskRow` — the identical component
+ * `/tasks`, Today, Weekly Planning and a Project record render, posting the same
+ * canonical intents to the same canonical routes. A Meeting adds no authority
+ * and no presentation of its own; it supplies data and callbacks, exactly as
+ * `ProjectTasksTab` does.
+ *
+ * Underneath it sits what is NOT yet a Task: the action items captured in the
+ * room that nobody has committed to anyone. They stay meeting items — a line
+ * someone said, not work anyone owes — and each offers "Create a task from
+ * this". That distinction is the band's whole structure, and it is why the two
+ * are one band rather than two tabs.
+ */
+function MeetingActionsBand({
+  readOnly,
+  followUps,
+  todayIso,
+  parents,
+  itemList,
+  onAddFollowUp,
+  onOpenTask,
+}: {
+  readonly readOnly: boolean;
+  readonly followUps: readonly FollowUpTaskEntry[];
+  readonly todayIso: string;
+  readonly parents: readonly TaskParentOption[];
+  readonly itemList: (
+    kind: "agenda" | "decision" | "outcome" | "action",
+    label: string,
+  ) => ReactNode;
+  readonly onAddFollowUp: () => void;
+  readonly onOpenTask: (taskId: string) => void;
+}) {
+  const [searchParams] = useSearchParams();
+  const actions = useTaskSurfaceActions();
+
+  const rows = useMemo(
+    () =>
+      followUps.map((entry) =>
+        toTaskRowProjection(toFollowUpListItem(entry.task)),
+      ),
+    [followUps],
+  );
+
+  return (
+    <section className="dh-meeting-band flex min-w-0 flex-col gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+        <SectionHeading
+          level={2}
+          title="Actions"
+          description="Anything anyone now has to do. Each is a real DalyHub Task."
+        />
+        {!readOnly ? (
+          /*
+           * The one control for a Task that came out of this meeting without
+           * being a line in the room first. It opens the shared capture form,
+           * which is the same one `/tasks` opens — never a meeting-local form.
+           */
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onAddFollowUp}
+            className="shrink-0"
+          >
+            Add follow-up task
+          </Button>
+        ) : null}
+      </div>
+
+      {rows.length > 0 ? (
+        <TaskList ariaLabel="Follow-up tasks">
+          {rows.map((task) => {
+            const key = `task:${task.id}`;
+            return (
+              <TaskRow
+                key={task.id}
+                task={task}
+                todayIso={todayIso}
+                parents={parents}
+                headingLevel={3}
+                href={`?${withDrawerPushed(searchParams, key).toString()}`}
+                onOpen={() => onOpenTask(task.id)}
+                onCompletedChange={(complete) =>
+                  actions.setCompleted(task.id, complete, task.title)
+                }
+                onInlineSave={actions.reportInlineSave}
+                readOnly={readOnly}
+                current={searchParams.get("drawer") === key}
+                overflowActions={buildTaskRowActions(
+                  task,
+                  { onOpenRecord: () => onOpenTask(task.id) },
+                  { readOnly },
+                )}
+              />
+            );
+          })}
+        </TaskList>
+      ) : null}
+
+      {/*
+        The lines that are not yet anyone's work. The heading is an `h3` under
+        the band's `h2`, so the outline never skips, and it is drawn only where
+        there is something to say or somewhere to type.
+      */}
+      <div className="flex min-w-0 flex-col gap-3">
+        {/*
+          The sub-heading earns its place only when it is SEPARATING two things.
+          With tasks above it, "Not yet a task" is what tells the two lists
+          apart; with none, the band is already headed "Actions" and a second
+          heading over the only list is the same word twice.
+        */}
+        {rows.length > 0 ? (
+          <h3 className="m-0 text-sm font-semibold text-secondary">
+            Not yet a task
+          </h3>
+        ) : null}
+        {itemList("action", "Action items")}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * One band of the workspace's main column.
+ *
+ * A heading (Untitled's `section-headers` recipe at the level a record demands —
+ * an `h2` under the record's `h1`), an optional line saying what the band is
+ * for, and the content. No card: the CONTENT brings its own surface where it
+ * has one, which is how a page of writing avoids being a card inside a card
+ * inside a tab panel.
+ */
+function MeetingBand({
+  title,
+  description,
+  children,
+}: {
+  readonly title: string;
+  readonly description?: string;
+  readonly children: ReactNode;
+}) {
+  return (
+    <section className="dh-meeting-band flex min-w-0 flex-col gap-4">
+      <SectionHeading level={2} title={title} description={description} />
+      {children}
+    </section>
+  );
+}
+
+/**
+ * One card of the context rail.
+ *
+ * Hairline-ringed on the page ground, never filled and never lifted: §M's rule
+ * that context must not take the same visual weight as the work is enforced
+ * here, once, rather than trusted to each card.
+ */
+function RailCard({
+  title,
+  children,
+}: {
+  readonly title: string;
+  readonly children: ReactNode;
+}) {
+  return (
+    <section className="dh-meeting-rail-card flex min-w-0 flex-col gap-3 rounded-xl bg-primary p-4 ring-1 ring-secondary">
+      <h2 className="m-0 text-sm font-semibold text-primary">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+/**
+ * UNTITLED-13 — a Meeting's reference facts, as the product's quiet strip.
+ *
+ * The Details tab drew `record-summary__meta`: a labelled `<dl>` grid whose
+ * phone arrangement `meetings.css` then had to undo with `display: block` and a
+ * margin reset on every `dd`, because a fixed two-column table does not fit a
+ * 320px screen. The strip below is the same one the Person workspace and
+ * `StayInTouchPanel` use — a small quaternary label over a primary value, one
+ * column below `sm`, wrapping upward — so the module needs no phone rule of its
+ * own and a Meeting's facts and a Person's are the same object.
+ *
+ * A fact with no value is omitted, not printed as a dash. The exception is
+ * "Held", which states BOTH answers in words: MEET-03 needs the held state
+ * legible on the record without opening a menu, and "not recorded as held yet"
+ * is a real answer rather than an absence.
+ */
+function MeetingFactStrip({
+  meeting,
+}: {
+  readonly meeting: Route.ComponentProps["loaderData"]["meeting"];
+}) {
+  const facts: { id: string; label: string; value: ReactNode }[] = [];
+
+  const duration = formatMeetingDuration(meeting.startsAt, meeting.endsAt);
+  if (duration !== "Not set") {
+    facts.push({ id: "duration", label: "Duration", value: duration });
+  }
+  facts.push({ id: "timezone", label: "Timezone", value: meeting.timezone });
+  facts.push({
+    id: "held",
+    label: "Held",
+    value: meeting.heldAt
+      ? `Recorded on ${formatMeetingDate(meeting.heldAt, meeting.timezone)}`
+      : "Not recorded as held yet",
+  });
+  if (meeting.meetingUrl) {
+    facts.push({
+      id: "url",
+      label: "Meeting link",
+      value:
+        (
+          /* The same standalone-target rule as the Person's website link: a
+           * coarse pointer gets the 44px floor, a mouse sees no change. */
+          <a
+            className="block min-w-0 break-words text-brand-secondary outline-focus-ring [@media(hover:none)]:min-h-[var(--app-touch-target-min)] hover:text-brand-secondary_hover focus-visible:outline-2 focus-visible:outline-offset-2"
+            href={meeting.meetingUrl}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Open meeting link
+          </a>
+        ),
+    });
+  }
+
+  return (
+    <dl className="record-summary__meta m-0 grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+      {facts.map((fact) => (
+        <div
+          key={fact.id}
+          className="record-summary__meta-item flex min-w-0 flex-col gap-0.5"
+        >
+          <dt className="text-xs font-medium text-quaternary">{fact.label}</dt>
+          <dd className="m-0 text-sm font-medium break-words text-primary">
+            {fact.value}
+          </dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
@@ -1170,11 +1557,32 @@ function MeetingDetailsEditor({
   );
 }
 
+/**
+ * UNTITLED-13 — the attendee list, as People rather than as link-plus-Remove
+ * pairs.
+ *
+ * §17 asks participants to use the shared Person identity system, and §34 makes
+ * it a rule: no Meeting-specific representation. This list had none at all — it
+ * was a bare `<ul>` of `EntityLink` beside a "Remove" button, with the whole
+ * arrangement drawn by `.dh-meeting-attendees` and `.dh-meeting-attendee` in
+ * `meetings.css`. A person with a photograph on `/people` was a line of blue
+ * text here.
+ *
+ * It is Untitled's divided list now, each row carrying the shared Person mark,
+ * the person's name as a real link to their record, and Remove in the shared
+ * context menu rather than as a permanent destructive button per line (the same
+ * §14 rule the agenda rows follow).
+ *
+ * The marks are generated from the display title and take the NEUTRAL disc,
+ * because an EntityLink counterpart carries an id and a title and nothing else —
+ * see `MeetingContextRow` for the full reasoning and the named follow-up.
+ */
 function MeetingAttendees({
   meetingId,
   attendees,
   readOnly,
   onPost,
+  bare = false,
 }: {
   readonly meetingId: string;
   readonly attendees: readonly {
@@ -1184,6 +1592,15 @@ function MeetingAttendees({
   }[];
   readonly readOnly: boolean;
   readonly onPost: (data: Record<string, string>) => Promise<boolean>;
+  /**
+   * UNTITLED-14 — inside the context rail, the CARD already names this.
+   *
+   * The rail's card draws the "Attendees" heading and the ring, so the section
+   * drops both rather than nesting a titled card inside a titled card (§44).
+   * The count moves to a quiet line under the list, where it is a fact rather
+   * than a second heading.
+   */
+  readonly bare?: boolean;
 }) {
   const [selected, setSelected] = useState<readonly string[]>([]);
   const attendeeSearch = useAttendeeSearch({
@@ -1193,74 +1610,160 @@ function MeetingAttendees({
   const options = attendeeSearch.optionsWithSelected(selected);
 
   return (
-    <section className="dh-record-section">
-      <h3>Attendees</h3>
+    <section className="dh-record-section flex min-w-0 flex-col gap-3">
+      {bare ? null : (
+        <SectionHeading
+          level={3}
+          title="Attendees"
+          description={
+            attendees.length === 0
+              ? undefined
+              : attendeeCountLabel(attendees.length)
+          }
+        />
+      )}
       {attendees.length ? (
-        <ul className="dh-meeting-attendees">
+        <ul
+          className={cx(
+            "dh-meeting-attendees m-0 list-none overflow-hidden p-0",
+            bare
+              ? "-mx-4 border-y border-secondary"
+              : "rounded-xl bg-primary shadow-xs ring-1 ring-secondary",
+          )}
+        >
           {attendees.map((attendee) => (
-            <li key={attendee.id} className="dh-meeting-attendee">
-              <EntityLink
-                type="person"
-                id={attendee.id}
-                title={attendee.title}
-              />
+            <li
+              key={attendee.id}
+              className="dh-meeting-attendee flex items-center gap-3 border-b border-secondary px-4 py-2.5 last:border-b-0 hover:bg-secondary"
+            >
+              {/*
+                The mark is decorative — the name beside it is the link and the
+                accessible name, so nothing depends on two letters being legible.
+              */}
+              <span aria-hidden="true" className="shrink-0">
+                <PersonAvatar name={attendee.title} size="sm" />
+              </span>
+              {/*
+                The link fills the row's HEIGHT, not just its text box.
+
+                MEASURED: as an inline anchor it came out at 196×20 on a 393px
+                phone, inside a row that is over 50px tall — so the words were
+                the target and the space around them was not. `self-stretch
+                flex items-center` makes the anchor the row, which is the same
+                thing `.dh-prow__open`'s stretched `::after` does for a Person
+                row and what the product means by a row being clickable.
+              */}
+              <Link
+                to={`/person/${encodeURIComponent(attendee.id)}`}
+                className="flex min-w-0 flex-1 items-center self-stretch truncate text-sm font-medium text-primary underline-offset-2 outline-focus-ring hover:underline focus-visible:outline-2 focus-visible:-outline-offset-2"
+              >
+                {attendee.title}
+              </Link>
               {!readOnly ? (
-                <button
-                  type="button"
-                  className={buttonClassName({ variant: "subtle" })}
-                  aria-label={`Remove attendee ${attendee.title}`}
-                  onClick={() =>
-                    void onPost({
-                      intent: "remove_attendee",
-                      linkId: attendee.linkId,
-                    })
-                  }
-                >
-                  Remove
-                </button>
+                <OverflowMenu
+                  label={`Actions for ${attendee.title}`}
+                  items={[
+                    {
+                      id: "remove",
+                      label: "Remove from meeting",
+                      tone: "danger",
+                      onSelect: () =>
+                        void onPost({
+                          intent: "remove_attendee",
+                          linkId: attendee.linkId,
+                        }),
+                    },
+                  ]}
+                />
               ) : null}
             </li>
           ))}
         </ul>
       ) : (
-        <p className="dh-follow-up-empty">No attendees yet.</p>
+        <p className="dh-follow-up-empty m-0 text-sm text-tertiary">
+          No attendees yet.
+        </p>
       )}
       {!readOnly ? (
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            void (async () => {
-              for (const personId of selected) {
-                await onPost({ intent: "add_attendee", personId });
-              }
-              setSelected([]);
-            })();
-          }}
-        >
-          <SelectField
-            label="Add attendees"
-            multiple
-            placeholder="Search People"
-            options={options}
-            onSearch={attendeeSearch.search}
-            loading={attendeeSearch.loading}
-            emptyMessage="No matching People"
-            value={selected}
-            onChange={(ids) => {
-              setSelected(ids);
-              attendeeSearch.rememberSelected(ids);
+        /*
+         * UNTITLED-14 — the picker is behind a disclosure inside the rail.
+         *
+         * A searchable multi-select and a submit button are a fair amount of
+         * chrome, and in a 20rem context card they were the loudest thing in
+         * it — the card read as a form for adding people rather than as the
+         * answer to "who is in this meeting?". `<details>` is the same
+         * disclosure the rail's own "Edit details" uses, so the two quiet acts
+         * a context card supports look like one pattern. Outside the rail
+         * (`bare === false`) the form is open, because there the section IS the
+         * editor.
+         */
+        <AttendeeAdder open={!bare}>
+          <form
+            className="flex flex-wrap items-end gap-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void (async () => {
+                for (const personId of selected) {
+                  await onPost({ intent: "add_attendee", personId });
+                }
+                setSelected([]);
+              })();
             }}
-          />
-          <button
-            type="submit"
-            className={buttonClassName({ variant: "secondary" })}
-            disabled={selected.length === 0}
           >
-            Add selected
-          </button>
-        </form>
+            <SelectField
+              label="Add attendees"
+              className="min-w-0 flex-1 basis-64"
+              multiple
+              placeholder="Search People"
+              options={options}
+              onSearch={attendeeSearch.search}
+              loading={attendeeSearch.loading}
+              emptyMessage="No matching People"
+              value={selected}
+              onChange={(ids) => {
+                setSelected(ids);
+                attendeeSearch.rememberSelected(ids);
+              }}
+            />
+            <Button
+              type="submit"
+              variant="secondary"
+              disabled={selected.length === 0}
+            >
+              Add selected
+            </Button>
+          </form>
+        </AttendeeAdder>
       ) : null}
     </section>
+  );
+}
+
+/**
+ * The attendee picker's disclosure — open where the section IS the editor.
+ *
+ * A real `<button>` rather than `<details>/<summary>`, for the same reason the
+ * rail's "Edit details" is one: a summary's role varies across engines, so its
+ * accessible name is not something a test or a screen reader can rely on, and
+ * this control is the one way a person adds somebody to a meeting.
+ */
+function AttendeeAdder({
+  open,
+  children,
+}: {
+  readonly open: boolean;
+  readonly children: ReactNode;
+}) {
+  const [revealed, setRevealed] = useState(false);
+  if (open || revealed) return <>{children}</>;
+  return (
+    <button
+      type="button"
+      className="dh-meeting-attendee-adder self-start text-sm font-medium text-brand-secondary outline-focus-ring [@media(hover:none)]:min-h-[var(--app-touch-target-min)] hover:text-brand-secondary_hover focus-visible:outline-2 focus-visible:outline-offset-2"
+      onClick={() => setRevealed(true)}
+    >
+      Add attendees
+    </button>
   );
 }
 
