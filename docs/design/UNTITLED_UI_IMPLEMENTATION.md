@@ -1220,3 +1220,146 @@ because "does the writing dominate?" is a question with a number behind it.
 No screenshot, historical visual audit or legacy Material/MD3/DHDS stylesheet is
 an implementation reference for any surface in this pass. The Pro template
 screenshots above were studied for COMPOSITION and are not reproduced.
+
+## UNTITLED-13 completion record — Meetings, People and the shared Person identity
+
+### Pro research, and what it actually returned
+
+The authenticated connector reports `has_pro_access: true` and was searched
+before anything was built. Searches run for this pass: `meetings list upcoming
+events schedule agenda`, `activity feed timeline of recent events with avatars
+and timestamps`, `team members directory list with avatars roles and contact
+details`, plus the page-template searches `contact or person profile page with
+details, activity history and related records` and `event or meeting detail page
+with attendees, agenda and notes`, and the component probes `avatar`,
+`avatar-group`, `avatar-profile-photo`, `badges`, `dropdown`, `section-headers`,
+`activity-feed`, `empty-state`, `table` and `tabs`.
+
+Pro entries come back as metadata plus a screenshot URL and the `npx untitledui
+add` command; `get_component` on a Pro entry answers with the lock and that
+command rather than with source. The CLI remains unauthenticatable in this
+container for the reason Phase 4 recorded, so Pro source came from the vendored
+tree under `app/shared/ui/untitled/`. Nothing was recreated from memory and no
+unavailable example name, snippet or screenshot was invented.
+
+**Two things the probe settled that are worth recording.**
+`application/activity-feed` and `application/section-headers` are **Pro** — the
+public component API answers `{"components":[],"pro":["application/…"]}` for
+both, with no source. So Untitled's own activity-feed implementation is
+genuinely unavailable here; what is adopted from it is the COMPOSITION, from
+`informational-02/13`'s screenshot, exactly as UNTITLED-12 adopted it for the
+Diary chronology. And `avatar-group` **is not a component in the catalogue at
+all** (the API answers 404): every Pro template that shows grouped avatars
+composes `Avatar` with negative margins inline, which is what
+`PersonAvatarGroup` does, named once.
+
+**One thing the probe RETURNED that the repository did not have.** The public
+component API serves the whole `base/avatar` folder, including
+`avatar-profile-photo.tsx` — the large ringed, padded mark Untitled's own
+profile pages use, at 72/96/160px. It is vendored now, through the same
+`API_SOURCED` route `charts-base` came by and with the same provenance header,
+and it is the Person record's identity mark.
+
+**Page templates studied rather than merely listed.** Their screenshots were
+downloaded and read:
+
+| Template | What it settled |
+| --- | --- |
+| `informational-01/17` (Pro) | The PROFILE page: a large mark over a cover band, the name, ONE line about the person, the actions beside it — then prose, then a QUIET two-column labelled strip of reference facts, then a divided list of history. Not one labelled field grid anywhere. This is the Person workspace's order, and why its dates and contact preference are a quiet strip near the bottom rather than a table near the top. |
+| `informational-02/12` (Pro) | The same grammar as a side panel: avatar, name, email, a divided fact strip, two actions, About, then quiet icon-led lines and a list of history rows. Confirmed the arrangement is the pattern rather than one example's choice. |
+| `informational-02/10` (Pro) | The EVENT panel, and the most load-bearing find: a title, a quiet icon-led fact stack, then a short run of OVERLAPPING guest avatars with a "+" and a caption naming how many. The Meeting header's context row is that. |
+| `settings-01/07` (Pro) | The member table: `AvatarLabelGroup` as the name cell, a quiet role cell, text actions at the trailing edge. The directory row's density. |
+| `informational-01/15` (Pro) | A searchable event log beside a detail pane — a bounded table with pagination inside a page that also scrolls. The reading for the activity band's own viewport. |
+| `informational-01/13`, `informational-02/13` (Pro) | The record page and the activity feed, both carried forward from UNTITLED-12 unchanged. |
+
+### Meetings
+
+| Meetings surface | Untitled source | How it is used | Custom remaining, and why |
+| --- | --- | --- | --- |
+| Collection frame | Shared `CollectionLayout` over `application/tabs` | Title, scope rail, search, sort, empty and error states | Migrated in Phase 4; this pass changed only the search field's phone floor |
+| Day group | `application/table`'s `TableCard.Root` and `TableCard.Header` | One bounded card per day, the heading as its card header, the count as its `Badge` | The badge names its noun ("2 meetings"). It was a bare digit INSIDE the `h2`, whose accessible name was then "Tomorrow 1" |
+| Row | Untitled's divided body and hover | A fixed leading TIME column, the title, one metadata line, one trailing action | The two READINGS. An upcoming row answers "is this ready, and can I get in?"; a past row answers "what came out of it?" — decisions, actions, outcomes, notes, every one a stored `meeting_items` tally |
+| Row attendees | — | Names, in the metadata line | TEXT, deliberately. `listForEntities` returns a counterpart's title and nothing else, so marks here would be initials-only discs carrying less than the names they replaced |
+| Record shell | The shared Record Layout, `.dh-writing-record` | Title, one context line, the tab rail, the notebook | Unchanged; shared with the Note record |
+| Header context | `base/avatar` grouped as `informational-02/10` groups guests | When · where · overlapping marks · "N attendees" | The marks are DECORATIVE and the count is the target. Measured at 24×25px as links against a 44px floor, and four 44px targets do not fit beside a date |
+| Notebook | The shared writing system, unchanged | `LiveMarkdownEditor`, `useAutosaveField`, `RemoteChangeBanner`, `SaveStatusIndicator` and the version-quoting conflict contract | CodeMirror, for ADR-006's reason. The notebook was already a real consumer of #287's work and stays one |
+| Notebook bands | `overrides/section-heading` over `application/section-headers` | An `h2` per band, with a `description` slot | The `h2` rank: upstream hard-codes `h3`, which axe reports as a skipped level under a record's `h1` |
+| Agenda / decisions / outcomes / actions | Untitled's divided list, `base/buttons`, the shared `OverflowMenu` | A hairline per row, the words first, the conversion state as quiet supporting text | ONE visible conversion control and only on ACTIONS. A decision is a record of what was settled; three "Create task" buttons down an agenda of three topics made the chrome the loudest thing in the band |
+| Adding an item | `base/input`, `base/buttons` | One control that discloses the field and focuses it | The LIVE path is the capture bar and is untouched. This is the considered path |
+| Empty agenda on a past meeting | — | Not drawn | An agenda WITH content stays on any meeting: it is the record of what was planned |
+| Attendee list | Untitled's divided list, the shared Person mark, `OverflowMenu` | A row per attendee: mark, name as a link filling the row's height, actions in a menu | The link is `self-stretch`, measured: as an inline anchor it was 196×20 inside a 50px row |
+| Details facts | The shared quiet fact strip | Duration, timezone, held state, meeting link | "Held" states BOTH answers in words — MEET-03 needs the state legible without opening a menu |
+| Capture bar | The shared `toggleOptionClassName` (Untitled's pill geometry), `base/input`, `base/buttons` | Four `aria-pressed` type chips, a field and Add | The bar's fixed geometry, its keyboard and safe-area insets, and the record's height reservation — all token arithmetic no utility expresses |
+| Creation | Untouched | `/new/meeting` and the global capture sheet | Proportionate already: a title and a start is all a meeting needs to exist |
+
+### People
+
+| People surface | Untitled source | How it is used | Custom remaining, and why |
+| --- | --- | --- | --- |
+| Collection frame | Shared `CollectionLayout` | Circle rail, search, catch-up filter, sort, empty states | `keepFiltersOnCompact`, new: the layout's own way to keep a band with SEARCH in it at phone width |
+| Search field | `base/input` via `inputClassName()` | The collection's instant search | A native `<input type="search">` in a `<label>`, as Assets composes it — the shared `CollectionSearchField` hides behind a toggle below `md`, which is the opposite of this module's stated rule |
+| Catch-up filter | The shared `toggleOptionClassName` | One `aria-pressed` toggle carrying its own count | The count, so an owner knows before pressing whether it will show anything |
+| Row | — | Face, identity, reach, rhythm | `PersonRow` is unchanged apart from its tone vocabulary. It is a documented DalyHub composition (UIX-05) and its grid is what makes a directory's columns agree down the page |
+| Row mark | `base/avatar` | The shared Person mark at Untitled's `md` rung | UIX-05's circle accent, and only on a GENERATED disc |
+| Rhythm | — | The derived state, in words, with a dot that agrees | The tone is now exactly the kernel's `RelationshipTone`. It used to escalate to `warning`, painted with the product's OVERDUE colour |
+| Identity band | `base/avatar`'s `AvatarProfilePhoto` (newly vendored), `base/badges`, `base/buttons` | The face, the preferred name, the relationship word, Call / Email / Message | A control is rendered only where the data behind it exists; `sms:` needs a MOBILE specifically |
+| Rhythm band | `overrides/section-heading`, the shared quiet fact strip | The reasons, the cadence facts and what is genuinely ahead, in ONE grid | `StayInTouchPanel` takes the workspace's leading facts rather than the workspace drawing a second `<dl>` beneath it — measured as three half-empty tables at 1440 |
+| What you share | `application/table`'s divided body anatomy | A row per kind of linked record, each a link to the Linked tab | Deliberately NOT the table component: a React Aria `grid` for four rows of one column costs a keyboard user a grid to navigate out of |
+| Recent activity | The shared `Timeline`, over the SAME `/person/:id/activity` endpoint | The most recent moments, bounded, leading to all of them | No filter bar — a filter that narrows five rows is chrome, and the tab has the real one |
+| Stay-in-touch badge | `base/badges` via the shared `Badge`, `variant="outline"` | The derived state in the record header and on the row | Outline, not soft: measured, the soft `info` container is quiet in light and saturated in dark, and a relationship state is not a status a reader is meant to notice |
+| Contact / Notes / Settings tabs | Shared forms and `SettingsLayout` | Unchanged | Out of this pass's scope; the shared form primitives are already Untitled's |
+
+### Rejected, and why
+
+- **Untitled's `application/activity-feed` source.** It is Pro and the connector
+  will not release it here. The composition was adopted from
+  `informational-02/13`'s screenshot, as UNTITLED-12 did for the Diary.
+- **Avatars on the Meetings collection row.** The batched relationship read
+  returns a counterpart's title and nothing else, so the row's marks would be
+  initials-only discs replacing the names a schedule is actually scanned by.
+  The record header is different: names do not fit there anyway.
+- **Untitled's `getInitials`** (`base/avatar/utils.ts`), which comes with the
+  avatar folder. It is `name.split(" ")` and takes the first character of the
+  first and second words — so "Dr Helena Vasquez-Moreau" yields DH and a
+  bracketed or punctuated name yields punctuation. `initialsFromName` skips
+  words with no letter in them and iterates code points.
+- **The shared `CollectionSearchField` for People.** It is Untitled's
+  `base/input` and it is what Meetings uses, and below `md` it hides the field
+  behind a toggle — which is the opposite of the rule People has stated since
+  UIX-05 and HARDEN-02 fixed. Reconciling the two is a product decision about
+  every collection in the product, not a Meetings-and-People one.
+- **A React Aria `grid` for "What you share".** Four rows of one column is a
+  table a keyboard user has to navigate out of, for a list of links.
+- **Reordering the notebook's bands on a past meeting.** §26's order is the
+  order a meeting happens in and it is right; making the record's shape depend
+  on its state would cost more than the empty agenda band did. Not drawing the
+  empty band is the proportionate fix.
+- **Extending `PersonAvatarGroup` to the Today panel or the Linked tab.** It has
+  ONE consumer today. It lives in the shared identity module because §24 asks
+  for one shared Person identity model and a set of People is part of that
+  model's vocabulary — but a second consumer has not been invented to justify
+  it.
+
+### Dependency report
+
+No new runtime dependency. One new vendored file,
+`base/avatar/avatar-profile-photo.tsx`, MIT, retrieved from Untitled's public
+component API on 2026-09-13 and recorded in `scripts/vendor-untitled.mjs`'s
+`API_SOURCED` set with its provenance header, per AGENTS.md §11.
+
+### Documentation consulted
+
+[Introduction](https://www.untitledui.com/react/docs/introduction),
+[Theming](https://www.untitledui.com/react/docs/theming),
+[Dark mode](https://www.untitledui.com/react/docs/dark-mode),
+[MCP](https://www.untitledui.com/react/docs/mcp),
+[Avatars](https://www.untitledui.com/react/components/avatars),
+[Badges](https://www.untitledui.com/react/components/badges),
+[Buttons](https://www.untitledui.com/react/components/buttons),
+[Tables](https://www.untitledui.com/react/components/tables),
+[Tabs](https://www.untitledui.com/react/components/tabs) and
+[Empty states](https://www.untitledui.com/react/components/empty-states).
+
+No screenshot, historical visual audit or legacy Material/MD3/DHDS stylesheet is
+an implementation reference for any surface in this pass. The Pro template
+screenshots above were studied for COMPOSITION and are not reproduced.

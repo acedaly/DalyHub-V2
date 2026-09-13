@@ -322,6 +322,45 @@ the facts the hidden columns held — drawn from the SAME DOM, so exactly one co
 is visible at any width. A handset loses no fact and a desktop gains no
 duplicate.
 
+## The Person mark untitled 13
+
+A Person is drawn ONE way, everywhere, by `~/shared/person-identity` over
+Untitled's `base/avatar`. Any module may reach it; no module draws its own.
+
+- **`PersonAvatar`** is the mark — a photograph, or generated initials, on
+  Untitled's `xs` / `sm` / `md` / `2xl` rungs. `PersonIdentityBand` is the large
+  form for a Person's own record, over `AvatarProfilePhoto`.
+- **The circle accent is the one DalyHub semantic.** A GENERATED disc takes the
+  identity tint of the Person's circle — a pure function of the relationship the
+  owner recorded (ADR-068 §5), never a hash of an id and never a status. A
+  photograph takes none: it is the strongest identity a row can carry and a ring
+  of colour would only compete with it. A Person with no relationship recorded
+  gets the neutral disc, because a colour that means nothing is worse than no
+  colour.
+- **A surface that cannot resolve a relationship passes no rank.** A Meeting
+  reaches its attendees through EntityLinks, which carry an id and a title, so
+  its marks are generated from the display name and are neutral. That is the
+  honest rendering, not a degraded one.
+- **The mark is decorative.** The accessible name is always the heading or the
+  link beside it. A mark is a TAP TARGET only where it is drawn large enough to
+  be one: `PersonAvatarGroup` takes per-member links, and a surface that draws
+  the group small passes none and provides one real target that leads somewhere.
+
+## The two readings of a dated record untitled 13
+
+A record that has a date has two readings, and a collection that offers both
+must not draw them the same way.
+
+Before it happens, the questions are *is this ready, and can I get into it?* —
+so the row carries preparation, participants and the way in. After, the question
+is *what came out of it?* — so the row carries the outcomes and gives up the
+scheduling facts, which have stopped being decisions.
+
+Every fact in both readings must be STORED. Meetings counts real
+`meeting_items` rows and a real notes body; a record with nothing recorded says
+nothing rather than printing zeros, and neither reading invents a workflow state
+to have something to show.
+
 ## Stay in touch signal people 03
 
 People surfaces use care language and relationship history. Follow-up signals
