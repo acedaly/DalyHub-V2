@@ -126,6 +126,25 @@ function renderScreen(data: AnalyticsPageData, entry = "/analytics") {
   return render(<RouterProvider router={router} />);
 }
 
+/**
+ * The long form of a chart's caption — every reading, enumerated — which is
+ * present to assistive tech and not drawn.
+ *
+ * UNTITLED-12 — read by STRUCTURE rather than by utility class. A caption is a
+ * headline followed by one hidden span, and that is the contract: the
+ * enumeration is in the caption and is not what a sighted reader sees.
+ * `ChartFrame` hides it with Tailwind's `sr-only` where the retired `TrendLine`
+ * used `.dh-visually-hidden` — the same `clip: rect(0,0,0,0)` technique either
+ * way, so a test naming the utility was pinning the implementation of a
+ * component that no longer exists. `e2e/analytics.spec.ts` makes the same read
+ * for the same reason.
+ */
+function captionEnumeration(chart: HTMLElement): string {
+  return (
+    chart.querySelector("figcaption")?.querySelector("span")?.textContent ?? ""
+  );
+}
+
 describe("Analytics screen (UIX-05)", () => {
   it("leads with the exact figures and the span they cover", () => {
     renderScreen(pageData());
@@ -416,9 +435,7 @@ describe("Analytics screen (UIX-05)", () => {
       }),
     );
     const chart = screen.getByTestId("analytics-overdue-trend");
-    const caption = chart.querySelector("figcaption");
-    const enumeration =
-      caption?.querySelector(".dh-visually-hidden")?.textContent ?? "";
+    const enumeration = captionEnumeration(chart);
     // The two readings are announced against the SIXTH and SEVENTH bucket's
     // labels — the ones they were read at — never the first and second.
     expect(enumeration).toContain(`${BUCKETS[5]!.endIso}: 40`);
@@ -459,9 +476,7 @@ describe("Analytics screen (UIX-05)", () => {
     expect(caption?.firstChild?.textContent).toBe(
       "16 overdue now, read at the close of each of 7 periods.",
     );
-    expect(
-      caption?.querySelector(".dh-visually-hidden")?.textContent,
-    ).toContain("10");
+    expect(captionEnumeration(chart)).toContain("10");
   });
 
   it("says a failed overdue read rather than drawing a clear backlog", () => {
