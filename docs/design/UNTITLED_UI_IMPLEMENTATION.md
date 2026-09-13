@@ -1522,3 +1522,148 @@ is decorative. An entity identity icon is resolved from a stored key and rendere
 inside the identity tile at `--app-entity-icon-size` in the record's own hue,
 with the tile's three rungs (`sm`/default/`lg`) carrying both the glyph size and
 the radius. Neither ever carries meaning alone.
+
+## UNTITLED-16 completion record — Finance, Assets and Life Admin
+
+### Pro research, and what it actually returned
+
+The authenticated connector reports `has_pro_access: true` and was searched
+before anything was built. Searches run for this pass: `financial dashboard with
+transactions table and account balances`, `metrics stat card with trend change
+indicator`, `line area chart and bar chart data visualisation`, the application
+catalogue listing, and the dashboard page-template browse (38 templates, all
+Pro).
+
+Pro entries come back as metadata, a section breakdown, a component list and a
+screenshot URL, plus the `npx untitledui example …` command. **The source route
+was probed directly and is closed here**, which is worth recording precisely:
+the CLI's own endpoint is `POST /react/api/components/example` with a `key`, and
+without a licence key it answers `403 {"message":"Invalid license key"}` for
+`dashboards-01/12` and `dashboards-01/14`. The public `POST
+/react/api/components` route still serves the openly-published components (it is
+where `charts-base` and `avatar-profile-photo` came from), and `untitledui login`
+remains unauthenticatable in this container for the reason Phase 4 recorded —
+its OAuth callback is to a localhost port a headless container cannot reach.
+
+So Pro **source** came from the vendored tree under `app/shared/ui/untitled/`,
+and Pro **composition** came from the template screenshots, which were downloaded
+and read rather than merely listed. Nothing was recreated from memory and no
+unavailable example name, snippet or screenshot was invented.
+
+**Page templates studied rather than merely listed.**
+
+| Template | What it settled |
+| --- | --- |
+| `dashboards-01/12` (Pro) | The transaction history: a headline balance, a full-width plot with a month axis and NO card chrome, then a real table — Transaction, Amount, Date, Category, Account — with the category as a dot badge, the amount signed and right-aligned, and one trailing row action. This is the anatomy `TransactionsTable` adopts, column for column. |
+| `dashboards-01/14` (Pro) | Two things. Flat SECTIONS separated by hairline rules on the page's own ground, each with its heading on the left and its control on the right — the arrangement the Finance home now uses instead of a card per section. And a category breakdown as a legend of figures beside the plot rather than as a table of percentages. |
+| `dashboards-01/13`, `-01/15`, `-01/16` (Pro) | Confirmed the grammar above is the pattern rather than one example's choice, and that the budget BAR is universal in Untitled's finance work — which is precisely where DalyHub departs, deliberately (see Rejected). |
+
+### Finance
+
+| Finance surface | Untitled source | How it is used | Custom remaining, and why |
+| --- | --- | --- | --- |
+| Home page frame | — | Flat bands separated by hairline rules, at the shell's own gutter | Finance renders no `CollectionLayout` and no `RecordLayout`, so it states the gutter itself. It does NOT use `.dh-pane-body`, which carries four unlayered PROSE rules that would repaint the tables and lists below it |
+| Section headings | `application/section-headers` via `overrides/section-heading` | An `h2` per band with an optional description line | The `h2` rank, which upstream hard-codes as `h3` |
+| Month band | — | Two display-size figures, then sentences | The two figures are the page's only display-size numbers. Everything else is a table or a sentence, which is what stops this becoming a KPI row |
+| Money in / out over 12 months | `application/charts-base` over Recharts, through the shared `ChartFrame` | `MoneyFlow`, new: grouped bars, one period per month | Grouped bars rather than a line or an area, and the SUBJECT/CONTEXT colour pair rather than green and red. See Rejected |
+| Spending by category | `application/table` (`TableCard.Root`, `Table`, `LabelledTableHead`) | Category, Spent, Budget — largest first | The budget stays a SENTENCE. Untitled's own finance dashboards all draw a bar; DalyHub does not |
+| Accounts | the same table | Account, Where, Balance — net worth as the section's HEADLINE above it | `balanceLabel`'s qualifier ("owing", "in credit", "overdrawn") is a WORD beside the figure, so a liability is never a minus sign |
+| Due this month | Untitled's divided-list card anatomy | A hairline row per commitment: title, amount, settle control | Settling stays Finance's, for FIN-04's one-way dependency |
+| Recent imports | the same divided list | File, account, counts | — |
+| Transactions table | `application/table` + `overrides/table-head` | Date, Payee, Category, Account, Amount; the row recomposes to a grid below `md` | The phone recomposition and the contextual category control. The amount column is not tinted: a purchase is not a failure |
+| Month control | `base/buttons/button-utility` via the shared `iconButtonClassName`, `@untitledui/icons` chevrons | Previous / label / next, as LINKS | They were bare `<a>` elements holding an arrow character, with no box at all — the third instance of this defect the migration has measured |
+| Error surface | — | ONE `.dh-finance-error` | Five identical selectors under five names became one |
+
+### Assets
+
+| Assets surface | Untitled source | How it is used | Custom remaining, and why |
+| --- | --- | --- | --- |
+| Collection | Shared `CollectionLayout`, `AssetCard` gallery | Unchanged from UIX-05 | `keepFiltersOnCompact`, which this file's own header has claimed since UIX-05 and the code did not do — at 393px the search AND tag fields both vanished |
+| Dates | `application/table` + `overrides/table-head` | When, What, Status — the DATE leads, because the rows are sorted by it | Only overdue and due-soon carry a strong tone. `future` used to have its own painted arm; §28's rule is that a tab where every row is tinted has no emphasis left for the row that needs it |
+| Value history | `MeasurementTrend` on the shared chart foundation, plus `application/table` | A real value axis over the recorded valuations, then the dated list | Drawn only above two points AND one currency. No target, no projection, no depreciation curve — DalyHub shows what the owner recorded |
+| History / maintenance | Untitled's divided-list card anatomy, `base/badges`, the shared `OverflowMenu` | One bounded surface of hairline rows, the date leading, the category as a modern badge | Two permanent buttons per entry (one of them Remove) became one menu |
+| Obligations tab | The shared `ObligationRow` and `ObligationBands` | Identical to Life Admin's | — |
+| Record tables | — | NO ring and NO shadow | A table inside a record tab or a disclosure must not draw its own edge: the host already has one |
+
+### Life Admin
+
+| Life Admin surface | Untitled source | How it is used | Custom remaining, and why |
+| --- | --- | --- | --- |
+| Collection frame | Shared `CollectionLayout` | Search visible at every width, status and category in the sheet | `keepFiltersOnCompact` — the same defect People fixed and Life Admin had |
+| Band | `application/table`'s `TableCard.Root` / `.Header` | One bounded card per band; the count as the header's own `Badge` | The badge names its noun ("24 obligations"). It was a bare parenthesised digit INSIDE the `h2`, whose accessible name was then "Overdue (24)" |
+| Row | Untitled's divided body, `base/badges`, `base/buttons`, the shared `OverflowMenu` | Mark, state badge, title, one quiet meta line, ONE primary control and a menu | Up to FIVE permanent `dh-btn` class strings became one button and a menu, with Dismiss behind a separator in the destructive tone |
+| State badge | `base/badges` via `UntitledStatusBadge` | The state's WORD, tinted | A hand-drawn stadium with its own five-tone container map is gone; the tone vocabulary is unchanged |
+| Due dates | — | In the quiet meta line, never a pill | §28. A collection where every row carries a bright date has no emphasis left for the overdue one |
+| Record fold | `base/buttons`, the shared `OverflowMenu`, `UntitledStatusBadge` | Badge, state sentence, expected amount, then **Record it as done** · Edit · menu | Five equal-weight controls put "Dismiss" one place from the only reason an owner opens the page |
+| Record Overview | `overrides/section-heading` | Notes, Series, Task | — |
+| Completion | Unchanged | The shared form, INLINE in the record's feature region | A modal over a page the owner is already looking at is a second layer for no reason |
+
+### Rejected, and why
+
+- **A budget BAR.** Every Untitled finance dashboard draws one, and two of the
+  three studied here make it the category breakdown's main event. DalyHub states
+  a budget in words ("$13.00 over", "$162.50 remaining") because a bar that turns
+  red is a judgement and a sentence is a fact — FIN-02's rule, and this pass is
+  the first time it has had to be defended against the reference material rather
+  than against nothing.
+- **A donut for the category breakdown** (`dashboards-01/13`, `-01/14`). It ranks
+  worse than the table it would replace: the figures are what the owner reads,
+  the categories are already largest-first, and a donut of seven slices needs a
+  legend that is the table again.
+- **Green for money in and red for money out.** The reflex for a finance chart,
+  and it fails twice: it makes direction colour-only, and it frames ordinary
+  spending as an error. Money out takes the SUBJECT colour (it is what the page
+  is scrutinised for) and money in the CONTEXT one, with position and names
+  carrying the distinction.
+- **A line or area chart for the flow series.** The question is a comparison
+  between two quantities within each period over twelve discrete periods, which
+  is what grouped bars are for. An area implies composition and money in is not
+  part of money out.
+- **`summariseRange`'s own uncategorised classification, in the chart.** It
+  classifies an unattributed row by its sign, which is right for a Report and
+  wrong directly beneath the month band, which excludes uncategorised money and
+  says so. Found by driving the page: the chart drew a September bar of $4,590.39
+  under a figure reading $3,497.69. The series is categorised money only now, and
+  the surface states the count it left out.
+- **Card-per-section on the Finance home.** Untitled's own dashboards separate
+  sections with a hairline on the page's ground, which is also what the migration
+  guide's card-discipline rule asks for.
+- **`.dh-pane-body` for the Finance page gutter.** It is the class that exists
+  for a document-shaped page and it carries four unlayered prose rules (`h2`,
+  `ul`, `li`, `a`) that would repaint the Untitled tables and divided lists the
+  page is now made of. The measurement is borrowed; the prose is not.
+- **Deleting `SummaryCards`.** It has NO consumer in `app/` — the migration
+  guide's "Next" list says Assets still draws it, and Assets does not; UNTITLED-13
+  removed the last one with the Person workspace. Its producer
+  (`personRelationshipCards`) is equally unreferenced. That is People's debt and
+  a deletion of a shared component plus its stylesheet and its test, which is a
+  drive-by in a PR about three other modules. The finding is recorded in
+  `UNTITLED_UI_MIGRATION.md`'s Next list, corrected.
+
+### Dependency report
+
+**No new runtime dependency and no new vendored file.** Every Untitled component
+this pass composes — `application/table`, `application/charts-base`,
+`application/section-headers`, `base/badges`, `base/buttons`,
+`base/buttons/button-utility`, `base/input`, `base/dropdown` — was already in
+`scripts/vendor-untitled.mjs`'s manifest. The Pro example SOURCE that would have
+been vendored is unreachable here (see above); the compositions are DalyHub's,
+built from the vendored primitives.
+
+One new script, `scripts/finance-assets-admin-seed.mjs`: a local-only design
+fixture, a sibling of `meetings-people-seed.mjs`, not part of any gate.
+
+### Documentation consulted
+
+[Introduction](https://www.untitledui.com/react/docs/introduction),
+[Theming](https://www.untitledui.com/react/docs/theming),
+[Dark mode](https://www.untitledui.com/react/docs/dark-mode),
+[MCP](https://www.untitledui.com/react/docs/mcp),
+[Tables](https://www.untitledui.com/react/components/tables),
+[Badges](https://www.untitledui.com/react/components/badges),
+[Buttons](https://www.untitledui.com/react/components/buttons) and
+[Empty states](https://www.untitledui.com/react/components/empty-states).
+
+No screenshot, historical visual audit or legacy Material/MD3/DHDS stylesheet is
+an implementation reference for any surface in this pass. The Pro template
+screenshots above were studied for COMPOSITION and are not reproduced.
