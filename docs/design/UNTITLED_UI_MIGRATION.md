@@ -1283,6 +1283,31 @@ their CONTRACTS changed in this pass, and each change is argued in the test:
   third case pinning Dismiss's destructive tone and separator.
 - `AssetOverview.test.tsx` — the value-history fixture carries its currency.
 
+Four Life Admin E2E journeys failed on first run. Two were this pass's and are
+fixed above (the band count moved to the card header badge; the menu's
+accessible names now contain their visible labels). The other two were **dead,
+not failing**, and had been for some time:
+
+`openSearch` scoped its click to `.dh-topbar`. That class went with the
+`dh-topbar__*` family — `DesktopTopBar.tsx` records its own removal — so the
+locator had been matching nothing and both journeys were spending thirty
+seconds timing out rather than searching. It was checked against the rendered
+DOM rather than assumed: at `/obligations`, `.dh-topbar` resolves to **0**, the
+search button resolves to **1** by role alone, and `git diff origin/main --
+app/shared/shell/ app/styles/shell.css` is empty, so the same is true on main.
+
+The helper is re-pointed at `[data-testid="desktop-top-bar"]`, which keeps the
+original intent (never resolve the phone opener, a different control with the
+same name). Both journeys pass, and the create → complete → successor journey
+now actually exercises the search step it claims to.
+
+**Eight other specs carry the same dead scope** — `search`,
+`find-empty-search`, `recall-01-search-content`, `keyboard`, `tooltip`,
+`tasks-daily-driver`, `project-templates` and `product-frame`. They are outside
+these three modules, and re-pointing them would surface triage this pass cannot
+do honestly, so they are named here rather than touched. This is a suite-wide
+repair worth doing deliberately.
+
 ### Next
 
 1. **`SummaryCards` has no consumer in `app/`, and this document said it did.**
@@ -1307,4 +1332,8 @@ their CONTRACTS changed in this pass, and each change is argued in the test:
 5. **Goals** — a Project inside a Goal record still carries no HEALTH.
 6. **The Diary week strip's focus order**, and the inert legacy class names with
    the `.dh-btn` hook and the `.dh-input` / `.dh-control` layout bridges.
+7. **Eight E2E specs still scope to `.dh-topbar`**, a class the shell no longer
+   renders (above). Every journey through those locators is silently dead. The
+   re-point is mechanical; the triage of whatever those journeys then assert is
+   not, which is why it wants its own pass rather than a corner of this one.
 7. **A bounded `people.getByIds`**, carried forward from UNTITLED-13.

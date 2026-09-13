@@ -49,11 +49,21 @@ test.afterAll(() => {
  */
 const OBLIGATION_RECORD_URL = /\/obligations\/[0-9a-fA-F-]{20,}(?:[?#]|$)/;
 
-/** Open the ONE global search surface, the way an owner does. */
+/**
+ * Open the ONE global search surface, the way an owner does.
+ *
+ * Scoped to the desktop bar so this never accidentally resolves the phone
+ * opener, which is a different control with the same name. The scope is the
+ * bar's test id, NOT `.dh-topbar`: that class went with the `dh-topbar__*`
+ * family (see `DesktopTopBar.tsx`), so the old selector had been matching
+ * nothing and these journeys were failing on a 30s timeout rather than
+ * running. Eight other specs still carry the same dead scope — named in
+ * `UNTITLED_UI_MIGRATION.md`, out of this pass's scope to re-point.
+ */
 async function openSearch(page: Page) {
   await page.waitForLoadState("networkidle");
   await page
-    .locator(".dh-topbar")
+    .locator('[data-testid="desktop-top-bar"]')
     .getByRole("button", { name: /^Search DalyHub/ })
     .first()
     .click();
