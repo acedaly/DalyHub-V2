@@ -414,9 +414,11 @@ export function FinanceHome(props: FinanceHomeData) {
             Nothing categorised as money out this month.
           </p>
         ) : (
-          // Adapted from the Untitled UI React `application/table` source, in
-          // the card-bounded arrangement Untitled's Pro finance dashboards use
-          // for a breakdown table. Changes: DalyHub category columns.
+          // COMPOSED from the vendored Untitled `application/table`
+          // components — no Untitled source is copied here; the vendored file
+          // carries the provenance — in the card-bounded arrangement
+          // Untitled's Pro finance dashboards use for a breakdown table. The
+          // category columns are DalyHub's.
           <TableCard.Root
             size="sm"
             className="rounded-lg bg-primary shadow-xs ring-1 ring-secondary"

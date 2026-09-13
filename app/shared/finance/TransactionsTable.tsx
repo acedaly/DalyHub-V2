@@ -96,10 +96,14 @@ export function TransactionsTable({
   "data-testid": testId = "transaction-list",
 }: TransactionsTableProps) {
   return (
-    // Adapted from the Untitled UI React `application/table` source, in the
-    // card-bounded arrangement Untitled's Pro finance dashboards use for a
-    // transaction history. Changes: DalyHub columns, the phone recomposition,
-    // and the contextual category control.
+    // COMPOSED from the vendored Untitled `application/table` components, in
+    // the card-bounded arrangement Untitled's Pro finance dashboards use for a
+    // transaction history. No Untitled source is copied here: the components
+    // are imported from `~/shared/ui/untitled/application/table`, whose own
+    // header carries the source URL, revision, licence and retrieval date that
+    // AGENTS.md § Provenance requires of an adapted snippet. What is DalyHub's
+    // is the arrangement — the columns, the phone recomposition and the
+    // contextual category control.
     <TableCard.Root
       size="sm"
       className="rounded-lg bg-primary shadow-xs ring-1 ring-secondary"

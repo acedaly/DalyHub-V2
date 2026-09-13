@@ -1590,7 +1590,7 @@ unavailable example name, snippet or screenshot was invented.
 | Life Admin surface | Untitled source | How it is used | Custom remaining, and why |
 | --- | --- | --- | --- |
 | Collection frame | Shared `CollectionLayout` | Search visible at every width, status and category in the sheet | `keepFiltersOnCompact` — the same defect People fixed and Life Admin had |
-| Band | `application/table`'s `TableCard.Root` / `.Header` | One bounded card per band; the count as the header's own `Badge` | The badge names its noun ("24 obligations"). It was a bare parenthesised digit INSIDE the `h2`, whose accessible name was then "Overdue (24)" |
+| Band | `application/table`'s `TableCard.Root` + `overrides/table-card-header` | One bounded card per band; the count as the header's own `Badge` | The badge names its noun ("24 obligations"). It was a bare parenthesised digit INSIDE the `h2`, whose accessible name was then "Overdue (24)". The override adds `level`, for the same reason `section-heading`'s does — upstream hard-codes `h2`, which makes a band a PEER of the Asset tab's own hidden `h2` instead of a section inside it |
 | Row | Untitled's divided body, `base/badges`, `base/buttons`, the shared `OverflowMenu` | Mark, state badge, title, one quiet meta line, ONE primary control and a menu | Up to FIVE permanent `dh-btn` class strings became one button and a menu, with Dismiss behind a separator in the destructive tone |
 | State badge | `base/badges` via `UntitledStatusBadge` | The state's WORD, tinted | A hand-drawn stadium with its own five-tone container map is gone; the tone vocabulary is unchanged |
 | Due dates | — | In the quiet meta line, never a pill | §28. A collection where every row carries a bright date has no emphasis left for the overdue one |

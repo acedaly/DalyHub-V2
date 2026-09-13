@@ -426,9 +426,20 @@ export async function readMonthlyFlow(
     // One month is a figure, not a trend. The surface draws nothing instead.
     points: points.length < 2 ? [] : points,
     excluded: ordered.slice(1).map(([currencyCode, bucket]) => {
+      /*
+       * BOTH directions, because the note counts both.
+       *
+       * `bucket.count` is every transaction in the currency, and the sentence
+       * it feeds reads "$X in N transactions". Summing only `outMinor` made
+       * those two halves describe different things: an excluded USD salary
+       * with no USD spending reported "$0.00 in 1 transaction", which states
+       * that nothing was excluded at the moment it says something was. The
+       * figure is the money those N transactions MOVED — the chart draws money
+       * in and money out as two series, so what it is not drawing is both.
+       */
       let minorUnits = 0;
       for (const entry of bucket.months.values()) {
-        minorUnits += entry.outMinor;
+        minorUnits += entry.inMinor + entry.outMinor;
       }
       return { currencyCode, minorUnits, count: bucket.count };
     }),

@@ -117,8 +117,9 @@ export function AssetValueHistory({ history }: AssetValueHistoryProps) {
       ) : null}
 
       {/*
-       * Adapted from the Untitled UI React `application/table` source. Changes:
-       * DalyHub's valuation columns.
+       * COMPOSED from the vendored Untitled `application/table` components —
+       * no Untitled source is copied here; the vendored file carries the
+       * provenance. The valuation columns are DalyHub's.
        */}
       {/*
         No ring and no shadow: this table lives inside a disclosure inside a

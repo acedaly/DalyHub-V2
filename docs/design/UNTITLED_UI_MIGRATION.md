@@ -1218,6 +1218,39 @@ actual browser rather than by a test:
   (24)" was its accessible name, because the count was inside the `h2`. The same
   defect the Meetings day card fixed, in the same way.
 
+### Three defects this pass INTRODUCED, caught in review, and fixed
+
+Named rather than quietly amended, because two of them were arguments this
+document made and the code did not keep:
+
+- **Every obligation band became a PEER of the section containing it.** Dropping
+  `headingLevel` was argued here on the grounds that "a record tab introduces no
+  heading of its own". That is false of this surface and of three beside it: all
+  four Asset tabs draw a visually-hidden `h2` naming themselves. So the Asset
+  record's Obligations tab announced "Obligations, Overdue, This week" as three
+  peers. Untitled's `TableCard.Header` hard-codes `h2`, so the rank needs
+  `overrides/table-card-header` — the same override `section-heading` already is,
+  one component along. Worse: `AssetObligationsTab.test.tsx` had NOTICED the
+  clash and filtered the tab's own heading out of its assertion rather than
+  reporting it. The filter is gone and the rank is now part of what that test
+  pins.
+- **The chart's exclusion note stated a figure that contradicted its own
+  count.** `readMonthlyFlow` summed only `outMinor` for a non-leading currency
+  while counting transactions in both directions, so an excluded USD salary with
+  no USD spending read "$0.00 in 1 transaction" — a sentence that says nothing
+  was excluded in the act of saying something was. It sums both directions now,
+  which is what the chart is not drawing.
+- **The design fixture's `--clear` deleted an `entities` row before its detail
+  row.** For a transaction written into a seeded account by something other than
+  this script, the entity was deleted straight from a sub-select over
+  `finance_transaction_details`, whose entity foreign key is `ON DELETE
+  RESTRICT`. Reproduced exactly — a hand-built foreign transaction in a seeded
+  account, then that one statement, then "FOREIGN KEY constraint failed" — and
+  it had survived only because the runs that exercised it happened to have no
+  such row at that moment. The ids are captured into the script's own scratch
+  table first, the details go, then the entities, then the scratch table is
+  dropped.
+
 ### The cascade audit
 
 §48 asks for it again, and this time it came back CLEAN for these surfaces, which

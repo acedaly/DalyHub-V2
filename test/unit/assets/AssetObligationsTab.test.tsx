@@ -188,20 +188,24 @@ describe("grouping and state", () => {
       }),
     ]);
     /*
-     * UNTITLED-16 — the bands are Untitled `TableCard.Header`s, which are `h2`s,
-     * and `h2` is the right rank: a record tab introduces no heading of its own,
-     * so a section inside one sits directly under the record's `h1`. The tab's
-     * own visually-hidden "Obligations" heading now shares that rank, so the
-     * bands start after it. The ORDER is what this test is about, and it is
-     * unchanged.
+     * UNTITLED-16 — the bands are Untitled `TableCard.Header`s, at `h3`.
+     *
+     * A first cut of this pass made them `h2`, which put every band level with
+     * the tab's own visually-hidden "Obligations" heading rather than inside
+     * it — and this assertion filtered that heading out instead of noticing.
+     * It no longer needs to: the bands are the only `h3`s here, so the filter
+     * is gone and the rank itself is now part of what the test pins.
      */
     const headings = screen
-      .getAllByRole("heading", { level: 2 })
-      .map((h) => h.textContent)
-      .filter((text) => text !== "Overview" && text !== "Obligations");
+      .getAllByRole("heading", { level: 3 })
+      .map((h) => h.textContent);
     expect(headings[0]).toContain("Overdue");
     expect(headings[1]).toContain("This week");
     expect(headings[2]).toContain("Later");
+    // The tab's own heading stays ABOVE them, one rank up.
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Obligations" }),
+    ).toBeInTheDocument();
   });
 
   it("carries every state as a WORD, never colour alone", () => {
@@ -238,9 +242,8 @@ describe("grouping and state", () => {
       }),
     ]);
     const headings = screen
-      .getAllByRole("heading", { level: 2 })
-      .map((h) => h.textContent)
-      .filter((text) => text !== "Overview" && text !== "Obligations");
+      .getAllByRole("heading", { level: 3 })
+      .map((h) => h.textContent);
     expect(headings[0]).toContain("Overdue");
     expect(screen.getByText("Reading needed")).toBeInTheDocument();
   });

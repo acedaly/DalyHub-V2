@@ -136,7 +136,9 @@ function clear() {
    *      accounts are first in every picker, so a run of `finance.spec.ts`
    *      imports its statement into one — measured at one import and four
    *      transactions. Transactions carry `import_id`, so they go before the
-   *      import, which goes before the account;
+   *      import, which goes before the account. Their `entities` rows go after
+   *      their detail rows, via the scratch table below, because the entity
+   *      foreign key is `ON DELETE RESTRICT` in that direction too;
    *   3. the detail rows;
    *   4. the Activity about them, then the entities themselves.
    *
@@ -150,10 +152,29 @@ function clear() {
     `DELETE FROM entity_tags WHERE workspace_id = ${ws} AND entity_id LIKE ${lit(LIKE)};`,
     `DELETE FROM attachments WHERE workspace_id = ${ws} AND owner_entity_id LIKE ${lit(LIKE)};`,
 
-    // (2) Whatever has since been written into one of these accounts.
+    /*
+     * (2) Whatever has since been written into one of these accounts.
+     *
+     * The foreign transaction's `entities` row can only go AFTER its detail
+     * row — `finance_transaction_entity_fk` is `ON DELETE RESTRICT` — and once
+     * the detail row is gone nothing links the entity to the account any more.
+     * So the ids are captured into a scratch table FIRST, and the entities are
+     * deleted from that. An earlier cut deleted the entities directly from the
+     * sub-select, which reads correctly and is the wrong way round: it only
+     * survived because the runs that exercised it happened to have no foreign
+     * transaction in a seeded account at that moment.
+     *
+     * The scratch table is this script's own, created and dropped inside the
+     * same batch, and emptied on entry so a batch that died halfway leaves
+     * nothing for the next run to inherit.
+     */
+    `CREATE TABLE IF NOT EXISTS fa14_clear_scratch (id TEXT PRIMARY KEY);`,
+    `DELETE FROM fa14_clear_scratch;`,
+    `INSERT OR IGNORE INTO fa14_clear_scratch (id) SELECT entity_id FROM finance_transaction_details WHERE workspace_id = ${ws} AND account_id LIKE ${lit(LIKE)} AND entity_id NOT LIKE ${lit(LIKE)};`,
     `DELETE FROM activity_subjects WHERE workspace_id = ${ws} AND entity_id IN (SELECT entity_id FROM finance_transaction_details WHERE workspace_id = ${ws} AND account_id LIKE ${lit(LIKE)});`,
-    `DELETE FROM entities WHERE workspace_id = ${ws} AND id IN (SELECT entity_id FROM finance_transaction_details WHERE workspace_id = ${ws} AND account_id LIKE ${lit(LIKE)} AND entity_id NOT LIKE ${lit(LIKE)});`,
     `DELETE FROM finance_transaction_details WHERE workspace_id = ${ws} AND account_id LIKE ${lit(LIKE)};`,
+    `DELETE FROM entities WHERE workspace_id = ${ws} AND id IN (SELECT id FROM fa14_clear_scratch);`,
+    `DROP TABLE fa14_clear_scratch;`,
     `DELETE FROM finance_imports WHERE workspace_id = ${ws} AND account_id LIKE ${lit(LIKE)};`,
 
     // (3) The detail rows.

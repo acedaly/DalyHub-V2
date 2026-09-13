@@ -111,8 +111,10 @@ export function AssetDatesTab({ asset, today }: AssetDatesTabProps) {
           Details tab.
         </p>
       ) : (
-        // Adapted from the Untitled UI React `application/table` source.
-        // Changes: DalyHub's Asset date columns, and no card edge — see below.
+        // COMPOSED from the vendored Untitled `application/table` components —
+        // no Untitled source is copied here; the vendored file carries the
+        // provenance. DalyHub's are the Asset date columns and the missing
+        // card edge — see below.
         <TableCard.Root
           size="sm"
           /*

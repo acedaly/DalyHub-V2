@@ -30,6 +30,7 @@
 import type { ReactNode } from "react";
 
 import { TableCard } from "~/shared/ui/untitled/application/table/table";
+import { TableCardHeader } from "~/shared/ui/untitled/overrides/table-card-header";
 
 import type { ObligationBandGroup } from "./obligation-view";
 
@@ -82,18 +83,27 @@ export interface ObligationBandsProps {
   readonly renderRow: (
     obligation: ObligationBandGroup["items"][number],
   ) => ReactNode;
-  /*
-   * UNTITLED-16 — there is no `headingLevel` any more.
+  /**
+   * The rank of each band's heading.
    *
-   * Untitled's `TableCard.Header` renders an `h2`, and `h2` is the right rank on
-   * both surfaces that draw bands: a collection's own title is the `h1`, and a
-   * record tab introduces no heading of its own, so a section inside one is also
-   * an `h2`. A prop offering a rank the component cannot honour would be a
-   * promise the markup breaks.
+   * `2` on a collection, whose own title is the `h1` above these bands.
+   *
+   * `3` inside an Asset record tab, which already draws a visually-hidden `h2`
+   * naming itself — as all four Asset tabs do. A first cut of UNTITLED-16
+   * dropped this prop on the argument that "a record tab introduces no heading
+   * of its own"; that was simply false of this surface, and it made every band
+   * a SIBLING of the section containing it. Untitled's own `TableCard.Header`
+   * hardcodes `h2`, so honouring the rank needs the override beside it, the
+   * same way `section-heading` already does.
    */
+  readonly headingLevel?: 2 | 3;
 }
 
-export function ObligationBands({ groups, renderRow }: ObligationBandsProps) {
+export function ObligationBands({
+  groups,
+  renderRow,
+  headingLevel = 2,
+}: ObligationBandsProps) {
   return (
     <div className="flex flex-col gap-5">
       {groups
@@ -116,9 +126,11 @@ export function ObligationBands({ groups, renderRow }: ObligationBandsProps) {
              * name ends in a parenthesised digit is a heading a screen-reader
              * user has to decode — the same defect the Meetings day card fixed.
              */}
-            <TableCard.Header
+            <TableCardHeader
               title={group.label}
               badge={`${group.total} ${group.total === 1 ? "obligation" : "obligations"}`}
+              level={headingLevel}
+              size="sm"
             />
             <ObligationList ariaLabel={`${group.label} obligations`}>
               {group.items.map(renderRow)}
