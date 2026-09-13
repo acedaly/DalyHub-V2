@@ -1486,15 +1486,31 @@ function MeetingDetailsEditor({
     (value, index, values) => values.indexOf(value) === index,
   );
 
+  /*
+   * UNTITLED-14 — a real button, not `<details>/<summary>`.
+   *
+   * `.dh-progressive-section` has no stylesheet anywhere in the product, so a
+   * `<summary>` here rendered the browser's own ▶ marker in the middle of an
+   * Untitled rail card — visible in the 1440 and 1024 review shots. A summary's
+   * role also varies across engines, which makes its accessible name something
+   * neither a test nor a screen reader can rely on. The attendee adder beside it
+   * is a button for exactly these reasons; this matches it, so the rail's two
+   * quiet acts are the same control.
+   */
+  if (!open) {
+    return (
+      <button
+        type="button"
+        className="dh-meeting-details-opener self-start text-sm font-medium text-brand-secondary outline-focus-ring [@media(hover:none)]:min-h-[var(--app-touch-target-min)] hover:text-brand-secondary_hover focus-visible:outline-2 focus-visible:outline-offset-2"
+        onClick={() => setOpen(true)}
+      >
+        Edit details
+      </button>
+    );
+  }
+
   return (
-    <details
-      className="dh-progressive-section"
-      open={open}
-      onToggle={(event) =>
-        setOpen((event.currentTarget as HTMLDetailsElement).open)
-      }
-    >
-      <summary>Edit details</summary>
+    <div className="dh-meeting-details-editor flex min-w-0 flex-col gap-3">
       <Form
         aria-label="Edit meeting details"
         busy={form.isSubmitting}
@@ -1553,7 +1569,7 @@ function MeetingDetailsEditor({
           </FormButton>
         </FormActions>
       </Form>
-    </details>
+    </div>
   );
 }
 
@@ -1743,7 +1759,7 @@ function MeetingAttendees({
  * The attendee picker's disclosure — open where the section IS the editor.
  *
  * A real `<button>` rather than `<details>/<summary>`, for the same reason the
- * rail's "Edit details" is one: a summary's role varies across engines, so its
+ * rail's "Edit details" is: a summary's role varies across engines, so its
  * accessible name is not something a test or a screen reader can rely on, and
  * this control is the one way a person adds somebody to a meeting.
  */
