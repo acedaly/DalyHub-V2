@@ -68,6 +68,22 @@ function longDate(now: Date, timeZone: string): string {
   }).format(now);
 }
 
+/**
+ * The Diary picker's whole accessible name, for the day this zone is on.
+ *
+ * The separator is the one part matched loosely, and deliberately so rather
+ * than by copying the product's string: `formatDayKeyLong` writes
+ * "Sunday, 13 September 2026" while `Intl`'s en-AU rendering of the identical
+ * fields writes it without the comma. Pinning a punctuation mark would make
+ * this assertion fail on a typographic edit that changes nothing about which
+ * DAY the control is showing, which is the only thing it is here to prove.
+ */
+function showingDay(now: Date, timeZone: string): RegExp {
+  return new RegExp(
+    `^Go to a date — showing ${longDate(now, timeZone).replace(" ", ",? ")}$`,
+  );
+}
+
 /* -------------------------------------------------------------------------- */
 /* Fixtures                                                                    */
 /* -------------------------------------------------------------------------- */
@@ -181,12 +197,16 @@ test("every date-sensitive module names the OWNER's calendar day, not the runner
 
     // 5. DIARY opens on the same day, stated machine-readably by its picker.
     //    UIX-04 renamed the picker from "Select date" to "Go to a date —
-    //    showing <the day it is on>", so its accessible name now carries the
-    //    state as well as the purpose. Matched on the stable leading phrase:
-    //    the trailing day is exactly what varies here, and asserting the
-    //    input's VALUE is still what proves the day, machine-readably.
+    //    showing <the day it is on>", so its accessible name carries the state
+    //    as well as the purpose — and that name is now the whole of what it
+    //    states: `DiaryDayNavigator` opens a React Aria popover calendar from a
+    //    BUTTON, so there is no `<input type="date">` left and `toHaveValue`
+    //    threw "Not an input element" rather than comparing a day at all. The
+    //    same fact in the same place, read off the control that still makes it.
     await gotoFixture(page, "/diary");
-    await expect(page.getByLabel(/^Go to a date/)).toHaveValue(ownerDay);
+    await expect(page.getByLabel(/^Go to a date/)).toHaveAccessibleName(
+      showingDay(now, zone),
+    );
   } finally {
     await setTimezone(page, DEFAULT_TIMEZONE);
   }
@@ -194,7 +214,7 @@ test("every date-sensitive module names the OWNER's calendar day, not the runner
   // 6. Restoring the preference restores the day everywhere — the timezone is
   //    the only thing that was deciding it.
   await gotoFixture(page, "/diary");
-  await expect(page.getByLabel(/^Go to a date/)).toHaveValue(
-    calendarDay(new Date(), DEFAULT_TIMEZONE),
+  await expect(page.getByLabel(/^Go to a date/)).toHaveAccessibleName(
+    showingDay(new Date(), DEFAULT_TIMEZONE),
   );
 });

@@ -26,6 +26,27 @@ import {
  * present and overridden, a class can be applied to the wrong element, and a
  * `background` assertion would pass against a hand-rolled fill — the layer's
  * own opacity passes only if the shared implementation is the thing running.
+ *
+ * ── UNTITLED — which controls the layer still covers ─────────────────────────
+ *
+ * The layer is still ONE implementation and still has hosts, but the shared
+ * `<Button>`, `<IconButton>`, the record-header actions and the editor's two
+ * controls all LEFT that host list when their paint moved to Untitled. That is
+ * spelled out in `base.css` (UNTITLED-04, -11, -12) and is not a regression: a
+ * `currentColor` wash on top of a control that already draws hover as a real
+ * container change and focus as its own 2px ring is a SECOND hover state, not
+ * the one shared one — and on a primary button it is a white film over the
+ * accent.
+ *
+ * So the tests below split along that line, and neither half is the weaker one:
+ *
+ *   - a control that is STILL a host is measured by the layer's own opacity,
+ *     hover, focus and pressed, exactly as before;
+ *   - a control Untitled paints is measured in PIXELS — hover must change what
+ *     is on screen, focus must draw the ring, disabled must change nothing.
+ *     A pixel assertion is implementation-blind on purpose: it held for the
+ *     state layer, it holds for Untitled, and it would have caught the
+ *     `content: none` bug that two years of opacity assertions did not.
  */
 
 /** The computed opacity of a host's state layer, right now. */
@@ -89,63 +110,191 @@ async function expectLayerPaints(page: Page, locator: Locator): Promise<void> {
   await expect.poll(() => layerOpacity(locator), { timeout: 2_000 }).toBe(0);
 }
 
+/**
+ * Hovering the control CHANGES WHAT IS ON SCREEN — whatever draws it.
+ *
+ * The implementation-blind half of the contract, for the controls Untitled
+ * paints. It asks the only question that actually matters to the person using
+ * the product and it cannot be satisfied by a rule that is present and
+ * overridden, by a class on the wrong element, or by an opacity on a
+ * pseudo-element that was never generated.
+ *
+ * Leaves the control resting, so a caller can chain.
+ */
+async function expectHoverRepaints(
+  page: Page,
+  locator: Locator,
+): Promise<void> {
+  await locator.scrollIntoViewIfNeeded();
+  await page.mouse.move(0, 0);
+  const rest = (await locator.screenshot()).toString("base64");
+  await locator.hover();
+  await expect
+    .poll(async () => (await locator.screenshot()).toString("base64"), {
+      timeout: 2_000,
+    })
+    .not.toBe(rest);
+  await page.mouse.move(0, 0);
+  await expect
+    .poll(async () => (await locator.screenshot()).toString("base64"), {
+      timeout: 2_000,
+    })
+    .toBe(rest);
+}
+
+/**
+ * The control's 2px focus ring, as the browser resolves it right now.
+ *
+ * Untitled draws focus as `focus-visible:outline-2 focus-visible:outline-offset-2`
+ * on `outline-brand`, which is OUTSIDE the element's box — so an element
+ * screenshot clips it away entirely and `expectHoverRepaints` can say nothing
+ * about focus. The computed outline is where that state is observable.
+ */
+async function focusRing(locator: Locator) {
+  return locator.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      width: Number.parseFloat(style.outlineWidth) || 0,
+      style: style.outlineStyle,
+      color: style.outlineColor,
+    };
+  });
+}
+
 test.describe("M3-INT — the shared state layer", () => {
-  test("hover, focus and pressed all light the layer on a shared button", async ({
+  test("the shared button draws hover and focus, both visible", async ({
     page,
   }) => {
+    /*
+     * UNTITLED-04 — the shared `<Button>` is not a state-layer host any more,
+     * and this test used to be the one that said it was.
+     *
+     * It asserted `::after` opacity on `/design/forms`'s Save, which is a
+     * `FormButton` → shared `Button` → Untitled's own button. Since the paint
+     * moved there the pseudo-element carries no rule at all, so `opacity`
+     * computes as its initial `1` and the OLD assertions would have read
+     * "hover: 1 > 0.05 ✓, focus: 1 > 0.05 ✓" forever — passing on a control
+     * with, as far as this file could tell, a permanent full-strength layer.
+     * The `content` guard is the only reason it failed instead of lying.
+     *
+     * So the question is asked of the thing that now answers it. Hover is
+     * measured in pixels, which is stronger than the opacity read it replaces
+     * and is blind to which system paints. Focus is measured on the outline,
+     * because Untitled draws it outside the box where a screenshot cannot see
+     * it. Hover, focus and pressed on a control that IS still a host are
+     * asserted in their own test below — the shared layer is not untested, it
+     * is tested where it runs.
+     *
+     * PRESSED is deliberately not asserted here. Untitled's button declares
+     * hover and focus and no `:active` treatment, so a pressed assertion would
+     * be a claim about a state the vendored component does not draw — and
+     * hand-rolling one back on top would re-open exactly what UNTITLED-04
+     * closed. It is recorded rather than asserted so the gap is visible.
+     */
     await gotoFixture(page, "/design/forms");
 
     const button = page.getByRole("button", { name: "Save" }).first();
     await expect(button).toBeVisible();
 
+    await expectHoverRepaints(page, button);
+
+    // At rest there is no ring — otherwise "focus draws one" proves nothing.
+    expect((await focusRing(button)).width).toBe(0);
+
+    await button.focus();
+    const ring = await focusRing(button);
+    expect(ring.width).toBeGreaterThanOrEqual(2);
+    expect(ring.style).not.toBe("none");
+    expect(ring.color).not.toBe("rgba(0, 0, 0, 0)");
+  });
+
+  test("the shared state layer lights hover, focus and pressed on a host", async ({
+    page,
+  }) => {
+    /*
+     * The layer's own contract, asked of a control that is still a host.
+     *
+     * The inline-edit trigger is in `base.css`'s host list by route (b) — a
+     * class string owned by a shared component rather than by one stylesheet —
+     * so it takes its four opacities from the one implementation and from
+     * nowhere else. A hand-rolled fill on the same control would satisfy a
+     * `background` assertion and fails this one.
+     *
+     * Reached through the gallery's own editable record heading rather than
+     * through a bare `.first()` on the page: `short-title-edit` is the fixture
+     * that exists to document this control, so the assertion names what it is
+     * measuring. (`/design/forms` looked like the obvious host and has none —
+     * its "saves as you type" row is an autosave `TextField`, not an inline
+     * edit. `.dh-filter-btn--ghost` was the other candidate and is rendered
+     * only once a filter clause exists.)
+     *
+     * PRESSED is the state the hand-rolled implementations almost universally
+     * lacked (a copied `:hover` rule rarely grows an `:active` sibling), and
+     * until now no test in this file asserted it on a host that still has it —
+     * the one that tried was aimed at the shared button, which is not one.
+     */
+    await gotoFixture(page, "/design/record-layout");
+    const host = page
+      .getByTestId("short-title-edit")
+      .locator(".dh-inline-edit__trigger");
+    await expect(host).toBeVisible();
+
     // The one assertion in this file that is about PIXELS — see the helper.
-    await expectLayerPaints(page, button);
+    await expectLayerPaints(page, host);
 
     // Rest: no layer at all.
-    expect(await layerOpacity(button)).toBe(0);
+    expect(await layerOpacity(host)).toBe(0);
 
     // Hover: M3's 8%.
-    await button.hover();
+    await host.hover();
     await expect
-      .poll(() => layerOpacity(button), { timeout: 2_000 })
+      .poll(() => layerOpacity(host), { timeout: 2_000 })
       .toBeGreaterThan(0.05);
 
     // Focus: the keyboard user gets a layer too, not only the pointer user.
     await page.mouse.move(0, 0);
-    await button.focus();
+    await host.focus();
     await expect
-      .poll(() => layerOpacity(button), { timeout: 2_000 })
+      .poll(() => layerOpacity(host), { timeout: 2_000 })
       .toBeGreaterThan(0.05);
 
-    // Pressed: strictly stronger than hover — the state the hand-rolled
-    // implementations almost universally lacked.
+    // Pressed: strictly stronger than hover.
     //
-    // The blur matters. This test just focused the button, and `:focus-visible`
-    // carries M3's focus opacity (0.1), which is the same number as pressed —
-    // so measuring "hover" on a still-focused control compares 0.1 with 0.1 and
-    // proves nothing. Dropping focus first is what makes the comparison real.
-    await button.evaluate((element: HTMLElement) => element.blur());
+    // The blur matters. This test just focused the control, and
+    // `:focus-visible` carries M3's focus opacity (0.1), which is the same
+    // number as pressed — so measuring "hover" on a still-focused control
+    // compares 0.1 with 0.1 and proves nothing. Dropping focus first is what
+    // makes the comparison real.
+    await host.evaluate((element: HTMLElement) => element.blur());
     await page.mouse.move(0, 0);
-    await button.hover();
-    const hoverOpacity = await layerOpacity(button);
-    const box = (await button.boundingBox())!;
+    await host.hover();
+    const hoverOpacity = await layerOpacity(host);
+    const box = (await host.boundingBox())!;
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await page.mouse.down();
     // Polled, not sampled: the layer TRANSITIONS between opacities, so an
     // immediate read lands mid-animation on the value it is leaving.
     await expect
-      .poll(() => layerOpacity(button), { timeout: 2_000 })
+      .poll(() => layerOpacity(host), { timeout: 2_000 })
       .toBeGreaterThan(hoverOpacity);
     await page.mouse.up();
   });
 
-  test("a disabled control has no state layer at all", async ({ page }) => {
+  test("a disabled control reacts to nothing", async ({ page }) => {
     /*
      * DEBT-200 — this used to `test.skip()` when it found no disabled button,
      * which it did on every run: `/design/forms` documented every disabled
      * FIELD and no disabled BUTTON, so the one claim about the disabled state
      * layer had never once been checked in the product. The fixture now shows
      * the state it is meant to document, and the guard is an assertion.
+     *
+     * UNTITLED-04 — and the claim is now about PIXELS rather than about the
+     * layer's opacity, for the reason the shared-button test above records:
+     * these are `<Button disabled>`, Untitled paints them, and `::after`
+     * carries no rule, so `layerOpacity` returned the initial `1` and the old
+     * `toBe(0)` failed on a control that in fact paints nothing at all. Asking
+     * whether the pixels move is the question the assertion was always trying
+     * to ask, and it holds whichever system draws the control.
      */
     await gotoFixture(page, "/design/forms");
     const disabled = page.locator("button.dh-btn:disabled");
@@ -155,16 +304,26 @@ test.describe("M3-INT — the shared state layer", () => {
         "this journey asserts nothing (DEBT-200)",
     ).toBeGreaterThan(0);
 
-    // Every variant, not just the first: the rule is that INERT means no layer,
-    // and a variant that painted its own disabled hover would pass a
+    // Every variant, not just the first: the rule is that INERT means no
+    // reaction, and a variant that painted its own disabled hover would pass a
     // first-only check.
     for (let index = 0; index < (await disabled.count()); index += 1) {
       const control = disabled.nth(index);
+      await control.scrollIntoViewIfNeeded();
+      await page.mouse.move(0, 0);
+      const rest = (await control.screenshot()).toString("base64");
       await control.hover({ force: true });
+      /*
+       * A NON-event needs a settle, not a poll: polling for "still equal"
+       * succeeds on its first sample whether or not a transition was about to
+       * run. The controls transition on `--dh-motion-instant`; 400ms is an
+       * order of magnitude past it.
+       */
+      await page.waitForTimeout(400);
       expect(
-        await layerOpacity(control),
-        `disabled control ${index} paints a state layer on hover`,
-      ).toBe(0);
+        (await control.screenshot()).toString("base64"),
+        `disabled control ${index} changes appearance on hover`,
+      ).toBe(rest);
       await page.mouse.move(0, 0);
     }
   });
@@ -227,17 +386,24 @@ test.describe("M3-INT — the shared state layer", () => {
       exact: true,
     });
 
+    /*
+     * UNTITLED-04 — the record header's actions render through the shared
+     * `Button` / `IconButton` now (`RecordAction.tsx`), which was the point:
+     * the header was the one place in the product where a button sat beside
+     * the record's own name and was drawn by a different system from every
+     * other button on the page. They left the state-layer host list with the
+     * rest of the shared button family, so the question here is the pixel one
+     * — which is what "is a host too" was always shorthand for. Primary,
+     * secondary and overflow are all checked, because the header is exactly
+     * where a variant drifts.
+     */
     for (const control of [
       region.getByRole("button", { name: "Complete project" }),
       region.getByRole("button", { name: "Link" }),
       region.getByRole("button", { name: /More actions/ }),
     ]) {
-      expect(await layerOpacity(control)).toBe(0);
-      await control.hover();
-      await expect
-        .poll(() => layerOpacity(control), { timeout: 2_000 })
-        .toBeGreaterThan(0.05);
-      await page.mouse.move(0, 0);
+      await expect(control).toBeVisible();
+      await expectHoverRepaints(page, control);
     }
   });
 

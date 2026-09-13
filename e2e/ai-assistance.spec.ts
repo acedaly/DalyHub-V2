@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import {
   RESPONSIVE_VIEWPORTS,
@@ -81,6 +81,19 @@ async function openAiSettings(page: Page): Promise<void> {
   await expect(
     page.getByRole("heading", { name: "AI", exact: true }),
   ).toBeVisible();
+}
+
+/**
+ * The Meeting workspace's follow-up Tasks, as a list.
+ *
+ * UNTITLED-14 folded the Follow-up TAB into the Meeting tab's Actions band, and
+ * that band renders the shared `TaskList` / `TaskRow` rather than a
+ * meeting-local one (§K). It is drawn only when there are rows, so
+ * `toHaveCount(0)` on this locator is the band's empty state — the same
+ * assertion the retired tab made with a "No follow-up tasks yet" heading.
+ */
+function followUpTasks(page: Page): Locator {
+  return page.getByRole("list", { name: "Follow-up tasks" });
 }
 
 /** Turn AI on through the real control, and wait for the state to come back. */
@@ -246,9 +259,18 @@ test.describe("AI-01 — AI is off by default and says so", () => {
       page.getByText("AI assistance is turned off", { exact: false }),
     ).toBeVisible();
 
-    // The rest of the Meeting is untouched — the AI tab is purely additive.
-    await page.getByRole("tab", { name: "Details" }).click();
-    await expect(page.getByRole("tab", { name: "Details" })).toHaveAttribute(
+    /*
+     * The rest of the Meeting is untouched — the AI tab is purely additive.
+     *
+     * UNTITLED-14 — "the rest of the Meeting" is ONE tab now. `detail.tsx`
+     * states the consolidation in place: Notebook, Details and Follow-up became
+     * the Meeting workspace, because "during a real meeting the user needs
+     * context together". Five tabs remain — the context strip, Meeting, AI,
+     * Activity, Settings — and "Details" is not one of them, so this locator
+     * matched nothing and took every AI-tab journey in the file down with it.
+     */
+    await page.getByRole("tab", { name: "Meeting" }).click();
+    await expect(page.getByRole("tab", { name: "Meeting" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
@@ -589,11 +611,17 @@ test.describe("AI-02 — accepting a proposal produces ordinary DalyHub records"
     await createMeeting(page, title);
     const meetingId = recordId(page);
 
-    // Before: the Meeting has no follow-up work at all.
-    await page.getByRole("tab", { name: "Follow-up" }).click();
-    await expect(
-      page.getByRole("heading", { name: "No follow-up tasks yet" }),
-    ).toBeVisible();
+    /*
+     * Before: the Meeting has no follow-up work at all.
+     *
+     * UNTITLED-14 — the Follow-up TAB became the Meeting workspace's Actions
+     * band, "the only honest home for it: a meeting's actions and the Tasks
+     * they became are one list of one kind of thing". The band draws its
+     * `TaskList` only when there are rows, so the absence of the list IS the
+     * empty state; the "No follow-up tasks yet" heading went with the tab.
+     */
+    await page.getByRole("tab", { name: "Meeting" }).click();
+    await expect(followUpTasks(page)).toHaveCount(0);
 
     /*
      * DEBT-173 — the accepted Task's title is OWNED by this journey.
@@ -624,15 +652,18 @@ test.describe("AI-02 — accepting a proposal produces ordinary DalyHub records"
 
     // After: it is CONVERTED follow-up work, not a Task floating beside the
     // Meeting. This is the DEBT-90 fix, seen from the owner's side.
+    //
+    // Asserted on the Task itself rather than on the old tab's "Open (1)"
+    // grouping heading: the Actions band renders the shared `TaskRow`, which is
+    // §K's whole point ("Actions that are Tasks MUST use DalyHub's shared Task
+    // system"), so naming the row is both stronger and the thing that survived.
     await page.reload();
-    await page.getByRole("tab", { name: "Follow-up" }).click();
-    await expect(
-      page.getByRole("heading", { name: /Open \(1\)/ }),
-    ).toBeVisible();
+    await page.getByRole("tab", { name: "Meeting" }).click();
+    await expect(followUpTasks(page).getByRole("listitem")).toHaveCount(1);
+    await expect(followUpTasks(page)).toContainText(taskTitle);
 
     // The Meeting itself records the action item, and offers to OPEN the task
-    // rather than create a second one.
-    await page.getByRole("tab", { name: "Notebook" }).click();
+    // rather than create a second one — on the same tab, a band above.
     const item = page.locator(".dh-meeting-item", {
       hasText: taskTitle,
     });
@@ -672,10 +703,9 @@ test.describe("AI-02 — accepting a proposal produces ordinary DalyHub records"
     expect(second.applied?.[0]?.created).toBe(false);
 
     await page.reload();
-    await page.getByRole("tab", { name: "Follow-up" }).click();
-    await expect(
-      page.getByRole("heading", { name: /Open \(1\)/ }),
-    ).toBeVisible();
+    await page.getByRole("tab", { name: "Meeting" }).click();
+    // ONE row, which is the whole claim: a replayed acceptance is idempotent.
+    await expect(followUpTasks(page).getByRole("listitem")).toHaveCount(1);
   });
 
   test("an accepted Meeting Note becomes a Note linked back to the Meeting", async ({
@@ -745,11 +775,8 @@ test.describe("AI-02 — accepting a proposal produces ordinary DalyHub records"
     expect(payload.applied).toEqual([]);
 
     await page.reload();
-    await page.getByRole("tab", { name: "Follow-up" }).click();
-    await expect(
-      page.getByRole("heading", { name: "No follow-up tasks yet" }),
-    ).toBeVisible();
-    await page.getByRole("tab", { name: "Notebook" }).click();
+    await page.getByRole("tab", { name: "Meeting" }).click();
+    await expect(followUpTasks(page)).toHaveCount(0);
     await expect(page.locator(".dh-meeting-item")).toHaveCount(0);
   });
 
@@ -832,7 +859,7 @@ test.describe("AI-02 — accepting a proposal produces ordinary DalyHub records"
 
     // Nothing was written to the archived Meeting.
     await page.reload();
-    await page.getByRole("tab", { name: "Notebook" }).click();
+    await page.getByRole("tab", { name: "Meeting" }).click();
     await expect(page.locator(".dh-meeting-item")).toHaveCount(0);
   });
 
@@ -954,7 +981,7 @@ test.describe("AI-01 — responsive and accessible across the phone matrix", () 
 
     // Reach the tablist by keyboard, then move along it with the arrow keys the
     // Record Layout's roving tabindex provides — no mouse anywhere.
-    await page.getByRole("tab", { name: "Details" }).focus();
+    await page.getByRole("tab", { name: "Meeting" }).focus();
     for (let step = 0; step < 8; step += 1) {
       const selected = page.getByRole("tab", { selected: true });
       if ((await selected.getAttribute("aria-label")) === "AI") break;
