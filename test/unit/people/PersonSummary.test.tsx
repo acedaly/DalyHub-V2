@@ -310,6 +310,39 @@ describe("PersonSummary — stay-in-touch", () => {
   });
 });
 
+/*
+ * UIQ-011, re-guarded at the unit level.
+ *
+ * The e2e suite already asserts that a Person with no contact data gets no
+ * contact actions, and it caught this pass reintroducing the defect one layer
+ * in: `PersonIdentityBand` wraps whatever it is handed in a `role="group"`
+ * named "Contact actions", and `<ContactActions />` is a truthy element even
+ * when it renders nothing — so the group came back empty. An empty labelled
+ * group is the same lie as a greyed-out Call button, told to assistive tech
+ * instead of to the eye. These two tests hold the band's contract where it is
+ * cheap to run.
+ */
+describe("PersonSummary — contact actions", () => {
+  it("offers only the actions the contact data can support", () => {
+    renderSummary(relationship(), {
+      email: "ada@example.com",
+      workPhone: "+61 2 5555 0000",
+    });
+
+    const actions = screen.getByRole("group", { name: "Contact actions" });
+    expect(within(actions).getByRole("link", { name: "Call" })).toBeVisible();
+    expect(within(actions).getByRole("link", { name: "Email" })).toBeVisible();
+    // `sms:` needs a MOBILE — a landline gets no Message action.
+    expect(within(actions).queryByRole("link", { name: "Message" })).toBeNull();
+  });
+
+  it("renders no group at all when there is nothing to act on", () => {
+    renderSummary();
+
+    expect(screen.queryByRole("group", { name: "Contact actions" })).toBeNull();
+  });
+});
+
 describe("PersonSummary — the hand-entered last-interaction field", () => {
   it("is shown, clearly labelled as noted, only while nothing has been recorded", () => {
     renderSummary(relationship(), { lastInteraction: "2020-01-01" });

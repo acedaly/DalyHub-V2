@@ -55,7 +55,14 @@ export interface PersonIdentityBandProps {
   readonly preferredName?: string | null;
   /** The relationship word — "Family", "Colleague". One value, from a closed set. */
   readonly relationship?: ReactNode;
-  /** Call / Email / Message — only the ones the contact data supports. */
+  /**
+   * Call / Email / Message — only the ones the contact data supports.
+   *
+   * Pass `null` when there are none. This is wrapped in a `role="group"` named
+   * "Contact actions", and an element is truthy even when it renders nothing,
+   * so a component that returns `null` internally still buys an empty labelled
+   * group — a landmark a screen-reader user can reach and find nothing in.
+   */
   readonly actions?: ReactNode;
   readonly className?: string;
 }

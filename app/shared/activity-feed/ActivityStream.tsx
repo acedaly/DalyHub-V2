@@ -248,11 +248,14 @@ export function ActivityStream(props: ActivityStreamProps): ReactNode {
    * make the claim true; making the DOM flat would mean giving up the day
    * grouping, which is the thing the surface is FOR.
    *
-   * What is lost by dropping it: a screen reader's feed-specific paging.
-   * What was never there to lose: this component has never supplied
-   * `aria-posinset`/`aria-setsize`, which is what that paging reads. Each
-   * moment is still a real `<article>` with a real heading, which is how
-   * assistive tech actually navigates this region today.
+   * What is lost by dropping it: the feed role's own reading mode, the one a
+   * screen reader offers for stepping article-by-article through a stream.
+   * What is NOT lost is the position information that mode reads. Each moment
+   * still carries `aria-posinset`/`aria-setsize` — `article` supports both
+   * natively, independently of any ancestor role — so a windowed article still
+   * announces "7 of 120" rather than "7 of 12 rendered". Each moment is also
+   * still a real `<article>` with a real heading, which is how assistive tech
+   * actually navigates this region today.
    *
    * `aria-busy` is unaffected — it is a global attribute and says the same
    * thing on a `group`.

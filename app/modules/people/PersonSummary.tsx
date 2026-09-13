@@ -116,7 +116,7 @@ export function PersonSummary({
             </p>
           ) : null
         }
-        actions={<ContactActions person={person} />}
+        actions={contactActions(person)}
       />
 
       {/*
@@ -337,8 +337,16 @@ function SharedRecordList({
  * would text a landline. Everything else this row used to carry (create a Task,
  * a Meeting, a Note, a Diary entry; copy a field) is in the record header's
  * overflow with this Person's context attached — see `PersonRecord`.
+ *
+ * This is a FUNCTION and not a component on purpose. `PersonIdentityBand` wraps
+ * whatever it is handed in a `role="group"` named "Contact actions", and an
+ * element is truthy even when it renders nothing — so a component here would
+ * hand the band an empty labelled group for a Person with no contact data at
+ * all, which is the same lie as a disabled Call button, told to assistive tech
+ * instead of to the eye. Called as a function, the emptiness is decidable at
+ * the call site, and the band gets `null`.
  */
-function ContactActions({ person }: { readonly person: SerializedPerson }) {
+function contactActions(person: SerializedPerson): ReactNode | null {
   const phone = person.mobile ?? person.workPhone;
   const actions: ReactNode[] = [];
   if (phone) {

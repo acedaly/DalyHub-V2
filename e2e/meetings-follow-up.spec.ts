@@ -44,9 +44,22 @@ async function addItem(
   body: string,
 ): Promise<void> {
   await page.getByRole("tab", { name: "Notebook" }).click();
+  /*
+   * UNTITLED-13 — the add form is progressive disclosure now.
+   *
+   * The notebook carries four of these bands, and each used to hold a visible
+   * label, a text field and an Add button whether or not anything was being
+   * added, so a meeting with an agenda and nothing else opened on four empty
+   * forms. One press opens the band's field and focuses it; the disclosure
+   * button is REPLACED by the form, so "Add {kind}" is still unambiguous at
+   * each step and the journey below is one extra press, not a different one.
+   */
+  await page.getByRole("button", { name: `Add ${kindLabel}` }).click();
   // The field names the noun and the button names the act, so each control can
   // be asked for unambiguously — they used to share one accessible name.
-  await page.getByRole("textbox", { name: `New ${kindLabel}` }).fill(body);
+  const field = page.getByRole("textbox", { name: `New ${kindLabel}` });
+  await expect(field).toBeFocused();
+  await field.fill(body);
   await page.getByRole("button", { name: `Add ${kindLabel}` }).click();
   await expect(page.getByText(body, { exact: false })).toBeVisible();
 }
@@ -58,7 +71,26 @@ async function convertItem(
   options: { title?: string; parent: string; priority?: string },
 ): Promise<void> {
   const row = page.locator(".dh-meeting-item", { hasText: body });
-  await row.getByRole("button", { name: "Create task" }).click();
+  /*
+   * UNTITLED-13 — conversion is one menu item on every kind, and additionally a
+   * promoted button on an ACTION.
+   *
+   * "Create task" used to be a full visible control on every line, so an agenda
+   * of three topics carried three identical buttons and the chrome outweighed
+   * the words. An agenda item is a topic and a decision is a record of what was
+   * settled; an action is the one that is already a commitment, and it keeps
+   * the button (asserted below). This helper takes the path that exists for
+   * every kind, so the journeys still convert decisions and agenda items.
+   */
+  const promoted = row.getByRole("button", { name: "Create task" });
+  if ((await promoted.count()) > 0) {
+    await promoted.click();
+  } else {
+    await row.getByRole("button", { name: /^Actions for this / }).click();
+    await page
+      .getByRole("menuitem", { name: "Create a task from this" })
+      .click();
+  }
   const dialog = page.getByRole("dialog", { name: "New follow-up task" });
   await expect(dialog).toBeVisible();
 
@@ -148,6 +180,27 @@ test("converts meeting items into linked Tasks and groups the follow-up work", a
   await addItem(page, "agenda item", "Agenda: confirm the budget");
   await addItem(page, "decision", "Decision: proceed with vendor A");
   await addItem(page, "outcome", "Outcome: publish the recap");
+  await addItem(page, "action item", "Action: book the venue");
+
+  // UNTITLED-13 — the promoted control belongs to the ACTION and to nothing
+  // else. An action is already a commitment, so converting it is one press;
+  // a topic and a settled decision are one menu away (see `convertItem`).
+  await expect(
+    page
+      .locator(".dh-meeting-item", { hasText: "Action: book the venue" })
+      .getByRole("button", { name: "Create task" }),
+  ).toBeVisible();
+  for (const body of [
+    "Agenda: confirm the budget",
+    "Decision: proceed with vendor A",
+    "Outcome: publish the recap",
+  ]) {
+    await expect(
+      page
+        .locator(".dh-meeting-item", { hasText: body })
+        .getByRole("button", { name: "Create task" }),
+    ).toHaveCount(0);
+  }
 
   // Convert the agenda item, editing title + priority.
   await page.getByRole("tab", { name: "Notebook" }).click();
@@ -205,16 +258,38 @@ test("converts meeting items into linked Tasks and groups the follow-up work", a
 
   // The Follow-up tab groups the four Tasks under Open.
   await page.getByRole("tab", { name: "Follow-up" }).click();
-  await expect(page.getByRole("heading", { name: /Open \(4\)/ })).toBeVisible();
+  /*
+   * UNTITLED-13 — the count is a badge beside the heading and names its noun.
+   * It used to be welded into the heading text as "Open (4)", so the heading's
+   * accessible name carried a parenthesised digit. Asserting both halves keeps
+   * the same guarantee: four tasks, grouped under Open.
+   */
+  const openGroup = page
+    .locator(".dh-follow-up-group")
+    .filter({ has: page.getByRole("heading", { name: "Open", exact: true }) });
+  await expect(
+    openGroup.getByRole("heading", { name: "Open", exact: true }),
+  ).toBeVisible();
+  await expect(openGroup.getByText("4 tasks")).toBeVisible();
 
-  // Duplicate conversion is prevented: the agenda item shows Open task, not Create.
+  // Duplicate conversion is prevented: the converted agenda item shows Open
+  // task, and its menu no longer offers a second conversion.
   await page.getByRole("tab", { name: "Notebook" }).click();
   await expect(openButton).toBeVisible();
+  const convertedRow = page.locator(".dh-meeting-item", {
+    hasText: "Agenda: confirm the budget",
+  });
+  await convertedRow
+    .getByRole("button", { name: /^Actions for this / })
+    .click();
   await expect(
-    page
-      .locator(".dh-meeting-item", { hasText: "Agenda: confirm the budget" })
-      .getByRole("button", { name: "Create task" }),
+    page.getByRole("menuitem", { name: "Create a task from this" }),
   ).toHaveCount(0);
+  await expect(
+    page.getByRole("menuitem", { name: "Remove agenda item" }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("menu")).toHaveCount(0);
 
   // Task → Meeting navigation: open a task, follow its linked meeting back.
   await openButton.click();
@@ -230,6 +305,11 @@ test("an archived meeting is read-only but its Tasks stay navigable", async ({
 }) => {
   const title = uniqueMeetingTitle("archived");
   await createMeeting(page, title);
+  // An agenda item so the Agenda band has something to BE read-only about.
+  // UNTITLED-13: an empty agenda is worth writing only while the meeting is
+  // still ahead, so an archived meeting with nothing in its agenda draws no
+  // agenda band at all rather than a permanently-empty editor shell.
+  await addItem(page, "agenda item", "Agenda: pick the venue");
   await addItem(page, "decision", "Decision: keep the venue");
   await page.getByRole("tab", { name: "Notebook" }).click();
   await convertItem(page, "Decision: keep the venue", {
@@ -250,10 +330,16 @@ test("an archived meeting is read-only but its Tasks stay navigable", async ({
     page.getByRole("button", { name: "Add follow-up task" }),
   ).toHaveCount(0);
   await page.getByRole("tab", { name: "Notebook" }).click();
+  const archivedRow = page.locator(".dh-meeting-item", {
+    hasText: "Decision: keep the venue",
+  });
   await expect(
-    page
-      .locator(".dh-meeting-item", { hasText: "Decision: keep the venue" })
-      .getByRole("button", { name: "Create task" }),
+    archivedRow.getByRole("button", { name: "Create task" }),
+  ).toHaveCount(0);
+  // …and the menu that carries conversion and removal for every other kind is
+  // not rendered at all on a read-only record, so there is no second way in.
+  await expect(
+    archivedRow.getByRole("button", { name: /^Actions for this / }),
   ).toHaveCount(0);
   // UIX-04 — and the prose bodies with them. The repository refuses every write
   // to an archived meeting, so an autosaving editor on the tab this record now
@@ -319,7 +405,12 @@ test("an item of the same kind can still be added after removing a non-last one"
   const removed = page.locator(".dh-meeting-item", {
     hasText: "Agenda: confirm the budget",
   });
-  await removed.getByRole("button", { name: "Remove agenda item" }).click();
+  // UNTITLED-13 — removal is a context-menu item, not a permanently-rendered
+  // destructive button beside every line. It used to be drawn at `opacity: 0`
+  // under a hover rule with a `:focus-within` escape hatch: three mechanisms to
+  // make one control both hidden and reachable, where a menu is one.
+  await removed.getByRole("button", { name: /^Actions for this / }).click();
+  await page.getByRole("menuitem", { name: "Remove agenda item" }).click();
   await expect(removed).toHaveCount(0);
 
   // `addItem` fails the test if the item does not appear, so this IS the assertion
