@@ -421,6 +421,9 @@ function NotesCollection({
     >
       <NotesList
         notes={visibleItems}
+        // UNTITLED-12 — the row's date IS the order the list is in. See
+        // `NotesList`'s header for why the two had drifted apart.
+        sort={filters.sort}
         ariaLabel={
           state === "deleted"
             ? "Deleted notes"
