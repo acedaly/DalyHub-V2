@@ -49,6 +49,13 @@
  *   node scripts/finance-assets-admin-seed.mjs
  *   node scripts/finance-assets-admin-seed.mjs --clear
  *
+ * **Clear it before running the E2E suite.** Like its siblings it writes into
+ * the same local workspace the browser journeys drive, and those journeys assert
+ * on counts: fourteen obligations across five bands and four accounts in every
+ * picker will fail `life-admin.spec.ts`'s band counts and send
+ * `finance.spec.ts`'s import into the wrong account. It is a DESIGN fixture, not
+ * a test one, and the gate does not run it.
+ *
  * **Every fixture is synthetic.** `Bank of Synthetica`, `NORTHWIND GROCERS`.
  */
 import { execFileSync } from "node:child_process";
@@ -113,12 +120,51 @@ const LIKE = `${PREFIX}%`;
  * no replace anywhere.
  */
 function clear() {
+  /*
+   * In DEPENDENCY order, and the order is the point.
+   *
+   * Every detail table's entity foreign key is `ON DELETE RESTRICT`, so nothing
+   * can go while anything still points at it — and a bare "FOREIGN KEY
+   * constraint failed" names none of it. The order below was derived by running
+   * the statements one at a time against a polluted database rather than by
+   * reading the schema and hoping:
+   *
+   *   1. the POINTERS other records hold at these rows. An E2E run driven
+   *      against the same local database settles an obligation against one of
+   *      these transactions, links records, appends Activity and tags things;
+   *   2. anything written INTO one of these accounts since. The fixture's
+   *      accounts are first in every picker, so a run of `finance.spec.ts`
+   *      imports its statement into one — measured at one import and four
+   *      transactions. Transactions carry `import_id`, so they go before the
+   *      import, which goes before the account;
+   *   3. the detail rows;
+   *   4. the Activity about them, then the entities themselves.
+   *
+   * Nothing outside the prefix is touched: every statement is keyed on an id
+   * this script wrote or on an account it created.
+   */
   sql([
+    `UPDATE obligation_details SET settled_by_transaction_id = NULL WHERE workspace_id = ${ws} AND settled_by_transaction_id LIKE ${lit(LIKE)};`,
+    `UPDATE obligation_details SET subject_entity_id = NULL, subject_entity_type = NULL WHERE workspace_id = ${ws} AND subject_entity_id LIKE ${lit(LIKE)};`,
+    `DELETE FROM entity_links WHERE workspace_id = ${ws} AND (source_entity_id LIKE ${lit(LIKE)} OR target_entity_id LIKE ${lit(LIKE)});`,
+    `DELETE FROM entity_tags WHERE workspace_id = ${ws} AND entity_id LIKE ${lit(LIKE)};`,
+    `DELETE FROM attachments WHERE workspace_id = ${ws} AND owner_entity_id LIKE ${lit(LIKE)};`,
+
+    // (2) Whatever has since been written into one of these accounts.
+    `DELETE FROM activity_subjects WHERE workspace_id = ${ws} AND entity_id IN (SELECT entity_id FROM finance_transaction_details WHERE workspace_id = ${ws} AND account_id LIKE ${lit(LIKE)});`,
+    `DELETE FROM entities WHERE workspace_id = ${ws} AND id IN (SELECT entity_id FROM finance_transaction_details WHERE workspace_id = ${ws} AND account_id LIKE ${lit(LIKE)} AND entity_id NOT LIKE ${lit(LIKE)});`,
+    `DELETE FROM finance_transaction_details WHERE workspace_id = ${ws} AND account_id LIKE ${lit(LIKE)};`,
+    `DELETE FROM finance_imports WHERE workspace_id = ${ws} AND account_id LIKE ${lit(LIKE)};`,
+
+    // (3) The detail rows.
     `DELETE FROM finance_budgets WHERE workspace_id = ${ws} AND id LIKE ${lit(LIKE)};`,
     `DELETE FROM finance_transaction_details WHERE workspace_id = ${ws} AND entity_id LIKE ${lit(LIKE)};`,
     `DELETE FROM finance_account_details WHERE workspace_id = ${ws} AND entity_id LIKE ${lit(LIKE)};`,
     `DELETE FROM finance_categories WHERE workspace_id = ${ws} AND id LIKE ${lit(LIKE)};`,
     `DELETE FROM obligation_details WHERE workspace_id = ${ws} AND entity_id LIKE ${lit(LIKE)};`,
+
+    // (4) The Activity about them, then the entities.
+    `DELETE FROM activity_subjects WHERE workspace_id = ${ws} AND entity_id LIKE ${lit(LIKE)};`,
     `DELETE FROM entities WHERE workspace_id = ${ws} AND id LIKE ${lit(LIKE)};`,
   ]);
 }

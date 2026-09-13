@@ -428,7 +428,7 @@ export function FinanceHome(props: FinanceHomeData) {
               className="table-fixed bg-primary"
               data-testid="spending-by-category"
             >
-              <Table.Header className="bg-secondary [&_th]:px-5">
+              <Table.Header className="bg-secondary [&_th]:px-5 max-sm:[&_th]:px-3">
                 <LabelledTableHead
                   id="category"
                   label="Category"
@@ -460,7 +460,7 @@ export function FinanceHome(props: FinanceHomeData) {
                     size="sm"
                     className="h-auto min-h-12 bg-primary hover:bg-secondary"
                   >
-                    <Table.Cell className="px-5 py-3">
+                    <Table.Cell className="px-5 py-3 max-sm:px-3">
                       <Link
                         to={`/finance/transactions?month=${props.month}&category=${encodeURIComponent(line.categoryId ?? "")}`}
                         /*
@@ -476,7 +476,7 @@ export function FinanceHome(props: FinanceHomeData) {
                         {line.categoryName ?? "Uncategorised"}
                       </Link>
                     </Table.Cell>
-                    <Table.Cell className="px-5 py-3 text-right text-sm font-medium whitespace-nowrap text-primary tabular-nums">
+                    <Table.Cell className="px-5 py-3 max-sm:px-3 text-right text-sm font-medium whitespace-nowrap text-primary tabular-nums">
                       {money(line.magnitudeMinor, line.currencyCode)}
                     </Table.Cell>
                     {/*
@@ -486,7 +486,7 @@ export function FinanceHome(props: FinanceHomeData) {
                      * read from; the SENTENCE is what carries the meaning.
                      */}
                     <Table.Cell
-                      className="px-5 py-3 text-sm text-tertiary"
+                      className="px-5 py-3 max-sm:px-3 text-sm text-tertiary"
                       data-budget-state={line.budgetState ?? undefined}
                     >
                       {line.budgetSentence ?? <Absent label="No budget set" />}
@@ -778,7 +778,7 @@ function AccountTable({
         className="table-fixed bg-primary"
         {...(testId === undefined ? {} : { "data-testid": testId })}
       >
-        <Table.Header className="bg-secondary [&_th]:px-5">
+        <Table.Header className="bg-secondary [&_th]:px-5 max-sm:[&_th]:px-3">
           <LabelledTableHead
             id="account"
             label="Account"
@@ -810,7 +810,7 @@ function AccountTable({
                 size="sm"
                 className="h-auto min-h-12 bg-primary hover:bg-secondary"
               >
-                <Table.Cell className="px-5 py-3">
+                <Table.Cell className="px-5 py-3 max-sm:px-3">
                   <Link
                     to={`/finance/accounts/${encodeURIComponent(account.id)}`}
                     className="block break-words text-sm font-medium text-primary outline-focus-ring hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
@@ -819,10 +819,10 @@ function AccountTable({
                     {account.title}
                   </Link>
                 </Table.Cell>
-                <Table.Cell className="px-5 py-3 text-sm break-words text-tertiary max-md:hidden">
+                <Table.Cell className="px-5 py-3 max-sm:px-3 text-sm break-words text-tertiary max-md:hidden">
                   {account.institution ?? <Absent label="No institution" />}
                 </Table.Cell>
-                <Table.Cell className="px-5 py-3 text-right text-sm whitespace-nowrap text-primary tabular-nums">
+                <Table.Cell className="px-5 py-3 max-sm:px-3 text-right text-sm whitespace-nowrap text-primary tabular-nums">
                   <span className="font-medium">{balance.figure}</span>
                   {/* The qualifier is a WORD, so nothing is said by a sign alone. */}
                   {balance.qualifier === null ? null : (

@@ -136,7 +136,7 @@ export function AssetValueHistory({ history }: AssetValueHistoryProps) {
           className="table-fixed bg-primary"
           data-testid="asset-value-list"
         >
-          <Table.Header className="bg-secondary [&_th]:px-5">
+          <Table.Header className="bg-secondary [&_th]:px-5 max-sm:[&_th]:px-3">
             <LabelledTableHead
               id="date"
               label="Date"
@@ -158,13 +158,13 @@ export function AssetValueHistory({ history }: AssetValueHistoryProps) {
                 size="sm"
                 className="h-auto min-h-12 bg-primary hover:bg-secondary"
               >
-                <Table.Cell className="px-5 py-3 text-sm whitespace-nowrap text-secondary">
+                <Table.Cell className="px-5 py-3 max-sm:px-3 text-sm whitespace-nowrap text-secondary">
                   {point.dateLabel}
                 </Table.Cell>
-                <Table.Cell className="px-5 py-3 text-right text-sm font-medium whitespace-nowrap text-primary tabular-nums">
+                <Table.Cell className="px-5 py-3 max-sm:px-3 text-right text-sm font-medium whitespace-nowrap text-primary tabular-nums">
                   {point.amount}
                 </Table.Cell>
-                <Table.Cell className="px-5 py-3 text-sm break-words text-tertiary">
+                <Table.Cell className="px-5 py-3 max-sm:px-3 text-sm break-words text-tertiary">
                   {point.source ?? (
                     <span>
                       <span aria-hidden="true">—</span>

@@ -119,7 +119,7 @@ export function TransactionsTable({
         className="table-fixed bg-primary max-md:block"
         data-testid={testId}
       >
-        <Table.Header className="bg-secondary [&_th]:px-5 max-md:hidden">
+        <Table.Header className="bg-secondary [&_th]:px-5 max-sm:[&_th]:px-3 max-md:hidden">
           <LabelledTableHead
             id="date"
             label="Date"
@@ -247,11 +247,11 @@ function TransactionTableRow({
       }
       {...(transfer ? { "data-transfer": "true" } : {})}
     >
-      <Table.Cell className="px-5 py-3 text-sm whitespace-nowrap text-tertiary max-md:hidden">
+      <Table.Cell className="px-5 py-3 max-sm:px-3 text-sm whitespace-nowrap text-tertiary max-md:hidden">
         {date}
       </Table.Cell>
 
-      <Table.Cell className="px-5 py-3 max-md:col-start-1 max-md:row-start-1 max-md:px-4">
+      <Table.Cell className="px-5 py-3 max-sm:px-3 max-md:col-start-1 max-md:row-start-1 max-md:px-4">
         {onOpen === undefined ? (
           <span className="block truncate text-sm font-medium text-primary">
             {transaction.payeeDisplay}
@@ -283,7 +283,7 @@ function TransactionTableRow({
         ) : null}
       </Table.Cell>
 
-      <Table.Cell className="px-5 py-3 max-md:col-span-2 max-md:row-start-2 max-md:px-4 max-md:pt-0 max-md:pb-1">
+      <Table.Cell className="px-5 py-3 max-sm:px-3 max-md:col-span-2 max-md:row-start-2 max-md:px-4 max-md:pt-0 max-md:pb-1">
         {transfer ? (
           /*
            * A transfer leg has no category and cannot have one: it is excluded
@@ -351,12 +351,12 @@ function TransactionTableRow({
       </Table.Cell>
 
       {showAccount ? (
-        <Table.Cell className="px-5 py-3 text-sm break-words text-tertiary max-md:hidden">
+        <Table.Cell className="px-5 py-3 max-sm:px-3 text-sm break-words text-tertiary max-md:hidden">
           {transaction.accountTitle}
         </Table.Cell>
       ) : null}
 
-      <Table.Cell className="px-5 py-3 text-right text-sm whitespace-nowrap text-primary tabular-nums max-md:col-start-2 max-md:row-start-1 max-md:px-4">
+      <Table.Cell className="px-5 py-3 max-sm:px-3 text-right text-sm whitespace-nowrap text-primary tabular-nums max-md:col-start-2 max-md:row-start-1 max-md:px-4">
         <span className="font-medium">{amount.figure}</span>
         {/*
          * The direction in WORDS, beside the sign. A screen reader says it, and

@@ -134,7 +134,7 @@ export function AssetDatesTab({ asset, today }: AssetDatesTabProps) {
             className="table-fixed bg-primary"
             data-testid="asset-dates-list"
           >
-            <Table.Header className="bg-secondary [&_th]:px-5">
+            <Table.Header className="bg-secondary [&_th]:px-5 max-sm:[&_th]:px-3">
               {/*
                * The date leads. A dates tab is read chronologically — the rows
                * are sorted by it — so the column the order is in should be the
@@ -162,13 +162,13 @@ export function AssetDatesTab({ asset, today }: AssetDatesTabProps) {
                   className="h-auto min-h-12 bg-primary hover:bg-secondary"
                   data-status={row.status}
                 >
-                  <Table.Cell className="px-5 py-3 text-sm font-medium whitespace-nowrap text-primary tabular-nums">
+                  <Table.Cell className="px-5 py-3 max-sm:px-3 text-sm font-medium whitespace-nowrap text-primary tabular-nums">
                     {formatAssetDate(row.iso)}
                   </Table.Cell>
-                  <Table.Cell className="px-5 py-3 text-sm break-words text-secondary">
+                  <Table.Cell className="px-5 py-3 max-sm:px-3 text-sm break-words text-secondary">
                     {row.label}
                   </Table.Cell>
-                  <Table.Cell className="px-5 py-3">
+                  <Table.Cell className="px-5 py-3 max-sm:px-3">
                     {STATUS_TEXT[row.status] ? (
                       <UntitledStatusBadge tone={STATUS_TONE[row.status]}>
                         {STATUS_TEXT[row.status]}
