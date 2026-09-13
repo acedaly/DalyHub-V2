@@ -1363,3 +1363,26 @@ component API on 2026-09-13 and recorded in `scripts/vendor-untitled.mjs`'s
 No screenshot, historical visual audit or legacy Material/MD3/DHDS stylesheet is
 an implementation reference for any surface in this pass. The Pro template
 screenshots above were studied for COMPOSITION and are not reproduced.
+
+### The review pass, and what the pictures and the numbers found
+
+The captures were taken with `scripts/meetings-people-shot.mjs` over the
+`scripts/meetings-people-seed.mjs` fixture, at 1440 / 1280 / 1024 / 820 / 430 /
+393 / 320 in both appearances, and then LOOKED at rather than filed. Six things
+came out of that review; each is fixed, and each is the kind of defect a
+measurement alone or a screenshot alone would have missed.
+
+| Found by | Defect | Fix |
+| --- | --- | --- |
+| Looking, 393px | A seven-attendee header read `AN ⌐F ⌐R ⌐O +3` — at `xs` the marks overlap by 6px and the leftmost is on top, so every later monogram lost its first letter | One letter at `xs`; two at `sm` and `md`, which have the room. The overflow disc moves to the top of the stack, because a half-covered figure is a different figure |
+| Looking, 393px | A wrapped meta line began `· Marcus Oyelaran, …` — a leading separator reads as a bullet | The separator hangs off the part BEFORE it, so a wrapped line ends `Whitfield site ·` |
+| Looking, directory | `Last spoke 6 August 2026` beside `No shared history yet` on one row | The hand-entered date says `(noted)`, as the record has always said it |
+| Measuring, 430px | The Person's website link at 289×16, and the Meeting's link — standalone targets, not inline-in-a-sentence, so 2.5.8's exception does not cover them | The coarse-pointer floor, as BLOCK anchors |
+| Measuring, 1024px | The first attempt at that fix used `inline-flex`, and a 43-character URL became one unbreakable box that pushed the page 18px wide | Block, `break-words` |
+| Running axe over the new consumer | `role="feed"` claimed `article` children three levels down with day headings interleaved — critical `aria-required-children` on every Activity surface in the product | A labelled `group`. `aria-posinset`/`aria-setsize` stay on the articles, which `article` supports natively, so windowed position survives |
+
+Known and NOT changed here, because both are shared components used by every
+record type in the product and neither is this pass's to change without
+measuring every consumer: `EntityLink` is 22px tall inside `ReferenceList`
+(inside activity prose it is an inline link in a sentence, which WCAG 2.5.8
+exempts), and `SelectField`'s clear button is 28×28.
