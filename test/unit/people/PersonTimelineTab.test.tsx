@@ -27,10 +27,22 @@ import {
   type SerializedPersonActivityItem,
 } from "~/modules/people/person-activity";
 
+/*
+ * UNTITLED-13 — the viewport is a labelled `group`, not a `feed`.
+ *
+ * `role="feed"` owns `article` CHILDREN, and this region's are
+ * `viewport > canvas > virtualisation wrapper > day heading | article` — three
+ * levels down, with day headings interleaved. axe reported
+ * `aria-required-children` (critical) on every Activity surface in the product,
+ * and no arrangement of presentation roles can make the claim true without
+ * giving up the day grouping the surface exists for. Each moment is still a real
+ * `<article>` with a real heading, which is how assistive tech navigates it.
+ */
+
 /**
  * PEOPLE-02 — the Person Timeline tab as BEHAVIOUR.
  *
- * It must be the ONE shared DS-05 Timeline (a `role="feed"`, real event
+ * It must be the ONE shared DS-05 Timeline (a labelled `group`, real event
  * `article`s) reading the ONE `/person/:id/activity` endpoint, now carrying a
  * linked record's events alongside the Person's own; it must filter by
  * relationship category through the shared DS-07 bar with an honest
@@ -137,17 +149,20 @@ afterEach(() => {
 });
 
 describe("PersonTimelineTab", () => {
-  it("renders one shared Timeline feed carrying the Person’s AND a linked record’s events", async () => {
+  it("renders one shared Timeline carrying the Person’s AND a linked record’s events", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse(page([PERSON_EVENT(), TASK_EVENT()], null)),
     );
 
     renderTab();
 
-    const feed = await screen.findByRole("feed", { name: "Person timeline" });
+    const feed = await screen.findByRole("group", { name: "Person timeline" });
     expect(within(feed).getAllByRole("article")).toHaveLength(2);
-    // There is exactly ONE history surface on the tab.
-    expect(screen.getAllByRole("feed")).toHaveLength(1);
+    // There is exactly ONE history surface on the tab — named, so the assertion
+    // counts the timeline rather than every labelled group on the page.
+    expect(
+      screen.getAllByRole("group", { name: "Person timeline" }),
+    ).toHaveLength(1);
     expect(screen.getByText(/Task completed/)).toBeInTheDocument();
     // The linked record is referenced by identity, not copied.
     expect(screen.getByText(/Task task-9/)).toBeInTheDocument();
@@ -159,7 +174,7 @@ describe("PersonTimelineTab", () => {
     );
 
     renderTab();
-    await screen.findByRole("feed", { name: "Person timeline" });
+    await screen.findByRole("group", { name: "Person timeline" });
 
     const headings = screen.getAllByRole("heading", { level: 3 });
     const dayHeadings = headings.map((heading) => heading.textContent);
@@ -179,7 +194,7 @@ describe("PersonTimelineTab", () => {
       `/person/${PERSON_ID}?tab=activity&fv=1&f=${encodeURIComponent('personTimelineCategory:is:"task"')}`,
     );
 
-    const feed = await screen.findByRole("feed", { name: "Person timeline" });
+    const feed = await screen.findByRole("group", { name: "Person timeline" });
     await waitFor(() =>
       expect(within(feed).getAllByRole("article")).toHaveLength(1),
     );
@@ -227,7 +242,7 @@ describe("PersonTimelineTab", () => {
 
     renderTab();
 
-    const feed = await screen.findByRole("feed", { name: "Person timeline" });
+    const feed = await screen.findByRole("group", { name: "Person timeline" });
     expect(within(feed).getAllByRole("article")).toHaveLength(1);
 
     fireEvent.click(screen.getByRole("button", { name: /load more/i }));
@@ -251,7 +266,7 @@ describe("PersonTimelineTab", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: /try again/i }));
 
-    await screen.findByRole("feed", { name: "Person timeline" });
+    await screen.findByRole("group", { name: "Person timeline" });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
@@ -279,7 +294,7 @@ describe("PersonTimelineTab", () => {
     );
 
     renderTab();
-    await screen.findByRole("feed", { name: "Person timeline" });
+    await screen.findByRole("group", { name: "Person timeline" });
     expect(screen.queryByText(/more linked records/)).toBeNull();
   });
 });
