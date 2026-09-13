@@ -825,6 +825,29 @@
   transition: border-color var(--dh-motion-fast) var(--dh-ease-standard);
 }
 
+/*
+ * The ANTI-ZOOM floor, which the scoping above took with it.
+ *
+ * HARDEN-05 put a 16px floor on this field and said why: below it, focusing a
+ * text input ZOOMS iOS Safari, and the page a person is reading jumps. That
+ * rule lives in the block above, scoped under `.dh-csearch` — and the Untitled
+ * field carries no such wrapper, so the floor stopped applying to the structure
+ * every collection now renders. MEASURED on `/projects` at iPhone width: 14px,
+ * which is Untitled's `text-sm`.
+ *
+ * Scoping the paint away was right — those rules are unlayered and would have
+ * drawn the legacy control's border, height and padding over Untitled's. This
+ * is not paint. It is the one declaration in that block which is an
+ * accessibility guarantee rather than an appearance, so it is restored on its
+ * own, on the hook the markup still emits, and nothing else comes with it.
+ *
+ * `max()` keeps the design size wherever it is already the larger, so a pointer
+ * device is drawn unchanged.
+ */
+.dh-csearch__input {
+  font-size: max(var(--dh-text-body-size), var(--app-field-font-size-compact));
+}
+
 .dh-csearch .dh-csearch__input::placeholder {
   color: var(--dh-color-text-muted);
 }
