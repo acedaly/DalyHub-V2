@@ -29,6 +29,7 @@ import {
   expectNoHorizontalOverflow,
   gotoFixture,
   openCollectionControls,
+  waitForInteractive,
 } from "./helpers";
 
 const owned = new Set<string>();
@@ -193,7 +194,15 @@ test("record a service, a repair and a meter reading, and see the history", asyn
   const title = uniqueAssetTitle("ownership-history");
   const url = await createAsset(page, title);
 
+  /*
+   * These two journeys are the only ones here that land on a record without a
+   * `?tab=` and then CLICK a tab, and they are the only two that need the
+   * hydration wait: a React Aria `Tab` renders its role and name on the
+   * server, so a click before hydration is accepted and does nothing. See the
+   * same note in `assets.spec.ts`.
+   */
   await page.goto(url);
+  await waitForInteractive(page);
   await page.getByRole("tab", { name: "History" }).click();
 
   // A brand-new asset teaches the first entry rather than showing an empty list.
@@ -277,6 +286,7 @@ test("a date obligation reaches Today, and completing it schedules exactly one s
   // 1. Put the registration on a yearly schedule, due inside the lead window so
   //    it is genuinely something Today should mention.
   await page.goto(url);
+  await waitForInteractive(page);
   await page.getByRole("tab", { name: "Obligations" }).click();
   await expect(page.getByText("Nothing scheduled yet")).toBeVisible();
   await page.getByRole("button", { name: "Add obligation" }).click();
