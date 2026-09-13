@@ -208,9 +208,14 @@ test.describe("PROJ-06 — mobile Projects", () => {
      * still resolves." The rail's labels are the shipped vocabulary and this
      * list was the last place still asking for the old one.
      */
+    // `link`, not `tab` — the same rail this test already calls "a `navigation`
+    // of links" nine lines above, and already clicks by link role below.
+    // `ViewTabs` renders anchors with `aria-current="page"` and states why:
+    // ARIA's tab pattern requires each tab to control a `tabpanel`. This one
+    // loop was the last place still asking for the retired role.
     for (const label of ["All", "Active", "Completed", "Archived"]) {
       await expectMinTouchTarget(
-        filter.getByRole("tab", { name: label, exact: true }),
+        filter.getByRole("link", { name: label, exact: true }),
       );
     }
     const website = page.getByRole("link", { name: "Open Website relaunch" });
