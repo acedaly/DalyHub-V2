@@ -33,6 +33,7 @@ import {
   expectNoHorizontalOverflow,
   gotoFixture,
   ownerToday,
+  setCheckbox,
   waitForInteractive,
 } from "./helpers";
 import {
@@ -261,7 +262,7 @@ test.describe("planning from the board", () => {
     // V2.4-GATE-02 — selection is an explicit mode now; the row draws its
     // completion control until the owner asks to select.
     await page.getByTestId("plan-queue-select-toggle").click();
-    await queueRow.getByTestId("task-select").check();
+    await setCheckbox(queueRow.getByTestId("task-select"));
 
     await page
       .locator(`[data-testid="plan-arm-day"][data-date="${thursday}"]`)

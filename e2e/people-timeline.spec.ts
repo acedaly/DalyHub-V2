@@ -216,8 +216,25 @@ test.describe("PEOPLE-02 — the unified relationship timeline", () => {
       page.getByRole("group", { name: "Person timeline" }),
     ).toBeVisible();
 
-    // The tab that reaches the timeline meets the shared 44px target floor.
+    /*
+     * The tab that reaches the timeline meets the shared 44px target floor —
+     * WHERE THE PRODUCT PROMISES IT, which is a thumb, not a mouse.
+     *
+     * `RecordTabs` states the floor as
+     * `max-md:min-h-[var(--app-touch-target-min)]` and says in place that "the
+     * desktop height is untouched": above `md` a record tab is Untitled's 32px,
+     * which clears WCAG 2.2 AA's 24px for a fine pointer with room to spare.
+     * Asked at the default desktop width this assertion measured 32 against 44
+     * — a contract the product deliberately does not make — while asserting
+     * nothing at all about the one it does. Same correction as `people.spec.ts`.
+     *
+     * The viewport goes back afterwards so the rest of this journey is asked
+     * the desktop questions it was written for.
+     */
+    const desktop = page.viewportSize()!;
+    await page.setViewportSize({ width: 390, height: 844 });
     await expectMinTouchTarget(page.getByRole("tab", { name: "Activity" }));
+    await page.setViewportSize(desktop);
 
     // The stream announces loaded events politely — exactly one live region,
     // scoped to the stream itself. Page-wide, this count is no longer 1: PWA-03

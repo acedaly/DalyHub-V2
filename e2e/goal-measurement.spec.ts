@@ -99,7 +99,26 @@ test.afterAll(() => {
   cleanupAllTestGoals();
 });
 
+/**
+ * What a test that calls `createMeasurableGoal` has actually bought.
+ *
+ * It is not one interaction: the Goal is created through the real creation
+ * dialog (title, measurement kind, unit, start, target, target date), the
+ * record is loaded and settled, and the callers below then log readings through
+ * the check-in sheet before they assert anything. The 30s default is sized for
+ * one interaction.
+ *
+ * MEASURED: locally these run in 6.5s and 18.8s; on run 34777810234 (partition
+ * p07) the two that create a Goal hit `Test timeout of 30000ms exceeded`. That
+ * is the ~3x a contended shared runner costs, and it is a fact about the runner
+ * — nothing FAILED, they ran out of clock. Same repair, and same reasoning, as
+ * `goals-outcomes.spec.ts` states for its own creation journeys.
+ */
+const GOAL_JOURNEY_TIMEOUT_MS = 90_000;
+
 test.describe("GOAL-02 — measurable Goals", () => {
+  test.describe.configure({ timeout: GOAL_JOURNEY_TIMEOUT_MS });
+
   test("create a measurable Goal, record progress, and see honest figures", async ({
     page,
   }) => {
@@ -338,6 +357,8 @@ test.describe("GOAL-02 — measurable Goals", () => {
 });
 
 test.describe("GOAL-02 — Today", () => {
+  test.describe.configure({ timeout: GOAL_JOURNEY_TIMEOUT_MS });
+
   test("shows measurable Goal progress and the 7-day workload trend", async ({
     page,
   }) => {
@@ -413,9 +434,10 @@ test.describe("GOAL-02 — Today", () => {
     );
     // Hold on to WHICH Goal this is: recording a measurement changes its rank
     // (a Goal just checked in is no longer waiting for one), so the row can move.
-    const chosenTitle = (
-      await row.locator(".dh-today__goal-title").innerText()
-    ).trim();
+    const chosen = row.locator(".dh-today__goal-title");
+    const chosenTitle = (await chosen.innerText()).trim();
+    // …and to its record, which is where the reading is checked afterwards.
+    const chosenHref = await chosen.getAttribute("href");
 
     // The one action Today offers for a Goal — the same shared check-in sheet.
     const update = row.getByTestId("today-goal-update");
@@ -437,14 +459,40 @@ test.describe("GOAL-02 — Today", () => {
     await sheet.getByRole("textbox", { name: /^Measurement/ }).fill(reading);
     await page.getByTestId("goal-check-in-save").click();
     await expect(sheet).toHaveCount(0);
-    // The new reading reaches Today without leaving it. The assertion is on the
-    // SECTION rather than a fixed row, because recording a measurement changes
-    // that Goal's rank and the ranking may legitimately reorder the list.
-    await expect(goals).toContainText(`${reading} ${unit}`);
-    // Same reason as above: the glance readout states the value and the
-    // percentage, and leaves the remainder to the record.
-    await expect(goals).toContainText(/\d+%/);
+
+    /*
+     * Today is still coherent after the check-in — and the reading is checked
+     * on the GOAL, not on the panel.
+     *
+     * The panel assertion used to be `goals` contains `${reading} ${unit}`, and
+     * it was asserting that the ranking had NOT done its job. `todayGoalRank`
+     * deliberately demotes a Goal that has just been checked in — it is no
+     * longer waiting for one — and Today draws at most four, so the tile this
+     * reading belongs to can legitimately leave the panel in the very act of
+     * being updated. MEASURED locally: after saving 69.6 against a 70 target,
+     * the panel drew two other Goals ("Reach 68 kg", "Walk 500 km") and "2 more
+     * Goals worth a look". A green run there meant the demotion had not
+     * happened yet.
+     *
+     * So the two halves are asked where each is true: the PANEL still renders a
+     * measurable tile with a readout, and the READING is on the record of the
+     * Goal it was recorded against — which is the durable claim, and the one
+     * that would actually be broken by a lost write.
+     */
+    await expect(
+      goals
+        .locator(".dh-today__goal")
+        .filter({ has: page.getByRole("progressbar") })
+        .first(),
+    ).toContainText(/\d+%/);
     expect(chosenTitle.length).toBeGreaterThan(0);
+    expect(chosenHref).not.toBeNull();
+    await gotoFixture(page, chosenHref!);
+    await expect(
+      page.getByRole("heading", { level: 1, name: chosenTitle }),
+    ).toBeVisible();
+    await expect(page.locator("main")).toContainText(`${reading} ${unit}`);
+    await gotoFixture(page, "/today");
 
     await expectNoAxeViolations(page);
   });

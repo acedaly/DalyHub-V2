@@ -16,7 +16,13 @@
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { gotoFixture, ownerToday, revealRowActions, taskRow } from "./helpers";
+import {
+  gotoFixture,
+  ownerToday,
+  revealRowActions,
+  setCheckbox,
+  taskRow,
+} from "./helpers";
 import {
   addDays,
   clearPlanFixture,
@@ -172,11 +178,11 @@ test("placing an unplaced task sets its PLANNED date and leaves the deadline alo
   // control on every row at all times, beside each row's completion control, so
   // the surface built for scheduling could complete work by mis-click.
   await queue.getByTestId("plan-queue-select-toggle").click();
-  await queue
-    .getByRole("checkbox", {
+  await setCheckbox(
+    queue.getByRole("checkbox", {
       name: `Select ${overdue.title} to place on a day`,
-    })
-    .check();
+    }),
+  );
   await page
     .locator(`[data-testid="plan-place-day"][data-date="${target}"]`)
     .click();
@@ -212,11 +218,11 @@ test("a change made in Planning is the same Task in Tasks and Today", async ({
   const queue = page.getByTestId("plan-queue");
 
   await queue.getByTestId("plan-queue-select-toggle").click();
-  await queue
-    .getByRole("checkbox", {
+  await setCheckbox(
+    queue.getByRole("checkbox", {
       name: `Select ${unplaced.title} to place on a day`,
-    })
-    .check();
+    }),
+  );
   await page
     .locator(`[data-testid="plan-place-day"][data-date="${today}"]`)
     .click();

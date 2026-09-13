@@ -77,11 +77,25 @@ test.describe("DS foundation — desktop", () => {
       "true",
     );
 
-    // Keyboard: arrow keys move the active tab.
+    /*
+     * Keyboard: arrow keys move the active tab.
+     *
+     * Retried, for the reason this test already states twice above: the strip
+     * is server-rendered and a keypress that arrives before React Aria has
+     * attached its roving-tabindex handler is simply lost — the focus never
+     * moves and the assertion fails on a control that works. Re-focusing
+     * Overview at the top of each attempt means ArrowRight is always the same
+     * single step, so a passing attempt is the first one that lands rather than
+     * the one that has walked far enough along the strip.
+     */
     const overview = page.getByRole("tab", { name: /Overview/ });
-    await overview.focus();
-    await page.keyboard.press("ArrowRight");
-    await expect(page.getByRole("tab", { name: /Tasks/ })).toBeFocused();
+    await expect(async () => {
+      await overview.focus();
+      await page.keyboard.press("ArrowRight");
+      await expect(page.getByRole("tab", { name: /Tasks/ })).toBeFocused({
+        timeout: 1_000,
+      });
+    }).toPass();
   });
 
   test("content region exposes loading, empty and error states", async ({

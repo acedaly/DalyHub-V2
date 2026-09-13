@@ -102,9 +102,31 @@ test.describe("DHDS-08 — the motion vocabulary reaches the browser", () => {
       };
     });
 
-    // §5 — value change, at the state rung. The generic `scale(0.95)` the brief
-    // rules out would show here as a non-identity resting transform.
-    expect(style.duration).toContain(`${instant / 1000}s`);
+    /*
+     * §5 — value change, at the STATE rung, from whichever system paints it.
+     *
+     * The product has two instants while the migration is up, and they differ
+     * by ten milliseconds: DalyHub's `--dh-motion-instant` (90ms, authored as
+     * DalyHub's own vocabulary in `tokens.css` and deliberately not an M3 rung)
+     * and Untitled's `duration-100`, which `CLAUDE.md` names as the default for
+     * "hover states, color changes, etc.". This test asks for the FIRST button
+     * on `/tasks`, and since the Tasks collection became the Untitled table
+     * that is an Untitled control — MEASURED on run 34777810234: `0.1s` where
+     * `0.09s` was expected. That is the two vocabularies meeting, not a control
+     * that lost its state rung.
+     *
+     * What §5 rules out is a SLOWER rung — a state change that animates like a
+     * transition — and a scale transform. Both are still asserted exactly.
+     * Pinning one of the two instants would be asserting that the other system
+     * is wrong, which is not this test's call to make.
+     */
+    const instantRungs = [`${instant / 1000}s`, "0.1s"];
+    expect(
+      instantRungs.some((rung) => style.duration.includes(rung)),
+      `a control's feedback must run at the instant rung (${instantRungs.join(
+        " or ",
+      )}); this one is ${style.duration}`,
+    ).toBe(true);
     expect(style.properties).toContain("color");
     expect(["none", "matrix(1, 0, 0, 1, 0, 0)"]).toContain(style.transform);
   });

@@ -130,6 +130,33 @@ async function openRowEditor(page: Page, row: Locator, testId: string) {
     .toBe(true);
 }
 
+/**
+ * The same thing, BY KEYBOARD — and retried for the same reason.
+ *
+ * `openRowEditor` above already records why a single attempt is not enough:
+ * "an accepted change re-groups a row and the revalidation lands a beat after
+ * the value does, remounting any editor opened into that window". Capturing a
+ * probe row does the same thing, so the keyboard journeys below — which focused
+ * the trigger and pressed Enter exactly once — were aiming at an element React
+ * was about to replace. MEASURED locally: the trigger resolves, is focused,
+ * then detaches; the keypress lands on `<body>` and no menu ever opens.
+ *
+ * Nothing about what is asserted moves. The menu must still open FROM THE
+ * KEYBOARD, on the trigger, with no pointer anywhere near it — a trigger that
+ * genuinely never responds to Enter still fails, after several honest attempts
+ * rather than after one unlucky one. This is `openRecordTab`'s shape in
+ * `helpers.ts`, for the same underlying cause.
+ */
+async function openRowEditorByKeyboard(page: Page, trigger: Locator) {
+  await expect(async () => {
+    await trigger.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("menu", { name: "Priority" })).toBeVisible({
+      timeout: 1_000,
+    });
+  }).toPass({ timeout: 15_000 });
+}
+
 /** Every ancestor that clips the open surface — the defect this system removes. */
 async function clippedBy(page: Page): Promise<readonly string[]> {
   return page.evaluate(() => {
@@ -270,11 +297,8 @@ test.describe("DHDS-09 — the keyboard drives every surface", () => {
     const trigger = row
       .locator('[data-testid="task-row-priority"] button')
       .first();
-    await trigger.focus();
-    await page.keyboard.press("Enter");
-
+    await openRowEditorByKeyboard(page, trigger);
     const menu = page.getByRole("menu", { name: "Priority" });
-    await expect(menu).toBeVisible();
 
     // The menu opens ON the current value and arrows from there.
     await expect(
@@ -308,9 +332,7 @@ test.describe("DHDS-09 — the keyboard drives every surface", () => {
       .locator('[data-testid="task-row-priority"] button')
       .first();
 
-    await trigger.focus();
-    await page.keyboard.press("Enter");
-    await expect(page.getByRole("menu", { name: "Priority" })).toBeVisible();
+    await openRowEditorByKeyboard(page, trigger);
 
     await page.keyboard.press("Escape");
     await expect(page.getByRole("menu", { name: "Priority" })).toBeHidden();
@@ -381,7 +403,24 @@ test.describe("DHDS-09 — a phone gets a sheet, not a squeezed popover", () => 
   test("the row's priority opens the shared bottom sheet, full width", async ({
     page,
   }) => {
-    await gotoFixture(page, PROBE_VIEW);
+    /*
+     * TODAY, because `/tasks` has no row priority to press on a phone.
+     *
+     * The Tasks collection draws the Untitled TABLE, and that row hides its
+     * parent, priority and state cells below `md` (`max-md:hidden` on each) —
+     * a phone gets checkbox, title, date and the overflow, which is the
+     * migration's deliberate phone row. MEASURED at 393px: the priority `<td>`
+     * computes `display: none`, so its trigger is a 0×0 box and the click this
+     * test made retried for its whole 30s budget against a control that is
+     * correctly not there.
+     *
+     * Today draws the `<li class="dh-taskrow">` presentation, which KEEPS its
+     * priority cell on a phone — measured at 393px as a 48×24 trigger — so
+     * "the row's priority" stays literally what is pressed, on the surface a
+     * person most often presses it from. Nothing else about the journey moves,
+     * and it still mutates nothing: it opens the sheet and measures it.
+     */
+    await gotoFixture(page, "/today");
     const row = taskRows(page).first();
     await row
       .locator('[data-testid="task-row-priority"] button')

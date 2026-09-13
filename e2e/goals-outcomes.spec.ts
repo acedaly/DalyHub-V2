@@ -57,6 +57,30 @@ const RUN = String(Date.now());
  */
 const TARGET_DATE = ownerDayPlus(100);
 
+/**
+ * What a test that calls `createMeasurableGoal` has actually bought.
+ *
+ * It is not one interaction: a record is created through the real creation
+ * dialog (six fields, a measurement kind, a target date), the Goal record is
+ * loaded, and most callers then log two readings through the check-in sheet
+ * before they assert anything. The 30s default is sized for one interaction.
+ *
+ * MEASURED, and this is the whole of the argument. Locally these journeys run
+ * in 8.3s, 10.3s, 10.5s and 9.9s. On run 34777810234 (partition p08) all four
+ * hit `Test timeout of 30000ms exceeded` — and the file's own width matrix,
+ * which already carries an explicit budget, took 37.7s locally and exceeded
+ * 120s there. That is a consistent ~3x on a contended shared runner, which is
+ * a fact about the runner rather than about the product: nothing in these
+ * journeys FAILED, they ran out of clock.
+ *
+ * This is DEBT-126's shape, and the repair is the one `projects-mobile` and
+ * `reviews-guided` already use for their journeys: a bound on ONE interaction
+ * is not a bound on a journey. No assertion changes, nothing is skipped, and
+ * the suite-level ceiling is untouched — a genuinely hung journey still fails,
+ * it just fails on being hung rather than on being a journey.
+ */
+const GOAL_JOURNEY_TIMEOUT_MS = 90_000;
+
 /** Create a measurable Goal through the product and return its record URL. */
 async function createMeasurableGoal(
   page: Page,
@@ -116,6 +140,8 @@ async function openGoalPane(page: Page, title: string): Promise<Locator> {
 }
 
 test.describe("UIX-03 — the Goal row reads as an outcome", () => {
+  test.describe.configure({ timeout: GOAL_JOURNEY_TIMEOUT_MS });
+
   test("leads with the reading, states the journey, and shows a trend", async ({
     page,
   }) => {
@@ -266,6 +292,8 @@ test.describe("UIX-03 — the status views", () => {
 });
 
 test.describe("UIX-03 — the Goal record's chart", () => {
+  test.describe.configure({ timeout: GOAL_JOURNEY_TIMEOUT_MS });
+
   test("draws the target it is aiming at, and names it in text", async ({
     page,
   }) => {
@@ -353,6 +381,8 @@ test.describe("UIX-03 — the Goal record's chart", () => {
 });
 
 test.describe("UIX-03 — phone and accessibility", () => {
+  test.describe.configure({ timeout: GOAL_JOURNEY_TIMEOUT_MS });
+
   test.use({
     viewport: { width: 390, height: 844 },
     isMobile: true,
@@ -450,7 +480,7 @@ test.describe("UIX-03 — the responsive matrix", () => {
      * widths are still asserted. `linked-items.spec.ts` sets its own budget for
      * the same reason.
      */
-    test.setTimeout(120_000);
+    test.setTimeout(2 * GOAL_JOURNEY_TIMEOUT_MS);
     const url = await createMeasurableGoal(page, {
       title: `Cycle 2,000 km ${RUN}`,
       unit: "km",

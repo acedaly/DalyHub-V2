@@ -817,6 +817,51 @@ export async function setSwitch(toggle: Locator, on: boolean): Promise<void> {
 }
 
 /**
+ * Set an UNTITLED checkbox (`~/shared/ui/Checkbox`'s React Aria path) to
+ * `checked`. `setSwitch`'s reasoning, for the other control it applies to.
+ *
+ * The product has two kinds of checkbox and only one of them can be driven by
+ * `locator.check()`. A task row shows both, a few pixels apart:
+ *
+ *   - COMPLETE is a plain `<input class="dh-check-circle">`, styled directly.
+ *     A pointer reaches it, so `check()` works and the callers that use it are
+ *     left alone.
+ *   - SELECT is the shared `Checkbox`, which is React Aria's: a `<label>`
+ *     wrapping a VISUALLY-HIDDEN `<input>` and the painted `<div>` a person
+ *     actually clicks. `check()` aims at the input's own 1px box, which sits
+ *     under that div, so the hit test names the div and Playwright retries
+ *     until the budget is gone.
+ *
+ * That is a true statement about the pointer rather than a defect — the same
+ * shape `setSwitch` already records — and it is expensive: MEASURED on run
+ * 34777810234, five 120s timeouts in `tasks-v22-daily-driver` alone, which is
+ * what left partition p13 at `globalTimeout` with twelve tests never executed.
+ *
+ * Space on the focused input is a real interaction and not a `force: true` that
+ * would skip the actionability checks altogether; the assertion afterwards is
+ * `check()`'s own postcondition, so a control that does not end up in the
+ * wanted state still fails, and one that cannot be focused fails before that.
+ *
+ * Already-in-the-wanted-state is a no-op, like `check()` and like `setSwitch`.
+ *
+ * `shift` extends a RANGE from the last selected row, the way Shift-clicking
+ * does — and it is the same act, not an approximation of one: `TaskRow` reads
+ * `event.shiftKey` off the control's `keydown` for Space and Enter exactly as it
+ * reads it off `pointerdown`, so the product treats the two identically.
+ */
+export async function setCheckbox(
+  checkbox: Locator,
+  checked = true,
+  options: { readonly shift?: boolean } = {},
+): Promise<void> {
+  await checkbox.scrollIntoViewIfNeeded();
+  if (!options.shift && (await checkbox.isChecked()) === checked) return;
+  await checkbox.focus();
+  await checkbox.press(options.shift ? "Shift+ " : " ");
+  await expect(checkbox).toBeChecked({ checked });
+}
+
+/**
  * Choose a date in the shared DalyHub calendar (`~/shared/forms/CalendarGrid`).
  *
  * CONTROL-01 replaced the native `<input type="date">` inside every inline date

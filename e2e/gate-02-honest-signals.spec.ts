@@ -37,7 +37,12 @@ import {
   seedPlanFixture,
   type PlanFixture,
 } from "./plan-fixtures";
-import { expectNoAxeViolations, gotoFixture, taskRow } from "./helpers";
+import {
+  expectNoAxeViolations,
+  gotoFixture,
+  setCheckbox,
+  taskRow,
+} from "./helpers";
 
 let plan: PlanFixture;
 
@@ -210,16 +215,16 @@ test("Weekly Planning: one signal at rest, selection is a mode, and both acts su
   ).toHaveCount(0);
 
   // 5. Select MULTIPLE Tasks.
-  await queue
-    .getByRole("checkbox", {
+  await setCheckbox(
+    queue.getByRole("checkbox", {
       name: `Select ${unplaced.title} to place on a day`,
-    })
-    .check();
-  await queue
-    .getByRole("checkbox", {
+    }),
+  );
+  await setCheckbox(
+    queue.getByRole("checkbox", {
       name: `Select ${routine.title} to place on a day`,
-    })
-    .check();
+    }),
+  );
   await expect(page.getByTestId("plan-place-bar")).toContainText("2 selected");
 
   // 6. Place them on a day.
