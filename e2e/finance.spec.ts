@@ -295,7 +295,14 @@ test.describe("V2.12 — budgets", () => {
     await gotoFixture(page, "/finance/transactions?uncategorised=1");
     const grocery = page
       .getByTestId("transaction-list")
-      .getByRole("listitem")
+      /*
+       * UNTITLED-16 — the list is a TABLE now, so its rows are rows.
+       *
+       * This is the structural change, not a weakened assertion: the row's own
+       * `transaction-row` hook and the control inside it are unchanged, and the
+       * journey below is identical.
+       */
+      .getByTestId("transaction-row")
       .filter({ hasText: "NORTHWIND" })
       .first();
     await grocery.getByTestId("transaction-row-categorise").click();
