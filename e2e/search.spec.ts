@@ -429,9 +429,23 @@ test.describe("DS-08 Shared Search — modal, scrim and deep links", () => {
   }) => {
     await page.goto("/today");
     await openSearch(page);
-    // The modal root is the exclusion boundary: the content column (a sibling of
-    // the Search modal) is inert while Search is open.
-    await expect(page.locator(".dh-main-col")).toHaveAttribute("inert", "");
+    /*
+     * The modal root is the exclusion boundary: the page behind Search is inert
+     * while it is open.
+     *
+     * Asserted as the CONTRACT rather than against `.dh-main-col`, which no
+     * longer exists — so this had become an assertion about an element that was
+     * never there. `use-inert-background` walks from the modal up to `<body>`
+     * marking each sibling on that path, so which wrapper ends up carrying the
+     * attribute is its business; what must be true is that the main content is
+     * inside an inert subtree.
+     */
+    expect(
+      await page.evaluate(
+        () =>
+          document.querySelector("#main-content")?.closest("[inert]") != null,
+      ),
+    ).toBe(true);
     /*
      * The scrim itself stays interactive and closes Search.
      *
@@ -449,7 +463,13 @@ test.describe("DS-08 Shared Search — modal, scrim and deep links", () => {
     await expect(
       page.getByRole("combobox", { name: "Search everything" }),
     ).toHaveCount(0);
-    await expect(page.locator(".dh-main-col")).not.toHaveAttribute("inert", "");
+    // …and the inertness is RELEASED, asserted the same way round.
+    expect(
+      await page.evaluate(
+        () =>
+          document.querySelector("#main-content")?.closest("[inert]") != null,
+      ),
+    ).toBe(false);
   });
 
   test("keeps Tab focus contained within the Search dialog", async ({

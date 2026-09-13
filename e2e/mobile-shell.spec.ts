@@ -30,6 +30,8 @@ test.use({ viewport: PHONE, isMobile: true, hasTouch: true });
 
 /** The phone bottom bar. */
 const bottomNav = "[data-testid='bottom-nav']";
+const LABEL = "[data-testid='bottom-nav-label']";
+const CONTROL = "[data-testid='bottom-nav-control']";
 
 test.describe("MOBILE-01 phone bottom navigation", () => {
   test("puts Today, Tasks, Add, Projects and More within thumb reach", async ({
@@ -41,7 +43,7 @@ test.describe("MOBILE-01 phone bottom navigation", () => {
     await expect(bar).toBeVisible();
 
     // The registry-derived destinations plus the two shell controls, in order.
-    const labels = await bar.locator(".dh-bottomnav__label").allTextContents();
+    const labels = await bar.locator(LABEL).allTextContents();
     expect(labels).toEqual(["Today", "Tasks", "Add", "Projects", "More"]);
 
     // It is its own labelled landmark, distinct from the sidebar's "Primary".
@@ -95,7 +97,7 @@ test.describe("MOBILE-01 phone bottom navigation", () => {
     for (const viewport of [PHONE, NARROW]) {
       await page.setViewportSize(viewport);
       await gotoFixture(page, "/today");
-      const controls = page.locator(`${bottomNav} .dh-bottomnav__control`);
+      const controls = page.locator(`${bottomNav} ${CONTROL}`);
       const count = await controls.count();
       expect(count).toBe(5);
       for (let index = 0; index < count; index += 1) {
@@ -109,7 +111,7 @@ test.describe("MOBILE-01 phone bottom navigation", () => {
   }) => {
     await page.setViewportSize(NARROW);
     await gotoFixture(page, "/today");
-    const labels = page.locator(`${bottomNav} .dh-bottomnav__label`);
+    const labels = page.locator(`${bottomNav} ${LABEL}`);
     for (let index = 0; index < (await labels.count()); index += 1) {
       await expect(labels.nth(index)).toBeVisible();
       expect(
@@ -142,7 +144,7 @@ test.describe("MOBILE-01 phone bottom navigation", () => {
       await page.addStyleTag({ content: SAFE_AREA_DEVICE });
 
       const measured = await page
-        .locator(`${bottomNav} .dh-bottomnav__label`)
+        .locator(`${bottomNav} ${LABEL}`)
         .evaluateAll((nodes) =>
           nodes.map((node) => ({
             text: node.textContent,
@@ -166,13 +168,18 @@ test.describe("MOBILE-01 phone bottom navigation", () => {
     page,
   }) => {
     await gotoFixture(page, "/today");
-    const clearances = await page.locator(bottomNav).evaluate((bar) => {
-      const list = bar.querySelector(".dh-bottomnav__list");
-      const bottom = list!.getBoundingClientRect().bottom;
-      return [...bar.querySelectorAll(".dh-bottomnav__label")].map((label) =>
-        Number((bottom - label.getBoundingClientRect().bottom).toFixed(1)),
-      );
-    });
+    // The selectors are passed IN: this callback runs in the browser, where the
+    // module-scope constants above do not exist.
+    const clearances = await page.locator(bottomNav).evaluate(
+      (bar, selectors) => {
+        const list = bar.querySelector(selectors.list);
+        const bottom = list!.getBoundingClientRect().bottom;
+        return [...bar.querySelectorAll(selectors.label)].map((label) =>
+          Number((bottom - label.getBoundingClientRect().bottom).toFixed(1)),
+        );
+      },
+      { list: "[data-testid='bottom-nav-list']", label: LABEL },
+    );
     expect(clearances.length).toBe(5);
     // One value, whatever the glyph above it does.
     expect(new Set(clearances).size).toBe(1);
@@ -185,7 +192,7 @@ test.describe("MOBILE-01 phone bottom navigation", () => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await gotoFixture(page, "/today");
     await expect(page.locator(bottomNav)).toBeHidden();
-    await expect(page.locator(".dh-sidebar--rail")).toBeVisible();
+    await expect(page.getByTestId("sidebar-rail")).toBeVisible();
     await expect(
       page.getByRole("navigation", { name: "Primary" }),
     ).toBeVisible();
@@ -231,7 +238,7 @@ test.describe("MOBILE-01 the More navigation sheet", () => {
     // One: the compact top bar's Search control. (The More sheet is the second
     // route to it, so Search is never more than two taps from anywhere.)
     await page
-      .locator(".dh-mobilebar")
+      .getByTestId("mobile-top-bar")
       .getByRole("button", { name: "Search" })
       .click();
     await expect(page.getByRole("dialog")).toBeVisible();

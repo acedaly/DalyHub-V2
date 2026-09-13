@@ -289,7 +289,10 @@ test.describe("UIX-03 — the Goal record's chart", () => {
      * used to be dropped from the chart entirely, so the plot answered "have I
      * moved?" and silently refused "am I getting there?".
      */
-    await expect(chart.locator(".dh-linechart__target")).toHaveCount(1);
+    // `.dh-chart-reference--target` since the charts became Untitled/Recharts:
+    // `.dh-linechart__target` went with the hand-rolled SVG, so this had become
+    // a count of an element that no longer existed.
+    await expect(chart.locator(".dh-chart-reference--target")).toHaveCount(1);
     await expect(chart).toContainText("Target 68 kg");
     // Never colour alone — the caption states both the series and the target.
     await expect(chart.getByRole("img")).toHaveAttribute(
@@ -297,8 +300,19 @@ test.describe("UIX-03 — the Goal record's chart", () => {
       /3 measurements/,
     );
 
-    // ONE tab stop for the whole series, not one per reading.
-    await expect(chart.locator("[tabindex]")).toHaveCount(1);
+    /*
+     * ONE tab stop for the whole series, not one per reading.
+     *
+     * Counted as TABBABLE elements rather than as "anything carrying a
+     * `tabindex`". Recharts marks its own layer groups and its tooltip wrapper
+     * `tabindex="-1"` — focusable by script, deliberately NOT in the tab order —
+     * so the bare `[tabindex]` this used to count returned 14 for a chart with
+     * exactly one tab stop: 1 × `svg[tabindex="0"]`, 12 × `g[tabindex="-1"]`
+     * and the tooltip wrapper. The contract is the tab ORDER, and it is kept.
+     */
+    await expect(chart.locator('[tabindex]:not([tabindex="-1"])')).toHaveCount(
+      1,
+    );
     // …and it names a reading without any interaction at all.
     await expect(chart).toContainText(/81 kg on /);
   });
@@ -398,6 +412,15 @@ test.describe("UIX-03 — the responsive matrix", () => {
   test("the Goals workspace never scrolls sideways at any supported width", async ({
     page,
   }) => {
+    /*
+     * A real budget, for the SAME reason the record's matrix below states one:
+     * this loads `/goals` at ELEVEN widths, each `gotoFixture` waiting for the
+     * network to settle, and that exceeds the default 30s deterministically
+     * rather than flakily. The eleven widths are still all asserted and no
+     * assertion is relaxed — only the clock is honest about what the journey
+     * costs.
+     */
+    test.setTimeout(120_000);
     for (const viewport of GOAL_VIEWPORTS) {
       await page.setViewportSize({
         width: viewport.width,

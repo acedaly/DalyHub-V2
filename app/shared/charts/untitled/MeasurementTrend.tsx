@@ -594,6 +594,7 @@ export function MeasurementTrend({
                 stroke={CHART_REFERENCE_COLOR}
                 strokeDasharray="2 3"
                 ifOverflow="extendDomain"
+                className="dh-chart-reference dh-chart-reference--baseline"
               />
             )}
 
@@ -603,6 +604,13 @@ export function MeasurementTrend({
                 stroke={CHART_REFERENCE_COLOR}
                 strokeDasharray={CHART_DASH.reference}
                 ifOverflow="extendDomain"
+                /*
+                 * A NAME for the rule, so "the target is drawn" stays assertable
+                 * without asserting a colour or a dash pattern. The retired
+                 * hand-rolled chart carried `.dh-linechart__target` for exactly
+                 * this; the class has no rules attached to it.
+                 */
+                className="dh-chart-reference dh-chart-reference--target"
                 /*
                  * NOT named on the rule. It was — `insideTopLeft`, to keep it
                  * off the plot's right edge where it used to collide with the
