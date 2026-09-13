@@ -226,12 +226,23 @@ test.describe("Today, for an obligation about nothing", () => {
      */
     await gotoFixture(page, "/obligations");
     await waitForInteractive(page);
-    await page
-      .getByRole("button", { name: `Create task for ${title}` })
-      .click();
     const row = page
       .locator('[data-testid="obligation-row"]')
       .filter({ hasText: title });
+    /*
+     * UNTITLED-16 — "Create task" is a MENU item now.
+     *
+     * The row used to carry five permanent buttons; it carries one (Complete)
+     * plus the shared overflow. This is the journey a person now takes, which is
+     * why the test takes it too rather than reaching for a control that is no
+     * longer on the row.
+     */
+    await row
+      .getByRole("button", { name: `More actions for ${title}` })
+      .click();
+    await page
+      .getByRole("menuitem", { name: `Create task for ${title}` })
+      .click();
     await expect(row.getByRole("link", { name: "Open task" })).toBeVisible();
 
     await gotoFixture(page, "/today");

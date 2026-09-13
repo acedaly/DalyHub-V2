@@ -32,6 +32,8 @@ import { ASSET_METER_UNIT_OPTIONS, DEFAULT_CURRENCY } from "~/kernel/assets";
 import type { AiSurfaceAvailabilityGate } from "~/shared/ai";
 import { attachmentsTab } from "~/shared/attachments";
 import { EntityIcon } from "~/shared/entity";
+import { OverflowMenu, type OverflowMenuItem } from "~/shared/overflow-menu";
+import { UntitledStatusBadge } from "~/shared/pill";
 import { useFeedback } from "~/shared/feedback";
 import { LinkedItemsTab } from "~/shared/linked-items";
 import {
@@ -46,7 +48,8 @@ import { useRecordLifecycle } from "~/shared/record-lifecycle";
 
 import { ObligationActivityTab } from "./ObligationActivityTab";
 import { ObligationFollowUp } from "./ObligationFollowUp";
-import { buttonClassName } from "~/shared/ui";
+import { Button } from "~/shared/ui";
+import { SectionHeading } from "~/shared/ui/untitled/overrides/section-heading";
 
 export interface ObligationRecordProps {
   readonly obligation: SerializedObligation;
@@ -215,6 +218,43 @@ export function ObligationRecord({
         }))
       : undefined;
 
+  /*
+   * The obligation's own secondary actions, for the fold's menu. They are NOT
+   * merged into the record header's overflow: that menu is the record's
+   * LIFECYCLE (delete), and the three below act on the current occurrence's
+   * state. Keeping them apart is what stops "Dismiss this occurrence" and
+   * "Delete this obligation" sitting one line from each other.
+   */
+  const featureActions: readonly OverflowMenuItem[] = [
+    ...(obligation.taskId === null
+      ? [
+          {
+            id: "create-task",
+            label: "Create task",
+            ariaLabel: `Create a task for ${obligation.title}`,
+            onSelect: () => void actions.createTask(obligation),
+            ...(busy ? { pending: true } : {}),
+          } satisfies OverflowMenuItem,
+        ]
+      : []),
+    {
+      id: "hold",
+      label: "Hold",
+      ariaLabel: `Put ${obligation.title} on hold`,
+      onSelect: () => void actions.hold(obligation),
+      ...(busy ? { pending: true } : {}),
+    },
+    {
+      id: "dismiss",
+      label: "Dismiss",
+      ariaLabel: `Dismiss ${obligation.title}`,
+      tone: "danger",
+      separatorBefore: true,
+      onSelect: () => void actions.dismiss(obligation),
+      ...(busy ? { pending: true } : {}),
+    },
+  ];
+
   const feature =
     mode === "completing" ? (
       <CompleteObligationForm
@@ -243,67 +283,50 @@ export function ObligationRecord({
         onCancel={() => setMode("idle")}
       />
     ) : (
-      <div className="dh-obligation-feature">
-        <p
-          className={`dh-obligation-badge dh-obligation-badge--${obligationStateTone(obligation.state)}`}
-        >
+      <div className="flex flex-col items-start gap-2">
+        {/*
+         * The state's WORD, in the genuine Untitled badge rather than the
+         * hand-drawn stadium `obligations.css` carried with its own five-tone
+         * container map. Same tone vocabulary, one drawing, shared with the row.
+         */}
+        <UntitledStatusBadge tone={obligationStateTone(obligation.state)}>
           {obligation.stateLabel}
-        </p>
-        <p className="dh-obligation-feature__state">{obligation.stateText}</p>
+        </UntitledStatusBadge>
+        <p className="m-0 text-lg text-primary">{obligation.stateText}</p>
         {obligation.expectedAmountDisplay ? (
-          <p className="dh-obligation-feature__amount">
+          <p className="m-0 text-sm text-tertiary tabular-nums">
             Expected {obligation.expectedAmountDisplay}
             {obligation.completedAmountDisplay
               ? ` · paid ${obligation.completedAmountDisplay}`
               : ""}
           </p>
         ) : null}
-        <div className="dh-obligation-feature__actions">
+        {/*
+         * UNTITLED-16 — ONE thing to do, plus Edit, plus a menu.
+         *
+         * The fold used to hold five equal-weight controls, so "Record it as
+         * done" — the single reason an owner opens this page — sat in a row
+         * beside "Dismiss", which makes the commitment stop asking. Completing
+         * is the primary; editing is the one other thing a record is for; Create
+         * task, Hold and Dismiss are the shared menu, with Dismiss behind a
+         * separator in the destructive tone.
+         */}
+        <div className="mt-2 flex flex-wrap items-center gap-2">
           {open ? (
             <>
-              <button
-                type="button"
-                className={buttonClassName({ variant: "primary" })}
-                onClick={() => setMode("completing")}
-              >
+              <Button variant="primary" onClick={() => setMode("completing")}>
                 Record it as done
-              </button>
-              <button
-                type="button"
-                className={buttonClassName({ variant: "secondary" })}
-                onClick={() => setMode("editing")}
-              >
+              </Button>
+              <Button variant="secondary" onClick={() => setMode("editing")}>
                 Edit
-              </button>
-              {obligation.taskId === null ? (
-                <button
-                  type="button"
-                  className={buttonClassName({ variant: "subtle" })}
-                  disabled={busy}
-                  onClick={() => actions.createTask(obligation)}
-                >
-                  Create task
-                </button>
-              ) : null}
-              <button
-                type="button"
-                className={buttonClassName({ variant: "subtle" })}
-                disabled={busy}
-                onClick={() => actions.hold(obligation)}
-              >
-                Hold
-              </button>
-              <button
-                type="button"
-                className={buttonClassName({ variant: "subtle" })}
-                disabled={busy}
-                onClick={() => actions.dismiss(obligation)}
-              >
-                Dismiss
-              </button>
+              </Button>
+              <OverflowMenu
+                items={featureActions}
+                label={`More actions for ${obligation.title}`}
+              />
             </>
           ) : obligation.status === "completed" ? (
-            <p className="dh-obligation-feature__done">
+            <p className="m-0 text-sm text-tertiary">
               Recorded as done
               {obligation.completedDateLabel
                 ? ` on ${obligation.completedDateLabel}`
@@ -311,14 +334,13 @@ export function ObligationRecord({
               .
             </p>
           ) : (
-            <button
-              type="button"
-              className={buttonClassName({ variant: "primary" })}
+            <Button
+              variant="primary"
               disabled={busy}
               onClick={() => actions.reopen(obligation)}
             >
               Make it live again
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -353,16 +375,18 @@ export function ObligationRecord({
             id: "summary",
             label: "Overview",
             content: (
-              <div className="dh-obligation-summary">
+              <div className="flex flex-col gap-6">
                 {obligation.description ? (
-                  <section>
-                    <h2 className="dh-obligation-summary__heading">Notes</h2>
-                    <p>{obligation.description}</p>
+                  <section className="flex flex-col gap-2">
+                    <SectionHeading level={2} title="Notes" />
+                    <p className="m-0 text-sm break-words text-secondary">
+                      {obligation.description}
+                    </p>
                   </section>
                 ) : null}
-                <section>
-                  <h2 className="dh-obligation-summary__heading">Series</h2>
-                  <p className="dh-obligation-summary__quiet">
+                <section className="flex flex-col gap-2">
+                  <SectionHeading level={2} title="Series" />
+                  <p className="m-0 text-sm text-tertiary">
                     {obligation.recurrenceKind === "none"
                       ? "This one does not repeat."
                       : `${obligation.recurrenceLabel}. Occurrence ${obligation.sequence + 1} of this series.`}
@@ -375,9 +399,9 @@ export function ObligationRecord({
                   />
                 )}
                 {obligation.taskId ? (
-                  <section>
-                    <h2 className="dh-obligation-summary__heading">Task</h2>
-                    <p className="dh-obligation-summary__quiet">
+                  <section className="flex flex-col gap-2">
+                    <SectionHeading level={2} title="Task" />
+                    <p className="m-0 text-sm text-tertiary">
                       {obligation.taskOpen ? (
                         <>
                           Tracked as a task.{" "}
