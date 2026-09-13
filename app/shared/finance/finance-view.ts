@@ -17,7 +17,7 @@
  * Pure: no storage, no clock, no JSX.
  */
 
-import { formatMinorUnits } from "~/kernel/money";
+import { currencyMinorDigits, formatMinorUnits } from "~/kernel/money";
 import type {
   BudgetState,
   FinanceAccountType,
@@ -118,6 +118,56 @@ export interface SerializedCategoryMonthLine {
   readonly budgetSentence: string | null;
 }
 
+/**
+ * UNTITLED-16 — one month of the flow series: what came in, what went out.
+ *
+ * Both figures are POSITIVE magnitudes, because the chart plots two quantities
+ * side by side rather than one signed one. The direction is carried by which
+ * series a bar belongs to and by the words in the summary, never by its sign and
+ * never by its colour.
+ */
+export interface SerializedFlowMonth {
+  /** `YYYY-MM`, and the point's stable key. */
+  readonly month: string;
+  /** The axis label ("Sep"), already in the owner's locale. */
+  readonly label: string;
+  /** The full month name, for the tooltip and the summary. */
+  readonly fullLabel: string;
+  /** Money in, as a positive magnitude. */
+  readonly inMinor: number;
+  /** Money out, as a positive magnitude. */
+  readonly outMinor: number;
+}
+
+/**
+ * The twelve-month flow series, in ONE currency.
+ *
+ * DalyHub never converts between currencies, so a chart cannot plot more than
+ * one: a bar made of AUD and USD added together would be a number that does not
+ * exist. The lead currency is plotted and every other one is named in
+ * `excluded`, which is the same rule `exclusionNote` states for a total.
+ *
+ * `points` is empty where there is nothing to plot — no transactions at all, or
+ * a single month, from which no trend can be read. The surface then renders
+ * nothing rather than an empty plot frame.
+ */
+export interface SerializedMonthlyFlow {
+  readonly currencyCode: string | null;
+  /** Oldest first. Never fewer than two points, and never more than twelve. */
+  readonly points: readonly SerializedFlowMonth[];
+  readonly excluded: readonly SerializedCurrencyTotal[];
+  /**
+   * How many transactions in the window carry no category, and are therefore
+   * NOT in the series.
+   *
+   * The plot is categorised money only, because the month band directly above it
+   * is: both exclude unattributed money and both say so, rather than one of them
+   * quietly folding it in. Zero means the window is fully attributed and the
+   * surface says nothing.
+   */
+  readonly uncategorisedCount: number;
+}
+
 /** One money-bearing obligation due this month. */
 export interface SerializedCommitment {
   readonly obligationId: string;
@@ -165,6 +215,42 @@ export interface SerializedImportRow {
 /** Format an amount for display. Never a bare number, always a currency. */
 export function money(minorUnits: number, currencyCode: string): string {
   return formatMinorUnits(minorUnits, currencyCode);
+}
+
+/**
+ * UNTITLED-16 — an amount for an AXIS TICK.
+ *
+ * Same currency, no minor units, and compact notation once the figure is long
+ * enough that five of them stacked beside a plot would push the plot off the
+ * page ("$4.2k"). Rounding a TICK is a scale decision and is honest; rounding a
+ * stated figure is not, which is why this is a separate function and why nothing
+ * but an axis calls it.
+ *
+ * The currency's own minor-unit count decides the divide — JPY has none, and
+ * dividing its minor units by a hundred would print a figure a hundred times too
+ * small. `Intl` is asked for the rounding and the grouping so a locale that
+ * spells large numbers its own way still gets them.
+ */
+export function moneyTick(
+  minorUnits: number,
+  currencyCode: string,
+  locale = "en-AU",
+): string {
+  const major = minorUnits / 10 ** currencyMinorDigits(currencyCode);
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: "currency",
+      currency: currencyCode,
+      maximumFractionDigits: 0,
+      // Compact once the plain figure would be five digits or more, which is
+      // where a stacked axis starts to cost the plot its width.
+      ...(Math.abs(major) >= 10_000
+        ? { notation: "compact" as const, maximumFractionDigits: 1 }
+        : {}),
+    }).format(major);
+  } catch {
+    return money(minorUnits, currencyCode);
+  }
 }
 
 /**

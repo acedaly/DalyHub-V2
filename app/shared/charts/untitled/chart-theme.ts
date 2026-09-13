@@ -57,6 +57,24 @@ export const CHART_WARNING_COLOR = "var(--color-fg-warning-primary)";
  */
 export const CHART_REFERENCE_COLOR = "var(--color-fg-quaternary)";
 
+/**
+ * UNTITLED-16 — the CONTEXT series, on a plot where one series is the subject
+ * and the other is what it is read against.
+ *
+ * Money out is what a month is scrutinised for; money in is the line it is
+ * judged against. The subject takes `CHART_SERIES_COLOR` and the context takes
+ * this, so the emphasis is a deliberate product decision rather than the
+ * red-and-green a finance chart reaches for by reflex (§46). It shares a value
+ * with {@link CHART_REFERENCE_COLOR} on purpose — both say "not the subject" —
+ * and is named separately because a second SERIES and a reference RULE are
+ * different things, and the two could reasonably diverge.
+ *
+ * It is never the meaning. A plot using it also states both series in the
+ * accessible summary and tells them apart by position within each group, so a
+ * reader who cannot separate the two fills loses nothing (§15).
+ */
+export const CHART_CONTEXT_SERIES_COLOR = "var(--color-fg-quaternary)";
+
 /** The horizontal hairlines a value is judged against. */
 export const CHART_GRID_COLOR = "var(--color-border-secondary)";
 

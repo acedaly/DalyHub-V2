@@ -285,11 +285,7 @@ export function FinanceImport(props: FinanceImportData) {
       </p>
 
       {error === null ? null : (
-        <p
-          role="alert"
-          className="dh-finance-import__error"
-          data-testid="import-error"
-        >
+        <p role="alert" className="dh-finance-error" data-testid="import-error">
           {error}
         </p>
       )}

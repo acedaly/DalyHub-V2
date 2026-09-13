@@ -21,12 +21,15 @@
 
 import {
   addMoneyTotals,
+  addMonths,
   budgetSentence,
   budgetState,
   computeNetWorth,
   monthDirectionTotals,
   monthEnd,
+  monthLabel,
   monthStart,
+  rangeDirectionAmount,
   readStoredCsvMapping,
   totalMoney,
   type BudgetVariance,
@@ -43,6 +46,7 @@ import type {
   SerializedFinanceImport,
   SerializedFinanceTransaction,
   SerializedMonthBudget,
+  SerializedMonthlyFlow,
 } from "~/shared/finance";
 
 /** Flatten a currency-grouped total into the shape a surface renders. */
@@ -289,6 +293,145 @@ export async function readMonthLines(
       amountMinor: budget.amountMinor,
       currencyCode: budget.currencyCode,
     })),
+  };
+}
+
+/**
+ * UNTITLED-16 — money in and money out for the run of months ending at `month`.
+ * ONE statement.
+ *
+ * ## It is the SAME arithmetic the month totals use
+ *
+ * `summariseRange` is what `monthSummary` is itself defined in terms of, and
+ * `rangeDirectionAmount` is the kernel's one direction rule — the same one that
+ * decides what "money out" means on the month band directly above this chart. So
+ * the September bar and the September figure cannot come to disagree, and a
+ * refund reduces spend in both by construction rather than by two screens
+ * remembering to.
+ *
+ * ## Which months are in the window, and why zero is honest
+ *
+ * The range is asked for as twelve calendar months, and the series starts at the
+ * first month that produced ANY row. A month inside that span with no rows is a
+ * month in which no money moved, so it is plotted as zero; a month before the
+ * first row is not plotted at all, because "no data" and "nothing happened" are
+ * different claims and only the second one is a zero.
+ *
+ * ## One currency, and the rest named
+ *
+ * A bar cannot hold two currencies: DalyHub never converts, so adding them would
+ * draw a number that does not exist. The currency with the most transactions in
+ * the window is plotted; every other is returned in `excluded` for the surface
+ * to state, which is the rule `exclusionNote` already applies to a total.
+ */
+export async function readMonthlyFlow(
+  finance: FinanceRepository,
+  month: FinanceMonth,
+  options: { readonly months?: number; readonly locale?: string } = {},
+): Promise<SerializedMonthlyFlow> {
+  const span = Math.max(2, Math.min(24, options.months ?? 12));
+  const firstMonth = addMonths(month, -(span - 1));
+  const rows = await finance.summariseRange({
+    fromIso: monthStart(firstMonth),
+    toIso: monthEnd(month),
+    groupBy: "month",
+  });
+
+  // (currency) → (month → magnitudes), plus the transaction count that decides
+  // which currency leads.
+  const byCurrency = new Map<
+    string,
+    {
+      count: number;
+      months: Map<string, { inMinor: number; outMinor: number }>;
+    }
+  >();
+  /*
+   * UNCATEGORISED rows are counted here and plotted NOWHERE, which is the month
+   * band's own rule applied to the chart.
+   *
+   * This was a real defect, and driving the page is what found it. The band
+   * above the plot excludes uncategorised money from both totals and reports it
+   * separately ("$1,092.70 out and $385.00 in. Not counted above."), because a
+   * month with forty unattributed rows must not quietly overstate spend.
+   * `rangeDirectionAmount` classifies an uncategorised row by its own SIGN,
+   * which is right for a Report and wrong directly beneath that band: the first
+   * draft drew a September bar of $4,590.39 under a figure reading $3,497.69,
+   * with a caption stating a surplus the two figures above it contradicted.
+   *
+   * So the series is CATEGORISED money only, and the count comes back so the
+   * surface can say what it left out — the same fact, in the same place, as the
+   * band.
+   */
+  let uncategorisedCount = 0;
+  for (const row of rows) {
+    if (row.groupKey === null) continue;
+    if (row.categoryKind === null) {
+      uncategorisedCount += row.transactionCount;
+      continue;
+    }
+    let bucket = byCurrency.get(row.currencyCode);
+    if (bucket === undefined) {
+      bucket = { count: 0, months: new Map() };
+      byCurrency.set(row.currencyCode, bucket);
+    }
+    bucket.count += row.transactionCount;
+    const entry = bucket.months.get(row.groupKey) ?? {
+      inMinor: 0,
+      outMinor: 0,
+    };
+    const moneyIn = rangeDirectionAmount(row, "in");
+    const moneyOut = rangeDirectionAmount(row, "out");
+    entry.inMinor += moneyIn ?? 0;
+    entry.outMinor += moneyOut ?? 0;
+    bucket.months.set(row.groupKey, entry);
+  }
+
+  if (byCurrency.size === 0) {
+    return { currencyCode: null, points: [], excluded: [], uncategorisedCount };
+  }
+
+  /*
+   * The lead is the currency the owner actually transacts in — the most ROWS,
+   * not the largest amount. A single overseas purchase can dwarf a month of
+   * groceries without being the currency the owner lives in.
+   */
+  const ordered = [...byCurrency.entries()].sort(
+    (a, b) => b[1].count - a[1].count || a[0].localeCompare(b[0]),
+  );
+  const [leadCurrency, lead] = ordered[0]!;
+
+  const monthKeys: string[] = [];
+  for (let index = 0; index < span; index += 1) {
+    monthKeys.push(addMonths(firstMonth, index));
+  }
+  // Drop the leading run of months with no rows: absence of data is not a zero.
+  const firstWithData = monthKeys.findIndex((key) => lead.months.has(key));
+  const window = firstWithData < 0 ? [] : monthKeys.slice(firstWithData);
+
+  const points = window.map((key) => {
+    const entry = lead.months.get(key);
+    return {
+      month: key,
+      label: monthLabel(key, options.locale ?? "en-AU").split(" ")[0]!,
+      fullLabel: monthLabel(key, options.locale ?? "en-AU"),
+      inMinor: entry?.inMinor ?? 0,
+      outMinor: entry?.outMinor ?? 0,
+    };
+  });
+
+  return {
+    currencyCode: leadCurrency,
+    uncategorisedCount,
+    // One month is a figure, not a trend. The surface draws nothing instead.
+    points: points.length < 2 ? [] : points,
+    excluded: ordered.slice(1).map(([currencyCode, bucket]) => {
+      let minorUnits = 0;
+      for (const entry of bucket.months.values()) {
+        minorUnits += entry.outMinor;
+      }
+      return { currencyCode, minorUnits, count: bucket.count };
+    }),
   };
 }
 

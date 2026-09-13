@@ -28,6 +28,7 @@ import {
   readCategories,
   readCommitments,
   readImports,
+  readMonthlyFlow,
   readMonthLines,
   readNetWorth,
   readTransactionPage,
@@ -112,6 +113,12 @@ export async function loadFinanceHome(
     },
     commitments: { items: [], expected: [], withoutAmount: 0 },
     imports: [],
+    flow: {
+      currencyCode: null,
+      points: [],
+      excluded: [],
+      uncategorisedCount: 0,
+    },
     failed: true,
   };
 
@@ -142,7 +149,7 @@ export async function loadFinanceHome(
     todayIso = await scope.ownerTodayIso();
     month = resolveMonth(url.searchParams.get("month"), todayIso);
 
-    const [accounts, monthLines, netWorth, commitments, imports] =
+    const [accounts, monthLines, netWorth, commitments, imports, flow] =
       await Promise.all([
         accountsRead,
         readMonthLines(scope.finance, month),
@@ -151,6 +158,13 @@ export async function loadFinanceHome(
         accountsRead.then((rows) =>
           readImports(scope.finance, rows, { limit: 4 }),
         ),
+        /*
+         * UNTITLED-16 — the twelve-month flow series. ONE statement, issued in
+         * the SAME round as the others rather than after them: it depends on the
+         * owner's month and on nothing else, so it has no reason to wait behind
+         * the accounts read the way net worth and the import list genuinely do.
+         */
+        readMonthlyFlow(scope.finance, month),
       ]);
 
     return {
@@ -161,6 +175,7 @@ export async function loadFinanceHome(
       netWorth,
       commitments,
       imports,
+      flow,
       failed: false,
     };
   } catch {

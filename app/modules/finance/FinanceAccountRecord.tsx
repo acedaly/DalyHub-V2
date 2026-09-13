@@ -26,7 +26,7 @@ import { Link, useRevalidator } from "react-router";
 import { FINANCE_ACCOUNT_TYPE_LABELS } from "~/kernel/finance";
 import { attachmentsTab } from "~/shared/attachments";
 import {
-  TransactionRow,
+  TransactionsTable,
   balanceLabel,
   financeDate,
   money,
@@ -97,15 +97,16 @@ export function FinanceAccountRecord(props: FinanceAccountRecordData) {
           </p>
         ) : (
           <>
-            <ul className="dh-transaction-list">
-              {transactions.map((transaction) => (
-                <TransactionRow
-                  key={transaction.id}
-                  transaction={transaction}
-                  showAccount={false}
-                />
-              ))}
-            </ul>
+            {/*
+             * The SAME table the collection draws, with the account column off:
+             * inside an account's own record every row is in that account, so
+             * the column would repeat the page's title on every line.
+             */}
+            <TransactionsTable
+              transactions={transactions}
+              showAccount={false}
+              label={`Transactions in ${account.title}, newest first.`}
+            />
             <Link
               to={`/finance/transactions?account=${encodeURIComponent(account.id)}`}
             >
@@ -205,7 +206,7 @@ export function FinanceAccountRecord(props: FinanceAccountRecordData) {
       onTabChange={setTab}
     >
       {error === null ? null : (
-        <p role="alert" className="dh-finance-account__error">
+        <p role="alert" className="dh-finance-error">
           {error}
         </p>
       )}
@@ -251,7 +252,7 @@ export function FinanceAccountRecord(props: FinanceAccountRecordData) {
       </div>
 
       {account.status === "closed" ? (
-        <p className="dh-finance-account__closed-note">
+        <p className="dh-finance-note">
           Closed accounts still count towards net worth. Closing changes what
           DalyHub offers, never what the arithmetic says.
         </p>

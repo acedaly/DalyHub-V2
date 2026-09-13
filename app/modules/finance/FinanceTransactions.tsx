@@ -42,7 +42,7 @@
  *
  * There is no swipe. The category control is a button that opens the picker,
  * which works by thumb, by keyboard and by screen reader with one
- * implementation — see `TransactionRow`'s own header for why a swipe fails
+ * implementation — see `TransactionsTable`'s own header for why a swipe fails
  * DHDS-11's first question.
  */
 
@@ -53,7 +53,7 @@ import { EmptyState } from "~/shared/empty-state";
 import {
   CategoryPicker,
   TransactionDrawer,
-  TransactionRow,
+  TransactionsTable,
   type SerializedFinanceTransaction,
 } from "~/shared/finance";
 import { Button, ButtonLink, Sheet } from "~/shared/ui";
@@ -120,7 +120,7 @@ export function FinanceTransactions(props: FinanceTransactionsData) {
 
   if (failed) {
     return (
-      <div className="dh-finance-transactions">
+      <div className="dh-finance-transactions px-[var(--dh-shell-gutter)] py-[var(--dh-space-6)]">
         <h1>Transactions</h1>
         <p role="status">
           Your transactions could not be read just now. Nothing has been
@@ -131,27 +131,32 @@ export function FinanceTransactions(props: FinanceTransactionsData) {
   }
 
   return (
-    <div className="dh-finance-transactions" data-testid="finance-transactions">
-      <header className="dh-finance-transactions__header">
-        <h1>{uncategorised ? "Uncategorised" : "Transactions"}</h1>
+    <div
+      className="dh-finance-transactions flex min-w-0 flex-col gap-5 px-[var(--dh-shell-gutter)] py-[var(--dh-space-6)]"
+      data-testid="finance-transactions"
+    >
+      <header className="flex flex-col gap-3 border-b border-secondary pb-5 md:flex-row md:items-end md:justify-between md:gap-4">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <h1 className="text-display-xs font-semibold text-primary">
+            {uncategorised ? "Uncategorised" : "Transactions"}
+          </h1>
+          <p className="text-sm text-tertiary" data-testid="transaction-count">
+            {/*
+             * The TOTAL over the whole filtered set, counted in its own
+             * statement rather than derived from the loaded page — the defect
+             * DEBT-232 records, where a bounded page was counted and printed as
+             * the total.
+             */}
+            {total} {total === 1 ? "transaction" : "transactions"}
+          </p>
+        </div>
         {uncategorised ? null : (
           <MonthNav {...props} basePath="/finance/transactions" />
         )}
-        <p
-          className="dh-finance-transactions__count"
-          data-testid="transaction-count"
-        >
-          {/*
-           * The TOTAL over the whole filtered set, counted in its own statement
-           * rather than derived from the loaded page — the defect DEBT-232
-           * records, where a bounded page was counted and printed as the total.
-           */}
-          {total} {total === 1 ? "transaction" : "transactions"}
-        </p>
       </header>
 
       <div
-        className="dh-finance-transactions__lens"
+        className="flex flex-wrap gap-2"
         role="group"
         aria-label="Which transactions"
       >
@@ -185,7 +190,7 @@ export function FinanceTransactions(props: FinanceTransactionsData) {
       </div>
 
       {actions.error === null ? null : (
-        <p role="alert" className="dh-finance-transactions__error">
+        <p role="alert" className="dh-finance-error">
           {actions.error}
         </p>
       )}
@@ -236,20 +241,20 @@ export function FinanceTransactions(props: FinanceTransactionsData) {
           />
         )
       ) : (
-        <ul className="dh-transaction-list" data-testid="transaction-list">
-          {transactions.map((transaction) => (
-            <TransactionRow
-              key={transaction.id}
-              transaction={transaction}
-              busy={actions.pendingId === transaction.id}
-              onOpen={(entry) => setOpened(entry.id)}
-              onCategorise={(entry) => setPicking(entry)}
-              onAcceptSuggestion={(entry) =>
-                actions.setCategory(entry.id, entry.suggestedCategoryId!)
-              }
-            />
-          ))}
-        </ul>
+        <TransactionsTable
+          transactions={transactions}
+          label={
+            uncategorised
+              ? "Every transaction with no category yet, newest first."
+              : `Transactions in ${props.monthLabel}, newest first.`
+          }
+          pendingId={actions.pendingId}
+          onOpen={(entry) => setOpened(entry.id)}
+          onCategorise={(entry) => setPicking(entry)}
+          onAcceptSuggestion={(entry) =>
+            actions.setCategory(entry.id, entry.suggestedCategoryId!)
+          }
+        />
       )}
 
       {props.nextCursor === null ? null : (

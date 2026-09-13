@@ -50,6 +50,7 @@ export {
 } from "./untitled/ChartFrame";
 export {
   CHART_AXIS_COLOR,
+  CHART_CONTEXT_SERIES_COLOR,
   CHART_DASH,
   CHART_GRID_COLOR,
   CHART_HEIGHT,
@@ -61,6 +62,18 @@ export {
   CHART_STROKE_WIDTH,
   CHART_TICK,
 } from "./untitled/chart-theme";
+export {
+  MoneyFlow,
+  /**
+   * The value-axis rule, exported for test — the same reason `niceDomain` is.
+   * A money axis that ends on a round figure is decidable from the numbers, and
+   * asserting it against a rendered Recharts SVG would test jsdom's layout
+   * engine instead of the arithmetic.
+   */
+  moneyAxis,
+  type MoneyFlowPoint,
+  type MoneyFlowProps,
+} from "./untitled/MoneyFlow";
 export {
   PeriodicAdherence,
   type PeriodicAdherencePoint,
