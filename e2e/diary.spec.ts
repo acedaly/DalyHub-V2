@@ -74,7 +74,14 @@ test.describe("DIARY-01B — Diary day-timeline workspace", () => {
     await expect(
       page.getByRole("heading", { level: 1, name: "Diary" }),
     ).toBeVisible();
-    await expect(page.getByRole("group", { name: "Diary view" })).toBeVisible();
+    // The mode switcher is a `navigation` landmark labelled "Diary views" —
+    // `ViewSwitcher` renders a `<nav aria-label>` of links, deliberately not a
+    // `group` and deliberately not a tablist ("these options navigate"). This
+    // asserted the pre-migration role AND a singular label, so it matched
+    // nothing.
+    await expect(
+      page.getByRole("navigation", { name: "Diary views" }),
+    ).toBeVisible();
     // UIX-04 §18 — the day navigator is the week strip: a `navigation`
     // landmark of day links, not a `group` of prev/next steppers.
     await expect(
@@ -275,9 +282,14 @@ test.describe("DIARY-01B — Diary day-timeline workspace", () => {
     seedEntries(26);
 
     await gotoFixture(page, "/diary?mode=timeline");
+    // `page`, not `true` — for the reason this file already states nineteen
+    // lines above about the type filter. The mode options are navigation links
+    // whose target IS the current URL state. `ViewSwitcher` renders `page` for
+    // every option; only this assertion was left on the old value, so the file
+    // was contradicting itself about the same attribute.
     await expect(page.getByRole("link", { name: "Timeline" })).toHaveAttribute(
       "aria-current",
-      "true",
+      "page",
     );
     // The oldest seeded entry is on the second page, hidden until Load more.
     await expect(
