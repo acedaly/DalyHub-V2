@@ -1301,21 +1301,25 @@ original intent (never resolve the phone opener, a different control with the
 same name). Both journeys pass, and the create → complete → successor journey
 now actually exercises the search step it claims to.
 
-Three Assets journeys failed the same way — **dead rather than failing, and
+Five Assets journeys failed the same way — **dead rather than failing, and
 nothing to do with this pass**. Each navigates straight to a record URL and
 clicks a tab. A record tab is a React Aria `Tab`: the server-rendered markup
 already carries the `role` and the accessible name, so Playwright finds it and
 clicks it happily before any handler exists. The URL never gains `?tab=`, the
 panel never changes, and the journey then spends its whole timeout waiting for
-a field on a tab that was never selected. Every other journey in that file
-reaches the record through `gotoFixture`, which settles; these three did not.
+a field on a tab that was never selected. Every other journey reaches the
+record through `gotoFixture` or a `?tab=` URL, both of which settle; these five
+did not. In `assets-ownership.spec.ts` the correspondence is exact: the two
+bare `page.goto(recordUrl)` sites in that file are the two journeys that
+failed, and the other fourteen pass untouched.
 
 Proved rather than assumed: with `origin/main`'s entire Assets module and
-stylesheet checked back out over this branch, **all three fail identically**,
-at the same step, with the same locator. The fix is the `waitForInteractive`
-helper the suite already owns, at the three bare `page.goto(recordUrl)` sites.
-All eight Assets journeys pass, and the long one drops from timing out at 2.1
-minutes to **36.9 seconds** — it had never reached step 2.
+stylesheet checked back out over this branch, **all three collection journeys
+fail identically**, at the same step, with the same locator. The fix is the
+`waitForInteractive` helper the suite already owns, at the five bare
+`page.goto(recordUrl)` sites. No assertion changed. All eight Assets journeys
+and all sixteen ownership journeys pass, and the long one drops from timing out
+at 2.1 minutes to **36.9 seconds** — it had never reached step 2.
 
 **Eight other specs carry the same dead scope** — `search`,
 `find-empty-search`, `recall-01-search-content`, `keyboard`, `tooltip`,
