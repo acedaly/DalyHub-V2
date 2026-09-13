@@ -67,10 +67,18 @@ test.describe("UIX-05 — Insight", () => {
   test("every window is a real, shareable URL", async ({ page }) => {
     for (const window of WINDOWS) {
       await gotoFixture(page, window.path);
-      const rail = page.getByRole("group", { name: "Insight window" });
+      /*
+       * A `navigation` of links carrying `aria-current="page"` — the shape
+       * `ViewSwitcher` renders and argues for in place: "these options
+       * navigate", so it is deliberately not a `group` and deliberately not a
+       * tablist (ARIA's tab pattern requires each tab to control a
+       * `tabpanel`). This asserted the pre-migration role AND the
+       * pre-migration attribute value, so it matched nothing.
+       */
+      const rail = page.getByRole("navigation", { name: "Insight window" });
       await expect(
         rail.getByRole("link", { name: new RegExp(window.label) }),
-      ).toHaveAttribute("aria-current", "true");
+      ).toHaveAttribute("aria-current", "page");
     }
   });
 
@@ -83,19 +91,21 @@ test.describe("UIX-05 — Insight", () => {
     page,
   }) => {
     await gotoFixture(page, "/analytics?window=12-weeks");
-    const grain = page.getByRole("group", { name: "Insight grain" });
+    const grain = page.getByRole("navigation", { name: "Insight grain" });
     await expect(grain).toBeVisible();
     await grain.getByRole("link", { name: "Daily" }).click();
     await expect(page).toHaveURL(/grain=day/);
     await expect(
-      page.getByRole("group", { name: "Insight grain" }).getByRole("link", {
-        name: "Daily",
-      }),
-    ).toHaveAttribute("aria-current", "true");
+      page
+        .getByRole("navigation", { name: "Insight grain" })
+        .getByRole("link", {
+          name: "Daily",
+        }),
+    ).toHaveAttribute("aria-current", "page");
 
     await gotoFixture(page, "/analytics?window=24-months");
     await expect(
-      page.getByRole("group", { name: "Insight grain" }),
+      page.getByRole("navigation", { name: "Insight grain" }),
     ).toHaveCount(0);
   });
 
@@ -121,7 +131,7 @@ test.describe("UIX-05 — Insight", () => {
   }) => {
     await gotoFixture(page, "/analytics");
     await page
-      .getByRole("group", { name: "Insight window" })
+      .getByRole("navigation", { name: "Insight window" })
       .getByRole("link", { name: /7 days/ })
       .click();
     await expect(page).toHaveURL(/window=this-week/);
