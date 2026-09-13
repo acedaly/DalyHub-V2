@@ -179,10 +179,27 @@ export function RecordHeader({
             {breadcrumb.map((item, index) => {
               const isLast = index === breadcrumb.length - 1;
               return (
-                <li key={item.id} className="flex items-center gap-1">
+                /*
+                 * NORMAL FLOW, not a flex row — and the separator inline with
+                 * the label rather than beside it.
+                 *
+                 * This is the DS-02 breadcrumb defect, restored by the
+                 * migration and caught again by `areas-goals-mobile`: a crumb
+                 * whose separator is a sibling FLEX ITEM under `items-center`
+                 * is centred against the whole wrapped block, so an Area with a
+                 * long name draws its chevron floating halfway down three lines
+                 * of text instead of sitting on the first one. On a 320px phone
+                 * a long parent name wraps every time.
+                 *
+                 * Inline flow puts the chevron on the first line, where a
+                 * separator belongs, and the label wraps underneath it. The
+                 * `align` offset is the optical centring a flex row was being
+                 * used for.
+                 */
+                <li key={item.id}>
                   {index > 0 ? (
                     <ChevronRight
-                      className="size-4 shrink-0 text-fg-quaternary"
+                      className="mr-1 inline-block size-4 shrink-0 align-[-0.2em] text-fg-quaternary"
                       aria-hidden="true"
                     />
                   ) : null}

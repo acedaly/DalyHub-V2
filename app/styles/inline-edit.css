@@ -381,11 +381,55 @@
  * from the trigger and paints `position: fixed` above the page. Nothing in this
  * file may reintroduce a positioning context here.
  */
+/*
+ * POLISH-01's rule, ONE LEVEL UP — and this is where it was missing.
+ *
+ * `.dh-inline-select__value` below carries `max-inline-size: 100%` for exactly
+ * this reason: "`inline-flex` sizes to max-content, so without the max the box
+ * happily grew past a 4rem grid cell and pushed the whole document sideways".
+ * These wrappers are `inline-block`, which sizes to max-content in the same way
+ * and had no max at all — so the value's 100% resolved against a box that had
+ * already overflowed, and the truncation never engaged.
+ *
+ * MEASURED on a Goal whose Area has a long name, at 320px: the picker's label
+ * drew 1001px wide and the document's `scrollWidth` was 1057 against a 320px
+ * viewport — a record that scrolls sideways on a phone because its parent has a
+ * long title. The same at 390px (886 wide). It does not show on the seeded
+ * fixtures, whose names are short, which is why it survived: the value fitted,
+ * so nothing had to truncate.
+ *
+ * `min-inline-size: 0` is what lets the box shrink inside a flex or grid
+ * parent; `max-inline-size: 100%` is what stops it growing past a block one.
+ * Both are needed and neither implies the other.
+ */
 .dh-inline-select,
 .dh-inline-picker,
 .dh-inline-date {
   display: inline-block;
   min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+/*
+ * POLISH-01, on the TRIGGER — and SCOPED, because the title is the exception.
+ *
+ * Capping the wrapper above does not cap what is inside it: a max on a parent
+ * stops the parent growing, it does not shrink an oversized child. MEASURED at
+ * 390px with a long parent name, with `.dh-inline-picker` already capped, the
+ * trigger still drew 838px and the document's `scrollWidth` was 886.
+ *
+ * It is scoped to the pickers and selects rather than written on
+ * `.dh-inline-edit__trigger` itself, because the RECORD TITLE hosts one too and
+ * a percentage max on that one makes the heading wrap: `__value`'s own note a
+ * few rules down records the trap — "the percentage cannot resolve while the
+ * ancestor is being measured" — and `record-header-title.spec.ts` is the guard
+ * that caught it, on every width from 320 to 1920. A title is a heading that
+ * must not wrap; a metadata value is a stub that must truncate. Two different
+ * jobs, and only one of them wants this.
+ */
+.dh-inline-select > .dh-inline-edit > .dh-inline-edit__trigger,
+.dh-inline-picker > .dh-inline-edit > .dh-inline-edit__trigger {
+  max-inline-size: 100%;
 }
 
 /* DHDS-10 — the picker field's optional identity mark, beside the name. It is

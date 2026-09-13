@@ -149,11 +149,19 @@ async function expectHoverRepaints(
  * on `outline-brand`, which is OUTSIDE the element's box — so an element
  * screenshot clips it away entirely and `expectHoverRepaints` can say nothing
  * about focus. The computed outline is where that state is observable.
+ *
+ * `drawn` is the STYLE, not the width, and that distinction is the whole of it:
+ * `outline-width`'s initial value is `medium`, which Chromium computes to 3px
+ * whether or not anything is painted. So "no ring at rest" read as 3 on CI
+ * while reading 0 locally — the same page, the same control, a computed value
+ * that says nothing about pixels either way. `outline-style: none` is what
+ * "there is no ring" actually means.
  */
 async function focusRing(locator: Locator) {
   return locator.evaluate((element) => {
     const style = getComputedStyle(element);
     return {
+      drawn: style.outlineStyle !== "none",
       width: Number.parseFloat(style.outlineWidth) || 0,
       style: style.outlineStyle,
       color: style.outlineColor,
@@ -199,12 +207,12 @@ test.describe("M3-INT — the shared state layer", () => {
     await expectHoverRepaints(page, button);
 
     // At rest there is no ring — otherwise "focus draws one" proves nothing.
-    expect((await focusRing(button)).width).toBe(0);
+    expect((await focusRing(button)).drawn).toBe(false);
 
     await button.focus();
     const ring = await focusRing(button);
+    expect(ring.drawn).toBe(true);
     expect(ring.width).toBeGreaterThanOrEqual(2);
-    expect(ring.style).not.toBe("none");
     expect(ring.color).not.toBe("rgba(0, 0, 0, 0)");
   });
 
