@@ -317,6 +317,17 @@ export interface MeasurementTrendProps {
    * {@link niceDomain}.
    */
   readonly wholeNumbers?: boolean;
+  /**
+   * What the live readout says when NOTHING is selected.
+   *
+   * `ChartFrame` reserves the readout's line either way, so the page does not
+   * shift when a reading is stepped to. A reserved BLANK line is a worse resting
+   * state than a sentence: the latest reading is the one the surface's own
+   * headline states, so naming it means the chart and the card beside it can be
+   * read against each other without touching either. Omit it and the line rests
+   * empty, which is right for a chart whose caption already states the value.
+   */
+  readonly restingReading?: string;
   readonly height?: number;
   readonly "data-testid"?: string;
 }
@@ -358,6 +369,7 @@ export function MeasurementTrend({
   seriesLabel = "Recorded readings",
   tone = "series",
   wholeNumbers = false,
+  restingReading,
   height = CHART_HEIGHT,
   "data-testid": testId,
 }: MeasurementTrendProps) {
@@ -471,7 +483,9 @@ export function MeasurementTrend({
       caption={caption}
       height={height}
       data-testid={testId}
-      readout={reading}
+      // Nothing stepped to: the resting sentence, when the caller gave one.
+      readout={reading === "" ? (restingReading ?? "") : reading}
+      status={tone === "warning" ? "warning" : undefined}
       legend={
         <>
           <ChartKeyItem color={seriesColor}>{seriesLabel}</ChartKeyItem>

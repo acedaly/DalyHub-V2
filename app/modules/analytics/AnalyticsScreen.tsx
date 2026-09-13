@@ -669,6 +669,16 @@ function OverduePanel({ data }: { readonly data: AnalyticsPageData }) {
           tone="warning"
           seriesLabel="Overdue at each close"
           /*
+           * The readout's resting sentence names the LATEST reading, which is
+           * the figure the Overdue card above states — so the card and the
+           * chart can be read against each other without touching either, and
+           * a disagreement between them is visible rather than inferred. It is
+           * also what the chart this replaced said with nothing selected.
+           */
+          restingReading={`${latest} overdue at the close of ${
+            labels.get(points[points.length - 1]!.key)?.label ?? ""
+          }`}
+          /*
            * The axis is built from the POINTS, so on a bounded series it names
            * the readings actually drawn rather than the window's own ends. The
            * `overdueMoments` note says how many readings there are; the axis

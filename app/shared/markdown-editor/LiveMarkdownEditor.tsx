@@ -681,7 +681,11 @@ export function LiveMarkdownEditor({
                 className={buttonClassName({
                   variant: "subtle",
                   size: "sm",
-                  className: "dh-md-editor__mode-toggle",
+                  // The same unconditional touch floor the formatting row takes
+                  // — see `EditorToolbar`'s `toolbarButtonClassName`. This
+                  // control sits on the same strip and had the same 44px.
+                  className:
+                    "dh-md-editor__mode-toggle min-h-[var(--app-touch-target-min)]",
                 })}
                 aria-pressed={mode === "read"}
                 onClick={toggleMode}

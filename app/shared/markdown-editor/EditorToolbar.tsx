@@ -141,14 +141,25 @@ export interface EditorToolbarProps {
  * as a HOOK (`editor-geometry.spec.ts` and the toolbar E2E both address it) and
  * carries no paint.
  *
- * The row is a horizontal scroller, so the two layout facts upstream has no
- * opinion about are stated here: the control never shrinks, and it is a scroll
- * snap point.
+ * Three things upstream has no opinion about are stated here.
+ *
+ * The row is a horizontal scroller, so the control never shrinks and it is a
+ * scroll snap point.
+ *
+ * And the TOUCH FLOOR is unconditional rather than `(pointer: coarse)` only.
+ * The shared icon button takes `--dh-control-height`, which is 36px on a fine
+ * pointer and 32px inside a compact density region — and a Note record is one.
+ * MEASURED, that made every formatting control 32px where the CSS this replaced
+ * held 44px at every pointer, deliberately: "an earlier draft shrank it to 36px
+ * on fine pointers for compactness; that traded an accessibility contract for a
+ * visual one, which is the wrong way round." That decision is the product's and
+ * it survives the change of paint, so it is restated on the control rather than
+ * inherited from a density preset that does not know what this row is.
  */
 function toolbarButtonClassName(pressed?: boolean, extra?: string): string {
   return iconButtonClassName({
     pressed,
-    className: `dh-md-toolbar__button shrink-0 snap-start${extra ? ` ${extra}` : ""}`,
+    className: `dh-md-toolbar__button shrink-0 snap-start min-h-[var(--app-touch-target-min)] min-w-[var(--app-touch-target-min)]${extra ? ` ${extra}` : ""}`,
   });
 }
 
