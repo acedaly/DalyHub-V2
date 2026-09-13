@@ -1,4 +1,4 @@
-import type { Meeting, MeetingStatus } from "~/kernel/meetings";
+import type { Meeting, MeetingMode, MeetingStatus } from "~/kernel/meetings";
 import { partsInTimeZone } from "~/shared/datetime";
 
 /**
@@ -248,4 +248,98 @@ export function meetingModeLabel(mode: string | null): string | null {
     default:
       return null;
   }
+}
+
+/**
+ * UNTITLED-13 — what a COLLECTION ROW needs, and nothing else.
+ *
+ * ── The defect this closes ──────────────────────────────────────────────────
+ *
+ * Every `/meetings/*` loader serialised each meeting with `serializeMeeting`,
+ * which spreads the whole kernel record. That includes `agendaMarkdown`,
+ * `notesMarkdown` and the full `items` array — so a page of thirty meetings
+ * shipped thirty complete notebooks to the browser in order to draw thirty
+ * one-line rows, and a meeting whose notes run to a few thousand words shipped
+ * those too. AGENTS.md §16 is explicit ("ship what the view needs"); the row
+ * had simply inherited the record's projection because both existed before
+ * either was measured.
+ *
+ * ── And what it BUYS ────────────────────────────────────────────────────────
+ *
+ * Trimming the payload is not the interesting half. §7 of the brief asks for
+ * upcoming and past meetings to read differently, and the facts that make a
+ * past meeting worth opening — what was decided, what came out of it, what
+ * someone now has to do — were in that over-fetched `items` array all along,
+ * unread. The row projection COUNTS them server-side, so a past row can say
+ * "3 decisions · 2 actions · Notes" from data the page was already paying for,
+ * and the notebook itself stops travelling.
+ *
+ * Nothing is derived that is not stored: every count is a `meeting_items.kind`
+ * tally (migration 0021) and `hasNotes` is whether the notes column has any
+ * non-whitespace in it. A meeting with no outcomes recorded says nothing rather
+ * than "0 decisions", because an absence is drawn as an absence.
+ */
+export interface MeetingRowOutcomes {
+  readonly decisions: number;
+  readonly outcomes: number;
+  readonly actions: number;
+  /** Whether the owner wrote anything in the notes body. */
+  readonly hasNotes: boolean;
+}
+
+/** One meeting, as the collection draws it. */
+export interface SerializedMeetingRow {
+  readonly id: string;
+  readonly title: string;
+  readonly startsAt: string;
+  readonly endsAt: string | null;
+  readonly timezone: string;
+  readonly location: string | null;
+  readonly mode: MeetingMode | null;
+  readonly meetingUrl: string | null;
+  readonly status: MeetingStatus;
+  readonly archivedAt: string | null;
+  readonly heldAt: string | null;
+  readonly updatedAt: string;
+  /** How much of the agenda exists, for an UPCOMING row's readiness. */
+  readonly agendaItems: number;
+  readonly hasAgendaBody: boolean;
+  /** What came out of it, for a PAST row. */
+  readonly outcomes: MeetingRowOutcomes;
+}
+
+export function serializeMeetingRow(m: Meeting): SerializedMeetingRow {
+  let agendaItems = 0;
+  let decisions = 0;
+  let outcomes = 0;
+  let actions = 0;
+  for (const item of m.items) {
+    if (item.kind === "agenda") agendaItems += 1;
+    else if (item.kind === "decision") decisions += 1;
+    else if (item.kind === "outcome") outcomes += 1;
+    else if (item.kind === "action") actions += 1;
+  }
+
+  return {
+    id: m.id,
+    title: m.title,
+    startsAt: m.startsAt.toISOString(),
+    endsAt: m.endsAt?.toISOString() ?? null,
+    timezone: m.timezone,
+    location: m.location,
+    mode: m.mode,
+    meetingUrl: m.meetingUrl,
+    status: m.status,
+    archivedAt: m.archivedAt?.toISOString() ?? null,
+    heldAt: m.heldAt?.toISOString() ?? null,
+    updatedAt: m.updatedAt.toISOString(),
+    agendaItems,
+    hasAgendaBody: m.agendaMarkdown.trim().length > 0,
+    outcomes: {
+      decisions,
+      outcomes,
+      actions,
+      hasNotes: m.notesMarkdown.trim().length > 0,
+    },
+  };
 }
