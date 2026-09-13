@@ -628,6 +628,53 @@ December is better than another year of half-attention.`,
     notes: "",
   },
   {
+    /*
+     * UNTITLED-14 §Q — the MESSY meeting, which is the state that has to look
+     * good.
+     *
+     * "Do not review an empty fixture." Five agenda items, five attendees, real
+     * notes, three decisions, two outcomes and four actions, on a meeting that
+     * has actually been held. This is the record the workspace is judged on:
+     * every band populated, on one screen, at every reviewed width.
+     */
+    key: "loaded",
+    day: -2,
+    hour: 9,
+    minutes: 90,
+    title: "Whitfield stage two — programme and budget review",
+    mode: "in_person",
+    location: "Site office, Whitfield",
+    status: "completed",
+    held: true,
+    attendees: ["marcus", "mira", "aroha", "priya", "dev"],
+    agenda:
+      "Ninety minutes, and the budget half is the part we keep running out of time for — so it goes first.\n\nBring the revised programme and the two quotes.",
+    items: [
+      "Budget assumptions for stage two",
+      "Recruitment timeline and the apprentice intake",
+      "Fire season readiness on the northern boundary",
+      "Revised programme — the eleven-week lead time",
+      "Anything blocking the slab sign-off",
+    ],
+    decisions: [
+      "Use the October intake for the apprentice pilot rather than waiting for February",
+      "Two-batch timber order stands; batch two dates to be confirmed in writing",
+      "Stage two budget re-baselined against the revised programme, not the original",
+    ],
+    outcomes: [
+      "Finance to provide revised numbers against the re-baselined programme",
+      "Northern boundary work brought forward ahead of the fire season",
+    ],
+    actions: [
+      "Send the revised stage two draft to Finance",
+      "Confirm the batch-two timber dates in writing",
+      "Book the apprentice intake induction for October",
+      "Walk the northern boundary with the CFA contact",
+    ],
+    notes:
+      "Longest part of the conversation was the budget, and it was the right thing to spend it on. The original baseline was set against a programme nobody has believed in since July, so every variance report since has been measuring against fiction.\n\nMarcus made the case for re-baselining and nobody argued. Mira's point about the apprentice intake is the one to watch — October is tight but February puts the pilot a full season behind, and the whole reason for the pilot is the season.\n\nFire season readiness came up last and got about four minutes, which is not enough. Carried to the next one.",
+  },
+  {
     key: "today-2",
     day: 0,
     hour: 13,

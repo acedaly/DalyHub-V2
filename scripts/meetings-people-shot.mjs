@@ -52,6 +52,9 @@ const browser = await chromium.launch(executablePath ? { executablePath } : {});
 const PAST = "mp13-meeting-retro-2";
 const UPCOMING = "mp13-meeting-next-1";
 const CROWDED = "mp13-meeting-today-2";
+/** §Q — the MESSY meeting: five agenda items, real notes, three decisions, two
+ *  outcomes, four actions and five attendees. The state that has to look good. */
+const LOADED = "mp13-meeting-loaded";
 const PERSON = "mp13-person-priya";
 const PERSON_LONG = "mp13-person-long";
 
@@ -90,14 +93,11 @@ const SURFACES = [
     widths: [1440, 1024, 393, 320],
   },
   {
-    slug: "meeting-details",
-    path: `/meeting/${UPCOMING}?tab=details`,
-    widths: [1440, 393, 320],
-  },
-  {
-    slug: "meeting-follow-up",
-    path: `/meeting/${PAST}?tab=follow-up`,
-    widths: [1440, 393],
+    // UNTITLED-14 §Q — the loaded workspace, at every reviewed width. The
+    // Details and Follow-up tabs are gone; both are bands of this one screen.
+    slug: "meeting-loaded",
+    path: `/meeting/${LOADED}`,
+    widths: [1920, 1440, 1280, 1024, 820, 768, 430, 393, 320],
   },
   {
     slug: "people",
@@ -262,7 +262,7 @@ for (const surface of SURFACES) {
         overflows: docWidth > viewport + 1,
         scrollWidth: docWidth,
         // The writing measure inside a Meeting's notebook.
-        notebook: pick(".dh-meeting-notebook"),
+        notebook: pick(".dh-meeting-workspace__main"),
         editor: pick(".cm-editor, .dh-md-editor textarea"),
         // The three smallest interactive boxes, which is where a target floor
         // breaks first.

@@ -41,27 +41,18 @@
  * to it on close (the DrawerProvider captures it).
  */
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useRevalidator } from "react-router";
 
 import { useDrawer } from "~/shared/drawer";
-import { EmptyState } from "~/shared/empty-state";
-import { EntityIcon } from "~/shared/entity";
 import { OverflowMenu } from "~/shared/overflow-menu";
-import { Badge, Button, Input } from "~/shared/ui";
-import { SectionHeading } from "~/shared/ui/untitled/overrides/section-heading";
+import { Button, Input } from "~/shared/ui";
 import type { SerializedTaskView } from "~/shared/task-record/task-view";
 
 import type { MeetingItemKind } from "~/kernel/meetings";
 import { MeetingFollowUpForm } from "./MeetingFollowUpForm";
 import type { SerializedMeeting } from "./meeting-view";
-import {
-  allFollowUpsComplete,
-  groupFollowUps,
-  hasNoFollowUps,
-  meetingItemKindLabel,
-  type FollowUpTaskEntry,
-} from "./follow-up-view";
+import { meetingItemKindLabel, type FollowUpTaskEntry } from "./follow-up-view";
 
 type SerializedMeetingItem = SerializedMeeting["items"][number];
 
@@ -374,148 +365,6 @@ function AddItemForm({
         Add
       </Button>
     </form>
-  );
-}
-
-interface FollowUpTabProps {
-  readonly items: readonly SerializedMeetingItem[];
-  readonly followUps: readonly FollowUpTaskEntry[];
-  readonly readOnly: boolean;
-  readonly onConvert: (itemId: string) => void;
-  readonly onOpenTask: (taskId: string) => void;
-  readonly onAddFollowUp: () => void;
-}
-
-/**
- * The Follow-up tab: grouped canonical follow-up Tasks + unconverted items.
- *
- * §16 — every Task here is a DalyHub Task and is opened in the shared Task
- * drawer; nothing in this file draws a task card, a task status or a task
- * action of its own. The grouping is the canonical Task display state
- * (`groupFollowUps`), not a Meetings-local one.
- */
-export function MeetingFollowUpTab({
-  items,
-  followUps,
-  readOnly,
-  onConvert,
-  onOpenTask,
-  onAddFollowUp,
-}: FollowUpTabProps) {
-  const groups = useMemo(() => groupFollowUps(followUps), [followUps]);
-  const liveTasks = useMemo(() => liveTaskByItem(followUps), [followUps]);
-  const unconvertedActions = items.filter(
-    (item) => item.kind === "action" && !liveTasks.has(item.id),
-  );
-  const noneYet = hasNoFollowUps(followUps);
-  const allDone = allFollowUpsComplete(followUps);
-
-  return (
-    <section className="dh-record-section flex min-w-0 flex-col gap-6">
-      <div className="dh-follow-up-group__heading flex flex-wrap items-center justify-between gap-3">
-        <h2 className="m-0 text-md font-semibold text-primary">Follow-up</h2>
-        {!readOnly ? (
-          <Button variant="primary" size="sm" onClick={onAddFollowUp}>
-            Add follow-up task
-          </Button>
-        ) : null}
-      </div>
-
-      {noneYet ? (
-        <EmptyState
-          icon={<EntityIcon type="task" />}
-          title="No follow-up tasks yet"
-          description="Add an action item or follow-up task when this meeting creates work."
-        />
-      ) : allDone ? (
-        <p className="dh-follow-up-empty m-0 text-sm text-tertiary">
-          Everything from this meeting is complete.
-        </p>
-      ) : null}
-
-      {!noneYet
-        ? groups.map((group) => (
-            <div
-              key={group.key}
-              className="dh-follow-up-group flex min-w-0 flex-col gap-2"
-            >
-              {/*
-                UNTITLED-13 — the count is a BADGE BESIDE the heading, and it
-                names its noun.
-                
-                It used to be inside the heading as "Open (1)", so the heading's
-                accessible name carried a parenthesised digit. The badge sits
-                outside now, exactly as the Meetings collection's day heading
-                does, and for the same reason: a bare figure welded onto a label
-                is a worse heading than a label, and a badge that does not say
-                what it counts is a worse badge than one that does.
-              */}
-              <div className="dh-follow-up-group__heading flex flex-wrap items-center gap-2">
-                <SectionHeading level={3} title={group.label} />
-                <Badge tone="neutral" variant="outline">
-                  {group.entries.length === 1
-                    ? "1 task"
-                    : `${group.entries.length} tasks`}
-                </Badge>
-              </div>
-              {group.entries.length === 0 ? (
-                <p className="dh-follow-up-empty m-0 text-sm text-tertiary">
-                  {group.emptyHint}
-                </p>
-              ) : (
-                /*
-                 * UNTITLED-13 — the divided list, not a stack of stadium-radius
-                 * outlined boxes. `.dh-follow-up-row` drew a `--dh-radius-pill`
-                 * border around every task title, which is the geometry the
-                 * product reserves for a CONTROL; these are rows.
-                 */
-                <ul className="dh-follow-up-list m-0 list-none overflow-hidden rounded-xl bg-primary p-0 shadow-xs ring-1 ring-secondary">
-                  {group.entries.map((entry) => (
-                    <li
-                      key={entry.task.id}
-                      className="dh-follow-up-row flex items-center gap-3 border-b border-secondary px-4 py-3 last:border-b-0 hover:bg-secondary"
-                    >
-                      <button
-                        type="button"
-                        className="dh-follow-up-row__title min-w-0 flex-1 cursor-pointer border-0 bg-transparent p-0 text-left text-sm font-medium break-words text-primary underline-offset-2 outline-focus-ring hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
-                        onClick={() => onOpenTask(entry.task.id)}
-                        aria-label={`Open task: ${entry.task.title}`}
-                      >
-                        {entry.task.title}
-                      </button>
-                      <span className="dh-follow-up-row__state shrink-0 text-xs whitespace-nowrap text-tertiary">
-                        {group.label}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          ))
-        : null}
-
-      <div className="dh-follow-up-group flex min-w-0 flex-col gap-2">
-        <SectionHeading level={3} title="Unconverted action items" />
-        {unconvertedActions.length === 0 ? (
-          <p className="dh-follow-up-empty m-0 text-sm text-tertiary">
-            No explicit action items are waiting to become tasks.
-          </p>
-        ) : (
-          <ul className="dh-meeting-items m-0 flex list-none flex-col p-0">
-            {unconvertedActions.map((item) => (
-              <MeetingItemRow
-                key={item.id}
-                item={item}
-                convertedTask={null}
-                readOnly={readOnly}
-                onConvert={onConvert}
-                onOpenTask={onOpenTask}
-              />
-            ))}
-          </ul>
-        )}
-      </div>
-    </section>
   );
 }
 

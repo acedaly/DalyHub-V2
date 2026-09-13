@@ -11,6 +11,7 @@
 
 import {
   taskDisplayState,
+  type SerializedTaskListItem,
   type SerializedTaskView,
 } from "~/shared/task-record/task-view";
 import type { MeetingItemKind } from "~/kernel/meetings";
@@ -144,4 +145,42 @@ export function resolveItemConversions(
       taskStateLabel: task ? taskDisplayState(task).label : null,
     };
   });
+}
+
+/**
+ * UNTITLED-14 — one follow-up Task, in the shape the SHARED row reads.
+ *
+ * §K of the redesign brief: "Actions that are Tasks MUST use DalyHub's shared
+ * Task system. Do not create another task UI." The Follow-up tab drew its own —
+ * a title button and a state word — so a Task on a Meeting had no completion
+ * control, no due date, no priority and no overflow, and looked nothing like the
+ * same Task on `/tasks`, on Today or inside its Project.
+ *
+ * The only structural gap between the Meeting loader's `SerializedTaskView` and
+ * the row's `SerializedTaskListItem` is the parent: the view carries the three
+ * spine relations separately, the list item carries the ONE that parents the
+ * Task. The spine is Area → Goal → Project → Task, so a Task's structural parent
+ * is its Project where it has one and its Area otherwise — a Goal never parents a
+ * Task directly (AGENTS.md §4). Nothing else is derived, renamed or invented.
+ */
+export function toFollowUpListItem(
+  task: SerializedTaskView,
+): SerializedTaskListItem {
+  return {
+    id: task.id,
+    title: task.title,
+    createdAt: task.createdAt,
+    updatedAt: task.updatedAt,
+    completedAt: task.completedAt,
+    status: task.status,
+    priority: task.priority,
+    dueDate: task.dueDate,
+    scheduledDate: task.scheduledDate,
+    timeSector: task.timeSector,
+    commitmentState: task.commitmentState,
+    delegation: task.delegation,
+    recurrence: task.recurrence,
+    parent: task.project ?? task.area,
+    waiting: task.waiting,
+  };
 }

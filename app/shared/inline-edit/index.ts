@@ -59,3 +59,5 @@ export type {
   InlineDateFieldProps,
   InlineDateShortcut,
 } from "./InlineDateField";
+export { InlineAddRow } from "./InlineAddRow";
+export type { InlineAddRowProps } from "./InlineAddRow";

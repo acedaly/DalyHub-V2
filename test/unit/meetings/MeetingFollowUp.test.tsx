@@ -3,11 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { SerializedTaskView } from "~/shared/task-record/task-view";
 import type { MeetingItemKind } from "~/kernel/meetings";
-import {
-  MeetingFollowUpTab,
-  MeetingItemRow,
-} from "~/modules/meetings/MeetingFollowUp";
-import type { FollowUpTaskEntry } from "~/modules/meetings/follow-up-view";
+import { MeetingItemRow } from "~/modules/meetings/MeetingFollowUp";
 
 type Item = {
   id: string;
@@ -54,14 +50,6 @@ function task(
     ...over,
   };
 }
-
-const entry = (
-  t: SerializedTaskView,
-  itemId: string | null = null,
-): FollowUpTaskEntry => ({
-  task: t,
-  itemId,
-});
 
 describe("MeetingItemRow", () => {
   it("offers Create task for an unconverted item and calls onConvert", () => {
@@ -209,121 +197,5 @@ describe("MeetingItemRow", () => {
     for (const button of screen.getAllByRole("button")) {
       expect(button.querySelector("button, a")).toBeNull();
     }
-  });
-});
-
-describe("MeetingFollowUpTab", () => {
-  const items = [
-    item({ id: "i1", kind: "decision", bodyMarkdown: "Decision A" }),
-    item({ id: "i2", kind: "outcome", bodyMarkdown: "Outcome B" }),
-    item({ id: "i3", kind: "action", bodyMarkdown: "Action C" }),
-  ];
-
-  it("shows the calm empty state and lists only unconverted action items", () => {
-    const onAddFollowUp = vi.fn();
-    render(
-      <MeetingFollowUpTab
-        items={items}
-        followUps={[]}
-        readOnly={false}
-        onConvert={vi.fn()}
-        onOpenTask={vi.fn()}
-        onAddFollowUp={onAddFollowUp}
-      />,
-    );
-    expect(screen.getByText("No follow-up tasks yet")).toBeInTheDocument();
-    expect(screen.queryByText("Decision A")).toBeNull();
-    expect(screen.queryByText("Outcome B")).toBeNull();
-    expect(screen.getByText("Action C")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Add follow-up task" }));
-    expect(onAddFollowUp).toHaveBeenCalled();
-  });
-
-  it("groups follow-up tasks by canonical state with counts and Open controls", () => {
-    const onOpenTask = vi.fn();
-    render(
-      <MeetingFollowUpTab
-        items={items}
-        followUps={[
-          entry(
-            task({ id: "t1", title: "Open one", status: "in_progress" }),
-            "i1",
-          ),
-          entry(
-            task({ id: "t2", title: "Waiting one", status: "on_hold" }),
-            "i2",
-          ),
-          entry(
-            task({
-              id: "t3",
-              title: "Done one",
-              completedAt: "2026-07-27T00:00:00.000Z",
-            }),
-          ),
-        ]}
-        readOnly={false}
-        onConvert={vi.fn()}
-        onOpenTask={onOpenTask}
-        onAddFollowUp={vi.fn()}
-      />,
-    );
-    /*
-     * UNTITLED-13 — the count is a badge beside the heading, so the heading is
-     * the state and the badge names its noun. "Open (1)" put a parenthesised
-     * digit inside a heading's accessible name; "Open" + "1 task" is two facts
-     * a screen reader can tell apart.
-     */
-    expect(screen.getByRole("heading", { name: "Open" })).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "Waiting or delegated" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "Completed" }),
-    ).toBeInTheDocument();
-    expect(screen.getAllByText("1 task")).toHaveLength(3);
-
-    fireEvent.click(
-      screen.getByRole("button", { name: "Open task: Open one" }),
-    );
-    expect(onOpenTask).toHaveBeenCalledWith("t1");
-  });
-
-  it("announces completion when every follow-up is done", () => {
-    render(
-      <MeetingFollowUpTab
-        items={[]}
-        followUps={[
-          entry(task({ id: "t1", completedAt: "2026-07-27T00:00:00.000Z" })),
-        ]}
-        readOnly={false}
-        onConvert={vi.fn()}
-        onOpenTask={vi.fn()}
-        onAddFollowUp={vi.fn()}
-      />,
-    );
-    expect(
-      screen.getByText("Everything from this meeting is complete."),
-    ).toBeInTheDocument();
-  });
-
-  it("hides creation controls when read-only", () => {
-    render(
-      <MeetingFollowUpTab
-        items={items}
-        followUps={[]}
-        readOnly
-        onConvert={vi.fn()}
-        onOpenTask={vi.fn()}
-        onAddFollowUp={vi.fn()}
-      />,
-    );
-    expect(
-      screen.queryByRole("button", { name: "Add follow-up task" }),
-    ).toBeNull();
-    expect(screen.queryByRole("button", { name: "Create task" })).toBeNull();
-    // Explicit action items still render, read-only; decisions/outcomes are not a
-    // global conversion backlog.
-    expect(screen.getByText("Action C")).toBeInTheDocument();
-    expect(screen.queryByText("Decision A")).toBeNull();
   });
 });

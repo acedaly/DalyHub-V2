@@ -33,6 +33,16 @@ import { d1Execute } from "./d1";
  * Every record it creates is title-prefixed and cleaned up after each test.
  */
 
+/*
+ * UNTITLED-14 — Notebook, Details and Follow-up are ONE tab now.
+ *
+ * The Meeting record was three tabs and five ways to add something, so running a
+ * meeting meant reading the agenda on one, checking who was in the room on a
+ * second and seeing what anyone agreed to do on a third. They are bands of one
+ * workspace, and the tab that holds them is "Meeting". Every journey below is
+ * unchanged; it just stops changing tabs to do it.
+ */
+
 const PERSON_PREFIX = "Meet03 e2e ";
 const WS = "local-dev-workspace";
 
@@ -87,7 +97,7 @@ async function createMeeting(page: Page, title: string): Promise<string> {
 }
 
 async function addAttendee(page: Page, personName: string): Promise<void> {
-  await page.getByRole("tab", { name: "Details" }).click();
+  await page.getByRole("tab", { name: "Meeting" }).click();
   const attendee = page.getByRole("combobox", { name: "Add attendees" });
   await attendee.click();
   await attendee.fill(personName);

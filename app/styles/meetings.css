@@ -56,47 +56,57 @@
  * each: five outlined boxes down a page is the record-editor look §26 is
  * getting away from.
  */
-.dh-meeting-notebook {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-8);
-  inline-size: 100%;
+/*
+ * UNTITLED-14 — the WORK column carries the writing measure; the rail does not.
+ *
+ * Four of the five bands are writing, and a workspace whose bands disagree
+ * about where the text starts is not a workspace. The measure lives on the main
+ * column rather than on each band, so the agenda list, the notes and the
+ * decisions all begin on the same x.
+ *
+ * It is a `max-inline-size`, not a width: below `xl` the column is the whole
+ * page and the measure is what stops a 1440px paragraph. The rail sits outside
+ * it deliberately — context is reference, not reading, and a 20rem card has no
+ * use for a 45rem measure.
+ */
+.dh-meeting-workspace__main {
   max-inline-size: var(--app-width-editor);
-  min-inline-size: 0;
 }
 
 /*
- * The editor inside a notebook section fills the section, which already carries
- * the measure — otherwise the shared writing column would be applied twice and
- * the text would step in by a second margin at every section.
+ * UNTITLED-14 — the editors inside the workspace fill their band.
+ *
+ * The band already carries the writing measure, so the shared editor must not
+ * apply a second one — otherwise the text steps in by another margin at every
+ * band.
  */
-.dh-meeting-notebook .dh-md-editor:not([data-density="compact"]) > * {
+.dh-meeting-workspace .dh-md-editor:not([data-density="compact"]) > * {
   max-inline-size: none;
 }
 
-/* The two Markdown bodies have their own visible field label from
- * `LiveMarkdownEditor`'s group name; inside a section that is already headed
- * "Agenda", a second "Agenda" above the text is the same word twice. */
-.dh-meeting-notebook__section .dh-md-editor__bar {
+/* The two Markdown bodies carry their own visible field label from
+ * `LiveMarkdownEditor`'s group name; inside a band already headed "Agenda", a
+ * second "Agenda" above the text is the same word twice. */
+.dh-meeting-band .dh-md-editor__bar {
   padding-inline: 0;
 }
 
 /*
- * §44 — a notebook section is not a half-screen box.
+ * §44/§L — the writing surface gets the room, and stops short of the screen.
  *
  * The shared editor opens at `max(40dvh, 16rem)` because a Note's writing
- * surface IS its page and should look like somewhere to write. A meeting's
- * notebook has FIVE regions on one page, and five 400px minimums put the
- * Actions list three screens below the title on a meeting whose agenda is three
- * lines long. These editors size to their content from a much lower floor —
- * still tall enough to write a paragraph into, never tall enough to bury the
- * section under it.
+ * surface IS its page. A meeting workspace has five bands, and five 400px
+ * minimums put the Actions list three screens below the title. These size to
+ * their content from a lower floor — tall enough to write a paragraph into,
+ * never tall enough to bury the band under it. §L asks for "enough space to
+ * actually be useful during a meeting", which is what the `max` is for: a
+ * meeting's notes grow to 60vh before they scroll.
  */
-.dh-meeting-notebook
+.dh-meeting-workspace
   .dh-md-editor:not([data-density="compact"])
   .dh-md-editor__cm
   .cm-editor,
-.dh-meeting-notebook .dh-md-editor .dh-md-editor__fallback {
+.dh-meeting-workspace .dh-md-editor .dh-md-editor__fallback {
   min-block-size: var(--app-editor-min-height-compact);
   max-block-size: 60vh;
 }

@@ -14,6 +14,16 @@
  * scraped out of the DOM.
  */
 
+/*
+ * UNTITLED-14 — Notebook, Details and Follow-up are ONE tab now.
+ *
+ * The Meeting record was three tabs and five ways to add something, so running a
+ * meeting meant reading the agenda on one, checking who was in the room on a
+ * second and seeing what anyone agreed to do on a third. They are bands of one
+ * workspace, and the tab that holds them is "Meeting". Every journey below is
+ * unchanged; it just stops changing tabs to do it.
+ */
+
 import { expect, test, type Page } from "@playwright/test";
 
 import { comboboxOption, gotoFixture } from "./helpers";
@@ -48,7 +58,7 @@ async function createMeeting(page: Page, title: string): Promise<string> {
 }
 
 async function addAction(page: Page, body: string): Promise<void> {
-  await page.getByRole("tab", { name: "Notebook" }).click();
+  await page.getByRole("tab", { name: "Meeting" }).click();
   await page.getByRole("textbox", { name: "New action item" }).fill(body);
   await page.getByRole("button", { name: "Add action item" }).click();
   await expect(
@@ -62,7 +72,7 @@ async function convert(
   body: string,
   parent = "Website relaunch",
 ): Promise<void> {
-  await page.getByRole("tab", { name: "Notebook" }).click();
+  await page.getByRole("tab", { name: "Meeting" }).click();
   const row = page.locator(".dh-meeting-item", { hasText: body });
   await row.getByRole("button", { name: "Create task" }).click();
   const dialog = page.getByRole("dialog", { name: "New follow-up task" });
@@ -126,7 +136,7 @@ test("a double-submitted conversion creates exactly one Task", async ({
   await gotoFixture(page, `/meeting/${meetingId}?tab=follow-up`);
   await expect(page.getByRole("heading", { name: /Open \(1\)/ })).toBeVisible();
 
-  await page.getByRole("tab", { name: "Notebook" }).click();
+  await page.getByRole("tab", { name: "Meeting" }).click();
   const row = page.locator(".dh-meeting-item", { hasText: body });
   await expect(row.getByRole("button", { name: "Open task" })).toBeVisible();
   await expect(row.getByRole("button", { name: "Create task" })).toHaveCount(0);
@@ -208,7 +218,7 @@ test("a refused conversion leaves the item exactly as it was", async ({
   await expect(page.getByRole("heading", { name: /Open \(1\)/ })).toHaveCount(
     0,
   );
-  await page.getByRole("tab", { name: "Notebook" }).click();
+  await page.getByRole("tab", { name: "Meeting" }).click();
   await expect(
     page
       .locator(".dh-meeting-item", { hasText: body })

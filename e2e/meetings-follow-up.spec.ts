@@ -22,6 +22,16 @@ import {
  * "Meetings e2e " title prefix, cleaned up after each test.
  */
 
+/*
+ * UNTITLED-14 — Notebook, Details and Follow-up are ONE tab now.
+ *
+ * The Meeting record was three tabs and five ways to add something, so running a
+ * meeting meant reading the agenda on one, checking who was in the room on a
+ * second and seeing what anyone agreed to do on a third. They are bands of one
+ * workspace, and the tab that holds them is "Meeting". Every journey below is
+ * unchanged; it just stops changing tabs to do it.
+ */
+
 const owned = new Set<string>();
 
 async function createMeeting(page: Page, title: string): Promise<string> {
@@ -43,7 +53,7 @@ async function addItem(
   kindLabel: string,
   body: string,
 ): Promise<void> {
-  await page.getByRole("tab", { name: "Notebook" }).click();
+  await page.getByRole("tab", { name: "Meeting" }).click();
   /*
    * UNTITLED-13 — the add form is progressive disclosure now.
    *
@@ -161,19 +171,22 @@ test("converts meeting items into linked Tasks and groups the follow-up work", a
   const title = uniqueMeetingTitle("journey");
   await createMeeting(page, title);
 
-  // Attendee (seeded person).
-  await page.getByRole("tab", { name: "Details" }).click();
+  // Attendee (seeded person). The picker is a disclosure inside the workspace's
+  // context rail: a searchable multi-select and a submit button are a fair
+  // amount of chrome for a card whose job is answering "who is in this
+  // meeting?", so it opens on request.
+  await page.getByRole("tab", { name: "Meeting" }).click();
+  await page.getByRole("group", { name: "Add attendees" }).click();
   const attendee = page.getByRole("combobox", { name: "Add attendees" });
   await attendee.click();
   await attendee.fill("Sarah Chen");
   await page.getByRole("option", { name: "Sarah Chen" }).click();
   await page.getByRole("button", { name: "Add selected" }).click();
-  // Scoped to the tab that was just used: UIX-04 §27 put the attendees on the
-  // record's context line as well, so an unscoped attendee link now matches
-  // twice. Adding one is a Details-tab act, and this asserts it landed there.
+  // Scoped to the workspace panel: UIX-04 §27 put the attendees on the record's
+  // context line as well, so an unscoped attendee link matches twice.
   await expect(
     page
-      .getByRole("tabpanel", { name: "Details" })
+      .getByRole("tabpanel", { name: "Meeting" })
       .getByRole("link", { name: /Sarah Chen/ }),
   ).toBeVisible();
 
@@ -203,7 +216,7 @@ test("converts meeting items into linked Tasks and groups the follow-up work", a
   }
 
   // Convert the agenda item, editing title + priority.
-  await page.getByRole("tab", { name: "Notebook" }).click();
+  await page.getByRole("tab", { name: "Meeting" }).click();
   await convertItem(page, "Agenda: confirm the budget", {
     title: "Confirm the FY budget",
     parent: "Website relaunch",
@@ -212,7 +225,7 @@ test("converts meeting items into linked Tasks and groups the follow-up work", a
   await closeDrawer(page);
 
   // The item now offers "Open task"; opening restores focus to that control.
-  await page.getByRole("tab", { name: "Notebook" }).click();
+  await page.getByRole("tab", { name: "Meeting" }).click();
   const openButton = page
     .locator(".dh-meeting-item", { hasText: "Agenda: confirm the budget" })
     .getByRole("button", { name: "Open task" });
@@ -224,19 +237,19 @@ test("converts meeting items into linked Tasks and groups the follow-up work", a
   await expect(openButton).toBeFocused();
 
   // Convert the decision and outcome too.
-  await page.getByRole("tab", { name: "Notebook" }).click();
+  await page.getByRole("tab", { name: "Meeting" }).click();
   await convertItem(page, "Decision: proceed with vendor A", {
     parent: "Website relaunch",
   });
   await closeDrawer(page);
-  await page.getByRole("tab", { name: "Notebook" }).click();
+  await page.getByRole("tab", { name: "Meeting" }).click();
   await convertItem(page, "Outcome: publish the recap", {
     parent: "Launch checklist",
   });
   await closeDrawer(page);
 
   // A direct follow-up (not tied to an item).
-  await page.getByRole("tab", { name: "Follow-up" }).click();
+  await page.getByRole("tab", { name: "Meeting" }).click();
   await page.getByRole("button", { name: "Add follow-up task" }).click();
   const directDialog = page.getByRole("dialog", { name: "New follow-up task" });
   await directDialog.getByLabel("Title").fill("Circulate meeting notes");
@@ -256,25 +269,29 @@ test("converts meeting items into linked Tasks and groups the follow-up work", a
   ]);
   await closeDrawer(page);
 
-  // The Follow-up tab groups the four Tasks under Open.
-  await page.getByRole("tab", { name: "Follow-up" }).click();
   /*
-   * UNTITLED-13 — the count is a badge beside the heading and names its noun.
-   * It used to be welded into the heading text as "Open (4)", so the heading's
-   * accessible name carried a parenthesised digit. Asserting both halves keeps
-   * the same guarantee: four tasks, grouped under Open.
+   * UNTITLED-14 — the four Tasks are in the SHARED Task list.
+   *
+   * §K: "Actions that are Tasks MUST use DalyHub's shared Task system. Do not
+   * create another task UI." The Follow-up tab was one — a title button and a
+   * state word, grouped Open / Waiting / Completed by a Meeting-local
+   * view-model — so the same Task had a completion control, a due date, a
+   * priority and an overflow menu everywhere in the product EXCEPT on the
+   * meeting that created it. The Actions band renders the identical `TaskRow`
+   * `/tasks`, Today and a Project record render, so this asserts the row a
+   * person can actually act on rather than a Meeting-only rendering of it.
    */
-  const openGroup = page
-    .locator(".dh-follow-up-group")
-    .filter({ has: page.getByRole("heading", { name: "Open", exact: true }) });
-  await expect(
-    openGroup.getByRole("heading", { name: "Open", exact: true }),
-  ).toBeVisible();
-  await expect(openGroup.getByText("4 tasks")).toBeVisible();
+  await page.getByRole("tab", { name: "Meeting" }).click();
+  const followUpTasks = page.getByRole("list", { name: "Follow-up tasks" });
+  await expect(followUpTasks).toBeVisible();
+  await expect(followUpTasks.getByRole("listitem")).toHaveCount(4);
+  // The shared row's own completion control — the thing the Meeting-local list
+  // could never offer.
+  await expect(followUpTasks.getByRole("checkbox").first()).toBeVisible();
 
   // Duplicate conversion is prevented: the converted agenda item shows Open
   // task, and its menu no longer offers a second conversion.
-  await page.getByRole("tab", { name: "Notebook" }).click();
+  await page.getByRole("tab", { name: "Meeting" }).click();
   await expect(openButton).toBeVisible();
   const convertedRow = page.locator(".dh-meeting-item", {
     hasText: "Agenda: confirm the budget",
@@ -311,7 +328,7 @@ test("an archived meeting is read-only but its Tasks stay navigable", async ({
   // agenda band at all rather than a permanently-empty editor shell.
   await addItem(page, "agenda item", "Agenda: pick the venue");
   await addItem(page, "decision", "Decision: keep the venue");
-  await page.getByRole("tab", { name: "Notebook" }).click();
+  await page.getByRole("tab", { name: "Meeting" }).click();
   await convertItem(page, "Decision: keep the venue", {
     parent: "Website relaunch",
   });
@@ -325,11 +342,11 @@ test("an archived meeting is read-only but its Tasks stay navigable", async ({
   ).toBeVisible();
 
   // Creation controls are gone; the linked Task is still openable.
-  await page.getByRole("tab", { name: "Follow-up" }).click();
+  await page.getByRole("tab", { name: "Meeting" }).click();
   await expect(
     page.getByRole("button", { name: "Add follow-up task" }),
   ).toHaveCount(0);
-  await page.getByRole("tab", { name: "Notebook" }).click();
+  await page.getByRole("tab", { name: "Meeting" }).click();
   const archivedRow = page.locator(".dh-meeting-item", {
     hasText: "Decision: keep the venue",
   });
@@ -364,7 +381,7 @@ test("browser Back/Forward and refresh preserve the tab and Drawer", async ({
   const title = uniqueMeetingTitle("history");
   const url = await createMeeting(page, title);
   await addItem(page, "decision", "Decision: schedule the review");
-  await page.getByRole("tab", { name: "Notebook" }).click();
+  await page.getByRole("tab", { name: "Meeting" }).click();
   await convertItem(page, "Decision: schedule the review", {
     parent: "Website relaunch",
   });
@@ -401,7 +418,7 @@ test("an item of the same kind can still be added after removing a non-last one"
 
   // Remove the FIRST of three — the sequence that used to leave the agenda kind
   // permanently un-addable.
-  await page.getByRole("tab", { name: "Notebook" }).click();
+  await page.getByRole("tab", { name: "Meeting" }).click();
   const removed = page.locator(".dh-meeting-item", {
     hasText: "Agenda: confirm the budget",
   });
@@ -420,7 +437,7 @@ test("an item of the same kind can still be added after removing a non-last one"
   // The survivors are untouched and the new item sorts last — after a reload, so
   // this is the persisted order and not an optimistic client render.
   await page.reload();
-  await page.getByRole("tab", { name: "Notebook" }).click();
+  await page.getByRole("tab", { name: "Meeting" }).click();
   await expect(
     page.locator(".dh-meeting-item", { hasText: "Agenda: " }),
   ).toHaveText([
@@ -436,7 +453,7 @@ for (const scheme of ["light", "dark"] as const) {
     const title = uniqueMeetingTitle(`axe-${scheme}`);
     await createMeeting(page, title);
     await addItem(page, "action item", "Action: axe check");
-    await page.getByRole("tab", { name: "Follow-up" }).click();
+    await page.getByRole("tab", { name: "Meeting" }).click();
     await expect(
       page.getByRole("button", { name: "Add follow-up task" }),
     ).toBeVisible();
@@ -456,9 +473,9 @@ for (const width of [390, 320]) {
       "action item",
       "Action: a deliberately long action line that must wrap without widening the page on a narrow phone viewport",
     );
-    await page.getByRole("tab", { name: "Follow-up" }).click();
+    await page.getByRole("tab", { name: "Meeting" }).click();
     await expectNoHorizontalOverflow(page);
-    await page.getByRole("tab", { name: "Notebook" }).click();
+    await page.getByRole("tab", { name: "Meeting" }).click();
     await expectNoHorizontalOverflow(page);
   });
 }
