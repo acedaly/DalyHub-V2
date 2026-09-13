@@ -37,9 +37,14 @@ describe("Diary type filter", () => {
       null,
       "/diary?cursor=abc&type=meeting",
     );
+    // UNTITLED-12 — `page`, not `true`. The options are navigation links whose
+    // target IS the current URL state, which is what `aria-current="page"`
+    // names; it is also what every other navigation control in the product
+    // carries, and what `overrides/link-tab-rail` keys its selected treatment
+    // on. `true` is the unqualified "current item in a set" and says less.
     expect(
       within(group).getByRole("link", { name: /Meeting/ }),
-    ).toHaveAttribute("aria-current", "true");
+    ).toHaveAttribute("aria-current", "page");
 
     const idea = within(group)
       .getByRole("link", { name: /Idea/ })

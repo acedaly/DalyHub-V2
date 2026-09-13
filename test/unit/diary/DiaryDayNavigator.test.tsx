@@ -1,5 +1,5 @@
 import { RouterProvider, createMemoryRouter, useLocation } from "react-router";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { DiaryDayNavigator } from "~/modules/diary/DiaryDayNavigator";
@@ -116,13 +116,46 @@ describe("Diary week strip", () => {
     );
   });
 
-  it("navigates to a picked date via the accessible picker", () => {
+  /*
+   * UNTITLED-12 — the picker is the genuine Untitled `Calendar` in a popover,
+   * where it was a native `<input type="date">` stretched invisibly over a 44px
+   * well. So this drives what a person actually does: press the trigger, and
+   * choose a day out of the month that opens.
+   *
+   * The press is a mouse SEQUENCE rather than a bare `click`, because React
+   * Aria's `usePress` is what opens the popover and it acts on the down/up pair.
+   * `@testing-library/user-event` would do this in one call and is deliberately
+   * not a dependency of this repository (see `AttachmentsSection.test.tsx` for
+   * the same decision); three `fireEvent`s cost less than a package.
+   */
+  function press(element: HTMLElement) {
+    fireEvent.mouseDown(element);
+    fireEvent.mouseUp(element);
+    fireEvent.click(element);
+  }
+
+  it("names the day it holds, and navigates to a date picked from the calendar", async () => {
     renderNav("2026-07-15", "2026-07-20", "/diary?date=2026-07-15");
-    fireEvent.change(
-      screen.getByLabelText(/Go to a date — showing Wednesday, 15 July 2026/),
-      { target: { value: "2026-07-02" } },
-    );
-    expect(search()).toContain("date=2026-07-02");
+
+    // The trigger states the day it currently holds, so a keyboard user
+    // reaching it knows where they are without reading the strip. That is the
+    // property the native input's label carried, and it survives the move.
+    const trigger = screen.getByRole("button", {
+      name: /Go to a date — showing Wednesday, 15 July 2026/,
+    });
+    press(trigger);
+
+    // React Aria opens on the month the value is in, and names each day cell
+    // with its full date in the CALENDAR's own locale format ("Thursday, July
+    // 2, 2026") rather than in the strip's ("Thursday, 2 July 2026"). Matched on
+    // the parts, so the assertion is about the day rather than about which of
+    // the two orderings the component happens to use.
+    const july2 = await screen.findByRole("button", {
+      name: /July 2, 2026/,
+    });
+    press(july2);
+
+    await waitFor(() => expect(search()).toContain("date=2026-07-02"));
   });
 
   it("drops an open panel when the day changes", () => {
