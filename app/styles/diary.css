@@ -1,18 +1,27 @@
 /*
- * DIARY-01 / DIARY-01B — the Diary day-timeline workspace (DS-01 tokens only).
+ * DIARY-01 / DIARY-01B — the Diary day-timeline workspace.
  *
  * Timeline-first: one coherent toolbar (Day/Timeline mode, a Day-mode date
- * navigator, a compact type filter, a single primary action) above a REAL visual
- * timeline — a continuous vertical rule with icon-based nodes, a fixed time gutter
- * and compact rows aligned to their occurred time. Entry details open in the shared
- * DS-10 Inspector (docked on desktop, a sheet on mobile), so the timeline stays in
- * context. Capture is launched on demand, never a permanent panel.
+ * navigator, a compact type filter, a single primary action) above the
+ * chronology. Entry details open in the shared DS-10 Inspector (docked on
+ * desktop, a sheet on mobile), so the chronology stays in context. Capture is
+ * launched on demand, never a permanent panel.
  *
- * Every value is a design token (no raw hex/px/duration); state is never colour-only
- * (the active filter/mode uses weight + surface + a marker; selection uses surface +
- * aria-current; backdated uses a labelled chip; type uses an icon + a label). Touch
- * targets meet the 44px minimum via the shared control tokens. Light and dark come
- * entirely from the token maps — this file hard-codes no colour and no theme.
+ * ── UNTITLED-12: what this file is now ──────────────────────────────────────
+ *
+ * It was 1,160 lines and it drew the whole module: a continuous 2px vertical
+ * rule down a node column, a 28px bordered ring around every entry's glyph, a
+ * rounded filled slab per day, a week strip over `--dh-color-accent`, a type
+ * filter over the M3 `md-state-layer` wash, and a native date input hidden at
+ * `opacity: 0` behind a 44px well.
+ *
+ * None of that is here. The chronology is `application/table`'s card anatomy
+ * with Untitled's activity-feed row grammar; the navigator, the type filter and
+ * the capture chips take Untitled's own control recipes; the picker is the
+ * genuine vendored `Calendar`. Each component's header records what it took and
+ * what it kept. What survives in this file is COMPOSITION — the reading measure
+ * the module is laid out to, the Inspector body's structure, and the small set
+ * of facts about Diary that are not a control's appearance.
  */
 
 /* -------------------------------------------------------------------------- */
@@ -21,16 +30,29 @@
 
 .dh-diary-toolbar {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--app-space-2);
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: var(--app-space-3);
   min-inline-size: 0;
-  max-inline-size: 100%;
-  padding: var(--app-space-3) var(--app-space-4);
-  border: var(--app-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface-subtle);
+}
+
+/*
+ * UNTITLED-12 — the WEEK STRIP sits over the chronology it navigates.
+ *
+ * It was full-bleed while `.dh-diary-timeline` capped itself at the reading
+ * measure, so on a 1440 screen the strip's month caption, its picker and its
+ * Today link were pushed to an edge roughly 700px right of the last entry —
+ * three controls about the days on screen, sitting nowhere near them, over an
+ * empty half-page. Sharing the measure is what makes the two read as one
+ * surface.
+ *
+ * The TYPE FILTER deliberately does NOT take the cap. It is a control row
+ * rather than prose (the same thing the search field and "Filter & sort" are on
+ * every other collection), it carries ten options, and capping it would turn a
+ * row that fits at a laptop width into one that always scrolls and always
+ * clips its last option.
+ */
+.dh-diary-toolbar > .dh-diary-week {
+  max-inline-size: 56rem;
 }
 
 /* UIQ-013 — Diary's own `.dh-diary-modes` underline tabs are retired: Day /
@@ -38,349 +60,57 @@
    (`segmented-filter.css`) in the pane header's view slot. */
 
 /* -------------------------------------------------------------------------- */
-/* Day navigator — the week strip (UIX-04 §18)                                */
+/* Day navigator and type filter (UIX-04 §18)                                 */
 /* -------------------------------------------------------------------------- */
 
 /*
- * Seven days, one glance, one click.
+ * UNTITLED-12 — both controls are drawn by their components now.
  *
- * The old navigator (prev pill / a date label / next pill / Today) is gone: it
- * answered "what day is selected?" and never "where am I in the week?", which is
- * the question a Diary is opened with. Everything here is a link, so the strip
- * is deep-linkable, needs no JavaScript and holds no state of its own.
- */
-.dh-diary-week {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--app-space-2) var(--app-space-4);
-  inline-size: 100%;
-  min-inline-size: 0;
-}
-
-.dh-diary-week__bar {
-  display: flex;
-  align-items: center;
-  gap: var(--app-space-1);
-  min-inline-size: 0;
-}
-
-.dh-diary-week__step {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  min-inline-size: var(--app-touch-target-min);
-  min-block-size: var(--app-touch-target-min);
-  border-radius: var(--dh-radius-pill);
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-metric-size);
-  line-height: 1;
-  text-decoration: none;
-}
-
-.dh-diary-week__step:hover {
-  background: var(--dh-color-bg-sunken);
-  color: var(--dh-color-text);
-}
-
-.dh-diary-week__days {
-  display: flex;
-  align-items: stretch;
-  gap: var(--app-space-1);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  min-inline-size: 0;
-  /* On a phone seven days still fit, but a large text setting can push them
-   * past the viewport — scroll the strip rather than the page (§55). */
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.dh-diary-week__days::-webkit-scrollbar {
-  display: none;
-}
-
-/*
- * One day: the weekday above the number, the way every date strip from a
- * calendar app to an airline booking writes it. The number is the larger of the
- * two because it is the thing being chosen.
- */
-.dh-diary-week__day {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--app-space-px);
-  min-inline-size: var(--app-touch-target-min);
-  min-block-size: var(--app-touch-target-min);
-  padding: var(--app-space-1) var(--app-space-2);
-  border-radius: var(--dh-radius-md);
-  color: var(--dh-color-text-muted);
-  text-decoration: none;
-}
-
-.dh-diary-week__weekday {
-  font-size: var(--dh-text-meta-size);
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.dh-diary-week__number {
-  font-size: var(--dh-text-section-title-size);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.1;
-}
-
-.dh-diary-week__day:hover {
-  background: var(--dh-color-bg-sunken);
-  color: var(--dh-color-text);
-}
-
-/*
- * TODAY, when it is not the day being viewed: a dot under the number.
+ * The WEEK STRIP (`~/modules/diary/DiaryDayNavigator.tsx`) takes Untitled's
+ * surface, hover and brand-solid roles for its day cells, the shared
+ * `IconButton` for its two step controls and for the picker's trigger, and
+ * `buttonClassName` for "Today". The picker itself is the genuine vendored
+ * `application/date-picker` `Calendar` in a React Aria popover, replacing a
+ * native `<input type="date">` stretched invisibly at `opacity: 0` across a 44px
+ * well — see that file's header for why the well existed and why it does not
+ * need to.
  *
- * Never colour alone — the day's accessible name says "(today)" — and never the
- * selected treatment, because "today" and "the day I am looking at" are two
- * different facts and a diary is used to look at days that are not today.
- */
-.dh-diary-week__day[data-today]::after {
-  content: "";
-  inline-size: var(--app-space-1);
-  block-size: var(--app-space-1);
-  border-radius: var(--dh-radius-pill);
-  background: var(--dh-color-accent);
-}
-
-/* The SELECTED day: the DalyHub accent, as §18 asks for by name. A filled
- * container, so it survives forced-colours and does not depend on hue. */
-.dh-diary-week__day[aria-current="date"] {
-  background: var(--dh-color-accent);
-  color: var(--dh-color-text-on-accent);
-}
-
-.dh-diary-week__day[aria-current="date"][data-today]::after {
-  background: var(--dh-color-text-on-accent);
-}
-
-@media (forced-colors: active) {
-  .dh-diary-week__day[aria-current="date"] {
-    outline: var(--app-border-width-thick) solid Highlight;
-  }
-}
-
-.dh-diary-week__end {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: var(--app-space-3);
-  flex: 0 0 auto;
-}
-
-.dh-diary-week__caption {
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-meta-size);
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-/*
- * The native picker, sized as a real 44px control but drawn as a small glyph —
- * a full date input beside a week strip would be the second date control §18
- * warns about, and the browser's own picker is the accessible, no-JavaScript,
- * phone-native way to leave the week.
- */
-.dh-diary-week__pickerwell {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  inline-size: var(--app-touch-target-min);
-  block-size: var(--app-touch-target-min);
-  border-radius: var(--dh-radius-control);
-  color: var(--dh-color-text-muted);
-}
-
-.dh-diary-week__pickerwell:hover {
-  background: var(--dh-color-bg-sunken);
-  color: var(--dh-color-text);
-}
-
-/* The real control, stretched invisibly over the well that draws the glyph. */
-.dh-diary-week__picker {
-  position: absolute;
-  inset: 0;
-  inline-size: 100%;
-  block-size: 100%;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  opacity: 0;
-  font: inherit;
-  cursor: pointer;
-}
-
-/* The ring belongs to the visible well, since the input itself is invisible. */
-.dh-diary-week__pickerwell:focus-within {
-  outline: var(--app-border-width-thick) solid var(--dh-color-accent);
-  outline-offset: 2px;
-}
-
-.dh-diary-week__today {
-  display: inline-flex;
-  align-items: center;
-  min-block-size: var(--app-touch-target-min);
-  padding-inline: var(--app-space-3);
-  border-radius: var(--dh-radius-pill);
-  color: var(--dh-color-accent);
-  font-size: var(--dh-text-meta-size);
-  font-weight: 500;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.dh-diary-week__today[aria-disabled="true"] {
-  color: var(--dh-color-text-muted);
-  opacity: var(--dh-state-disabled-content-opacity);
-  pointer-events: none;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Type filter                                                                */
-/* -------------------------------------------------------------------------- */
-
-.dh-diary-filter {
-  /* Claim a full toolbar row so the inner scroll container is width-capped and
-   * scrolls horizontally, instead of wrapping to a line that sizes to its chips
-   * (which would push the page wider than the viewport). */
-  flex: 1 1 100%;
-  min-inline-size: 0;
-  max-inline-size: 100%;
-}
-
-/* Scroll horizontally at narrow widths rather than wrapping into a pill block. */
-.dh-diary-filter__scroll {
-  display: flex;
-  gap: var(--app-space-1);
-  align-items: center;
-  overflow-x: auto;
-  scrollbar-width: thin;
-  padding-block-end: var(--app-space-1);
-}
-
-/*
- * UIX-04 §21 — the type filter is a filter, not the page.
+ * The TYPE FILTER (`~/modules/diary/DiaryTypeFilter.tsx`) takes
+ * `overrides/link-tab-rail`'s `underline` treatment and the genuine `Badge` for
+ * its counts, and leaves the `md-state-layer` host list — Diary was one of only
+ * three module surfaces still in it.
  *
- * Ten outlined, filled pills across the full width made the loudest thing on the
- * Diary a piece of administrative metadata — the exact opposite of the calm,
- * personal, reflective surface §2 asks for, and on a day with two entries the
- * chips occupied more of the screen than the entries did.
- *
- * The chips stay (the vocabulary is real, and it is genuinely useful for
- * browsing a history by kind) and stop shouting: no border, no fill, no glyph
- * until one is chosen. What is left is a quiet row of words, which is what a
- * secondary control should look like beside a week strip that is the primary one.
+ * Roughly 180 lines went with them, including every `--dh-color-accent`,
+ * `--dh-color-bg-sunken` and `--dh-radius-pill` this file used for a control.
+ * Nothing is left here: both components own their own layout as well, because
+ * neither has a rule that other DalyHub surfaces need to reach.
  */
-.dh-diary-filter__option {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--app-space-1);
-  min-block-size: var(--app-touch-target-min);
-  padding: var(--app-space-1) var(--app-space-3);
-  border: var(--app-border-width-thin) solid transparent;
-  border-radius: var(--dh-radius-pill);
-  font-size: var(--dh-text-meta-size);
-  color: var(--dh-color-text-muted);
-  text-decoration: none;
-  white-space: nowrap;
-  background: transparent;
-}
-
-/*
- * The glyph is dropped from the UNSELECTED chips. It is the same subtype glyph
- * the capture picker and the timeline node show, so nothing is lost — but ten
- * icons in a row is ten more things to look at in a filter, and the label was
- * always the thing carrying the meaning (PX-05 said so itself).
- */
-.dh-diary-filter__option:not([aria-current="true"]) .dh-diary-filter__icon {
-  display: none;
-}
-
-/* PX-05 — the chip's subtype glyph: decorative, subordinate to the label, and
- * sized to the surrounding text so it scales with OS text scaling. */
-.dh-diary-filter__icon {
-  display: inline-flex;
-  flex: none;
-  font-size: var(--dh-text-lead-size);
-}
-
-.dh-diary-filter__option:hover {
-  color: var(--dh-color-text);
-}
-
-/*
- * DS-08 — the chosen type takes the shared TAB RAIL's treatment.
- *
- * This is the same control Tasks, Projects and (since DS-05) Goals draw as quiet
- * text with a 2px purple indicator, and Diary was the last surface still filling
- * the current option with `secondary-container`. On a rail of ten types one
- * filled lavender capsule beside nine plain labels is a different control, and
- * the whole-app baseline found it sitting directly under a header band that had
- * already converged.
- *
- * The three signals are unchanged in number and only change in kind: text
- * colour, a weight step, and a rule under the label instead of a fill behind it
- * — plus `aria-current`, which is what actually reaches assistive tech.
- */
-.dh-diary-filter__option[aria-current="true"] {
-  font-weight: 600;
-  color: var(--dh-color-text);
-  background: transparent;
-  border-block-end: var(--dh-border-width-strong) solid var(--dh-color-accent);
-  border-end-start-radius: 0;
-  border-end-end-radius: 0;
-}
-
-@media (forced-colors: active) {
-  .dh-diary-filter__option[aria-current="true"] {
-    border-block-end-color: Highlight;
-  }
-}
-
-.dh-diary-filter__count {
-  min-inline-size: 1.25rem;
-  padding: 0 var(--app-space-1);
-  border-radius: var(--dh-radius-pill);
-  font-size: var(--dh-text-meta-size);
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-  color: var(--dh-color-text-muted);
-  background: var(--dh-color-bg-sunken);
-}
-
-.dh-diary-filter__option[aria-current="true"] .dh-diary-filter__count {
-  color: var(--dh-color-text);
-  background: transparent;
-}
 
 /* -------------------------------------------------------------------------- */
 /* Timeline                                                                   */
 /* -------------------------------------------------------------------------- */
 
+/*
+ * UNTITLED-12 — the chronology's PAINT is Untitled's now and lives in the
+ * component (`~/modules/diary/DiaryTimelineBody.tsx`): `application/table`'s
+ * card anatomy for the day, its in-card header and divided body for the rows,
+ * Untitled's hover and ACTIVE surfaces for the row's states, and the shared
+ * `IconButton` for the Edit affordance.
+ *
+ * What went with them: the continuous 2px vertical rule and the `--diary-tl-*`
+ * geometry that positioned it, the 28px bordered node ring, the rounded filled
+ * day slab, the `--dh-color-accent-subtle` selected tint, the hover-only Edit
+ * button and its `@media (hover: none)` patch, and the hand-drawn `<svg>` pencil
+ * the button contained. Roughly 230 lines.
+ *
+ * What survives here is the MEASURE, which is the one thing about this surface
+ * that is a product decision rather than a control's appearance.
+ */
+
 .dh-diary-timeline {
-  --diary-tl-time: 3.25rem;
-  --diary-tl-node: 1.75rem;
-  --diary-tl-gap: var(--app-space-3);
-  --diary-tl-rule-x: calc(
-    var(--diary-tl-time) + var(--diary-tl-gap) + (var(--diary-tl-node) / 2)
-  );
   display: flex;
   flex-direction: column;
-  gap: var(--app-space-6);
+  gap: var(--app-space-4);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -389,249 +119,16 @@
    *
    * `--app-width-content` is 72rem, which is "dense record content" and is wider
    * than the pane at every laptop width — so on a 1440 screen the cap did
-   * nothing and a two-line reflection sat in a 1140px white card with its text
-   * in the left third. §39 asks for the opposite: let the entry occupy a
-   * meaningful width and stop the canvas being giant and unused.
+   * nothing and a two-line reflection sat in a 1140px card with its text in the
+   * left third. §39 asks for the opposite: let the entry occupy a meaningful
+   * width and stop the canvas being giant and unused.
    *
    * 56rem is the diary's measure. It is wider than `--app-width-narrow` (42rem,
-   * a single-column page) because an entry has a leading time column and a rule
-   * before its text begins, and narrow enough that a paragraph is read rather
-   * than scanned across.
+   * a single-column page) because an entry has a leading time column before its
+   * text begins, and narrow enough that a paragraph is read rather than scanned
+   * across.
    */
   max-inline-size: 56rem;
-}
-
-/*
- * UIX-04 §19/§21 — a day is a GROUP, and the grouping is subtle.
- *
- * DS-14 made a day a bordered, filled card, on the reasoning that entries would
- * otherwise "float on the tint with no edge anywhere". That reasoning holds for
- * a collection of records and not for a journal: a stack of outlined cards is the
- * administrative look §16 rules out, and it made a two-line reflection carry the
- * same container weight as a whole project.
- *
- * The day keeps its raised surface — light mode needs the writing to sit on
- * something (§42), and dark mode needs it not to be the page (§41) — and loses
- * the border and the hard corner. What separates one day from the next is
- * SPACE and a date heading, which is how a diary has always been laid out.
- */
-.dh-diary-day {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-2);
-  padding: var(--app-space-3) var(--app-space-4);
-  background: var(--dh-color-surface);
-  border-radius: var(--dh-radius-lg);
-}
-
-/* Entries are rows inside the day. The timeline rule behind them already says
- * they are a sequence, so a second hairline between every pair is one separator
- * too many — they are separated by their own padding instead. */
-
-/*
- * The day's own heading — "Today", "Yesterday", "Saturday, 8 August 2026".
- *
- * It is the DATE that organises a diary (§16), so it reads as a date rather than
- * as a table caption: larger than the metadata under it, on the surface colour
- * rather than the muted one, and separated from its entries by space instead of
- * by a rule.
- */
-.dh-diary-day__heading {
-  margin: 0;
-  font-size: var(--dh-text-compact-title-size);
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  color: var(--dh-color-text);
-}
-
-/* The continuous vertical rule runs behind the nodes, down the node column. */
-.dh-diary-day__entries {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.dh-diary-day__entries::before {
-  content: "";
-  position: absolute;
-  inset-block: var(--app-space-3);
-  inset-inline-start: calc(
-    var(--diary-tl-rule-x) - (var(--app-border-width-thick) / 2)
-  );
-  inline-size: var(--app-border-width-thick);
-  background: var(--dh-color-border);
-}
-
-.dh-diary-entry {
-  position: relative;
-  display: grid;
-  grid-template-columns: var(--diary-tl-time) var(--diary-tl-node) 1fr auto;
-  column-gap: var(--diary-tl-gap);
-  align-items: start;
-  padding: var(--app-space-2) var(--app-space-2) var(--app-space-2) 0;
-  border-radius: var(--dh-radius-pill);
-}
-
-.dh-diary-entry[data-selected="true"] {
-  background: var(--dh-color-accent-subtle);
-}
-
-.dh-diary-entry__time {
-  padding-block-start: var(--app-space-1);
-  font-size: var(--dh-text-label-size);
-  font-variant-numeric: tabular-nums;
-  font-weight: 500;
-  color: var(--dh-color-text-muted);
-  text-align: end;
-  white-space: nowrap;
-}
-
-.dh-diary-entry__node {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  inline-size: var(--diary-tl-node);
-  block-size: var(--diary-tl-node);
-  border: var(--app-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-pill);
-  color: var(--dh-color-entity-diary);
-  background: var(--dh-color-surface);
-}
-
-.dh-diary-entry__node svg {
-  inline-size: 1rem;
-  block-size: 1rem;
-}
-
-.dh-diary-entry[data-selected="true"] .dh-diary-entry__node {
-  border-color: var(--dh-color-accent);
-}
-
-.dh-diary-entry__main {
-  min-inline-size: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-1);
-  padding-block-start: var(--app-space-px);
-}
-
-.dh-diary-entry__title {
-  margin: 0;
-  font-size: var(--dh-text-lead-size);
-  font-weight: 500;
-  line-height: 1.35;
-  color: var(--dh-color-text);
-}
-
-/* The primary action: a title button that stretches over the whole row (so the
- * row is clickable) while the Edit button stays separately operable above it. */
-.dh-diary-entry__select {
-  appearance: none;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  font: inherit;
-  color: inherit;
-  text-align: start;
-  cursor: pointer;
-  overflow-wrap: anywhere;
-}
-
-.dh-diary-entry__select::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: var(--dh-radius-pill);
-}
-
-/*
- * UIX-04 §19 — two lines of the entry, not one.
- *
- * One clamped line of a reflection is a sentence cut in half: enough to tell you
- * an entry exists and never enough to remember what it was, which is the whole
- * reason a person browses a diary. Two lines is the shape a journal list takes,
- * and it is still a preview — the body belongs to the panel.
- */
-.dh-diary-entry__excerpt {
-  margin: 0;
-  font-size: var(--dh-text-body-size);
-  line-height: var(--dh-text-body-line-height);
-  color: var(--dh-color-text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-
-.dh-diary-entry__meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--app-space-2);
-  align-items: center;
-}
-
-/*
- * Plain text, not a chip — see the row's own comment. It still NAMES the type
- * for assistive tech, which the decorative node glyph cannot.
- *
- * REFINE — sentence case, at the metadata rung. The letter-spaced small caps
- * were the last of the M3 band labels left in the product after this pass took
- * them off Tasks, Today and Meetings, and a diary is the surface with the least
- * reason to shout: "Reflection" under an entry is a quiet fact about it.
- */
-.dh-diary-entry__type {
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-  font-weight: 500;
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--dh-color-text-muted);
-}
-
-.dh-diary-entry__backdated {
-  padding: 0 var(--app-space-2);
-  border: var(--app-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-pill);
-  font-size: var(--dh-text-meta-size);
-  color: var(--dh-color-text-muted);
-}
-
-.dh-diary-entry__edit {
-  position: relative;
-  z-index: var(--app-z-raised);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-inline-size: var(--app-touch-target-min);
-  min-block-size: var(--app-touch-target-min);
-  border: 0;
-  border-radius: var(--dh-radius-pill);
-  color: var(--dh-color-text-muted);
-  background: transparent;
-  cursor: pointer;
-  opacity: 0;
-}
-
-.dh-diary-entry:hover .dh-diary-entry__edit,
-.dh-diary-entry:focus-within .dh-diary-entry__edit,
-.dh-diary-entry[data-selected="true"] .dh-diary-entry__edit {
-  opacity: 1;
-}
-
-.dh-diary-entry__edit:hover {
-  color: var(--dh-color-text);
-}
-
-/* Keep the Edit affordance visible where hover isn't available (touch). */
-@media (hover: none) {
-  .dh-diary-entry__edit {
-    opacity: 1;
-  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -689,22 +186,12 @@
   color: var(--dh-color-text);
 }
 
-.dh-diary-detail__type {
-  padding: 0 var(--app-space-2);
-  border-radius: var(--dh-radius-pill);
-  font-size: var(--dh-text-meta-size);
-  font-weight: 500;
-  color: var(--dh-color-text-muted);
-  background: var(--dh-color-bg-sunken);
-}
-
-.dh-diary-detail__badge {
-  padding: 0 var(--app-space-2);
-  border: var(--app-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-pill);
-  font-size: var(--dh-text-meta-size);
-  color: var(--dh-color-text-muted);
-}
+/*
+ * UNTITLED-12 — the entry's Type and its "Backdated" mark are the shared
+ * `Badge` now (neutral, and neutral-outline respectively). Their own pills over
+ * `--dh-color-bg-sunken` and `--dh-color-border` are deleted; the class names
+ * survive as hooks and carry no paint.
+ */
 
 .dh-diary-detail__section {
   min-inline-size: 0;
@@ -857,35 +344,13 @@
   gap: var(--app-space-2);
 }
 
-.dh-diary-capture__chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--app-space-1);
-  min-block-size: var(--app-touch-target-min);
-  padding: var(--app-space-1) var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-pill);
-  font-size: var(--dh-text-meta-size);
-  color: var(--dh-color-text-muted);
-  background: var(--dh-color-surface);
-  cursor: pointer;
-}
-
-.dh-diary-capture__chip svg {
-  inline-size: 1rem;
-  block-size: 1rem;
-}
-
-.dh-diary-capture__chip:hover {
-  color: var(--dh-color-text);
-}
-
-.dh-diary-capture__chip[data-checked="true"] {
-  font-weight: 500;
-  color: var(--dh-color-accent);
-  border-color: var(--dh-color-accent);
-  background: var(--dh-color-accent-subtle);
-}
+/*
+ * UNTITLED-12 — the chip is drawn by the shared `toggleOptionClassName` recipe
+ * now (`~/shared/forms/ToggleGroupField`), the same one Habits' cadence field
+ * uses. Its hairline, its `--dh-color-accent-subtle` checked fill, its accent
+ * text and border, its focus ring and the `md-state-layer` wash on top are all
+ * deleted. The class name survives as a hook.
+ */
 
 /* The native radio is the accessible control; visually it's the chip itself. */
 .dh-diary-capture__radio {
@@ -898,11 +363,6 @@
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
-}
-
-.dh-diary-capture__chip:focus-within {
-  outline: var(--app-border-width-thick) solid var(--dh-color-accent);
-  outline-offset: 2px;
 }
 
 .dh-diary-capture__actions {
@@ -1049,30 +509,24 @@
   }
 
   /*
-   * ── DHDS-13 — the strip spans the toolbar, not the toolbar's text column ───
+   * ── DHDS-13 / UNTITLED-12 — the strip spans the toolbar's full inner width ─
    *
-   * The residual above was computed against "a 288px content box", which is the
-   * PAGE's content box at 320px. The strip never had it. `.dh-diary-toolbar` is
-   * a bordered card with its own `--app-space-4` inline padding, and it sits
-   * inside `.dh-collection__filters`, which has already applied the page
-   * gutter — so the week was laid out in 254px, not 288, and MEASURED at 320px
-   * each day drew 35.4px rather than the 41 recorded here. The nested inset was
-   * invisible in the arithmetic because nobody measured the box the days
-   * actually got.
+   * DHDS-13 found the residual above had been computed against "a 288px content
+   * box", which is the PAGE's content box at 320px — and the strip never had it,
+   * because `.dh-diary-toolbar` was then a bordered card with its own
+   * `--app-space-4` inline padding inside a gutter that had already been
+   * applied. It negated exactly that padding to get the width back.
    *
-   * The days therefore span the card's full inner width, by negating exactly
-   * the inline padding they sit in. The toolbar keeps its padding for the
-   * CONTROL line above (arrows, picker, Today), where an inset is what makes it
-   * read as a card; the day strip is a full-bleed band inside it, which is the
-   * ordinary way a segmented control lives in a padded surface. MEASURED after
-   * the change: 40px at 320, 48 at 375, 50 at 390 and 56 at 430 — the strip is
-   * back to the geometry this block was written to produce.
+   * UNTITLED-12 deleted the toolbar's card treatment along with the rest of the
+   * module's paint, so the padding the negative margin was cancelling no longer
+   * exists — and MEASURED at 393px the strip was pulled 16px past the viewport
+   * on each side, clipping Sunday. The days sit in the toolbar's own box now,
+   * with no inset to undo.
    */
   .dh-diary-week__days {
     order: 4;
     flex: 1 0 100%;
     min-inline-size: 0;
-    margin-inline: calc(-1 * var(--app-space-4));
     /* The days no longer overflow, so the track must not offer to scroll: a
      * scroll container that never scrolls still swallows a horizontal drag. */
     overflow-x: visible;
@@ -1130,13 +584,17 @@
     order: 3;
   }
 
-  .dh-diary-week__step {
-    min-inline-size: var(--app-space-10);
-  }
-
-  .dh-diary-timeline {
-    --diary-tl-time: 2.75rem;
-  }
+  /*
+   * UNTITLED-12 — the 40px `min-inline-size` this block used to add is deleted.
+   *
+   * The step controls are the shared `IconButton` now, which takes
+   * `--dh-control-height` in BOTH axes — 44px under `(pointer: coarse)`. This
+   * rule was unlayered and Tailwind's utilities are layered, so the narrower
+   * value won unconditionally and MEASURED 40x44 on a phone: a 4px-short target
+   * introduced by a stylesheet asserting a floor the component already held.
+   * The same cascade defect Phase 5 found in `premium.css` and UNTITLED-11 found
+   * in `ui.css`.
+   */
 }
 
 /* -------------------------------------------------------------------------- *

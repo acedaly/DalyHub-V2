@@ -63,6 +63,49 @@ export interface ToggleGroupFieldProps extends BaseControlProps<
   readonly options: readonly ToggleGroupOption[];
 }
 
+/**
+ * One option of a choice drawn as a row of pills, in Untitled's control
+ * geometry: the pill radius, the secondary hairline, the primary surface, and
+ * the brand solid when chosen. The minimum block size is DalyHub's touch floor
+ * rather than Untitled's desktop height — density never costs hit area
+ * (AGENTS.md §15).
+ *
+ * Exported because there are two consumers with the same LOOK and different
+ * SEMANTICS, and a second copy of this recipe is how two controls that should
+ * be identical start to drift:
+ *
+ *   - this file's toggle group, where the options are real checkboxes and
+ *     several may be on at once;
+ *   - Diary's capture type picker, where they are a real radio group and
+ *     exactly one is (UNTITLED-12). It was drawing its own pill over
+ *     `--dh-color-accent` with the M3 `md-state-layer` wash on top.
+ *
+ * The recipe is the geometry. Neither consumer takes Untitled's
+ * `ToggleButtonGroup`: that is a React Aria selection collection whose value IS
+ * the selection, and both of these are native form controls inside a form that
+ * posts, with a name and (for the radio group) a required arm. Swapping them
+ * would trade form semantics for geometry, so the geometry is taken and the
+ * semantics kept — the UNTITLED-11 precedent, applied to its second case.
+ */
+export function toggleOptionClassName(options: {
+  readonly checked: boolean;
+  readonly disabled?: boolean;
+}): string {
+  const { checked, disabled } = options;
+  return [
+    "relative inline-flex min-h-[var(--app-touch-target-min)] min-w-12 cursor-pointer",
+    "items-center justify-center gap-1.5 rounded-full px-3 text-sm ring-1 select-none",
+    "transition duration-100 ease-linear",
+    "has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus-ring",
+    checked
+      ? "bg-brand-solid font-semibold text-white ring-transparent forced-colors:bg-[Highlight] forced-colors:text-[HighlightText]"
+      : "bg-primary text-secondary ring-primary hover:ring-brand",
+    disabled ? "cursor-not-allowed opacity-50" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
 export function ToggleGroupField({
   id,
   label,
@@ -106,25 +149,8 @@ export function ToggleGroupField({
     .filter(Boolean)
     .join(" ");
 
-  /*
-   * One option, in Untitled's control geometry: the pill radius, the secondary
-   * hairline, the primary surface, and the brand solid when selected. The
-   * minimum block size is DalyHub's touch floor rather than Untitled's desktop
-   * height — density never costs hit area (AGENTS.md §15).
-   */
   const optionClassName = (checked: boolean) =>
-    [
-      "relative inline-flex min-h-[var(--app-touch-target-min)] min-w-12 cursor-pointer",
-      "items-center justify-center rounded-full px-3 text-sm ring-1 select-none",
-      "transition duration-100 ease-linear",
-      "has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus-ring",
-      checked
-        ? "bg-brand-solid font-semibold text-white ring-transparent forced-colors:bg-[Highlight] forced-colors:text-[HighlightText]"
-        : "bg-primary text-secondary ring-primary hover:ring-brand",
-      disabled || readOnly ? "cursor-not-allowed opacity-50" : "",
-    ]
-      .filter(Boolean)
-      .join(" ");
+    toggleOptionClassName({ checked, disabled: disabled || readOnly });
 
   return (
     <div
