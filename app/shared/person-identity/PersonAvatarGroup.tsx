@@ -47,6 +47,7 @@ import type { ReactNode } from "react";
 import { cx } from "~/shared/ui/untitled/utils/cx";
 
 import { PersonAvatar, type PersonAvatarSize } from "./PersonAvatar";
+import { initialsFromName } from "./person-initials";
 
 /**
  * One Person in a group. Everything except `name` is optional context.
@@ -149,7 +150,19 @@ export function PersonAvatarGroup({
           </li>
         ))}
         {hidden > 0 ? (
-          <li className={cx("relative", OVERLAP[size])} style={{ zIndex: 0 }}>
+          /*
+           * The overflow disc sits ON TOP, not under the mark before it.
+           *
+           * The marks descend in `z-index` so the leftmost FACE is on top, and
+           * the same rule applied here hid the "+" of "+3" under a neighbour —
+           * but "+3" is a figure rather than a face, and a half-covered figure
+           * is a different figure. It takes the 6–10px it needs from the ring
+           * of the mark to its left, which carries nothing.
+           */
+          <li
+            className={cx("relative", OVERLAP[size])}
+            style={{ zIndex: shown.length + 1 }}
+          >
             <OverflowMark count={hidden} size={size} href={overflowHref} />
           </li>
         ) : null}
@@ -157,6 +170,32 @@ export function PersonAvatarGroup({
       {caption ? <p className="m-0 text-xs text-tertiary">{caption}</p> : null}
     </div>
   );
+}
+
+/**
+ * How many letters a mark carries at this rung.
+ *
+ * MEASURED on a 393px phone, in the Meeting header of a seven-attendee
+ * meeting: the row read "AN ⌐F ⌐R ⌐O +3". At `xs` a mark is 24px and the next
+ * one is pulled 6px over it, and the LEFTMOST mark is on top — so the left
+ * quarter of every later mark is covered. Untitled overlaps avatars carrying
+ * PHOTOGRAPHS, where a partly covered face still reads as that face; a
+ * two-letter monogram loses its first letter and reads as noise.
+ *
+ * A single letter is centred inside the visible crescent and survives, so the
+ * smallest rung carries one. `sm` (32px, 8px overlap) and `md` (40px, 10px)
+ * have the room for two and keep them.
+ */
+function markInitials(
+  member: PersonAvatarGroupMember,
+  size: "xs" | "sm" | "md",
+): string {
+  const full =
+    member.initials && member.initials.trim().length > 0
+      ? member.initials.trim()
+      : initialsFromName(member.name);
+  if (size !== "xs") return full;
+  return Array.from(full)[0] ?? full;
 }
 
 function MemberMark({
@@ -169,7 +208,7 @@ function MemberMark({
   const mark = (
     <PersonAvatar
       name={member.name}
-      initials={member.initials}
+      initials={markInitials(member, size)}
       photoUrl={member.photoUrl}
       colourRank={member.colourRank}
       size={size}

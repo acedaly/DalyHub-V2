@@ -278,6 +278,52 @@ function MeetingRow({
   const unprepared =
     !retrospective && !meeting.hasAgendaBody && meeting.agendaItems === 0;
 
+  /*
+   * The meta line, as ONE ordered list of parts.
+   *
+   * The row's facts, the people, the state and — on an upcoming meeting — the
+   * one thing a schedule can usefully say before the day arrives. "No agenda
+   * yet" belongs with the FACTS rather than in the trailing slot: a first draft
+   * put it at the row's trailing edge beside Join, which at 1440 left it
+   * floating 700px from the words it is about and made a fact look like an
+   * action. The trailing slot is for things you press. It is deliberately quiet
+   * and deliberately not a warning — a one-to-one or a phone call needs no
+   * agenda, so the row states what is true rather than what to do.
+   */
+  const metaParts: RowFact[] = [
+    ...facts,
+    ...(who
+      ? [
+          {
+            id: "who",
+            text: who,
+            truncates: true,
+            className: "dh-meetings-list__who",
+            testId: "meeting-row-attendees",
+          } satisfies RowFact,
+        ]
+      : []),
+    ...(status
+      ? [
+          {
+            id: "status",
+            text: status,
+            className: "dh-meetings-list__status",
+          } satisfies RowFact,
+        ]
+      : []),
+    ...(unprepared
+      ? [
+          {
+            id: "unprepared",
+            text: "No agenda yet",
+            className: "dh-meetings-list__unprepared text-quaternary",
+            testId: "meeting-row-unprepared",
+          } satisfies RowFact,
+        ]
+      : []),
+  ];
+
   const joinable =
     !retrospective &&
     meeting.meetingUrl !== null &&
@@ -316,56 +362,32 @@ function MeetingRow({
           <span className="dh-meetings-list__title text-sm font-semibold text-primary">
             {meeting.title}
           </span>
-          {facts.length > 0 || who || status || unprepared ? (
+          {metaParts.length > 0 ? (
+            /*
+             * MEASURED at 393px: the separator belongs to the part BEFORE it.
+             *
+             * Each part used to carry a leading `::before` "·", which travels
+             * with its own flex item — so the moment the line wrapped, the new
+             * line began "· Marcus Oyelaran, Yarra Council — Planning". A
+             * dangling separator at the START of a line reads as a bullet
+             * point. Hung off the preceding part instead, a wrapped line ends
+             * "Whitfield site ·", which is the conventional continuation mark.
+             */
             <span className="dh-meetings-list__meta flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-sm text-tertiary">
-              {facts.map((fact) => (
+              {metaParts.map((part, index) => (
                 <span
-                  key={fact.id}
+                  key={part.id}
                   className={cx(
-                    "before:pr-1.5 before:text-quaternary before:content-['·'] first:before:hidden",
-                    fact.truncates ? "min-w-0 truncate" : "whitespace-nowrap",
-                    fact.className,
+                    index < metaParts.length - 1 &&
+                      "after:pl-1.5 after:text-quaternary after:content-['·']",
+                    part.truncates ? "min-w-0 truncate" : "whitespace-nowrap",
+                    part.className,
                   )}
-                  data-testid={fact.testId}
+                  data-testid={part.testId}
                 >
-                  {fact.text}
+                  {part.text}
                 </span>
               ))}
-              {who ? (
-                <span
-                  className="dh-meetings-list__who min-w-0 truncate before:pr-1.5 before:text-quaternary before:content-['·'] first:before:hidden"
-                  data-testid="meeting-row-attendees"
-                >
-                  {who}
-                </span>
-              ) : null}
-              {status ? (
-                <span className="dh-meetings-list__status whitespace-nowrap before:pr-1.5 before:text-quaternary before:content-['·'] first:before:hidden">
-                  {status}
-                </span>
-              ) : null}
-              {/*
-                An UPCOMING meeting with nothing written down is the one thing a
-                schedule can usefully say before the day arrives, and it belongs
-                with the row's other FACTS rather than in the trailing slot.
-
-                A first draft put it at the row's trailing edge beside Join,
-                which at 1440 left it floating 700px from the words it is about
-                and made a fact look like an action. The trailing slot is for
-                things you press.
-
-                It is deliberately quiet and deliberately not a warning: a
-                one-to-one or a phone call needs no agenda, so the row states
-                what is true rather than what to do.
-              */}
-              {unprepared ? (
-                <span
-                  className="dh-meetings-list__unprepared whitespace-nowrap text-quaternary before:pr-1.5 before:content-['·'] first:before:hidden"
-                  data-testid="meeting-row-unprepared"
-                >
-                  No agenda yet
-                </span>
-              ) : null}
             </span>
           ) : null}
         </span>

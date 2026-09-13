@@ -510,16 +510,30 @@ function detailItems(
     items.push({
       id: "website",
       label: "Website",
-      value: (
-        <a
-          className="text-brand-secondary outline-focus-ring hover:text-brand-secondary_hover focus-visible:outline-2 focus-visible:outline-offset-2"
-          href={person.website}
-          target="_blank"
-          rel="noreferrer"
-        >
-          {person.website}
-        </a>
-      ),
+      value:
+        (
+          /*
+           * MEASURED at 289×16 on a 430px phone: a standalone navigational
+           * target, not a link inside a sentence, so WCAG 2.5.8's inline
+           * exception does not cover it. The coarse-pointer floor gives it the
+           * height without changing a thing for a mouse — the same rule the
+           * attendee count and the "All activity" link already carry.
+           *
+           * BLOCK, not `inline-flex`: a first attempt used the flex box, and a
+           * 43-character URL then became one unbreakable inline box that
+           * pushed the page 18px wide at 1024 — caught by the shooter on the
+           * next pass. A block anchor wraps, fills its grid column, and is a
+           * larger target for it.
+           */
+          <a
+            className="block min-w-0 break-words text-brand-secondary outline-focus-ring [@media(hover:none)]:min-h-[var(--app-touch-target-min)] hover:text-brand-secondary_hover focus-visible:outline-2 focus-visible:outline-offset-2"
+            href={person.website}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {person.website}
+          </a>
+        ),
     });
   }
   if (person.address) {

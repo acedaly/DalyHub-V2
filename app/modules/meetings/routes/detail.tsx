@@ -1054,16 +1054,19 @@ function MeetingFactStrip({
     facts.push({
       id: "url",
       label: "Meeting link",
-      value: (
-        <a
-          className="text-brand-secondary outline-focus-ring hover:text-brand-secondary_hover focus-visible:outline-2 focus-visible:outline-offset-2"
-          href={meeting.meetingUrl}
-          target="_blank"
-          rel="noreferrer"
-        >
-          Open meeting link
-        </a>
-      ),
+      value:
+        (
+          /* The same standalone-target rule as the Person's website link: a
+           * coarse pointer gets the 44px floor, a mouse sees no change. */
+          <a
+            className="block min-w-0 break-words text-brand-secondary outline-focus-ring [@media(hover:none)]:min-h-[var(--app-touch-target-min)] hover:text-brand-secondary_hover focus-visible:outline-2 focus-visible:outline-offset-2"
+            href={meeting.meetingUrl}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Open meeting link
+          </a>
+        ),
     });
   }
 

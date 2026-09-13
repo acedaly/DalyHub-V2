@@ -434,7 +434,17 @@ describe("People collection", () => {
     expect(within(row).queryByText(/1 January 2020/)).not.toBeInTheDocument();
   });
 
-  it("falls back to the hand-entered date when nothing has been recorded", () => {
+  /*
+   * UNTITLED-13 — the fallback says "(noted)".
+   *
+   * The row prints the DERIVED state beside this line, and for a Person with
+   * nothing linked that state reads "No shared history yet" — so an unqualified
+   * "Last spoke 1 January 2020" made the row contradict itself. Both are true
+   * and they are about different things: what the owner typed, and what the
+   * workspace can see. The record has always distinguished them ("Last
+   * interaction (noted)"); the row now does too.
+   */
+  it("falls back to the hand-entered date, and says it was noted", () => {
     renderCollection([
       personItem({
         lastInteraction: "2020-01-01",
@@ -450,7 +460,7 @@ describe("People collection", () => {
     ]);
     const row = screen.getByRole("article", { name: /Ada Lovelace/ });
     expect(row.querySelector(".dh-prow__context")?.textContent).toMatch(
-      /^Last spoke 1 January 2020/,
+      /^Last spoke 1 January 2020 \(noted\)/,
     );
   });
 

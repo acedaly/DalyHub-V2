@@ -335,8 +335,23 @@ function lastSharedPhrase(person: SerializedPersonListItem): string | null {
     );
     return `Last spoke ${dated ?? relativeDayPhrase(days)}`;
   }
+  /*
+   * The hand-entered field says "NOTED", because next to it the row prints a
+   * DERIVED state — and for a Person with nothing linked that state reads "No
+   * shared history yet".
+   *
+   * Seen on the seeded directory: "Last spoke 6 August 2026 · Supplier · Site
+   * foreman" and "No shared history yet" on one line, which is a row
+   * contradicting itself. Both statements are true and they are about
+   * different things: one is what the owner typed into the Contact tab, the
+   * other is what the workspace can actually see. The Person record already
+   * makes the distinction ("Last interaction (noted)", and only while nothing
+   * has been recorded); the row was the one surface still calling them the
+   * same thing, against this function's own stated rule that every branch is
+   * prefixed with what its date MEANS.
+   */
   const entered = formatPersonDate(person.lastInteraction);
-  if (entered) return `Last spoke ${entered}`;
+  if (entered) return `Last spoke ${entered} (noted)`;
   const followUp = formatPersonDate(person.nextFollowUp);
   if (followUp) return `Follow up ${followUp}`;
   return null;
