@@ -351,7 +351,7 @@ function TransactionTableRow({
       </Table.Cell>
 
       {showAccount ? (
-        <Table.Cell className="truncate px-5 py-3 text-sm text-tertiary max-md:hidden">
+        <Table.Cell className="px-5 py-3 text-sm break-words text-tertiary max-md:hidden">
           {transaction.accountTitle}
         </Table.Cell>
       ) : null}

@@ -433,7 +433,7 @@ export function FinanceHome(props: FinanceHomeData) {
                   id="category"
                   label="Category"
                   isRowHeader
-                  className="w-[38%]"
+                  className="w-[40%]"
                 />
                 {/*
                  * The figure column is right-aligned, which is what makes a
@@ -444,12 +444,12 @@ export function FinanceHome(props: FinanceHomeData) {
                 <LabelledTableHead
                   id="spent"
                   label="Spent"
-                  className="w-[24%] text-right [&>span]:justify-end"
+                  className="w-[26%] text-right [&>span]:justify-end"
                 />
                 <LabelledTableHead
                   id="budget"
                   label="Budget"
-                  className="w-[38%]"
+                  className="w-[34%]"
                 />
               </Table.Header>
               <Table.Body>
@@ -463,7 +463,15 @@ export function FinanceHome(props: FinanceHomeData) {
                     <Table.Cell className="px-5 py-3">
                       <Link
                         to={`/finance/transactions?month=${props.month}&category=${encodeURIComponent(line.categoryId ?? "")}`}
-                        className="truncate text-sm font-medium text-primary outline-focus-ring hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
+                        /*
+                         * `break-words`, not `truncate`. A `truncate` on an
+                         * INLINE element does not clip at all — measured at
+                         * 320px, "Rent or mortgage" ran straight over the
+                         * $2,464.00 beside it — and the fix a table wants here
+                         * is a wrap rather than an ellipsis: a category name is
+                         * short, meaningful and worth reading in full.
+                         */
+                        className="block break-words text-sm font-medium text-primary outline-focus-ring hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
                       >
                         {line.categoryName ?? "Uncategorised"}
                       </Link>
@@ -633,7 +641,7 @@ export function FinanceHome(props: FinanceHomeData) {
                   <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <Link
                       to={`/obligations/${encodeURIComponent(item.obligationId)}`}
-                      className="truncate text-sm font-medium text-primary outline-focus-ring hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
+                      className="block truncate text-sm font-medium text-primary outline-focus-ring hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
                       aria-label={`Open ${item.title}`}
                     >
                       {item.title}
@@ -708,7 +716,7 @@ export function FinanceHome(props: FinanceHomeData) {
                 key={entry.id}
                 className="flex flex-col gap-0.5 px-4 py-3 md:px-5"
               >
-                <span className="truncate text-sm font-medium text-primary">
+                <span className="block truncate text-sm font-medium text-primary">
                   {entry.fileName}
                 </span>
                 <span className="text-xs text-tertiary">
@@ -805,13 +813,13 @@ function AccountTable({
                 <Table.Cell className="px-5 py-3">
                   <Link
                     to={`/finance/accounts/${encodeURIComponent(account.id)}`}
-                    className="truncate text-sm font-medium text-primary outline-focus-ring hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
+                    className="block break-words text-sm font-medium text-primary outline-focus-ring hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
                     aria-label={`Open ${account.title}`}
                   >
                     {account.title}
                   </Link>
                 </Table.Cell>
-                <Table.Cell className="truncate px-5 py-3 text-sm text-tertiary max-md:hidden">
+                <Table.Cell className="px-5 py-3 text-sm break-words text-tertiary max-md:hidden">
                   {account.institution ?? <Absent label="No institution" />}
                 </Table.Cell>
                 <Table.Cell className="px-5 py-3 text-right text-sm whitespace-nowrap text-primary tabular-nums">
