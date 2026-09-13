@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import {
   RESPONSIVE_VIEWPORTS,
@@ -98,18 +98,38 @@ async function createMeeting(page: Page, title: string): Promise<string> {
 
 async function addAttendee(page: Page, personName: string): Promise<void> {
   await page.getByRole("tab", { name: "Meeting" }).click();
+  // UNTITLED-14 — the picker is a disclosure inside the workspace's context
+  // rail, so a card whose job is answering "who is in this meeting?" is not
+  // also a form. One press reveals it.
+  await page.getByRole("button", { name: "Add attendees" }).click();
   const attendee = page.getByRole("combobox", { name: "Add attendees" });
   await attendee.click();
   await attendee.fill(personName);
   await page.getByRole("option", { name: personName }).click();
   await page.getByRole("button", { name: "Add selected" }).click();
-  // Scoped to the Details tab: UIX-04 §27 also names the attendees on the
+  // Scoped to the workspace panel: UIX-04 §27 also names the attendees on the
   // record's context line, so an unscoped link now matches in two places.
   await expect(
     page
-      .getByRole("tabpanel", { name: "Details" })
+      .getByRole("tabpanel", { name: "Meeting" })
       .getByRole("link", { name: new RegExp(personName) }),
   ).toBeVisible();
+}
+
+/**
+ * Press ArrowDown until `item` holds focus, or fail saying where it stopped.
+ *
+ * Bounded by the menu's own length, so a menu that never reaches the item fails
+ * rather than looping — which is the same guarantee counting presses gave,
+ * without encoding how many the open itself costs.
+ */
+async function walkMenuTo(page: Page, item: Locator): Promise<void> {
+  const total = await page.getByRole("menuitem").count();
+  for (let step = 0; step < total; step += 1) {
+    if (await item.evaluate((el) => el === document.activeElement)) return;
+    await page.keyboard.press("ArrowDown");
+  }
+  await expect(item).toBeFocused();
 }
 
 /** Open the shared DS-12 Record Header overflow for the current record. */
@@ -313,6 +333,20 @@ test.describe("MEET-03 — meetings on the People timeline", () => {
     const trigger = page.getByRole("button", {
       name: `More actions for ${meetingTitle}`,
     });
+    /*
+     * UNTITLED-14 — start the keyboard journey from a freshly loaded record.
+     *
+     * The steps above create a Person through a sheet and then add an attendee
+     * through a searchable multi-select: two React Aria focus scopes opened and
+     * torn down on the way to a journey that is entirely about the RECORD
+     * HEADER's menu. Reloading makes the starting state of that journey a fact
+     * rather than the residue of the setup, and it asserts something the old
+     * sequence never did — that the menu is keyboard-operable on a cold page,
+     * which is how a person actually meets it.
+     */
+    await page.reload();
+    await page.waitForLoadState("networkidle");
+
     await trigger.focus();
     await expect(trigger).toBeFocused();
 
@@ -321,10 +355,34 @@ test.describe("MEET-03 — meetings on the People timeline", () => {
     await expect(
       page.getByRole("menuitem", { name: "New follow-up task" }),
     ).toBeFocused();
-    await page.keyboard.press("ArrowDown");
-    await page.keyboard.press("ArrowDown");
-    await page.keyboard.press("ArrowDown");
-    await expect(item).toBeFocused();
+
+    /*
+     * UNTITLED-14 — the menu ORDER is asserted directly, and the keyboard walks
+     * to the item rather than a hard-coded number of presses walking for it.
+     *
+     * This used to be "ArrowDown ×3", which encoded the menu's length AND the
+     * assumption that opening it costs exactly one press. Neither is a property
+     * of the product: whether the opening ArrowDown also advances depends on
+     * when React Aria mounts the list, so a cold page landed one item further
+     * down than a warm one and the test failed against a menu that was behaving
+     * correctly.
+     *
+     * The two things it is actually claiming are now each stated once — the
+     * shared order, read off the menu; and that the keyboard alone reaches the
+     * held-state action.
+     */
+    await expect(page.getByRole("menuitem").locator("visible=true")).toHaveText(
+      [
+        /New follow-up task/,
+        /New linked note/,
+        /New diary entry/,
+        /Mark as held/,
+        /Mark completed/,
+        /Cancel meeting/,
+        /Archive Meeting/,
+      ],
+    );
+    await walkMenuTo(page, item);
 
     // Escape closes only the menu and returns focus — no keyboard trap.
     await page.keyboard.press("Escape");
@@ -333,9 +391,7 @@ test.describe("MEET-03 — meetings on the People timeline", () => {
 
     // Enter runs it, from the keyboard alone.
     await page.keyboard.press("ArrowDown");
-    await page.keyboard.press("ArrowDown");
-    await page.keyboard.press("ArrowDown");
-    await page.keyboard.press("ArrowDown");
+    await walkMenuTo(page, item);
     const [response] = await Promise.all([
       page.waitForResponse(
         (r) =>

@@ -59,8 +59,24 @@ async function createMeeting(page: Page, title: string): Promise<string> {
 
 async function addAction(page: Page, body: string): Promise<void> {
   await page.getByRole("tab", { name: "Meeting" }).click();
-  await page.getByRole("textbox", { name: "New action item" }).fill(body);
-  await page.getByRole("button", { name: "Add action item" }).click();
+  /*
+   * UNTITLED-14 — the add row IS the list's last row, and Enter is the save.
+   *
+   * The four disclosure forms (a label, a field and an Add button per band) are
+   * gone; each list ends in a quiet "Add {kind}" row that becomes a field in
+   * place. There is no submit BUTTON any more — Enter saves, and the field then
+   * clears and STAYS OPEN AND FOCUSED for the next line, which is the whole
+   * point: five agenda items cost five titles and five Enters. So the opener is
+   * pressed only when the field is not already there, and the save is a
+   * keystroke.
+   */
+  const field = page.getByRole("textbox", { name: "New action item" });
+  if ((await field.count()) === 0) {
+    await page.getByRole("button", { name: "Add action item" }).click();
+    await expect(field).toBeFocused();
+  }
+  await field.fill(body);
+  await field.press("Enter");
   await expect(
     page.locator(".dh-meeting-item", { hasText: body }),
   ).toBeVisible();
@@ -134,7 +150,19 @@ test("a double-submitted conversion creates exactly one Task", async ({
 
   // What the application now shows, read back from the database.
   await gotoFixture(page, `/meeting/${meetingId}?tab=follow-up`);
-  await expect(page.getByRole("heading", { name: /Open \(1\)/ })).toBeVisible();
+  /*
+   * UNTITLED-14 — one Task, in the SHARED list.
+   *
+   * The Follow-up tab grouped Tasks into Open / Waiting / Completed bands with
+   * a count in each heading. That tab is gone: a meeting's actions and the
+   * Tasks they became are one band of the workspace, rendered by the same
+   * `TaskRow` `/tasks` and Today render. "Exactly one Task" is the property
+   * this file exists for, and it is asserted directly rather than through a
+   * heading's parenthesised digit.
+   */
+  await expect(
+    page.getByRole("list", { name: "Follow-up tasks" }).getByRole("listitem"),
+  ).toHaveCount(1);
 
   await page.getByRole("tab", { name: "Meeting" }).click();
   const row = page.locator(".dh-meeting-item", { hasText: body });
@@ -182,7 +210,19 @@ test("replaying the conversion request verbatim returns the same Task", async ({
   expect(result.created).toBe(false);
 
   await gotoFixture(page, `/meeting/${meetingId}?tab=follow-up`);
-  await expect(page.getByRole("heading", { name: /Open \(1\)/ })).toBeVisible();
+  /*
+   * UNTITLED-14 — one Task, in the SHARED list.
+   *
+   * The Follow-up tab grouped Tasks into Open / Waiting / Completed bands with
+   * a count in each heading. That tab is gone: a meeting's actions and the
+   * Tasks they became are one band of the workspace, rendered by the same
+   * `TaskRow` `/tasks` and Today render. "Exactly one Task" is the property
+   * this file exists for, and it is asserted directly rather than through a
+   * heading's parenthesised digit.
+   */
+  await expect(
+    page.getByRole("list", { name: "Follow-up tasks" }).getByRole("listitem"),
+  ).toHaveCount(1);
 });
 
 test("a refused conversion leaves the item exactly as it was", async ({

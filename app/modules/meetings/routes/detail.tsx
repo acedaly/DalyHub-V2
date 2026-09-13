@@ -1739,7 +1739,14 @@ function MeetingAttendees({
   );
 }
 
-/** The attendee picker's disclosure — open where the section is the editor. */
+/**
+ * The attendee picker's disclosure — open where the section IS the editor.
+ *
+ * A real `<button>` rather than `<details>/<summary>`, for the same reason the
+ * rail's "Edit details" is one: a summary's role varies across engines, so its
+ * accessible name is not something a test or a screen reader can rely on, and
+ * this control is the one way a person adds somebody to a meeting.
+ */
 function AttendeeAdder({
   open,
   children,
@@ -1747,14 +1754,16 @@ function AttendeeAdder({
   readonly open: boolean;
   readonly children: ReactNode;
 }) {
-  if (open) return <>{children}</>;
+  const [revealed, setRevealed] = useState(false);
+  if (open || revealed) return <>{children}</>;
   return (
-    <details className="dh-meeting-attendee-adder">
-      <summary className="cursor-pointer list-none text-sm font-medium text-brand-secondary outline-focus-ring [@media(hover:none)]:min-h-[var(--app-touch-target-min)] hover:text-brand-secondary_hover focus-visible:outline-2 focus-visible:outline-offset-2">
-        Add attendees
-      </summary>
-      <div className="pt-3">{children}</div>
-    </details>
+    <button
+      type="button"
+      className="dh-meeting-attendee-adder self-start text-sm font-medium text-brand-secondary outline-focus-ring [@media(hover:none)]:min-h-[var(--app-touch-target-min)] hover:text-brand-secondary_hover focus-visible:outline-2 focus-visible:outline-offset-2"
+      onClick={() => setRevealed(true)}
+    >
+      Add attendees
+    </button>
   );
 }
 

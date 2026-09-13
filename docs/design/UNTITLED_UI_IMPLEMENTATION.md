@@ -1386,3 +1386,139 @@ record type in the product and neither is this pass's to change without
 measuring every consumer: `EntityLink` is 22px tall inside `ReferenceList`
 (inside activity prose it is an inline link in a sentence, which WCAG 2.5.8
 exempts), and `SelectField`'s clear button is 28×28.
+
+## UNTITLED-14 — the Meeting workspace redesign
+
+The product owner reviewed the Meeting record and rejected it. The objection was
+about an ARRANGEMENT, not a finish: agenda items, decisions, outcomes, actions
+and notes "feel clunky, fragmented and visually messy", and the record read as
+"several forms for adding different kinds of meeting record". It did.
+
+### The old interaction problems, named
+
+| Problem | What it actually was |
+| --- | --- |
+| Three tabs for one meeting | Notebook / Details / Follow-up. Running a meeting meant reading the agenda on one, checking who was in the room on a second, and finding what anyone agreed to on a third |
+| Five ways to add something | Four per-band disclosure forms plus the capture bar |
+| Every artifact was a form | `Add → reveal a labelled field and an Add button → Save → it closes → press Add again` for the next line |
+| A second Task UI | The Follow-up tab drew a title button and a state word, so a Task created in a meeting had no completion control, no due date, no priority and no overflow menu on the meeting that created it |
+| Context was a tab away | Who is in the room, when it is and where, all behind "Details" — unreachable while writing notes |
+
+### Pro pages and components researched
+
+`has_pro_access: true`. Page-template searches: *event or meeting detail page
+with attendees, agenda, notes and activity*, across `informational`,
+`dashboards` and `settings`. Component searches: *command menu / command palette
+with searchable grouped actions and keyboard navigation*.
+
+| Considered | What it offered | Verdict |
+| --- | --- | --- |
+| `informational-01/13` | Project detail: dominant main column of bands, a bounded activity rail on the right, a segmented strip inside the workspace card | **Selected** — this is the workspace/context anatomy §M describes |
+| `informational-02/13` | The same anatomy at a header layout, plus a single compact `Add` pill on a hairline between sections | **Selected** — the add affordance belongs to the list, not beside a heading |
+| `informational-01/14` | Main content + a collapsible chat rail | Rejected: the rail is a conversation, and a Meeting's rail is reference |
+| `informational-01/10`, `02/08`, `02/09`, `02/10` | Calendar/scheduling surfaces with an event summary and guest avatars | Rejected as a page; the avatar-group and event-summary COMPOSITION was already adopted in UNTITLED-13 |
+| `command-menu-actions`, `-stacked`, `-users`, `-empty-state` | Searchable grouped action lists with shortcut hints | Rejected as the "Add to meeting" mechanism — see below |
+| `settings-01/07` | Member table with role controls and an invite list | Rejected: an attendee list is not a permissions table |
+
+### Why NOT a command menu for "Add to meeting"
+
+§F asks whether one prominent contextual creation mechanism should replace the
+scattered Add controls. Researched, and rejected on its merits: a command menu
+is a CHOOSER, and it adds a step to an act whose whole cost is the typing. `+ Add
+to meeting → choose "Agenda item" → type → Enter` is strictly worse than
+`+ Add agenda item → type → Enter`, and it moves the act away from the list it
+lands in.
+
+What §F actually asks for — "fewer disconnected Add X controls" and one mental
+model — is satisfied by making the add row part of the LIST rather than a
+control beside it. There are two capture paths now, and they are one idea at two
+scopes: the list's own last row (you are reading the agenda; you add to it), and
+the pinned capture bar (you are in the meeting; capture anything). DalyHub
+already has a command menu (⌘K) and the Meeting registers its follow-up action
+there.
+
+### The selected composition
+
+    ┌──────────────────────────────────┬────────────────────┐
+    │  THE WORK (flex-1, prose measure) │  THE CONTEXT (20rem)│
+    │   Agenda                          │   When and where    │
+    │   Notes                           │   Attendees         │
+    │   Decisions                       │   Linked records    │
+    │   Outcomes                        │                     │
+    │   Actions                         │                     │
+    └──────────────────────────────────┴────────────────────┘
+
+Below `xl` the two stack, work first. §M's rule is enforced once, on the rail:
+fixed width so the work keeps every pixel a wider screen adds, hairline ring
+rather than a fill, and it is the half that goes below.
+
+### Agenda / Decision / Outcome / Action UX
+
+- **Agenda** — the writing surface, then a divided list of rows ending in
+  `+ Add agenda item`. No cards per item, no forms, one context menu per row.
+- **Decision** — the same row, plus a small circular mark. §I asks a decision to
+  be findable when scanning a finished meeting; the mark is the whole difference.
+- **Outcome** — the same row, deliberately UNMARKED. An outcome is a consequence,
+  a decision is a commitment; marking both would say they are one kind of thing.
+  The schema distinction (`meeting_items.kind`, migration 0021) is untouched and
+  the semantics are unchanged.
+- **Action** — the band shows the real Tasks through the shared `TaskList` /
+  `TaskRow`, then the lines that are not yet anyone's work. An action keeps a
+  promoted "Create task" because it is already a commitment and converting it is
+  the most frequent act on the surface.
+- **Notes** — the shared #287 editor at the workspace's width, no card, growing
+  to 60vh before it scrolls.
+
+### Mobile live-meeting workflow (§P)
+
+Measured at 390px on the loaded fixture. Open the meeting → the capture bar is
+on screen immediately (note / action / decision / outcome, type, Add) → scroll
+to the agenda and add an item inline → write a note in place → add a decision
+inline → create a follow-up Task from an action's own control. No page changes,
+no modal except the shared Task form. The context rail is below the work, which
+is the right order for a phone during a meeting.
+
+## UNTITLED-15 — the icon convergence
+
+| Entity / surface | Previous icon source | Untitled icon source | Mapping strategy | Legacy remaining |
+| --- | --- | --- | --- | --- |
+| **Projects** | `entity-glyphs.tsx` (DalyHub stroke art) via the catalogue; `ProjectIcon` (Material Symbols `folder`) in the frame | `Folder`; 84 catalogue keys upstream | Stored semantic key → catalogue → `fromUntitled` adapter. **No key changed, no migration** | None |
+| **Areas** | as above; `AreaIcon` (Material Symbols `layers`) | `LayersThree01` | as above | None |
+| **Goals** | as above; `GoalIcon` (Material Symbols `flag`) | `Flag05` | as above | None |
+| People | `PersonIcon` (Material Symbols `person`) | `User01` | Entity-identity map | None |
+| Meetings | `MeetingIcon` (Material Symbols `groups`) | `Users01` | Entity-identity map | None |
+| Habits | `HabitIcon` (Material Symbols `repeat`) | `Repeat01` | Entity-identity map | None |
+| Asset subtypes | `asset-icons.tsx` → `~/shared/icons` | via the same re-exports | Registry unchanged; the source beneath it moved | None |
+| Diary subtypes | `diary-icons.tsx` → `~/shared/icons` | via the same re-exports | as above | None |
+| DS-10 feedback | 6 inline SVGs | `CheckCircle`, `AlertTriangle`, `XCircle`, `InfoCircle`, `XClose`, `Loading01` | Direct | None |
+| DS-10b settings | 1 inline SVG (a duplicate of the above) | `AlertTriangle` | Direct | None |
+| Filter chips | 1 inline SVG on a 12-unit grid | `XClose` | Direct | None |
+| Lifestyle entity keys | `entity-glyphs.tsx` | — | **17 keys kept** — the package has no paw, leaf, tent, coffee, plate of food, mountain, guitar, pram, flower, sofa or wine glass | 17 glyphs, enumerated and test-bounded |
+| Brand mark | `BrandMark.tsx` (generated geometry) | — | Product identity, not an icon | 1, by design |
+| Priority flag | `PriorityIndicator.tsx` | — | Encodes P1–P4 by shape; a product signal rather than a generic icon | 1, by design |
+
+**Legacy icon systems found: 3** (hand-copied Material Symbols in `icons.tsx`;
+DalyHub stroke art in `entity-glyphs.tsx`; module-local inline SVGs in
+`feedback-icons.tsx`, `settings-icons.tsx` and `FilterChip.tsx`).
+**Retired: 3.** 1,830 lines of hand-maintained geometry became 686, of which 174
+of 190 exports are upstream.
+
+**Shared registry**: `app/kernel/entities/entity-icon-keys.ts` (the vocabulary,
+kernel-validated) → `app/shared/entity/entity-icon-catalogue.tsx` (key → glyph +
+label + category) → `app/shared/icons/` (`fromUntitled` over
+`@untitledui/icons`). **Persistent icon keys: unchanged. Migrations: none.**
+
+**Picker**: audited, unchanged, because it was already the right composition —
+the shared `Sheet` (one focus trap; bottom sheet on a phone, centred dialog above
+48rem), search, categories, keyboard navigation, current selection, and selection
+signalled by `aria-pressed` + a check badge + a border so it is never colour
+alone. It stays a CURATED subset deliberately: the kernel file is explicit that a
+stored key is "never a React component name", so exposing 1,179 raw upstream
+names would mean persisting library identifiers as data.
+
+**UI icons vs entity icons.** Both come from `@untitledui/icons`; their TREATMENT
+differs and that is the grammar. A UI action icon follows its label at `1em` and
+is decorative. An entity identity icon is resolved from a stored key and rendered
+inside the identity tile at `--app-entity-icon-size` in the record's own hue,
+with the tile's three rungs (`sm`/default/`lg`) carrying both the glyph size and
+the radius. Neither ever carries meaning alone.

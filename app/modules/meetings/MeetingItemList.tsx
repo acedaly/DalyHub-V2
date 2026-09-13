@@ -159,6 +159,22 @@ export function MeetingItemList({
                   every one of those put three identical buttons down an agenda
                   of three topics.
                 */}
+                {converted && onOpenTask ? (
+                  /*
+                    A converted line says WHICH Task it became, and opening it is
+                    one press from the line rather than two through a menu. It is
+                    navigation, not a repeated act, so it does not fall under the
+                    rule above.
+                  */
+                  <Button
+                    variant="subtle"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={() => onOpenTask(item.id)}
+                  >
+                    Open task
+                  </Button>
+                ) : null}
                 {!readOnly && kind === "action" && !converted && onConvert ? (
                   <Button
                     variant="subtle"
@@ -173,15 +189,6 @@ export function MeetingItemList({
                   <OverflowMenu
                     label={`Actions for this ${noun}`}
                     items={[
-                      ...(converted && onOpenTask
-                        ? [
-                            {
-                              id: "open",
-                              label: "Open the task",
-                              onSelect: () => onOpenTask(item.id),
-                            },
-                          ]
-                        : []),
                       ...(!converted && onConvert
                         ? [
                             {

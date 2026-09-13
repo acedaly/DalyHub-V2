@@ -55,22 +55,23 @@ async function addItem(
 ): Promise<void> {
   await page.getByRole("tab", { name: "Meeting" }).click();
   /*
-   * UNTITLED-13 — the add form is progressive disclosure now.
+   * UNTITLED-14 — the add row IS the list's last row, and Enter is the save.
    *
-   * The notebook carries four of these bands, and each used to hold a visible
-   * label, a text field and an Add button whether or not anything was being
-   * added, so a meeting with an agenda and nothing else opened on four empty
-   * forms. One press opens the band's field and focuses it; the disclosure
-   * button is REPLACED by the form, so "Add {kind}" is still unambiguous at
-   * each step and the journey below is one extra press, not a different one.
+   * The four disclosure forms (a label, a field and an Add button per band) are
+   * gone; each list ends in a quiet "Add {kind}" row that becomes a field in
+   * place. There is no submit BUTTON any more — Enter saves, and the field then
+   * clears and STAYS OPEN AND FOCUSED for the next line, which is the whole
+   * point: five agenda items cost five titles and five Enters. So the opener is
+   * pressed only when the field is not already there, and the save is a
+   * keystroke.
    */
-  await page.getByRole("button", { name: `Add ${kindLabel}` }).click();
-  // The field names the noun and the button names the act, so each control can
-  // be asked for unambiguously — they used to share one accessible name.
   const field = page.getByRole("textbox", { name: `New ${kindLabel}` });
-  await expect(field).toBeFocused();
+  if ((await field.count()) === 0) {
+    await page.getByRole("button", { name: `Add ${kindLabel}` }).click();
+    await expect(field).toBeFocused();
+  }
   await field.fill(body);
-  await page.getByRole("button", { name: `Add ${kindLabel}` }).click();
+  await field.press("Enter");
   await expect(page.getByText(body, { exact: false })).toBeVisible();
 }
 
@@ -176,7 +177,7 @@ test("converts meeting items into linked Tasks and groups the follow-up work", a
   // amount of chrome for a card whose job is answering "who is in this
   // meeting?", so it opens on request.
   await page.getByRole("tab", { name: "Meeting" }).click();
-  await page.getByRole("group", { name: "Add attendees" }).click();
+  await page.getByRole("button", { name: "Add attendees" }).click();
   const attendee = page.getByRole("combobox", { name: "Add attendees" });
   await attendee.click();
   await attendee.fill("Sarah Chen");
