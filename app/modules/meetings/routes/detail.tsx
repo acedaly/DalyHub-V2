@@ -1323,9 +1323,19 @@ function MeetingAttendees({
               <span aria-hidden="true" className="shrink-0">
                 <PersonAvatar name={attendee.title} size="sm" />
               </span>
+              {/*
+                The link fills the row's HEIGHT, not just its text box.
+
+                MEASURED: as an inline anchor it came out at 196×20 on a 393px
+                phone, inside a row that is over 50px tall — so the words were
+                the target and the space around them was not. `self-stretch
+                flex items-center` makes the anchor the row, which is the same
+                thing `.dh-prow__open`'s stretched `::after` does for a Person
+                row and what the product means by a row being clickable.
+              */}
               <Link
                 to={`/person/${encodeURIComponent(attendee.id)}`}
-                className="min-w-0 flex-1 truncate text-sm font-medium text-primary underline-offset-2 outline-focus-ring hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
+                className="flex min-w-0 flex-1 items-center self-stretch truncate text-sm font-medium text-primary underline-offset-2 outline-focus-ring hover:underline focus-visible:outline-2 focus-visible:-outline-offset-2"
               >
                 {attendee.title}
               </Link>

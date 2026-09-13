@@ -108,16 +108,32 @@ function renderSummary(
   );
 }
 
-describe("PersonSummary — the relationship summary", () => {
+/*
+ * UNTITLED-13 — these contracts CHANGED, and the change is the point of the
+ * pass.
+ *
+ * The tab used to open on a grid of up to nine counting tiles, two of which
+ * ("Total interactions", "First interaction") were measuring the relationship
+ * rather than describing it. §21 of the brief rules that out by name: People is
+ * not a CRM, and a count of a friendship is a CRM metric. So the tiles are two
+ * things now — a "What you share" band of the records, and the rhythm band's own
+ * supporting line for the counts that are evidence rather than headlines — and
+ * the question each old test was really asking is asserted on whichever of them
+ * now answers it.
+ */
+describe("PersonSummary — what you share", () => {
   it("answers 'when did I last interact' at a glance", () => {
     renderSummary(relationship({}, ["2026-07-25"]));
 
-    const cards = screen.getByRole("list", { name: "Relationship" });
-    expect(within(cards).getByText("Last interaction")).toBeInTheDocument();
-    expect(within(cards).getByText("3 days ago")).toBeInTheDocument();
+    // The relative phrase AND the date, in the rhythm band where the rest of
+    // "what is happening now" lives. It is `lastInteractionPhrase` — the same
+    // derivation the record header and the collection row use.
+    expect(screen.getByText("Last spoke")).toBeInTheDocument();
+    expect(screen.getByText("3 days ago")).toBeInTheDocument();
+    expect(screen.getByText("25 July 2026")).toBeInTheDocument();
   });
 
-  it("answers 'what have we shared' with one card per kind", () => {
+  it("answers 'what have we shared' with one row per kind of record", () => {
     renderSummary(
       relationship(
         {
@@ -135,46 +151,69 @@ describe("PersonSummary — the relationship summary", () => {
       ),
     );
 
-    const cards = screen.getByRole("list", { name: "Relationship" });
+    const shared = screen.getByRole("list", { name: "What you share" });
     for (const label of [
       "Meetings",
       "Diary mentions",
       "Notes",
-      "Open tasks",
-      "Active projects",
+      "Commitments",
+      "Projects",
       "Reviews",
-      "First interaction",
     ]) {
-      expect(within(cards).getByText(label)).toBeInTheDocument();
+      expect(within(shared).getByText(label)).toBeInTheDocument();
     }
+    // The OPEN count leads and the total qualifies it, so a number is never
+    // ambiguous about which it is.
+    expect(within(shared).getByText("2 open of 5 tasks")).toBeInTheDocument();
+    expect(
+      within(shared).getByText("1 active of 2 projects"),
+    ).toBeInTheDocument();
+  });
+
+  it("counts the relationship nowhere — that was the CRM metric", () => {
+    renderSummary(
+      relationship({ meetings: 4, total: 4 }, ["2026-06-01", "2026-07-25"]),
+    );
+
+    // "Total interactions: 47" was a headline tile. The same fact survives as
+    // the rhythm band's supporting SENTENCE, which is evidence for a cadence
+    // rather than a score for a friendship.
+    expect(screen.queryByText("Total interactions")).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/2 recorded moments across 2 days\./),
+    ).toBeInTheDocument();
   });
 
   it("reads as an invitation, not a scoreboard, when nothing is shared yet", () => {
     renderSummary(relationship());
 
-    const cards = screen.getByRole("list", { name: "Relationship" });
-    expect(within(cards).getByText("None yet")).toBeInTheDocument();
-    expect(within(cards).queryByText("Meetings")).not.toBeInTheDocument();
+    // No band at all rather than a band of zeros: an absence is drawn as an
+    // absence, which is `personSharedRecords`' own rule.
     expect(
-      screen.getByText(/Nothing shared yet\./i, { exact: false }),
-    ).toBeInTheDocument();
+      screen.queryByRole("list", { name: "What you share" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Last spoke")).not.toBeInTheDocument();
   });
 
-  it("makes every aggregate navigable, and each card exactly one link", () => {
+  it("makes every shared kind navigable, and each row exactly one link", () => {
     renderSummary(relationship({ meetings: 2, total: 2 }, ["2026-07-25"]));
 
-    const cards = screen.getByRole("list", { name: "Relationship" });
-    const links = within(cards).getAllByRole("link");
-    expect(links.length).toBe(within(cards).getAllByRole("listitem").length);
+    const shared = screen.getByRole("list", { name: "What you share" });
+    const links = within(shared).getAllByRole("link");
+    expect(links.length).toBe(within(shared).getAllByRole("listitem").length);
     expect(
-      within(cards)
+      within(shared)
         .getByRole("link", { name: /^Meetings: 2$/ })
         .getAttribute("href"),
     ).toBe("/person/p1?tab=linked");
+  });
+
+  it("offers the Activity tab as a real link, not a click handler", () => {
+    renderSummary(relationship({}, ["2026-07-25"]));
+
+    // §36 — it navigates, so it has an href and a middle click works.
     expect(
-      within(cards)
-        .getByRole("link", { name: /^Last interaction:/ })
-        .getAttribute("href"),
+      screen.getByRole("link", { name: "All activity" }).getAttribute("href"),
     ).toBe("/person/p1?tab=activity");
   });
 });
@@ -245,11 +284,20 @@ describe("PersonSummary — stay-in-touch", () => {
   it("keeps both regions real, labelled landmarks with real headings", () => {
     renderSummary(relationship({ meetings: 1, total: 1 }, ["2026-07-25"]));
 
+    /*
+     * UNTITLED-13 — level 2, not 3.
+     *
+     * These are sections of a RECORD whose title is the `h1`, so an `h3`
+     * directly beneath it skipped a rank — which axe reports as "Heading order
+     * invalid" and a screen-reader user walking by heading experiences as a
+     * missing level. The `SectionHeading` override exists for precisely this
+     * and takes the rank from the document rather than from the look.
+     */
     expect(
-      screen.getByRole("heading", { name: "Relationship", level: 3 }),
+      screen.getByRole("heading", { name: "What you share", level: 2 }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Staying in touch", level: 3 }),
+      screen.getByRole("heading", { name: "Staying in touch", level: 2 }),
     ).toBeInTheDocument();
     // Exactly one labelled region per section — never a wrapper landmark
     // duplicating the shared component's own.
@@ -257,7 +305,7 @@ describe("PersonSummary — stay-in-touch", () => {
       screen.getAllByRole("region", { name: "Staying in touch" }),
     ).toHaveLength(1);
     expect(
-      screen.getByRole("list", { name: "Relationship" }),
+      screen.getByRole("list", { name: "What you share" }),
     ).toBeInTheDocument();
   });
 });
@@ -280,10 +328,6 @@ describe("PersonSummary — the hand-entered last-interaction field", () => {
       screen.queryByText("Last interaction (noted)"),
     ).not.toBeInTheDocument();
     expect(screen.queryByText("1 January 2020")).not.toBeInTheDocument();
-    expect(
-      within(screen.getByRole("list", { name: "Relationship" })).getByText(
-        "3 days ago",
-      ),
-    ).toBeInTheDocument();
+    expect(screen.getByText("3 days ago")).toBeInTheDocument();
   });
 });

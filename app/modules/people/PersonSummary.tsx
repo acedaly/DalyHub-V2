@@ -49,6 +49,7 @@ import { PersonIdentityBand } from "~/shared/person-identity";
 import {
   StayInTouchPanel,
   formatRelationshipDate,
+  lastInteractionPhrase,
 } from "~/shared/relationships";
 import { Badge, ButtonLink, TagChipList } from "~/shared/ui";
 import { SectionHeading } from "~/shared/ui/untitled/overrides/section-heading";
@@ -198,7 +199,7 @@ export function PersonSummary({
           <p className="dh-person-summary__edit m-0">
             <Link
               to={`/person/${encodeURIComponent(person.id)}?tab=contact`}
-              className="text-sm font-semibold text-brand-secondary outline-focus-ring hover:text-brand-secondary_hover focus-visible:outline-2 focus-visible:outline-offset-2"
+              className="inline-flex items-center text-sm font-semibold text-brand-secondary outline-focus-ring [@media(hover:none)]:min-h-[var(--app-touch-target-min)] hover:text-brand-secondary_hover focus-visible:outline-2 focus-visible:outline-offset-2"
               onClick={() => onEditContact()}
             >
               Edit contact details
@@ -412,6 +413,32 @@ function upcomingItems(
   relationship: PersonRelationship,
 ): { id: string; label: string; value: ReactNode }[] {
   const items: { id: string; label: string; value: ReactNode }[] = [];
+
+  /*
+   * "When did I last speak to them" leads, because it is the single most-asked
+   * question on a Person record.
+   *
+   * It used to be the first of up to nine counting TILES, and dropping the tile
+   * grid nearly dropped the fact with it. Stated as "3 days ago" with the date
+   * beneath, it is the same answer `lastInteractionPhrase` gives the header and
+   * the collection row — one derivation, so the three can never drift.
+   */
+  const last = formatRelationshipDate(relationship.summary.lastInteractionDate);
+  if (last) {
+    items.push({
+      id: "last-interaction",
+      label: "Last spoke",
+      value: (
+        <>
+          {lastInteractionPhrase(relationship)}
+          <span className="block text-xs font-normal text-tertiary">
+            {last}
+          </span>
+        </>
+      ),
+    });
+  }
+
   const nextFollowUp = formatPersonDate(person.nextFollowUp);
   if (nextFollowUp) {
     items.push({ id: "next", label: "Next follow-up", value: nextFollowUp });
@@ -420,12 +447,16 @@ function upcomingItems(
   if (birthday) {
     items.push({ id: "birthday", label: "Birthday", value: birthday });
   }
-  const first = formatRelationshipDate(
-    relationship.summary.firstInteractionDate,
-  );
-  if (first) {
-    items.push({ id: "first", label: "Known since", value: first });
-  }
+  /*
+   * "Known since" is NOT here, and a test is why.
+   *
+   * A first draft put the first interaction in this strip beside the last one.
+   * `PersonSummary.test.tsx` then found the same date three times on one tab for
+   * a Person with a single recorded moment: here, in `StayInTouchPanel`'s own
+   * "First interaction" cadence fact, and as the last interaction — because when
+   * there is one moment it is both. The panel is where it belongs: a first
+   * interaction is evidence for a RHYTHM, not something that is coming up.
+   */
   return items;
 }
 

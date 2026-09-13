@@ -97,7 +97,7 @@ export function PersonRecentActivity({
         */}
         <Link
           to={allHref}
-          className="shrink-0 text-sm font-semibold text-brand-secondary outline-focus-ring hover:text-brand-secondary_hover focus-visible:outline-2 focus-visible:outline-offset-2"
+          className="inline-flex shrink-0 items-center text-sm font-semibold text-brand-secondary outline-focus-ring [@media(hover:none)]:min-h-[var(--app-touch-target-min)] hover:text-brand-secondary_hover focus-visible:outline-2 focus-visible:outline-offset-2"
         >
           All activity
         </Link>

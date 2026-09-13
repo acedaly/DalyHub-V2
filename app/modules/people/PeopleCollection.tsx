@@ -190,21 +190,33 @@ const RHYTHM_RANK: Readonly<Record<string, number>> = {
 };
 
 /**
- * The row's tone vocabulary from the relationship kernel's.
+ * The row's tone, straight from the relationship kernel's.
  *
- * `out_of_touch` and `due_for_follow_up` both arrive as the kernel's `neutral`
- * tone — correct for a pill that must not shout, and not enough for a column the
- * eye is meant to land on. The escalation is made HERE, from the state rather
- * than from the tone, and it is still never colour alone: the state is spelled
- * out beside the dot on every row.
+ * ── UNTITLED-13: the red dot is gone, and it was a real defect ──────────────
+ *
+ * This function used to ESCALATE. `out_of_touch` and `due_for_follow_up` both
+ * arrive as the kernel's `neutral` tone, and UIX-05 promoted them to the row's
+ * `warning` — which `card-family.css` painted with `--dh-color-overdue`, the
+ * product's OVERDUE colour, the one a Task wears when a due date has passed.
+ * Four red dots down a People list, on the surface whose whole brief is that it
+ * is not a CRM.
+ *
+ * The escalation's own reasoning was about emphasis: `neutral` is "correct for
+ * a pill that must not shout, and not enough for a column the eye is meant to
+ * land on". The premise is right and the remedy was wrong. AGENTS.md §5 and the
+ * relationship kernel's own header both rule this out in as many words — "no
+ * streaks, no scores, no badges and no red 'overdue' relationship" — and
+ * `RelationshipTone` has no `warning` and no `danger` for exactly that reason,
+ * so the escalation was reaching past a vocabulary that had deliberately left
+ * the colour out.
+ *
+ * The emphasis it wanted is still there and comes from the things that do not
+ * shout: the column's POSITION (last, where the eye lands and stays), the
+ * default SORT (these rows are first), and the words themselves. A friend you
+ * have not rung is not an overdue task, and the product should not say it is.
  */
-function rhythmTone(state: string, tone: RelationshipTone): PersonRowTone {
-  if (state === "out_of_touch" || state === "due_for_follow_up") {
-    return "warning";
-  }
-  if (tone === "success") return "success";
-  if (tone === "info") return "info";
-  return "neutral";
+function rhythmTone(tone: RelationshipTone): PersonRowTone {
+  return tone;
 }
 
 export interface PeopleCollectionViewProps {
@@ -862,10 +874,7 @@ function PeopleCollection({
               person.stayInTouch
                 ? {
                     text: person.stayInTouch.label,
-                    tone: rhythmTone(
-                      person.stayInTouch.state,
-                      person.stayInTouch.tone,
-                    ),
+                    tone: rhythmTone(person.stayInTouch.tone),
                     /*
                      * CONVERGE-01 §7 — "No shared history yet" is DEMOTED, not
                      * deleted.

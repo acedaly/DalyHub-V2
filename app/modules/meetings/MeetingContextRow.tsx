@@ -95,15 +95,30 @@ export function MeetingContextRow({
         <>
           <Separator />
           <span className="dh-meeting-context__people flex min-w-0 items-center gap-2">
+            {/*
+              The marks are DECORATIVE here, and that is a measured decision.
+
+              A first draft made each one an anchor to its Person's record.
+              `meetings-people-shot.mjs` measured them at 24×25px on a 393px
+              phone, against the product's 44px coarse-pointer floor — and four
+              44px targets plus a count do not fit on one line beside a date.
+              Growing them would also make the people the loudest thing on the
+              record, which is the opposite of §28.
+
+              Nothing is unreachable. The names are still list items (visually
+              hidden beside their marks), so a screen reader hears every one;
+              the count beside them is a real link at a real size; and the
+              Details tab it leads to lists each attendee as a full-height row
+              with their name as a link, which is where per-person navigation
+              belongs.
+            */}
             <PersonAvatarGroup
               label="Attendees"
               size="xs"
               max={VISIBLE_ATTENDEES}
-              overflowHref={allAttendeesHref}
               members={attendees.map((attendee) => ({
                 id: attendee.id,
                 name: attendee.title,
-                href: `/person/${encodeURIComponent(attendee.id)}`,
               }))}
             />
             {/*
@@ -113,7 +128,13 @@ export function MeetingContextRow({
               reads correctly at one attendee as well as at nine.
             */}
             <a
-              className="dh-meeting-context__more font-medium text-brand-secondary outline-focus-ring hover:text-brand-secondary_hover focus-visible:outline-2 focus-visible:outline-offset-2"
+              /*
+               * The header's ONE target for the people, so it takes the
+               * product's coarse-pointer floor — the same `(hover: none)`
+               * condition `ui.css` applies to every button and field, written
+               * as a utility because this is one control rather than a family.
+               */
+              className="dh-meeting-context__more inline-flex items-center font-medium text-brand-secondary outline-focus-ring [@media(hover:none)]:min-h-[var(--app-touch-target-min)] hover:text-brand-secondary_hover focus-visible:outline-2 focus-visible:outline-offset-2"
               href={allAttendeesHref}
             >
               {attendeeCountLabel(attendees.length)}

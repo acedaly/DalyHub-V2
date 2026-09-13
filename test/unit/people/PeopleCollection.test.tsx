@@ -176,7 +176,25 @@ describe("People collection", () => {
     expect(within(row).getByText("Due for follow-up")).toBeInTheDocument();
   });
 
-  it("escalates an overdue rhythm to the attention tone, with the words beside it", () => {
+  /*
+   * UNTITLED-13 — this assertion PINNED A DEFECT, and the defect is the reason
+   * the pass touched it.
+   *
+   * UIX-05 escalated `out_of_touch` and `due_for_follow_up` from the kernel's
+   * `neutral` to the row's `warning`, and `card-family.css` painted `warning`
+   * with `--dh-color-overdue` — the product's OVERDUE colour, the one a Task
+   * wears when its due date has passed. On a fourteen-person fixture that is
+   * four red dots down a People list, on the surface whose whole brief is that
+   * it is not a CRM. AGENTS.md §5 and `person-relationship.ts` both rule it out
+   * in as many words ("no red 'overdue' relationship"), and `RelationshipTone`
+   * has no `warning` member precisely so that this could not be expressed.
+   *
+   * The emphasis the escalation wanted is real and is still there: the rhythm is
+   * the last column, where the eye lands and stays, and these rows are FIRST
+   * under the default sort. What is gone is the colour that said a friend you
+   * have not rung is an overdue task.
+   */
+  it("states a long silence in words, and never as an overdue warning", () => {
     renderCollection([
       personItem({
         stayInTouch: signal({
@@ -190,8 +208,41 @@ describe("People collection", () => {
       }),
     ]);
     const rhythm = screen.getByTestId("person-row-rhythm");
-    expect(rhythm).toHaveAttribute("data-tone", "warning");
     expect(rhythm).toHaveTextContent("Out of touch");
+    // The kernel's own tone, unescalated — and never the attention tone.
+    expect(rhythm).toHaveAttribute("data-tone", "neutral");
+  });
+
+  it("sorts the quiet relationships to the top instead of colouring them", () => {
+    renderCollection([
+      personItem({
+        id: "p-recent",
+        title: "Recently Seen",
+        stayInTouch: signal({
+          state: "recently_connected",
+          label: "Recently connected",
+          tone: "success",
+          daysSinceLastInteraction: 2,
+        }),
+      }),
+      personItem({
+        id: "p-quiet",
+        title: "Long Silence",
+        stayInTouch: signal({
+          state: "out_of_touch",
+          label: "Out of touch",
+          tone: "neutral",
+          daysSinceLastInteraction: 400,
+        }),
+      }),
+    ]);
+    // The default sort is "Needs attention first", which is where the emphasis
+    // the colour used to carry actually lives.
+    const names = screen
+      .getAllByRole("heading", { level: 2 })
+      .map((heading) => heading.textContent);
+    expect(names[0]).toBe("Long Silence");
+    expect(names[1]).toBe("Recently Seen");
   });
 
   /* ------------------------------------------------------------------------ */

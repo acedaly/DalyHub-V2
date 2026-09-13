@@ -77,7 +77,23 @@ function factItems(
     });
   }
 
-  if (summary.firstInteractionDate) {
+  /*
+   * The first interaction, unless it IS the last one.
+   *
+   * A relationship with exactly one recorded moment has the same date for both,
+   * and the workspace states the last one directly above this panel — so the
+   * panel was printing "First interaction: 25 July 2026" underneath "Last spoke:
+   * 25 July 2026", which is one moment stated twice with two different names.
+   * Found by `PersonSummary.test.tsx`, which asked for the date once and got
+   * three of it before this and the `upcomingItems` duplicate were both removed.
+   *
+   * A first interaction earns its place the moment there is a SECOND one,
+   * because then it says how long this has been going on.
+   */
+  if (
+    summary.firstInteractionDate &&
+    summary.firstInteractionDate !== summary.lastInteractionDate
+  ) {
     items.push({
       label: "First interaction",
       value:

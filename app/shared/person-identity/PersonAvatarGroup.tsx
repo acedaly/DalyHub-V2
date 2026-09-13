@@ -26,6 +26,20 @@
  * the API answers 404 for it — and the templates that show grouped avatars
  * compose `Avatar` with negative margins inline. This is that composition,
  * named once, rather than each surface repeating the margin arithmetic.
+ *
+ * ── A mark is a target only where there is room for one ─────────────────────
+ *
+ * MEASURED, not assumed: a first draft linked every mark in the Meeting header,
+ * and `meetings-people-shot.mjs` reported them at **24×25px** on a 393px phone
+ * against DalyHub's 44px coarse-pointer floor. Four 44px targets plus a count
+ * do not fit on one line beside a date, and growing them would make the people
+ * the loudest thing on the record — which is the opposite of what §28 asks for.
+ *
+ * So a surface passes `href` only where its marks are drawn large enough to be
+ * pressed. Where it does not, the marks are decorative, the NAMES are still in
+ * the list for assistive tech, and the surface provides one real target that
+ * leads somewhere — in the Meeting header, the "N attendees" link. Nothing is
+ * unreachable; one thing stopped being a 24px tap target.
  */
 
 import type { ReactNode } from "react";
@@ -34,7 +48,14 @@ import { cx } from "~/shared/ui/untitled/utils/cx";
 
 import { PersonAvatar, type PersonAvatarSize } from "./PersonAvatar";
 
-/** One Person in a group. Everything except `name` is optional context. */
+/**
+ * One Person in a group. Everything except `name` is optional context.
+ *
+ * `href` is available and is deliberately NOT used by the Meeting header — see
+ * the note on `PersonAvatarGroupProps.max` and the touch-target finding in the
+ * component's own comment. A surface that draws its marks at `md` in a list has
+ * the room to make each one a target; a header beside a date does not.
+ */
 export interface PersonAvatarGroupMember {
   readonly id: string;
   readonly name: string;
