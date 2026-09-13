@@ -89,7 +89,9 @@ import {
 } from "./person-circles";
 import { formatPersonDate, type SerializedPersonListItem } from "./person-view";
 import type { PersonMutationResult } from "./routes/mutate";
-import { buttonClassName } from "~/shared/ui";
+import { buttonClassName, inputClassName } from "~/shared/ui";
+import { toggleOptionClassName } from "~/shared/forms";
+import { cx } from "~/shared/ui/untitled/utils/cx";
 
 const NEW_PERSON_KEY = "new-person";
 
@@ -662,16 +664,24 @@ function PeopleCollection({
   );
 
   const filterBar = (
-    <div className="dh-people-filters">
-      <label className="dh-people-filters__search">
+    <div className="dh-people-filters flex w-full flex-wrap items-center gap-2">
+      <label className="dh-people-filters__search min-w-0 flex-1 basis-64">
         <span className="dh-visually-hidden">Search people</span>
+        {/*
+          UNTITLED-13 — Untitled's `base/input` recipe through
+          `inputClassName()`, not a bare `<input>` leaning on `base.css`'s
+          control floor. It is the same composition Assets uses and for the same
+          reason: the control's height, corner, ground, focus ring and
+          coarse-pointer floor come from the product's one input rather than
+          from this module.
+        */}
         <input
           type="search"
           inputMode="search"
           placeholder="Search name, organisation, email or tag"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          className="dh-people-filters__input"
+          className={inputClassName({ className: "dh-people-filters__input" })}
           autoComplete="off"
         />
       </label>
@@ -681,16 +691,26 @@ function PeopleCollection({
        * toggle rather than a select because there is exactly one answer, and it
        * states its own count so the owner knows before pressing it whether it
        * will show anything.
+       *
+       * UNTITLED-13 — the shared `toggleOptionClassName` recipe (Untitled's pill
+       * geometry), which is where its border, radius, ground, pressed fill and
+       * 44px floor come from now. It was ~35 lines of hand-painted CSS in
+       * `people.css` with its own `aria-pressed` fill, beside a Diary chip and a
+       * Meeting capture chip that had each been rebuilt on this recipe already.
+       * `aria-pressed` still carries the state, so it is never colour alone.
        */}
       {view !== "archived" ? (
         <button
           type="button"
-          className="dh-people-filters__toggle"
+          className={cx(
+            "dh-people-filters__toggle gap-2",
+            toggleOptionClassName({ checked: onlyCatchUp }),
+          )}
           aria-pressed={onlyCatchUp}
           onClick={() => setParam("catch_up", onlyCatchUp ? null : "1")}
         >
           Needs a catch-up
-          <span className="dh-people-filters__toggle-count">
+          <span className="dh-people-filters__toggle-count tabular-nums">
             {catchUpCount}
           </span>
         </button>
@@ -706,7 +726,7 @@ function PeopleCollection({
        * search field beside it.
        */}
       <SortMenu
-        className="dh-people-filters__sort"
+        className="dh-people-filters__sort shrink-0"
         subject="people"
         value={sortKey}
         options={SORT_OPTIONS}
@@ -724,8 +744,25 @@ function PeopleCollection({
    * this: the phone gets one Filter button and the shared sheet, and it can only
    * do that because the sort and the catch-up filter are both URL-backed.
    *
-   * Search stays visible at every width (see `people.css`), because a search box
-   * behind a button is a search box nobody uses.
+   * Search stays visible at every width, because a search box behind a button
+   * is a search box nobody uses.
+   *
+   * UNTITLED-13 — that is `keepFiltersOnCompact` now, a prop on the shared
+   * layout beside the `keepViewsOnCompact` it mirrors.
+   *
+   * People had written the rule as a comment and then had to defeat the layout
+   * to get it: supplying `mobileControls` turns on the shared rule that hides
+   * the whole desktop filter band below 48rem, so HARDEN-02 brought it back with
+   * a `:has(.dh-people-filters)` override in `people.css` — a module reaching
+   * into the shared layout's cascade because the layout offered no way to say
+   * it. The layout says it now; the module still decides what inside the band
+   * survives the narrowing, which is search alone.
+   *
+   * `persistentControls` is NOT this and a first draft of this pass reached for
+   * it by its name. It makes the SHEET the control surface at every width and
+   * leaves the hide rule in force, so at 393px the band, the toggle, the sort
+   * and the search all disappeared together — the exact defect HARDEN-02 fixed,
+   * reintroduced. Caught by driving a real phone-width browser, not by a test.
    */
   const mobileControls = (
     <CollectionControls
@@ -748,6 +785,7 @@ function PeopleCollection({
       viewSwitcher={viewSwitcher}
       filterBar={filterBar}
       mobileControls={mobileControls}
+      keepFiltersOnCompact
       // The circles and Archived are principal collections, not filters — they
       // are not among the control groups, so hiding the switcher on a phone left
       // no route to them at all.

@@ -153,6 +153,23 @@ describe("People collection", () => {
     ).not.toBeInTheDocument();
   });
 
+  /*
+   * UNTITLED-13 — the phone keeps its SEARCH, and says so through the layout.
+   *
+   * The behaviour itself is a media query and cannot be asserted in jsdom; the
+   * opt-in can. It matters because the first draft of this pass reached for
+   * `persistentControls` by its name, which makes the SHEET the control surface
+   * at every width and leaves the hide rule in force — so at 393px the band,
+   * the toggle, the sort and the search all disappeared together, which is the
+   * exact defect HARDEN-02 fixed.
+   */
+  it("opts the filter band out of the phone hide rule", () => {
+    const { container } = renderCollection([personItem()]);
+    expect(
+      container.querySelector(".dh-collection--keep-filters"),
+    ).not.toBeNull();
+  });
+
   it("shows a warm empty state on /people", () => {
     renderCollection([]);
     expect(screen.getByText("No People yet")).toBeInTheDocument();
