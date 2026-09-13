@@ -21,6 +21,7 @@ import {
   expectNoHorizontalOverflow,
   gotoFixture,
   openCollectionControls,
+  waitForInteractive,
 } from "./helpers";
 
 const owned = new Set<string>();
@@ -92,8 +93,20 @@ test("create, edit, search, filter, archive, restore, delete", async ({
   await createAsset(page, licence, "Licence");
   await createAsset(page, subscription, "Software");
 
-  // 2. Edit structured details on the Details tab (explicit save contract).
+  /*
+   * 2. Edit structured details on the Details tab (explicit save contract).
+   *
+   * The hydration wait is not decoration. A record tab is a React Aria `Tab`:
+   * server-rendered markup carries the `role` and the accessible name, so
+   * Playwright finds it and clicks it happily BEFORE any handler exists, the
+   * URL never gains `?tab=`, and the journey then spends its whole timeout
+   * waiting for a field on a panel that was never selected. Every other
+   * journey in this file reaches the record through `gotoFixture`, which
+   * settles; the three that navigate straight to a record URL did not, and all
+   * three failed here for that reason alone.
+   */
   await page.goto(vehicleUrl);
+  await waitForInteractive(page);
   await page.getByRole("tab", { name: "Details" }).click();
   await page
     .getByRole("textbox", { name: /^Manufacturer/ })
@@ -160,6 +173,7 @@ test("create, edit, search, filter, archive, restore, delete", async ({
 
   // 10. Archive then restore from the Settings tab.
   await page.goto(vehicleUrl);
+  await waitForInteractive(page);
   await page.getByRole("tab", { name: "Settings" }).click();
   await page.getByRole("button", { name: "Archive asset" }).click();
   // The record header status pill shows the archived record state.
@@ -190,6 +204,7 @@ test("sensitive values never appear on collection cards", async ({ page }) => {
   const title = uniqueAssetTitle("private");
   const url = await createAsset(page, title, "Electronics");
   await page.goto(url);
+  await waitForInteractive(page);
   await page.getByRole("tab", { name: "Details" }).click();
   await page
     .getByRole("textbox", { name: /^Serial number/ })
@@ -211,6 +226,7 @@ test("browser Back / Forward and refresh preserve the record tab", async ({
   const title = uniqueAssetTitle("nav");
   const url = await createAsset(page, title, "Tool");
   await page.goto(url);
+  await waitForInteractive(page);
   await page.getByRole("tab", { name: "History" }).click();
   await expect(page).toHaveURL(/tab=history/);
   await page.reload();
