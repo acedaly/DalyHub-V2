@@ -1233,6 +1233,21 @@ is worth recording because the previous three passes each found something:
 - the one inert class name kept (`.dh-obligation-row`) carries exactly one rule,
   stated in `obligations.css` with its reason.
 
+### The §40 sweep, and what it found
+
+§40 asks for every remaining bar, mini-chart and CSS graph in the touched
+modules to be classified. Swept for `<svg>`, `canvas`, the five shared
+indicators, and any inline or stylesheet `width` used as a proportion:
+
+- **One genuine chart**, the Asset value history's bar. Dated numeric points, a
+  trend gate and a proportional mark with no axis. Migrated to
+  `MeasurementTrend`.
+- **Nothing else.** Finance, Assets and Life Admin now contain no hand-drawn
+  SVG, no canvas, no CSS bar and no consumer of `TrendBars`, `CategoryBars`,
+  `Sparkline`, `ProgressRing` or `ComparisonBars`. The only plots in the three
+  modules are `MoneyFlow` and `MeasurementTrend`, both on the shared Untitled
+  foundation.
+
 ### The fixtures
 
 `scripts/finance-assets-admin-seed.mjs`, a sibling of `meetings-people-seed.mjs`
