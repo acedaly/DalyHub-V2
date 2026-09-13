@@ -29,10 +29,13 @@ function searchTrigger(page: Page) {
   // The primary Search affordance lives in the DESKTOP TOP APP BAR. It used to
   // be a pill in the navigation drawer; the surface it opens, the callback it
   // opens it with and the focus restoration are all unchanged — only its home
-  // moved. Scoped to `.dh-topbar` so this never accidentally resolves the phone
-  // sheet's own entry, which is a different control on a different viewport.
+  // moved. Scoped to the desktop bar so this never accidentally resolves the
+  // phone sheet's own entry, which is a different control on a different
+  // viewport. The scope is the bar's TEST ID, not `.dh-topbar`: that class went
+  // with the `dh-topbar__*` family (see `DesktopTopBar.tsx`), so the old
+  // selector matched nothing and every journey through this helper was dead.
   return page
-    .locator(".dh-topbar")
+    .locator('[data-testid="desktop-top-bar"]')
     .getByRole("button", { name: /^Search DalyHub/ })
     .first();
 }

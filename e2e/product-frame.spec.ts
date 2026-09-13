@@ -34,7 +34,7 @@ test.describe("PX-02 frame — desktop", () => {
 
     // Search and the palette live in the top app bar, not in the drawer. The
     // drawer used to open with two 56px pills before its first destination.
-    const topBar = page.locator(".dh-topbar");
+    const topBar = page.locator('[data-testid="desktop-top-bar"]');
     await expect(
       topBar.getByRole("button", { name: /^Search DalyHub/ }),
     ).toBeVisible();
@@ -66,7 +66,10 @@ test.describe("PX-02 frame — desktop", () => {
     // passing against a banner that had no brand in it at all.
     await page.goto("/");
     const nav = page.getByRole("navigation", { name: "Primary" });
-    const brand = nav.locator(".dh-sidebar__brand");
+    // The brand block by its TEST ID: `SidebarBrand.tsx` records that "the
+    // `dh-sidebar__brand*` class family is gone", so this resolved to nothing
+    // and the count assertion below could only fail.
+    const brand = nav.getByTestId("sidebar-brand");
     await expect(brand).toHaveCount(1);
     await expect(brand.getByText("DalyHub", { exact: true })).toBeVisible();
     const mark = brand.locator(".dh-brand-mark");
@@ -108,7 +111,7 @@ test.describe("PX-02 frame — desktop", () => {
      * navigation sheet renders the same menu and both are in the DOM at once.
      */
     const trigger = page
-      .locator(".dh-sidebar--rail")
+      .getByTestId("sidebar-rail")
       .getByRole("button", { name: /^Account —/ });
     await trigger.click();
     await expect(page.getByText("owner@example.invalid")).toBeVisible();

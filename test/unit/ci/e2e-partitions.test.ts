@@ -158,11 +158,26 @@ describe("E2E partitions", () => {
      * a 16.73 min ceiling once FOLLOW-01's 43.2 s spec file was measured in, and
      * the MEAN of the ten non-sliced partitions was already 1005.0 s — so no
      * packing fits and no cheaper spec absorbs it. `PARTITION_COUNT` is the lever
-     * this derivation exposes for exactly that case. The bound stays a bound:
-     * fourteen would need its own evidence, and the pool figure it is being
-     * checked against was interpolated from eighteen shards, not from thirteen.
+     * this derivation exposes for exactly that case.
+     *
+     * EIGHTEEN now, and this bound asked for its own evidence before moving, so
+     * here it is. Read back from all thirteen `e2e-results-p*` artifacts of run
+     * 34768998924, the suite measures **295.7 min** of test time against a
+     * manifest that claimed 208.3 — so each of the thirteen partitions carried
+     * ~22.7 min against the 16.7 min ceiling, ran ~25 min of wall clock, and was
+     * killed by `globalTimeout`. Twelve of thirteen overran and two starved 27
+     * and 31 tests apiece, which is coverage the gate silently stopped having.
+     * 295.7 ÷ 16.7 needs 17.7, so eighteen.
+     *
+     * The pool figure this bound was reasoned from is the SAME run 31445526789
+     * where six of eighteen shards waited 5.5–7.0 min. That cost is real and it
+     * is LATENCY: a job that has not started spends none of its `globalTimeout`,
+     * the workflow allows each 40 min, and `fail-fast: false` means a late start
+     * hides nothing. Weighed against tests that never execute, queueing is the
+     * cheaper failure — so when the two conflict, coverage wins and the gate
+     * takes longer.
      */
-    expect(PARTITION_COUNT).toBeLessThanOrEqual(13);
+    expect(PARTITION_COUNT).toBeLessThanOrEqual(18);
     const worst = Math.max(
       ...manifest.partitions.map(
         (p: { estimateSeconds: number }) => p.estimateSeconds,

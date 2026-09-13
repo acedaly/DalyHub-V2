@@ -70,8 +70,12 @@ test.describe("compact widths — ONE global Capture affordance, not two", () =>
       // keyboard or screen-reader user — so the display value is asserted, not
       // just `toBeHidden()`.
       await expect(topBarCreate(page)).toBeHidden();
+      // Addressed by the bar's TEST ID, not `.dh-topbar`: that class went with
+      // the `dh-topbar__*` family, and `querySelector` then returned null, so
+      // this read `null` where it wanted `"none"` — an assertion that could
+      // only fail. The bar itself is still there, carrying `max-md:hidden`.
       const topBarDisplay = await page.evaluate(() => {
-        const bar = document.querySelector(".dh-topbar");
+        const bar = document.querySelector('[data-testid="desktop-top-bar"]');
         return bar ? getComputedStyle(bar).display : null;
       });
       expect(topBarDisplay).toBe("none");

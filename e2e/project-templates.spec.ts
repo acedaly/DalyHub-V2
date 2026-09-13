@@ -546,7 +546,7 @@ test.describe("PROJECT-02 — Project templates", () => {
     await gotoFixture(page, "/today");
     await page.waitForLoadState("networkidle");
     await page
-      .locator(".dh-topbar")
+      .locator('[data-testid="desktop-top-bar"]')
       .getByRole("button", { name: /^Search DalyHub/ })
       .first()
       .click();
