@@ -969,6 +969,13 @@ function DistributionSection({ model }: { readonly model: AnalyticsModel }) {
        * sum to the whole and the longest one is not automatically full.
        */}
       <CategorySplit
+        /*
+         * Bounded for the reason the Goals rows and the secondary completion
+         * lines are: a single Area holding all of a period's attributed work
+         * drew one full-width slab a metre across a 1440px page, with its
+         * figure stranded at the far end (found by looking at the page).
+         */
+        className="max-w-3xl"
         label="Completed work by Area"
         total={model.distributionTotal}
         showShare

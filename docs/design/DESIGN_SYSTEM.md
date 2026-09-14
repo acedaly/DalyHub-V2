@@ -184,6 +184,122 @@ The CIRCULAR form (`~/shared/charts/ProgressRing`) is a data ring whose geometry
 the component computes, not Untitled's determinate loading circle, and it is not
 a substitute for the bar: a ring beside a bar says the same thing twice.
 
+A bar may report a POSITION rather than a completion (`range`, UNTITLED-17). A
+guided Review's stepper is "step 4 of 7", not "57%", and ARIA has
+`valuemin`/`valuemax`/`valuenow` for exactly that; the bar still DRAWS the
+fraction, so one component paints every linear indicator in the product. Reach
+for it only where the measure genuinely has bounded discrete positions — a
+completion has none, and `range` on one would say "3 of 100".
+
+A run of bars sharing a denominator is `CategorySplit` (`~/shared/progress`),
+not a chart: a labelled list, one `ProgressTrack` per row, every row stating its
+own figure and its share in words. It is the ONE way DalyHub draws "how did this
+total divide up?" — Insight's Areas and a Report's grouped result both use it —
+and it replaced two bespoke implementations of that shape. Its bars carry no
+identity accent: a bar in a proportion list encodes magnitude, and a hue per row
+makes the ranking harder to read while adding a second colour system beside the
+chart foundation's.
+
+### The pressed state, and why it equals hover
+
+DalyHub's `Button` has no pressed treatment distinct from hover, and that is the
+SOURCE SYSTEM's decision rather than something lost in migration. Established by
+reading the vendored source and by measuring the rendered control:
+
+- upstream `base/buttons/button.tsx` declares `hover:` and `data-loading:` arms
+  for all nine colour families and no `pressed:` arm for any of them;
+- Untitled's own `application/app-navigation/.../nav-account-card.tsx` DOES use
+  the variant, and maps it to the hover treatment exactly
+  (`pressed:bg-primary_hover pressed:text-fg-quaternary_hover`) — so where
+  Untitled expresses a pressed state at all, it deliberately makes it hover;
+- `buttonClassName()` is built from the vendored component's own exported
+  `styles`, so DalyHub carries precisely what upstream declares and has added
+  nothing and dropped nothing;
+- MEASURED in Chromium on `/reports`' primary action: rest
+  `rgb(105 63 117)`, hover `rgb(95 53 107)`, pressed `rgb(95 53 107)` — with
+  `data-pressed="true"` present on the element throughout the press.
+
+So the mechanism is all there: React Aria emits `data-pressed`, the `pressed:`
+variant is available (`tailwindcss-react-aria-components`), and nothing paints
+it. On a coarse pointer the press is not feedback-free either — React Aria's
+`usePress` fires on touchstart and browsers additionally apply emulated `:hover`
+on tap, so a touch press reaches the same treatment by a different route. In
+forced colours both declarations are dropped together and the platform's own
+button colours apply, so no state is lost there.
+
+Differentiating the two later is a one-line change at `buttonClassName()`, and
+it is a PRODUCT decision that should be taken deliberately and applied
+everywhere at once — not introduced module by module.
+
+## The analytical page untitled 17
+
+An ANALYTICAL surface — one whose subject is a period rather than a record — is
+a run of flat SECTIONS separated by hairline rules on the page's own ground, in
+narrative order, one column at every width. Not a grid of cards: a page of five
+cards is a dashboard, and every card boundary is a box the reader has to cross
+between one part of an argument and the next. The Finance home and Insight are
+both this arrangement (Untitled's `dashboards-01/14`), so learning one is
+learning the other.
+
+The narrative is the pattern, not a fixed set of headings. Insight's is
+**what needs attention → what changed → momentum → supporting detail → what
+happened**; a surface with a different question orders its own sections, but it
+orders them, and the section that asks the owner to DO something leads.
+
+A section may carry one figure at display size, or a caption stating a figure
+that is really a statement about the section beneath it. It may not carry a row
+of equal tiles: a KPI row says "these are the N things", which is precisely what
+a surface with a narrative is claiming is untrue.
+
+## A figure, and the sentence under it untitled 17
+
+There is ONE way DalyHub states a derived number on a surface: a quiet label, the
+figure at the display rung in tabular figures, and a full sentence beneath it.
+
+- **The figure LINKS to the records behind it** wherever such a list exists.
+  That is the whole difference between an analytical surface and a dashboard: a
+  number the owner cannot check is a number they have to trust. It does not look
+  like a link at rest — a row of underlined numbers has no hierarchy left — and
+  announces itself on hover and on focus.
+- **The comparison is a sentence, never an arrow and a percentage.** "6 more
+  than the previous period (18)" is checkable; "+33%" hides its base, and from a
+  base of zero it is not a figure at all. The evaluator says "No Tasks in the
+  previous period" for that case rather than inventing one.
+- **The sentence stays the quiet text role in both directions.** Not green for
+  up and red for down: a week with fewer completed Tasks may be a week of one
+  large Project, and painting it red makes the product an opinion rather than a
+  record.
+- **A failed read says "Not available" at the figure's own place.** Never a
+  zero, and never an absent figure — a missing number reads as "nothing to
+  report", which is the one thing a failed read must not be mistaken for.
+
+## The AI question surface untitled 17
+
+DalyHub's AI answers one question at a time from evidence selected for that
+question, and keeps no conversation history. So its surface is a question, its
+answer and the evidence behind the answer — **never a message thread**. A thread
+draws a memory the product does not have, and the first thing an owner does with
+one is ask a follow-up that silently loses its context. For the same reason
+there is no sticky composer: that is the furniture of a surface you return to
+within a session.
+
+The composer is the shared `Textarea` and submits on ⌘↵ / Ctrl+↵, printed beside
+the button rather than left to be discovered — deliberately not bare Enter,
+which is the convention of a control that expects one line. Starting points are
+a few real buttons that fill the composer and hand back the caret, drawn from a
+closed list the product can actually resolve; never a grid of everything AI
+might do.
+
+An answer is announced by **moving focus to its heading**, not by an `aria-live`
+region wrapped around it: a live container around a result that arrives whole is
+re-read every time any part of it changes — opening a facts disclosure, say.
+
+Anything AI proposes reaches the owner's data through one path only: suggestion
+→ review → explicit press → mutation. Nothing starts selected, no control
+applies on change, every change shows its before and after, every result is
+stated per item, and undo is the server's own inverse payload rather than a
+guess the surface assembles.
+
 ## Tabs
 
 Tabs organise peer views inside a record or module. Use Untitled/React Aria tab

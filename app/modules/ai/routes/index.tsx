@@ -264,7 +264,14 @@ export default function AskDalyHubRoute({ loaderData }: Route.ComponentProps) {
                   </kbd>{" "}
                   to ask
                 </span>
-                <span aria-hidden="true">·</span>
+                {/*
+                 * The separator exists only while the two facts share a line.
+                 * Wrapped onto two lines on a phone it dangled at the end of
+                 * the first one (found by looking at the 390px capture).
+                 */}
+                <span aria-hidden="true" className="hidden sm:inline">
+                  ·
+                </span>
                 <span>
                   {availability.monthSpentUsd.toFixed(2)} of{" "}
                   {availability.monthlyBudgetUsd.toFixed(2)} USD used this month
