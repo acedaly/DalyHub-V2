@@ -297,11 +297,20 @@ test.describe("RECALL-04 — one measurement predicate, one alignment vocabulary
   }) => {
     await gotoFixture(page, "/analytics");
 
-    // The tile wears the ALIGNMENT word, never the measurement one.
-    await expect(page.getByText("Goals moving", { exact: true })).toBeVisible();
-    await expect(page.getByText("Goals on track", { exact: true })).toHaveCount(
-      0,
+    /*
+     * The figure wears the ALIGNMENT word, never the measurement one.
+     *
+     * UNTITLED-17 recomposed Insight, and this reading is now the CAPTION under
+     * the Goals section heading rather than a tile above it — "5 goals moving ·
+     * of 9 Goals, right now" — so the word reads mid-sentence. DEBT-234's
+     * contract is the vocabulary: "moving" for the alignment question, and
+     * "on track" reserved for GOAL-02's measurement status on Today and
+     * /goals. The capital G belonged to the tile, not to the contract.
+     */
+    await expect(page.getByTestId("analytics-metric-goals")).toContainText(
+      /goals moving/i,
     );
+    await expect(page.getByText(/goals on track/i)).toHaveCount(0);
 
     // And the surface says which of the two Goal questions it is answering.
     await expect(
