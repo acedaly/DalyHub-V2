@@ -442,7 +442,21 @@ export async function waitForInteractive(page: Page): Promise<void> {
   // (Seen in CI: a Note capture handed off to the canonical editor, `/notes/`
   // matched, Today's marker was still counted, and `.first()` resolved to
   // nothing.) Settling first makes the count describe the document we landed on.
-  await page.waitForLoadState("networkidle");
+  //
+  // BOUNDED, because `networkidle` is a best-effort settle and not a contract.
+  // It resolves only after 500 ms with no more than two connections in flight,
+  // and the Vite dev server keeps an HMR websocket open and fetches modules on
+  // demand — so on a loaded runner it can simply never be reached. MEASURED on
+  // run 34792235989: `project-health.spec.ts:209` spent its entire 90 s budget
+  // inside this one line, at `gotoFixture`, having asserted nothing at all. The
+  // gates below (`waitForStylesheet`, then the two hydration markers) are the
+  // ones that actually answer "is this page wired up yet?", and each of them is
+  // already bounded and already swallows its own timeout. This is the same
+  // rule, applied to the line that was still exempt from it: a gate waits
+  // generously, and then it gets out of the way.
+  await page
+    .waitForLoadState("networkidle", { timeout: 10_000 })
+    .catch(() => undefined);
   await waitForStylesheet(page);
 
   /*
