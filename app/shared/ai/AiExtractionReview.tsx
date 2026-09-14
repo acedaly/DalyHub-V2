@@ -32,7 +32,7 @@ import {
   type NoteDraft,
   type TaskDraft,
 } from "./ai-view";
-import { buttonClassName, inputClassName } from "~/shared/ui";
+import { buttonClassName, Checkbox, inputClassName, Select } from "~/shared/ui";
 
 /** A link the owner may accept. Only allowlisted targets ever appear. */
 interface LinkDraft {
@@ -173,16 +173,20 @@ export function AiExtractionReview({
           <ul className="dh-ai-review__list">
             {drafts.map((draft) => (
               <li key={draft.index} className="dh-ai-review__proposal">
-                <label className="dh-ai-review__select">
-                  <input
-                    type="checkbox"
-                    checked={draft.selected}
-                    onChange={(event) =>
-                      patch(draft.index, { selected: event.target.checked })
-                    }
-                  />
-                  <span>Add this Task</span>
-                </label>
+                {/*
+                 * UNTITLED-17 — the shared `Checkbox`, over Untitled's own.
+                 * These were bare `<input type="checkbox">` beside fields that
+                 * had already been migrated, so a proposal row drew a browser
+                 * default box next to an Untitled text field.
+                 */}
+                <Checkbox
+                  className="dh-ai-review__select"
+                  label="Add this Task"
+                  checked={draft.selected}
+                  onChange={(event) =>
+                    patch(draft.index, { selected: event.target.checked })
+                  }
+                />
 
                 <label className="dh-ai-review__field">
                   <span className="dh-ai-review__label">Title</span>
@@ -231,8 +235,16 @@ export function AiExtractionReview({
 
                 <label className="dh-ai-review__field">
                   <span className="dh-ai-review__label">Project</span>
-                  <select
-                    className="dh-select"
+                  {/*
+                   * UNTITLED-17 — the shared `Select`.
+                   *
+                   * `.dh-select` has had NO rules in any stylesheet since the
+                   * Phase-5 paint sweep, so this control rendered as the
+                   * browser's own default `<select>` beside two Untitled date
+                   * fields — the clearest kind of migration miss, and invisible
+                   * to every test because a bare select still works.
+                   */}
+                  <Select
                     value={draft.projectId}
                     onChange={(event) =>
                       patch(draft.index, { projectId: event.target.value })
@@ -244,7 +256,7 @@ export function AiExtractionReview({
                         {project.title}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </label>
 
                 {draft.suggestedOwnerPersonId !== null ? (
@@ -285,16 +297,14 @@ export function AiExtractionReview({
           <ul className="dh-ai-review__list">
             {notes.map((note) => (
               <li key={note.index} className="dh-ai-review__proposal">
-                <label className="dh-ai-review__select">
-                  <input
-                    type="checkbox"
-                    checked={note.selected}
-                    onChange={(event) =>
-                      patchNote(note.index, { selected: event.target.checked })
-                    }
-                  />
-                  <span>Add this Note</span>
-                </label>
+                <Checkbox
+                  className="dh-ai-review__select"
+                  label="Add this Note"
+                  checked={note.selected}
+                  onChange={(event) =>
+                    patchNote(note.index, { selected: event.target.checked })
+                  }
+                />
 
                 <label className="dh-ai-review__field">
                   <span className="dh-ai-review__label">Title</span>
@@ -354,22 +364,20 @@ export function AiExtractionReview({
           <ul className="dh-ai-review__list">
             {links.map((link, index) => (
               <li key={link.targetEntityId} className="dh-ai-review__proposal">
-                <label className="dh-ai-review__select">
-                  <input
-                    type="checkbox"
-                    checked={link.selected}
-                    onChange={(event) =>
-                      setLinks((current) =>
-                        current.map((entry, position) =>
-                          position === index
-                            ? { ...entry, selected: event.target.checked }
-                            : entry,
-                        ),
-                      )
-                    }
-                  />
-                  <span>Link to {link.title}</span>
-                </label>
+                <Checkbox
+                  className="dh-ai-review__select"
+                  label={`Link to ${link.title}`}
+                  checked={link.selected}
+                  onChange={(event) =>
+                    setLinks((current) =>
+                      current.map((entry, position) =>
+                        position === index
+                          ? { ...entry, selected: event.target.checked }
+                          : entry,
+                      ),
+                    )
+                  }
+                />
                 <p className="dh-ai-review__item-text">{link.reason}</p>
                 <AiCitationList citations={citations} ids={link.evidenceIds} />
               </li>

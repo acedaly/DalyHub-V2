@@ -1103,6 +1103,12 @@ that fits at a laptop width into one that always scrolls and always clips.
 
 ### Charts — the debt is closed
 
+> **UNTITLED-17 amends this section.** It closed the DATED-series debt and said
+> so; `TrendBars` and `CategoryBars` remained, and UNTITLED-17 retired both. The
+> current, whole chart inventory is
+> [UNTITLED-17's](#untitled-17-completion-record--insight-reports-reviews-and-ai);
+> what follows is UNTITLED-12's record of its own pass, kept for the reasoning.
+
 The migration guide's chart-debt table said `TrendLine` drew three surfaces
 (Analytics, Reports, Reviews). **That was wrong, and it is worth recording how.**
 Reports and Reviews draw `TrendBars` and `CategoryBars`, which are different

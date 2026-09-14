@@ -33,6 +33,12 @@
 .dh-ask__lead,
 .dh-ask__note,
 .dh-ask__budget {
+  /* The budget line carries two facts with a separator; it wraps rather than
+   * pushing the page sideways at 320. */
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--app-space-2);
   margin: 0;
   /* UIX-06 — a MEASURE. The lead ran the full 980px of the pane at `body-small`,
    * which is the "overly wide prose" §12 rules out; every other page's
@@ -44,10 +50,69 @@
   overflow-wrap: anywhere;
 }
 
+/*
+ * UNTITLED-17 — the page header, and the divider under it.
+ *
+ * The title used to float above the content with nothing separating the
+ * surface's own explanation from the thing it explains. Every other full-page
+ * surface in the product closes its header with a hairline (the Finance home,
+ * the collection layout's sticky header); this now does too.
+ */
+.dh-ask__header {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+  padding-block-end: var(--app-space-5);
+  border-block-end: var(--app-border-width-thin) solid var(--dh-color-border);
+}
+
 .dh-ask__form {
   display: flex;
   flex-direction: column;
   gap: var(--app-space-2);
+}
+
+/* The starting points, under their own heading. */
+.dh-ask__starters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+  min-inline-size: 0;
+}
+
+/*
+ * The keyboard hint, beside the budget. One line at every width: the two facts
+ * are separated by a middot on a wide page and wrap onto two lines on a phone,
+ * rather than the button and a paragraph fighting for one row.
+ */
+.dh-ask__shortcut {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--app-space-1);
+  white-space: nowrap;
+}
+
+/*
+ * The answer's own heading. It is a focus target (`tabIndex={-1}`) rather than
+ * a live region — see the route's own note — so it never draws a focus ring
+ * from a pointer, only from the programmatic move that announces it.
+ */
+.dh-ask__answer-heading {
+  margin: 0;
+  font-size: var(--dh-text-section-title-size);
+  line-height: var(--dh-text-section-title-line-height);
+  font-weight: var(--dh-text-section-title-weight);
+  color: var(--dh-color-text);
+}
+
+.dh-ask__answer-heading:focus {
+  outline: none;
+}
+
+.dh-ask__answer-heading:focus-visible {
+  outline: var(--app-border-width-thick) solid var(--dh-color-accent);
+  outline-offset: var(--app-space-1);
+  border-radius: var(--dh-radius-sm);
 }
 
 .dh-ask__label {
@@ -56,19 +121,20 @@
   color: var(--dh-color-text);
 }
 
-.dh-ask__input {
-  width: 100%;
-  min-width: 0;
-  padding: var(--app-space-3);
-  font: inherit;
-  color: var(--dh-color-text);
-  background: var(--dh-color-surface);
-  border: var(--app-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  resize: vertical;
-}
-
-.dh-ask__input:focus-visible,
+/*
+ * UNTITLED-17 — the composer's PAINT is deleted.
+ *
+ * `.dh-ask__input` was a bare `<textarea>` drawing its own padding, surface,
+ * border, radius, resize rule and focus ring — a second text control beside the
+ * one `Input`/`Textarea` already draw from the vendored Untitled component's
+ * own styles. The field is that shared `Textarea` now, so its box, its ring and
+ * its coarse-pointer floor are the product's, and the class survives only as a
+ * hook.
+ *
+ * The proposal review's own bare `<input>`/`<select>` keep their focus ring
+ * here, because those controls have not moved yet; they are named in the
+ * migration record's remaining list.
+ */
 .dh-ai-review__proposal :is(input, select):focus-visible {
   outline: var(--app-border-width-thick) solid var(--dh-color-accent);
   outline-offset: var(--app-space-1);
@@ -168,6 +234,14 @@
 .dh-ai__disclosure-note,
 .dh-ai__notice {
   margin: 0;
+  /*
+   * UNTITLED-17 — a MEASURE, for the same reason `.dh-ask__lead` has one.
+   * These are all PROSE, and the send notice ran the full width of the pane at
+   * meta size on a 1440px page while the lead two blocks above it was capped —
+   * two paragraphs of the same voice, set at two different measures (found by
+   * looking at the page).
+   */
+  max-inline-size: var(--app-width-prose);
   color: var(--dh-color-text-muted);
   font-size: var(--dh-text-meta-size);
   line-height: 1.65;
@@ -328,10 +402,15 @@
   cursor: pointer;
 }
 
-.dh-ai-review__select input {
-  inline-size: var(--app-space-5);
-  block-size: var(--app-space-5);
-}
+/*
+ * UNTITLED-17 — the box's SIZE is deleted.
+ *
+ * It set a bare `<input type="checkbox">`'s width and height, because that is
+ * all a browser default gives you. The control is the shared `Checkbox` over
+ * Untitled's own now, which draws its own box, its own tick, its own focus ring
+ * and its own forced-colours arm; a size rule reaching into it from here would
+ * be this stylesheet repainting a migrated component.
+ */
 
 .dh-ai-review__field {
   display: flex;

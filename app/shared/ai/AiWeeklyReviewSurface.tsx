@@ -28,7 +28,7 @@ import {
 } from "./AiGrounded";
 import { asWeeklyReview, type AiSurfaceState } from "./ai-view";
 import { useAiRequest } from "./use-ai-request";
-import { buttonClassName } from "~/shared/ui";
+import { buttonClassName, Checkbox } from "~/shared/ui";
 
 export interface AiWeeklyReviewSurfaceProps {
   readonly reviewId: string;
@@ -239,21 +239,21 @@ export function AiWeeklyReviewSurface({
               <ul className="dh-ai-review__list">
                 {summary.proposedNextWeekPriorities.map((entry, index) => (
                   <li key={index} className="dh-ai-review__proposal">
-                    <label className="dh-ai-review__select">
-                      <input
-                        type="checkbox"
-                        checked={chosen.has(index)}
-                        onChange={(event) =>
-                          setChosen((current) => {
-                            const next = new Set(current);
-                            if (event.target.checked) next.add(index);
-                            else next.delete(index);
-                            return next;
-                          })
-                        }
-                      />
-                      <span>{entry.text}</span>
-                    </label>
+                    {/* UNTITLED-17 — the shared `Checkbox`, over Untitled's
+                     * own, instead of a browser-default box. */}
+                    <Checkbox
+                      className="dh-ai-review__select"
+                      label={entry.text}
+                      checked={chosen.has(index)}
+                      onChange={(event) =>
+                        setChosen((current) => {
+                          const next = new Set(current);
+                          if (event.target.checked) next.add(index);
+                          else next.delete(index);
+                          return next;
+                        })
+                      }
+                    />
                     <AiCitationList
                       citations={state.citations}
                       ids={entry.evidenceIds}

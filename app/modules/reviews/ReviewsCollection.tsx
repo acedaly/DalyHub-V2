@@ -48,7 +48,7 @@ import {
   useCollectionLoading,
 } from "~/shared/collection-layout";
 import { EmptyState } from "~/shared/empty-state";
-import { buttonClassName, Input } from "~/shared/ui";
+import { buttonClassName, Input, Select } from "~/shared/ui";
 import { helpTopicHref } from "~/shared/help";
 import { EntityIcon } from "~/shared/entity";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
@@ -249,8 +249,13 @@ export function ReviewsCollectionView({
        */}
       <label className="dh-reviews-filters__field">
         <span className="dh-visually-hidden">Cadence</span>
-        <select
-          className="dh-select"
+        {/*
+         * UNTITLED-17 — the shared `Select`. `.dh-select` has had no rules in
+         * any stylesheet since the Phase-5 paint sweep, so this control drew
+         * the browser's own default `<select>` beside an Untitled search field
+         * in the same filter row.
+         */}
+        <Select
           value={data.type}
           onChange={(event) =>
             setSearchParams(
@@ -271,7 +276,7 @@ export function ReviewsCollectionView({
               {REVIEW_TYPE_LABELS[type as ReviewType]}
             </option>
           ))}
-        </select>
+        </Select>
       </label>
       {/*
        * DHDS-09 — the shared sort control.

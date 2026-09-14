@@ -90,8 +90,14 @@ test.describe("V2.14 — Explain this report", () => {
 
     await gotoFixture(page, "/reports/completed-tasks-by-area");
 
-    // The report is drawn first and completely. The AI region is BELOW it.
-    await expect(page.getByRole("table")).toBeVisible();
+    /*
+     * The report is drawn first and completely. The AI region is BELOW it.
+     *
+     * UNTITLED-17 — the rows are the genuine Untitled `application/table` now,
+     * which is React Aria's `Table` and renders `role="grid"`. Every other
+     * migrated collection in the suite already queries `getByRole("grid")`.
+     */
+    await expect(page.getByRole("grid")).toBeVisible();
     await expect(
       explainPanel(page).getByRole("button", { name: "Explain this report" }),
     ).toBeVisible();
