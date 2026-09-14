@@ -10,6 +10,7 @@ import {
   openCollectionControls,
   openMenuFrom,
   ownerToday,
+  pressUntilMutation,
   pickCalendarDate,
   taskRows,
   taskRow,
@@ -49,15 +50,7 @@ const SAVED_VIEW = "E2E deep work view";
  */
 async function planForToday(page: Page, title: string) {
   const card = taskRow(page, title).first();
-  await card.hover();
-  /*
-   * The press that opens the row's menu can be dropped by a re-render exactly
-   * as the header's can (see `openMenuFrom`). When it is, no menu item is
-   * pressed, no `/tasks/bulk` write is sent, and the wait below fails as a 90s
-   * `waitForResponse` for a request that was never made — which is how
-   * `:649` failed in run 34894702514.
-   */
-  await openMenuFrom(card.getByRole("button", { name: /^More actions for / }));
+
   /*
    * DEBT-203 — wait for the PLAN to land, not for the optimistic paint.
    *
@@ -69,14 +62,30 @@ async function planForToday(page: Page, title: string) {
    * measured on `main` as `tasks-collection.spec.ts:634` and `:700`, twice
    * each, on a tree neither PR had touched. The wait belongs on the answer the
    * product publishes.
+   *
+   * V2.9 CI-GREEN — and the PRESS needs proving too, for the same reason that
+   * sentence gives. A revalidation re-creates this row, the open menu goes with
+   * it, and the press then lands on a detached node: nothing throws, nothing is
+   * sent, and the wait above burns its whole 90s on a request that was never
+   * made. That is `:649` on CI runs 34894702514 and 34906306003, and neither
+   * HARDEN-04's `networkidle` nor DEBT-203's wait on the preceding write closes
+   * it — the revalidation can begin after the quiet window that satisfies the
+   * first, and the second is about a different request.
+   *
+   * So each attempt re-opens the menu on whatever row exists now and presses
+   * again, and the write is what ends it. Planning for today is idempotent —
+   * `scheduled_date` becomes today whichever press gets through — which is what
+   * makes a re-press safe here (see `pressUntilMutation`).
    */
-  await awaitMutation(page, "/tasks/bulk", () =>
-    page
-      .getByRole("menu")
-      .last()
+  await pressUntilMutation(page, "/tasks/bulk", async () => {
+    await card.hover();
+    const menu = await openMenuFrom(
+      card.getByRole("button", { name: /^More actions for / }),
+    );
+    await menu
       .getByRole("menuitem", { name: "Plan for today", exact: true })
-      .click(),
-  );
+      .click();
+  });
 }
 
 /** Open the ONE shared collection sheet. */

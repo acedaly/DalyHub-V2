@@ -471,10 +471,31 @@ test.describe("PWA-12 — offline Task mutation", () => {
         operation: "set_priority",
         value: "p1",
       });
-      // And the row still shows the owner's change, still marked as pending.
+      /*
+       * And the row still shows the owner's change, still marked as pending.
+       *
+       * V2.9 CI-GREEN — this one wait is budgeted for a COLD provider, because
+       * that is what it is waiting for. The assertion above proves the record
+       * is in IndexedDB; this proves the INTERFACE has caught up with it, and
+       * on a freshly booted page those are separated by a chain the row cannot
+       * shortcut: `OfflineProvider` must open the database, read the meta
+       * record, derive the namespace from it (`reload` returns early without
+       * one), then read the dataset, the queue and the mutations before
+       * `usePendingTasks` has anything to reduce.
+       *
+       * The default 5s covers that on an idle machine and does not always cover
+       * it on a loaded runner: MEASURED as `element(s) not found` after 5000ms
+       * on CI run 34906306003's p05, on a partition that took 19.3 min, while
+       * the same journey passed on runs 34894702514 and 34904391603.
+       *
+       * The budget is matched to the work rather than the assertion being
+       * relaxed — the badge must still appear, and a queue the interface never
+       * reflects still fails here. Deliberately NOT a `waitForTimeout`: this
+       * waits exactly as long as the boot takes and no longer.
+       */
       await expect(
         rowFor(page, "PWA12 durable change").getByTestId("task-row-sync"),
-      ).toBeVisible();
+      ).toBeVisible({ timeout: 30_000 });
 
       // Unblocking the route is not itself a sync trigger: the connection never
       // became unhealthy (the document and the snapshot both loaded), so there is
