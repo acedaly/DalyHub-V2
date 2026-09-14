@@ -29,6 +29,8 @@
  * value in its accessible name, so "F3" is never the whole of what is announced.
  */
 
+import type { Ref } from "react";
+
 import type { Fact, FactBlock } from "~/kernel/ai";
 
 import { citedFacts } from "./ai-view";
@@ -161,6 +163,18 @@ export interface AiGroundedAnswerProps {
   readonly assumptions?: readonly string[];
   /** The region's accessible name — "Explanation", "Answer". */
   readonly label?: string;
+  /**
+   * A focus target on the region, for a caller that ANNOUNCES an answer by
+   * moving focus to it when one arrives.
+   *
+   * The region carries no heading of its own — it opens with the badge stating
+   * where the explanation came from — so there is nothing else for a caller to
+   * aim at, and a surface that renders this branch beside two others that do
+   * have headings would otherwise announce two of its three answers and leave
+   * the third to be discovered. Passing the ref makes the section itself
+   * programmatically focusable; leaving it off changes nothing.
+   */
+  readonly focusRef?: Ref<HTMLElement>;
 }
 
 /** The validated explanation, with its figures beside it. */
@@ -171,9 +185,15 @@ export function AiGroundedAnswer({
   block,
   assumptions = [],
   label = "Explanation",
+  focusRef,
 }: AiGroundedAnswerProps) {
   return (
-    <section className="dh-ai-grounded" aria-label={label}>
+    <section
+      className="dh-ai-grounded"
+      aria-label={label}
+      ref={focusRef}
+      tabIndex={focusRef ? -1 : undefined}
+    >
       <p className="dh-ask__badge">
         {status === "ok"
           ? "Explained from DalyHub's own figures"

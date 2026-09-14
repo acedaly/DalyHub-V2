@@ -1605,6 +1605,65 @@ Tests updated because their CONTRACT changed, each argued in place:
   `grounded-ai.spec.ts` — the same three structural facts, plus a name cell
   addressed by `role="rowheader"` rather than by `th`, which React Aria's table
   does not render.
+- `recall-04-day-week-truth.spec.ts` — DEBT-234's contract is the VOCABULARY:
+  "Goals moving" for the alignment question, "on track" reserved for GOAL-02's
+  measurement status. The reading is now the caption under the Goals heading
+  rather than a tile above it, so the word reads mid-sentence; the assertion
+  moved to the reading's own element and the ban on the measurement phrase got
+  stricter (case-insensitive) rather than looser.
+- `iphone-daily-driver.spec.ts` — the `/reviews` row named `.dh-select`, the
+  class that draws nothing. It names `.dh-control--select`, the shipped shared
+  control, for exactly the reason the block's own note gives for `/notes`
+  becoming `/projects`. The floor still applies: DalyHub's `Select` is a REAL
+  `<select>` (D31), so iOS still zooms it below 16px.
+
+### What CI found, measured against the base branch
+
+`main` is red at this branch's base (2ef1d2f), so every failure was classified
+by running the same partitions on both. The BASE's, unchanged by this pass and
+reproduced identically on its head: `collection-header.spec.ts:597` and
+`projects-mobile.spec.ts:373` (p04), `dhds-13-commercial-quality.spec.ts:85`
+(p13), and `pwa-budget.spec.ts:133` (p18) — that last one **2,046,359 B of
+precache on this head against 2,060,555 B on `main`**, both over a 1,450,000 B
+ceiling, so this pass moves it 14 KB in the right direction and nowhere near
+green. Fixing them is not this PR's, and pretending they are not there would be
+worse than saying so.
+
+TWO were this pass's, and both are fixed above rather than explained: the
+`/reviews` iOS-zoom floor lost its control when the cadence filter stopped being
+a bare `.dh-select`, and RECALL-04 read the Goals label as a standalone tile.
+
+One is neither: `spine-workspaces.spec.ts:237` timed out at 30s in a partition
+that ran **18.2 minutes against a 15.5-minute budget**. It drives four page
+loads and two axe sweeps against `/projects`, which this pass does not touch at
+all, and it passes in isolation.
+
+### The review round — three findings, three fixes
+
+An automated review of the first push raised three, and all three were real.
+None is a matter of taste, which is why each changed code rather than earning a
+reply:
+
+1. **A grounded answer announced itself to nobody.** The AI surface announces an
+   answer by moving focus to it, and the grounded branch — the one that fires
+   against a CONFIGURED provider — renders a labelled region with no heading, so
+   the ref had nowhere to attach and the effect was a no-op. It was already
+   written down in a comment, which is not the same as being acceptable.
+   `AiGroundedAnswer` takes an optional focus target now, and the branch nobody
+   could test is the one that got a test.
+2. **"Share" was the wrong name for the column.** The bars are scaled against
+   the LARGEST ROW, which is right for a ranking — a bounded report's rows do
+   not add up to its total — but a column headed "Share" states that a $500 row
+   drawn at 42% of a $1,200 leader holds 42% of a $1,700 result. It holds 29%.
+   The column is **"Relative size"**, and the bar announces the figure alone
+   rather than a fraction of something the reader cannot see. The honest share
+   is not computable here anyway: `block.total` crosses the boundary formatted,
+   and a measure that does not add up has none.
+3. **Money ticks could land on half a cent.** Money crosses the boundary in
+   MINOR units, and the axis left `wholeNumbers` false for it. A domain of 1–2
+   (yen, or cents) lets the step ladder pick 0.5, and `formatMinorUnits` rounds
+   those into duplicate labels at unequal spacing. Money is whole-numbered now,
+   like a count; `value` stays the only unit that may be fractional.
 
 ### Remaining, and named
 

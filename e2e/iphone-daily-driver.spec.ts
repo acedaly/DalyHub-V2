@@ -131,10 +131,23 @@ test.describe("MOBILE-01 mobile forms", () => {
    * journey opens it the way an owner does. It is the same shared component
    * every collection uses, so the floor is proven for all of them.
    */
+  /*
+   * `/reviews` names `.dh-control--select` rather than `.dh-select`, for the
+   * same reason `/notes` became `/projects` above: the check has to name the
+   * control that SHIPS.
+   *
+   * The Reviews cadence filter was a bare `<select class="dh-select">`, and
+   * that class has had no rules in any stylesheet since the Phase-5 paint
+   * sweep — it drew the browser's own default control beside an Untitled search
+   * field in the same row. UNTITLED-17 moved it onto the shared `Select`, which
+   * is still a REAL `<select>` (D31: a select is repainted, never replaced), so
+   * the iOS zoom floor this block exists for still applies to it exactly as
+   * before. Only the class it is reached by has changed.
+   */
   const FIELDS: readonly (readonly [string, string, boolean])[] = [
     ["/projects", ".dh-csearch__input", true],
     ["/people", ".dh-people-filters__input", false],
-    ["/reviews", ".dh-select", false],
+    ["/reviews", ".dh-control--select", false],
     ["/tasks", ".dh-tasks-quickadd__input", false],
   ];
 

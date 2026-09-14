@@ -18,6 +18,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, afterEach } from "vitest";
 
 import type { FactBlock } from "~/kernel/ai";
+import { AiGroundedAnswer } from "~/shared/ai/AiGrounded";
 import { AiWeeklyReviewSurface } from "~/shared/ai/AiWeeklyReviewSurface";
 
 const BLOCK: FactBlock = {
@@ -148,5 +149,48 @@ describe("the Weekly Review assistant keeps this period's figures when the expla
       expect(screen.getByText(/AI is turned off/i)).toBeTruthy();
     });
     expect(screen.queryByRole("region", { name: "Facts" })).toBeNull();
+  });
+});
+
+/**
+ * A grounded answer arrives asynchronously, and the surfaces that render it
+ * announce an answer by MOVING FOCUS to it (AGENTS.md §15). This region carries
+ * no heading of its own, so without a focus target on the section a reader on a
+ * configured provider is told nothing at all — the one path with no test around
+ * it was the one path with no announcement.
+ */
+describe("a grounded answer can be announced", () => {
+  it("is focusable when a caller passes a focus target, and inert without one", () => {
+    const target = { current: null as HTMLElement | null };
+    const { rerender } = render(
+      <AiGroundedAnswer
+        focusRef={target}
+        status="ok"
+        summary="Spending fell because the two largest categories both fell."
+        observations={[]}
+        block={null}
+        label="Answer"
+      />,
+    );
+
+    const region = screen.getByRole("region", { name: "Answer" });
+    expect(target.current).toBe(region);
+    expect(region).toHaveAttribute("tabindex", "-1");
+    region.focus();
+    expect(document.activeElement).toBe(region);
+
+    /* A caller that does not announce gets no stray tab stop. */
+    rerender(
+      <AiGroundedAnswer
+        status="ok"
+        summary="Spending fell because the two largest categories both fell."
+        observations={[]}
+        block={null}
+        label="Explanation"
+      />,
+    );
+    expect(
+      screen.getByRole("region", { name: "Explanation" }),
+    ).not.toHaveAttribute("tabindex");
   });
 });

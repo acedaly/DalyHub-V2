@@ -190,6 +190,15 @@ function ReportTable({
    * an amount the reader cannot see. Against the largest row the leader is full
    * and every other bar is honestly relative to it, which is what a ranking
    * asks and all this column claims.
+   *
+   * Which is exactly why the column is NOT called "Share". It was, and that was
+   * a defect: a $500 row in a $1,700 result drew at 42% of the $1,200 leader,
+   * and a column headed "Share" states that 42% is its share of the whole. It
+   * is not; its share is 29%. The name now says what the bar measures, and the
+   * bar announces the FIGURE rather than the fraction it was drawn at — a
+   * percentage nobody can act on is not worth the sentence it costs a screen
+   * reader, and the honest one is not computable here anyway: `block.total` is
+   * a formatted string, and a measure that does not add up has none at all.
    */
   const peak = withShare
     ? Math.max(...block.rows.map((row) => row.value ?? 0))
@@ -219,7 +228,7 @@ function ReportTable({
             {withShare ? (
               <LabelledTableHead
                 id="share"
-                label="Share"
+                label="Relative size"
                 /*
                  * The column IS named, and the name is drawn: the bars are a
                  * comparison rather than decoration, so a reader moving across
@@ -275,8 +284,20 @@ function ReportTable({
                       /*
                        * The bar announces the FIGURE in the next cell, never the
                        * percentage it happens to be drawn at: the figure is the
-                       * fact, and the share is only how it was scaled to fit.
+                       * fact, and the scaling is only how it was fitted to the
+                       * column. `range` is what makes that possible — without it
+                       * the bar prepends its own drawn percentage, which is the
+                       * fraction OF THE LEADER and reads as a share of the whole.
+                       *
+                       * A degenerate all-zero block leaves `peak` at 0, and a
+                       * bar with `valuemax` 0 is not a bar; the announced text
+                       * is the row's own "$0.00" either way.
                        */
+                      range={{
+                        min: 0,
+                        max: Math.max(peak, 1),
+                        now: row.value ?? 0,
+                      }}
                       valueText={row.formatted ?? "No reading"}
                       complete={false}
                     />
@@ -387,7 +408,16 @@ function ReportTrend({
       summary={`${result.measureLabel} across ${points.length} periods. ${block.rows
         .map((row) => `${row.label}: ${row.formatted ?? "no reading"}`)
         .join("; ")}.`}
-      wholeNumbers={result.unit === "count"}
+      /*
+       * Money is whole-numbered too, because money crosses this boundary in
+       * MINOR units. A domain of 1–2 (yen, or cents) lets `niceDomain` choose a
+       * step of 0.5, and half a minor unit is not a quantity that exists:
+       * `formatMinorUnits` rounds those ticks into an axis reading ¥0, ¥1, ¥1,
+       * ¥2 — duplicate labels at unequal spacing. `value` is the only unit that
+       * may be fractional, because it is the only one that is not a currency or
+       * a count of things.
+       */
+      wholeNumbers={result.unit === "count" || result.unit === "money"}
       formatValue={formatValue}
       data-testid="report-trend"
     />
