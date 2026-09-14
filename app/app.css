@@ -145,7 +145,6 @@
 @import "./styles/health.css";
 @import "./styles/alignment.css";
 @import "./styles/relationships.css";
-@import "./styles/summary-cards.css";
 @import "./styles/progress.css";
 /* GOAL-02 — the shared TrendLine / ComparisonBars primitives. After
    progress.css because both are read as progress visualisations. */

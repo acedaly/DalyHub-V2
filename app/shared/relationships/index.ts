@@ -13,7 +13,6 @@ export type { StayInTouchSignal } from "./StayInTouchIndicator";
 export { StayInTouchPanel } from "./StayInTouchPanel";
 export {
   relationshipToneToCardTone,
-  relationshipToneToSummaryTone,
   formatRelationshipDate,
   relativeDayPhrase,
   cadencePhrase,

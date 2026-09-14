@@ -8,184 +8,83 @@
  * fixture happened to reuse. A fixture that changes another fixture's contract is
  * not a fixture.
  *
+ * ── UNTITLED-18 — what this route may draw ──────────────────────────────────
+ *
+ * It drew eight components the PRODUCT no longer had a consumer for —
+ * `DashboardCard`, `MetricTile`, `MetricRow`, `StatCard` and this directory's
+ * own `Timeline`/`TimelineItem` among them — and being drawn here was the only
+ * thing keeping them alive. A design gallery that publishes an obsolete
+ * generation is worse than no gallery: it is a catalogue a future agent shops
+ * from, and every component in it looks equally current.
+ *
+ * So the rule for this route, and for its siblings: **a fixture may only draw
+ * what the product draws.** When the last product consumer of a component goes,
+ * its fixture goes with it in the same change — otherwise the fixture becomes
+ * the consumer and the deletion never happens.
+ *
+ * What is left is the two surfaces this family still has: `RecordRow` (the
+ * two-line row inside a bounded list) and `EntityCard` (the in-flow card), both
+ * of which real collections draw. Two E2E specs pin their contracts here —
+ * `projects.spec.ts` on the card's action/link boundary and `visual-system.spec.ts`
+ * on the card surface — precisely because a fixture is immune to whichever
+ * collection last changed its presentation.
+ *
  * The data is obviously fictional. This route is added to the tree only when NOT
  * building for production, so it never reaches a deployed Worker.
  */
 
 import {
-  DashboardCard,
   EntityCard,
   EntityCardGrid,
-  MetricRow,
-  MetricRowItem,
-  MetricTile,
   RecordRow,
   RecordRowList,
-  Timeline,
-  TimelineItem,
 } from "~/shared/card";
 import { EntityIcon } from "~/shared/entity";
 import { PaneHeader } from "~/shared/shell";
-import { CalendarIcon, CheckIcon, ProjectIcon, TaskIcon } from "~/shared/icons";
 import { buttonClassName } from "~/shared/ui";
 
 export default function DesignCardFamilyRoute() {
   return (
     <>
-      <PaneHeader
-        title="Card family"
-        subtitle="DashboardCard · MetricTile · RecordRow · EntityCard · TimelineItem"
-      />
+      <PaneHeader title="Card family" subtitle="RecordRow · EntityCard" />
       <div className="dh-pane-body" data-testid="card-family-fixture">
-        <div className="dh-fixture-grid">
-          <DashboardCard
-            title="Daily summary"
-            supporting="MetricRow"
-            headerAction={
-              <a
-                className={buttonClassName({ variant: "subtle" })}
-                href="#daily"
-              >
-                View all
-              </a>
+        <h2>RecordRow, in its list</h2>
+        <RecordRowList inset label="Fixture rows">
+          <RecordRow
+            lead={
+              <input type="checkbox" aria-label="Complete Fixture row one" />
             }
-          >
-            <MetricRow>
-              <MetricRowItem>
-                <MetricTile
-                  icon={<CheckIcon />}
-                  tone="accent"
-                  value="12"
-                  label="Fixture tasks"
-                  supporting={<a href="#tasks">8 remaining</a>}
-                />
-              </MetricRowItem>
-              <MetricRowItem>
-                <MetricTile
-                  icon={<CalendarIcon />}
-                  value="2"
-                  label="Fixture meetings"
-                  supporting="Next: 10:00 am"
-                />
-              </MetricRowItem>
-              <MetricRowItem>
-                <MetricTile
-                  icon={<ProjectIcon />}
-                  tone="success"
-                  value="5"
-                  label="Fixture projects"
-                  supporting={<a href="#projects">2 updates due</a>}
-                />
-              </MetricRowItem>
-              <MetricRowItem>
-                {/* A bounded figure states its bound rather than implying a total. */}
-                <MetricTile
-                  icon={<TaskIcon />}
-                  tone="warning"
-                  value="50+"
-                  label="Fixture backlog"
-                  supporting="At least — count is bounded"
-                />
-              </MetricRowItem>
-            </MetricRow>
-          </DashboardCard>
-
-          <DashboardCard
-            title="Fixture rows"
-            density="compact"
-            footer={
-              <a className={buttonClassName({ variant: "subtle" })} href="#all">
-                View all rows
-              </a>
-            }
-          >
-            <RecordRowList inset label="Fixture rows">
-              <RecordRow
-                lead={
-                  <input
-                    type="checkbox"
-                    aria-label="Complete Fixture row one"
-                  />
-                }
-                title="Fixture row one"
-                supporting="Two-line row with a supporting line"
-                meta="Due 7:00 am"
-                status={<span className="dh-pill dh-pill--danger">High</span>}
-                href="#row-1"
-              />
-              <RecordRow
-                lead={
-                  <input
-                    type="checkbox"
-                    aria-label="Complete Fixture row two"
-                  />
-                }
-                title="Fixture row two"
-                supporting="Another supporting line"
-                meta="Due 9:00 am"
-                status={
-                  <span className="dh-pill dh-pill--warning">Medium</span>
-                }
-                href="#row-2"
-              />
-              <RecordRow
-                lead={
-                  <input
-                    type="checkbox"
-                    defaultChecked
-                    aria-label="Reopen Fixture row three"
-                  />
-                }
-                title="Fixture row three"
-                supporting="The completed treatment"
-                meta="Completed 8:15 am"
-                completed
-                href="#row-3"
-              />
-            </RecordRowList>
-          </DashboardCard>
-
-          <DashboardCard title="Fixture agenda" supporting="TimelineItem">
-            <Timeline label="Fixture agenda">
-              <TimelineItem
-                time="10:00 am"
-                endTime="11:00 am"
-                tone="accent"
-                title="Fixture timeline item"
-                meta="60 min · A method"
-                href="#timeline-1"
-              />
-              <TimelineItem
-                time="1:00 pm"
-                endTime="2:00 pm"
-                tone="accent"
-                title="Second timeline item"
-                meta="60 min · A location"
-                href="#timeline-2"
-              />
-              <TimelineItem
-                time="4:00 pm"
-                endTime="4:30 pm"
-                tone="muted"
-                title="A cancelled item"
-                meta="30 min · Focus time"
-                status={<span className="dh-pill">Cancelled</span>}
-                muted
-                href="#timeline-3"
-              />
-            </Timeline>
-          </DashboardCard>
-
-          <DashboardCard
-            title="Empty"
-            supporting="proportionate, not a viewport band"
-            density="compact"
-            isEmpty
-            emptyState="No active work"
+            title="Fixture row one"
+            supporting="Two-line row with a supporting line"
+            meta="Due 7:00 am"
+            status={<span className="dh-pill dh-pill--danger">High</span>}
+            href="#row-1"
           />
-
-          <DashboardCard title="Loading" density="compact" isLoading />
-        </div>
+          <RecordRow
+            lead={
+              <input type="checkbox" aria-label="Complete Fixture row two" />
+            }
+            title="Fixture row two"
+            supporting="Another supporting line"
+            meta="Due 9:00 am"
+            status={<span className="dh-pill dh-pill--warning">Medium</span>}
+            href="#row-2"
+          />
+          <RecordRow
+            lead={
+              <input
+                type="checkbox"
+                defaultChecked
+                aria-label="Reopen Fixture row three"
+              />
+            }
+            title="Fixture row three"
+            supporting="The completed treatment"
+            meta="Completed 8:15 am"
+            completed
+            href="#row-3"
+          />
+        </RecordRowList>
 
         <h2>EntityCard, in its grid</h2>
         <EntityCardGrid label="Fixture entity cards">

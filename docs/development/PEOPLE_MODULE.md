@@ -585,8 +585,15 @@ record itself.
 | [`app/kernel/relationships/relationship-repository.ts`](../../app/kernel/relationships/relationship-repository.ts) | the batch-first, read-only facts contract |
 | [`app/platform/storage/d1/d1-relationship-repository.ts`](../../app/platform/storage/d1/d1-relationship-repository.ts) | the three grouped, chunked statements |
 | [`app/shared/relationships`](../../app/shared/relationships) | the shared pill, the record panel, the wording and the owner-clock seam |
-| [`app/shared/summary-cards`](../../app/shared/summary-cards) | the DS-13 grid |
-| [`app/modules/people/person-relationship-view.ts`](../../app/modules/people/person-relationship-view.ts) | the People-owned summary cards + their destinations |
+| [`app/modules/people/person-relationship-view.ts`](../../app/modules/people/person-relationship-view.ts) | what the owner SHARES with a Person, and its destinations |
+
+> **UNTITLED-18 (2026-09-14) — the DS-13 summary-card grid is gone.**
+> UNTITLED-13 replaced the Person workspace's band of counting tiles with
+> `personSharedRecords`, which left `app/shared/summary-cards` and its producer
+> `personRelationshipCards` with no consumer in `app/`. Both are deleted. The
+> rule they carried survives on the function that replaced them — a kind with no
+> records is OMITTED rather than shown as zero — and is asserted in
+> `test/unit/people/person-relationship-view.test.ts`.
 | [`app/modules/people/person-collection-relationships.ts`](../../app/modules/people/person-collection-relationships.ts) | the collection's ONE batched read per page |
 
 ## 5. Accessibility & mobile

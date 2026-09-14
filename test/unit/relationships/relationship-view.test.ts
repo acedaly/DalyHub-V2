@@ -11,7 +11,6 @@ import {
   lastInteractionPhrase,
   relationshipReasonText,
   relationshipToneToCardTone,
-  relationshipToneToSummaryTone,
   relativeDayPhrase,
 } from "~/shared/relationships";
 
@@ -163,10 +162,9 @@ describe("relationshipReasonText", () => {
 });
 
 describe("tone mapping", () => {
-  it("is a lossless identity onto the Card and summary-card vocabularies", () => {
+  it("is a lossless identity onto the Card vocabulary", () => {
     for (const tone of ["neutral", "success", "info"] as const) {
       expect(relationshipToneToCardTone(tone)).toBe(tone);
-      expect(relationshipToneToSummaryTone(tone)).toBe(tone);
     }
   });
 });

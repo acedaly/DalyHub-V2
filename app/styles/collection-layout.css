@@ -271,20 +271,6 @@
 }
 
 /*
- * M3X — a page-level summary placed in the content region is a BAND, and needs
- * air beneath it.
- *
- * `.dh-collection__content` is a plain block flow with no gap: it worked because
- * everything a module put there brought its own margins. The expressive summary
- * deliberately brings none — it is a card, and a card does not decide its own
- * place in a layout — so the rule is stated here, by the layout that owns the
- * flow, rather than by each module that adopts a summary.
- */
-.dh-collection__content > .dh-summary {
-  margin-block-end: var(--app-dashboard-gap);
-}
-
-/*
  * The pinned header's separation is a plain, always-on hairline.
  *
  * It was briefly a SCROLL-DRIVEN animation (`animation-timeline: scroll()`),
