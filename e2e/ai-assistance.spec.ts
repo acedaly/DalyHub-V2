@@ -240,6 +240,63 @@ test.describe("AI-01 — AI is off by default and says so", () => {
     });
   }
 
+  /*
+   * UNTITLED-17 — the composer's two new affordances, both of which are silent
+   * degradations if they break.
+   *
+   * A starting point that fills the field but does not hand back the CARET
+   * leaves the owner having to click the box they just pressed a button to
+   * fill — and it would break invisibly, because the shared `Textarea` forwards
+   * its ref through React Aria and nothing else in the suite proves that it
+   * does. ⌘↵ is printed on the page as a promise; a printed shortcut that does
+   * nothing is worse than no shortcut.
+   */
+  test("a starting point fills the composer and hands back the caret", async ({
+    page,
+  }) => {
+    await gotoFixture(page, "/ai");
+
+    const field = page.getByLabel("Your question");
+    await expect(field).toHaveValue("");
+
+    const starter = page
+      .getByRole("button", {
+        name: /Which Goals haven’t moved recently\?|Which Goals haven't moved recently\?/,
+      })
+      .first();
+    await expect(starter).toBeVisible();
+    const question = (await starter.innerText()).trim();
+    await starter.click();
+
+    await expect(field).toHaveValue(question);
+    // The caret is IN the field, so the owner can edit the question they were
+    // handed rather than clicking the box again.
+    await expect(field).toBeFocused();
+  });
+
+  test("⌘↵ asks, and a bare Enter does not", async ({ page }) => {
+    await gotoFixture(page, "/ai");
+
+    const field = page.getByLabel("Your question");
+    await field.fill("How many tasks are overdue?");
+
+    /*
+     * A bare Enter is a NEWLINE here, deliberately: this is a multi-line field
+     * for a question an owner may phrase over two lines. Asserted first,
+     * because a surface that sent on Enter would pass the second half of this
+     * test while silently making the first impossible.
+     */
+    await field.press("Enter");
+    await expect(page.getByRole("region", { name: "Answer" })).toHaveCount(0);
+    expect(await field.inputValue()).toContain("\n");
+
+    await field.press("ControlOrMeta+Enter");
+    const answer = page.getByRole("region", { name: "Answer" });
+    await expect(answer.getByText("Based on DalyHub records")).toBeVisible();
+    // The answer announces itself by taking focus, not by a live region.
+    await expect(answer.getByRole("heading", { name: "Answer" })).toBeFocused();
+  });
+
   test("a Meeting gains an AI tab without disturbing the rest of it", async ({
     page,
   }) => {

@@ -47,6 +47,7 @@
  * Presentation only.
  */
 
+import { formatMinorUnits } from "~/kernel/money";
 import { PeriodTotals, type PeriodTotalsPoint } from "~/shared/charts";
 import { ProgressTrack } from "~/shared/progress";
 import { Table, TableCard } from "~/shared/ui/untitled/application/table/table";
@@ -359,18 +360,24 @@ function ReportTrend({
   if (points.length < 2) return null;
 
   /*
-   * The axis reads the FORMATTED figures the table already prints, by looking
-   * each value up in the rows it came from. A money report's axis then carries
-   * "$1,200.00" rather than the 120000 minor units the scale is computed in,
-   * and a tick the arithmetic invented between two readings falls back to the
-   * raw number rather than claiming a currency it was never given.
+   * The axis formats a value the way the ROWS do — and it must be able to
+   * format ANY value, not only the ones a row happens to carry.
+   *
+   * A first draft looked each tick up in the rows it came from and fell back to
+   * a plain number. `niceDomain` chooses round ticks, which in a money report
+   * are round MINOR units — 0, 20000, 40000 — and almost never coincide with a
+   * reading. That axis read "20,000" beside rows reading "$400.00": the scale
+   * of the plot silently in a different unit from the table above it, which is
+   * the exact class of contradiction this module refuses everywhere else.
+   *
+   * So the unit decides the formatter, from the block's own currency.
    */
-  const formattedByValue = new Map<number, string>();
-  for (const row of block.rows) {
-    if (row.value !== null && row.formatted !== null) {
-      formattedByValue.set(row.value, row.formatted);
-    }
-  }
+  const formatValue = (value: number): string =>
+    result.unit === "money" && block.currencyCode !== null
+      ? formatMinorUnits(value, block.currencyCode)
+      : new Intl.NumberFormat("en-AU", {
+          maximumFractionDigits: result.unit === "count" ? 0 : 2,
+        }).format(value);
 
   return (
     <PeriodTotals
@@ -381,12 +388,7 @@ function ReportTrend({
         .map((row) => `${row.label}: ${row.formatted ?? "no reading"}`)
         .join("; ")}.`}
       wholeNumbers={result.unit === "count"}
-      formatValue={(value) =>
-        formattedByValue.get(value) ??
-        new Intl.NumberFormat("en-AU", { maximumFractionDigits: 2 }).format(
-          value,
-        )
-      }
+      formatValue={formatValue}
       data-testid="report-trend"
     />
   );

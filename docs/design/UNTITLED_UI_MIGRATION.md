@@ -1595,6 +1595,28 @@ Tests updated because their CONTRACT changed, each argued in place:
    the guided Review's step rail and its source cannot be retrieved here. The
    rail is correct and keyboard-complete; it is a repaint waiting on access.
 6. **A Habit's expected check-ins before a full week has passed** — carried
-   forward from UNTITLED-16, untouched and still documented there.
+   forward from UNTITLED-16, and **read this time rather than copied forward**.
+   The brief ranked it last and said to fix it only if the root cause were
+   obvious and low-risk. It is not, and what was checked is worth recording so
+   the next pass does not start from zero:
+
+   - `evaluateHabitConsistency` clamps its upper bound to the owner's today, so
+     no future day is ever expected;
+   - `activeOn` refuses every day before the Habit's first schedule version, so
+     "a Habit created on Friday did not fail Monday to Thursday";
+   - a `weekly_count` week contributes nothing unless the window fully contains
+     it AND it has elapsed (V2.3-GATE-01), so half a weekly target is never
+     pro-rated;
+   - the Review's own read (`habit-facts.server.ts`) goes through that same
+     evaluator and states its own window when it is truncated.
+
+   Three deliberate guards, each with its own argued comment, and the reported
+   symptom does not reproduce from any of these paths as read. The one place the
+   whole week IS counted including days still to come is `evaluateHabitWeek`,
+   which is the record's "N of 7 this week" — where the denominator is the
+   week's own target rather than what has been asked so far, and that reading is
+   arguably correct. **A fix needs a reproduction before it needs code**, and
+   inventing one from a one-line description risks "fixing" behaviour three
+   comments in this module argue for.
 7. **Eight E2E specs still scope to `.dh-topbar`**, a class the shell no longer
    renders. Carried forward from UNTITLED-16 unchanged.

@@ -303,7 +303,15 @@
 /* Facts, projects, goals, areas                                               */
 /* -------------------------------------------------------------------------- */
 
-.dh-review-guide__facts,
+/*
+ * UNTITLED-17 — the `.dh-review-guide__fact*` family is deleted.
+ *
+ * `__facts`, `__fact`, `__fact-link` and `__fact-value` had NO consumer in
+ * `app/` — not since before this pass, checked against `origin/main` — so four
+ * selectors, a pill radius, a raised surface and a touch floor were being
+ * shipped for markup nobody renders. `__summary` keeps the geometry they shared
+ * because it has a live caller.
+ */
 .dh-review-guide__summary {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
@@ -311,45 +319,23 @@
   margin: 0;
 }
 
-.dh-review-guide__fact,
 .dh-review-guide__summary > div {
   display: grid;
   gap: var(--app-space-1);
   min-width: 0;
   border-radius: var(--dh-radius-pill);
   background: var(--dh-color-surface-raised);
-  box-shadow: inset 0 0 0 1px var(--dh-color-border);
-  padding: var(--app-space-3);
+  padding: var(--app-space-3) var(--app-space-4);
 }
 
-.dh-review-guide__fact dt,
 .dh-review-guide__summary dt {
   color: var(--dh-color-text-muted);
   font-size: var(--dh-text-meta-size);
 }
 
-.dh-review-guide__fact dd,
 .dh-review-guide__summary dd {
   margin: 0;
   overflow-wrap: anywhere;
-}
-
-.dh-review-guide__fact-link {
-  display: inline-flex;
-  align-items: center;
-  min-block-size: var(--app-touch-target-min);
-  color: var(--dh-color-accent);
-}
-
-.dh-review-guide__fact-value {
-  font-size: var(--dh-text-section-title-size);
-  font-weight: 500;
-}
-
-/* An outstanding summary line is marked with a word in the value, not a colour
- * — this only adds a quiet emphasis on top of that. */
-.dh-review-guide__summary > div[data-outstanding="true"] {
-  box-shadow: inset 0 0 0 1px var(--dh-color-border-strong);
 }
 
 .dh-review-guide__projects,
@@ -588,7 +574,6 @@
     align-items: stretch;
   }
 
-  .dh-review-guide__facts,
   .dh-review-guide__summary {
     grid-template-columns: minmax(0, 1fr);
   }

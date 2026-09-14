@@ -201,16 +201,16 @@
 
   /* Reflection prompts get the width; their editors keep a generous share of
    * the viewport so writing never happens in a two-line box. */
-  .dh-review-prompt textarea,
-  .dh-review-prompt .dh-input--multiline {
-    min-block-size: max(30dvh, 8rem);
-  }
-
-  /* Clear the phone bottom navigation so the last prompt is reachable. */
-  .dh-reviews-page,
-  .dh-review-tab-stack {
-    padding-bottom: var(--app-bottomnav-height, 0px);
-  }
+  /*
+   * UNTITLED-17 — `.dh-review-prompt`, `.dh-reviews-page` and
+   * `.dh-review-tab-stack` are deleted.
+   *
+   * None had a consumer in `app/`, and none had one on `origin/main` either, so
+   * a phone field height and a bottom-navigation inset were being shipped for
+   * markup nobody renders. The guided flow's own prompt field and its
+   * safe-area-aware sticky footer are in `review-guide.css`, which DOES have
+   * callers.
+   */
 }
 
 /*
