@@ -91,44 +91,13 @@
 
 /* The same pill anatomy as Project health and Goal alignment — one status
  * vocabulary across the product, three consumers. */
-.dh-insights__pill {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--app-space-1);
-  padding: 0 var(--app-space-2);
-  min-height: var(--app-space-5);
-  font-size: var(--dh-text-meta-size);
-  font-weight: 500;
-  border-radius: var(--dh-radius-pill);
-  border: var(--app-border-width-thin) solid var(--dh-color-border);
-  color: var(--dh-color-text-muted);
-  background: var(--dh-color-surface);
-  white-space: nowrap;
-}
-
-.dh-insights__dot {
-  inline-size: var(--app-space-2);
-  block-size: var(--app-space-2);
-  border-radius: var(--dh-radius-pill);
-  background: currentColor;
-  flex: none;
-}
-
-.dh-insights__pill[data-tone="success"] {
-  color: var(--dh-color-text-on-success-subtle);
-  background: var(--dh-color-success-subtle);
-  border-color: transparent;
-}
-.dh-insights__pill[data-tone="warning"] {
-  color: var(--dh-color-text-on-warning-subtle);
-  background: var(--dh-color-warning-subtle);
-  border-color: transparent;
-}
-.dh-insights__pill[data-tone="info"] {
-  color: var(--dh-color-text-on-info-subtle);
-  background: var(--dh-color-info-subtle);
-  border-color: transparent;
-}
+/*
+ * UNTITLED-17 — `.dh-insights__pill` and `.dh-insights__dot` are deleted.
+ *
+ * They drew a status chip: a radius, a hairline, a height, a type rung, three
+ * tone fills and a hand-made dot. The shared `Badge` is Untitled's, has the dot
+ * form built in, and is what every other status in the product carries.
+ */
 
 .dh-insights__links {
   display: flex;

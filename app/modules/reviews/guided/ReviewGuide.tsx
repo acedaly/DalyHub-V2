@@ -34,6 +34,7 @@ import {
   type WeeklyReviewStepDefinition,
   type WeeklyReviewStepId,
 } from "~/kernel/reviews";
+import { ProgressTrack } from "~/shared/progress";
 import { Sheet, SheetOptionList } from "~/shared/sheet";
 import { useCompactViewport } from "~/shared/viewport";
 
@@ -54,7 +55,7 @@ import {
   mobileProgressLabel,
   reviewRecordPath,
 } from "./review-guide-view";
-import { buttonClassName } from "~/shared/ui";
+import { Badge, buttonClassName } from "~/shared/ui";
 
 export interface ReviewGuideProps {
   readonly review: SerializedReview;
@@ -130,30 +131,54 @@ export function ReviewGuide({
 
   return (
     <div className="dh-review-guide">
+      {/*
+       * UNTITLED-17 — the page header, with a TITLE.
+       *
+       * The `h1` carried no type role at all. Tailwind's preflight resets a
+       * bare heading to inherit, and `review-guide.css` set only its margin and
+       * its wrapping — so the guided Review's own title rendered at body size,
+       * smaller than the step heading beneath it (found by looking at the
+       * page, not by a test). It takes the product's page-title rung now, the
+       * same one the Finance home and every collection header use.
+       */}
       <header className="dh-review-guide__header">
         <p className="dh-review-guide__breadcrumb">
           <Link to="/reviews">Reviews</Link>
         </p>
-        <h1>{review.title}</h1>
+        <h1 className="text-display-xs font-semibold text-primary">
+          {review.title}
+        </h1>
         <p className="dh-review-guide__meta">
-          <span className="dh-review-guide__status" data-status={review.status}>
+          {/*
+           * UNTITLED-17 — the product's ONE status chip. `.dh-review-guide__status`
+           * drew its own pill with three `data-status` fills; `Badge` is
+           * Untitled's and is what every other status in DalyHub carries.
+           */}
+          <Badge tone={review.status === "completed" ? "success" : "info"} dot>
             {review.statusLabel}
-          </span>
+          </Badge>
           <span>{review.periodLabel}</span>
           <span>Updated {review.updatedLabel}</span>
         </p>
+        {/*
+         * Two TERTIARY buttons side by side read as two pieces of text with
+         * nothing to press. "Save and exit" is the one an owner leaves by, so
+         * it takes the secondary family and the boundary that comes with it;
+         * "Open the full Review" stays quiet, because it is a detour rather
+         * than an exit.
+         */}
         <p className="dh-review-guide__exit">
+          <Link
+            className={buttonClassName({ variant: "secondary" })}
+            to="/reviews"
+          >
+            Save and exit
+          </Link>
           <Link
             className={buttonClassName({ variant: "subtle" })}
             to={reviewRecordPath(review.id)}
           >
             Open the full Review
-          </Link>
-          <Link
-            className={buttonClassName({ variant: "subtle" })}
-            to="/reviews"
-          >
-            Save and exit
           </Link>
         </p>
       </header>
@@ -224,20 +249,29 @@ export function ReviewGuide({
             <p className="dh-review-guide__stepper-progress">
               {mobileProgressLabel(stepId, step.mobileLabel)}
             </p>
-            <div
-              className="dh-review-guide__stepper-track"
-              role="progressbar"
-              aria-label="Review progress"
-              aria-valuemin={1}
-              aria-valuemax={progress.totalCount}
-              aria-valuenow={step.order}
-              aria-valuetext={weeklyReviewProgressLabel(stepId)}
-            >
-              <span
-                className="dh-review-guide__stepper-fill"
-                style={{
-                  inlineSize: `${(step.order / progress.totalCount) * 100}%`,
-                }}
+            {/*
+             * UNTITLED-17 — the product's ONE linear progress bar.
+             *
+             * This was a `<div role="progressbar">` with a `<span>` fill sized
+             * by an inline percentage, painted by `review-guide.css` at its own
+             * height, radius and track colour — a second implementation of the
+             * bar `ProgressTrack` already draws with Untitled's own
+             * `ProgressBarBase`. The announced sentence is unchanged: the
+             * progress label is what the bar says, and the step number is what
+             * it draws.
+             */}
+            <div className="dh-review-guide__stepper-track">
+              <ProgressTrack
+                label="Review progress"
+                percent={(step.order / progress.totalCount) * 100}
+                /*
+                 * A POSITION, not a completion. The bar draws the fraction and
+                 * reports "step 4 of 7" — see `LabelledProgressBar`'s own note
+                 * on why the range exists.
+                 */
+                range={{ min: 1, max: progress.totalCount, now: step.order }}
+                valueText={weeklyReviewProgressLabel(stepId)}
+                complete={false}
               />
             </div>
             <button

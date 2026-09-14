@@ -57,8 +57,28 @@ export interface LabelledProgressBarProps {
   readonly id?: string;
   /** The bar's accessible name — "Kitchen renovation progress". */
   readonly label: string;
-  /** Completion percentage, 0–100. */
+  /** Completion percentage, 0–100. Always what the bar DRAWS. */
   readonly value: number;
+  /**
+   * UNTITLED-17 — what the bar REPORTS, when that is not a percentage.
+   *
+   * Upstream `ProgressBarBase` takes `min` and `max`; this override dropped
+   * them, because every caller it was built for measured a completion. A guided
+   * Review's stepper does not: it is a POSITION — "Step 4 of 7" — and ARIA has
+   * `valuemin`/`valuemax`/`valuenow` for exactly that. Forcing it through a
+   * percentage reported "57 of 100" to a screen reader for a thing that has
+   * seven positions.
+   *
+   * Given a range, the bar announces it verbatim and `valueText` is the whole
+   * announced sentence rather than a suffix to a percentage. The FILL is still
+   * `value`, so the geometry is unchanged and one component draws every linear
+   * bar in the product.
+   */
+  readonly range?: {
+    readonly min: number;
+    readonly max: number;
+    readonly now: number;
+  };
   /**
    * The same value in words, as the surrounding surface already states it
    * ("5 of 8 tasks complete"). Announced with the percentage, never drawn twice.
@@ -104,6 +124,7 @@ export function LabelledProgressBar({
   id,
   label,
   value,
+  range,
   valueText,
   showValue = false,
   valueLabel,
@@ -123,10 +144,10 @@ export function LabelledProgressBar({
       id={id}
       role="progressbar"
       aria-label={label}
-      aria-valuenow={percentage}
-      aria-valuemin={0}
-      aria-valuemax={100}
-      aria-valuetext={`${percentage}% — ${valueText}`}
+      aria-valuenow={range ? range.now : percentage}
+      aria-valuemin={range ? range.min : 0}
+      aria-valuemax={range ? range.max : 100}
+      aria-valuetext={range ? valueText : `${percentage}% — ${valueText}`}
       className={cx(
         "h-2 w-full overflow-hidden rounded-md bg-quaternary",
         "forced-colors:outline forced-colors:outline-[CanvasText]",

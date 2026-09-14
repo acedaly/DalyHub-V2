@@ -232,14 +232,24 @@ test("the trend is readable without the chart", async ({ page }) => {
 
   const trend = section(page, "trend");
   await expect(trend).toBeVisible();
-  // The chart carries the same sentence as its accessible name…
-  const chart = trend.getByRole("img", { name: /Tasks completed over/ });
-  await expect(chart).toBeVisible();
-  // …and the sentence is on the page in its own right, with every value.
-  await expect(trend.locator(".dh-trend__summary")).toContainText(
-    /up from 2 to 3/,
-  );
-  await expect(trend.locator(".dh-trend__axis li")).toHaveCount(2);
+  /*
+   * UNTITLED-17 — the trend is `PeriodTotals` now, over
+   * `application/charts-base` and Recharts, so its text form is `ChartFrame`'s
+   * caption rather than a sentence the old SVG printed for itself. The contract
+   * is unchanged and is the one asserted here: the headline is VISIBLE, and the
+   * full enumeration of every reading is in the document for a reader who
+   * cannot see the plot.
+   */
+  const caption = trend.locator(".dh-chart__caption").first();
+  await expect(caption).toBeVisible();
+  await expect(caption).toContainText(/Tasks completed over/);
+  await expect(caption).toContainText(/up from 2 to 3/);
+  // Every reading, enumerated, for assistive technology.
+  await expect(caption.locator(".sr-only")).toContainText(/:\s*2;/);
+  // And the plot itself carries the same sentence as its accessible name.
+  await expect(
+    trend.getByRole("img", { name: /Tasks completed over/ }).first(),
+  ).toBeVisible();
 });
 
 /* -------------------------------------------------------------------------- */
@@ -311,9 +321,15 @@ for (const [label, width, height] of [
     await waitForInteractive(page);
     await expect(section(page, "movement")).toBeVisible();
     await expectNoHorizontalOverflow(page);
-    // The chart is fluid: it never pushes its own container wider than the page.
+    /*
+     * The chart never pushes its own container wider than the page. A plot made
+     * of MARKS may keep a minimum width inside its OWN bounded scroller
+     * (`ChartFrame`'s `minPlotWidth`), which is the one exception §59 allows —
+     * so what is measured is the scroller, not the plot inside it, and the
+     * document-level check above is what proves the page itself never scrolls.
+     */
     const overflow = await page.evaluate(() => {
-      const plot = document.querySelector(".dh-trend__plot");
+      const plot = document.querySelector(".dh-chart__plot");
       if (!plot) return 0;
       return plot.getBoundingClientRect().width - document.body.clientWidth;
     });

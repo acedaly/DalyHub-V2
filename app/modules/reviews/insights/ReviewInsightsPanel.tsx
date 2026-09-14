@@ -31,7 +31,8 @@ import type {
   ProjectChangeInsight,
   ReviewInsights,
 } from "~/kernel/review-insights";
-import { TrendBars } from "~/shared/charts";
+import { PeriodTotals } from "~/shared/charts";
+import { Badge, type BadgeTone } from "~/shared/ui";
 
 export interface ReviewInsightsPanelProps {
   readonly insights: ReviewInsights;
@@ -75,6 +76,37 @@ function InsightLinks({ links }: { readonly links: readonly InsightLink[] }) {
   );
 }
 
+/**
+ * UNTITLED-17 — the insight state, as the product's ONE badge.
+ *
+ * `.dh-insights__pill` drew its own container: a radius, a hairline, a height,
+ * a type rung, three tone fills and a hand-drawn dot — for a status chip. The
+ * shared `Badge` is Untitled's, has the dot form built in, and is what every
+ * other status in DalyHub is already drawn with. The `neutral` arm is the
+ * DEFAULT rather than a fourth tone: an insight with no state to report is not
+ * a coloured thing.
+ */
+const INSIGHT_BADGE_TONE: Readonly<Record<string, BadgeTone>> = {
+  neutral: "neutral",
+  success: "success",
+  info: "info",
+  warning: "warning",
+};
+
+function InsightBadge({
+  tone,
+  children,
+}: {
+  readonly tone: string;
+  readonly children: React.ReactNode;
+}) {
+  return (
+    <Badge tone={INSIGHT_BADGE_TONE[tone] ?? "neutral"} dot>
+      {children}
+    </Badge>
+  );
+}
+
 function InsightRow({ insight }: { readonly insight: Insight }) {
   return (
     <li className="dh-insights__item" data-tone={insight.tone}>
@@ -90,10 +122,7 @@ function GoalRow({ goal }: { readonly goal: GoalContributionInsight }) {
     <li className="dh-insights__item" data-tone={goal.tone}>
       <p className="dh-insights__claim">
         <Link to={`/goals/${goal.goalId}`}>{goal.title}</Link>{" "}
-        <span className="dh-insights__pill" data-tone={goal.tone}>
-          <span className="dh-insights__dot" aria-hidden="true" />
-          {goal.label}
-        </span>
+        <InsightBadge tone={goal.tone}>{goal.label}</InsightBadge>
       </p>
       <p className="dh-insights__reason">{goal.reason}</p>
     </li>
@@ -109,10 +138,7 @@ function ProjectChangeRow({
     <li className="dh-insights__item" data-tone={change.tone}>
       <p className="dh-insights__claim">
         <Link to={`/projects/${change.projectId}`}>{change.title}</Link>{" "}
-        <span className="dh-insights__pill" data-tone={change.tone}>
-          <span className="dh-insights__dot" aria-hidden="true" />
-          {change.label}
-        </span>
+        <InsightBadge tone={change.tone}>{change.label}</InsightBadge>
       </p>
       <p className="dh-insights__reason">{change.reason}</p>
     </li>
@@ -323,11 +349,23 @@ export function ReviewInsightsPanel({
         >
           <div className="dh-insights__trends">
             {insights.trends.map((trend) => (
-              <figure className="dh-insights__trend" key={trend.id}>
-                <figcaption className="dh-insights__trend-label">
-                  {trend.label}
-                </figcaption>
-                <TrendBars
+              /*
+               * UNTITLED-17 — the shared Untitled-backed plot.
+               *
+               * `TrendBars` drew this as a stretched SVG with no value axis, so
+               * two trends stacked on one page could not be read against each
+               * other: each normalised to its own peak with no numbers on the
+               * side. `PeriodTotals` gives every trend a real value axis, a
+               * hairline grid and a tooltip, and marks the period under review
+               * in the series colour against its neighbours' quieter one.
+               *
+               * The chart supplies its own `<figure>` and `<figcaption>`
+               * (`ChartFrame`), so the label above it is an ordinary heading for
+               * the pair rather than a second caption.
+               */
+              <div className="dh-insights__trend" key={trend.id}>
+                <p className="dh-insights__trend-label">{trend.label}</p>
+                <PeriodTotals
                   points={trend.points.map((point) => ({
                     key: point.key,
                     // The axis gets the short form; the summary beneath it —
@@ -336,12 +374,15 @@ export function ReviewInsightsPanel({
                     value: point.value,
                     current: point.current,
                   }))}
+                  seriesLabel={trend.label}
                   summary={trend.summary}
                   // CONVERGE-01 §I — the enumeration stays the announced
                   // description; the printed caption is the shape of the trend.
                   caption={trend.headline}
+                  // Every Review trend counts records; none has a fraction.
+                  wholeNumbers
                 />
-              </figure>
+              </div>
             ))}
           </div>
         </Section>

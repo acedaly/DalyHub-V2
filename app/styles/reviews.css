@@ -68,19 +68,19 @@
   gap: var(--app-space-2);
 }
 
+/*
+ * UNTITLED-17 — the option's PAINT is deleted; one rule survives, and it is not
+ * paint.
+ *
+ * Each option carries `buttonClassName()` now, built on the vendored Untitled
+ * button's own exported styles, so the height, border, radius, surface, hover,
+ * focus ring, selected fill and forced-colours behaviour are the shared
+ * button's. The TOUCH FLOOR stays unconditional for the reason the report
+ * builder's does: this is a run of adjacent targets in a grid, where a mis-tap
+ * silently changes what is being created.
+ */
 .dh-review-type-option {
-  min-height: 3rem;
-  border: 1px solid var(--dh-color-border);
-  border-radius: var(--dh-radius-pill);
-  background: var(--dh-color-surface);
-  color: var(--dh-color-text);
-  text-align: left;
-  padding: var(--app-space-3);
-}
-
-.dh-review-type-option[data-selected="true"] {
-  border-color: var(--dh-color-accent);
-  background: var(--dh-color-accent-subtle);
+  min-block-size: var(--app-touch-target-min);
 }
 
 .dh-review-period-preview {
@@ -201,16 +201,16 @@
 
   /* Reflection prompts get the width; their editors keep a generous share of
    * the viewport so writing never happens in a two-line box. */
-  .dh-review-prompt textarea,
-  .dh-review-prompt .dh-input--multiline {
-    min-block-size: max(30dvh, 8rem);
-  }
-
-  /* Clear the phone bottom navigation so the last prompt is reachable. */
-  .dh-reviews-page,
-  .dh-review-tab-stack {
-    padding-bottom: var(--app-bottomnav-height, 0px);
-  }
+  /*
+   * UNTITLED-17 — `.dh-review-prompt`, `.dh-reviews-page` and
+   * `.dh-review-tab-stack` are deleted.
+   *
+   * None had a consumer in `app/`, and none had one on `origin/main` either, so
+   * a phone field height and a bottom-navigation inset were being shipped for
+   * markup nobody renders. The guided flow's own prompt field and its
+   * safe-area-aware sticky footer are in `review-guide.css`, which DOES have
+   * callers.
+   */
 }
 
 /*

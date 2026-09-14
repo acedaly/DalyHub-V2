@@ -486,31 +486,49 @@ export function MeasurementTrend({
       // Nothing stepped to: the resting sentence, when the caller gave one.
       readout={reading === "" ? (restingReading ?? "") : reading}
       status={tone === "warning" ? "warning" : undefined}
+      /*
+       * UNTITLED-17 — a key with ONE entry is not a key.
+       *
+       * A legend exists to tell marks apart. Beside a plot that draws a single
+       * line it names something the caption under it already names, and on the
+       * Insight page it drew "Overdue at each close" directly above the
+       * sentence "21 overdue now, read at the close of each of 12 periods" —
+       * a swatch and a label spent on a distinction that does not exist.
+       *
+       * So the key is drawn only when the plot has something to distinguish: a
+       * projection, a target or a baseline beside the measured series. A Goal
+       * record still gets "Recorded readings · Target 50 · Start 0"; a bare
+       * count series gets nothing, and loses nothing.
+       */
       legend={
-        <>
-          <ChartKeyItem color={seriesColor}>{seriesLabel}</ChartKeyItem>
-          {model.projection === null ? null : (
-            <ChartKeyItem
-              color={CHART_PROJECTION_COLOR}
-              dash={CHART_DASH.projection}
-            >
-              {model.projection.label}
-            </ChartKeyItem>
-          )}
-          {target === null ? null : (
-            <ChartKeyItem
-              color={CHART_REFERENCE_COLOR}
-              dash={CHART_DASH.reference}
-            >
-              {target.tag}
-            </ChartKeyItem>
-          )}
-          {baseline === null ? null : (
-            <ChartKeyItem color={CHART_REFERENCE_COLOR} dash="2 3">
-              {baseline.tag}
-            </ChartKeyItem>
-          )}
-        </>
+        model.projection === null &&
+        target === null &&
+        baseline === null ? undefined : (
+          <>
+            <ChartKeyItem color={seriesColor}>{seriesLabel}</ChartKeyItem>
+            {model.projection === null ? null : (
+              <ChartKeyItem
+                color={CHART_PROJECTION_COLOR}
+                dash={CHART_DASH.projection}
+              >
+                {model.projection.label}
+              </ChartKeyItem>
+            )}
+            {target === null ? null : (
+              <ChartKeyItem
+                color={CHART_REFERENCE_COLOR}
+                dash={CHART_DASH.reference}
+              >
+                {target.tag}
+              </ChartKeyItem>
+            )}
+            {baseline === null ? null : (
+              <ChartKeyItem color={CHART_REFERENCE_COLOR} dash="2 3">
+                {baseline.tag}
+              </ChartKeyItem>
+            )}
+          </>
+        )
       }
     >
       {({ reducedMotion }) => (

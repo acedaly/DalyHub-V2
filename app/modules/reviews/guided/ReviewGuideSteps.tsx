@@ -636,15 +636,27 @@ export function ReflectionStep({
           <ol>
             {prompts.map((prompt, promptIndex) => (
               <li key={prompt.sectionId}>
+                {/*
+                 * UNTITLED-17 — Untitled theme roles, not a bespoke chip.
+                 *
+                 * `review-guide.css` drew this button's radius, ring, surface,
+                 * selected fill and type rung. It is a two-line selectable row
+                 * — a label over its state — which no vendored Untitled
+                 * component is, so it keeps its own markup and takes Untitled's
+                 * own roles for every value: `bg-primary`/`bg-active` for the
+                 * surface, `ring-secondary` for the hairline, the focus ring
+                 * the rest of the product uses, and the tertiary text role for
+                 * the state. Nothing here is a colour, a radius or a size
+                 * invented for this control.
+                 */}
                 <button
                   type="button"
+                  className="grid min-h-11 w-full gap-0.5 rounded-lg bg-primary px-3 py-2 text-left text-sm text-secondary ring-1 ring-secondary outline-focus-ring transition duration-100 ease-linear ring-inset hover:bg-primary_hover focus-visible:outline-2 focus-visible:outline-offset-2 aria-[current]:bg-active aria-[current]:font-medium aria-[current]:text-primary"
                   aria-current={promptIndex === position ? "true" : undefined}
                   onClick={() => setIndex(promptIndex)}
                 >
-                  <span className="dh-review-guide__prompt-nav-label">
-                    {prompt.label}
-                  </span>
-                  <span className="dh-review-guide__prompt-nav-state">
+                  <span>{prompt.label}</span>
+                  <span className="text-xs font-normal text-tertiary">
                     {prompt.answered ? "Answered" : "Not answered"}
                   </span>
                 </button>

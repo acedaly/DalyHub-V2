@@ -1103,6 +1103,12 @@ that fits at a laptop width into one that always scrolls and always clips.
 
 ### Charts — the debt is closed
 
+> **UNTITLED-17 amends this section.** It closed the DATED-series debt and said
+> so; `TrendBars` and `CategoryBars` remained, and UNTITLED-17 retired both. The
+> current, whole chart inventory is
+> [UNTITLED-17's](#untitled-17-completion-record--insight-reports-reviews-and-ai);
+> what follows is UNTITLED-12's record of its own pass, kept for the reasoning.
+
 The migration guide's chart-debt table said `TrendLine` drew three surfaces
 (Analytics, Reports, Reviews). **That was wrong, and it is worth recording how.**
 Reports and Reviews draw `TrendBars` and `CategoryBars`, which are different
@@ -1667,3 +1673,175 @@ fixture, a sibling of `meetings-people-seed.mjs`, not part of any gate.
 No screenshot, historical visual audit or legacy Material/MD3/DHDS stylesheet is
 an implementation reference for any surface in this pass. The Pro template
 screenshots above were studied for COMPOSITION and are not reproduced.
+
+## UNTITLED-17 completion record — Insight, Reports, Reviews and AI
+
+The analytical, reflective and assistive layers of DalyHub, brought onto the
+same footing as its operational ones. This is the per-surface inventory; the
+migration guide records what MOVED and what is left
+([`UNTITLED_UI_MIGRATION.md`](UNTITLED_UI_MIGRATION.md#untitled-17--insight-reports-reviews-and-ai)).
+
+### Pro research, and what it actually returned
+
+The MCP connector authenticated and reported `has_pro_access: true` on every
+call. Searches performed: `metrics`, `metrics card chart`, `analytics
+dashboard metrics charts`, `activity feed`, `progress steps`, `filter bar`,
+`date range picker`, `range preset`, `messaging`, `AI assistant`, `command
+menu`, `section headers`, `content divider`, `alerts`, `breadcrumbs`, plus the
+full `list_components` enumeration of the `application` category (129
+components) and the page-template catalogue (268 templates).
+
+**The connector's filters do not work and that is worth recording.**
+`get_page_templates` ignores `category`, `type`, `search` and `offset`: every
+call returns the first N templates in a fixed order, so the catalogue cannot be
+paged. Template identities were therefore taken from the naming convention the
+earlier phases already recorded (`dashboards-01/NN`, `dashboards-02/NN`,
+`informational-01/NN`, `informational-02/NN`) and fetched by name.
+
+**Pro SOURCE remains unavailable in this environment, and the ceiling moved.**
+`POST https://www.untitledui.com/react/api/components` was probed with
+`metrics`, `progress-steps`, `messaging`, `activity-feed`, `filter-bar`,
+`filter-dropdown-menu`, `section-headers`, `content-divider`, `alerts` and
+`breadcrumbs`. It served exactly two — `date-range-picker` and `range-preset` —
+and returned every other one under a `pro` key with no body. The CLI still
+cannot be authenticated here (its OAuth callback needs a localhost port a
+headless container cannot reach), and the connector hands back a `npx untitledui
+add` command rather than source. So Pro source came, as in every prior phase,
+from the genuine vendored tree under `app/shared/ui/untitled/`, which the early
+phases imported from a licensed checkout. **No Pro component was recreated from
+memory and no unavailable example was invented.** Where a Pro component was
+identified as the right answer and could not be retrieved, that is said below
+rather than papered over.
+
+| Pro material studied | What it contributed |
+| --- | --- |
+| `dashboards-01/14` (Pro) | The composition this pass turns on: flat SECTIONS separated by hairline rules on the page's own ground, each with its heading on the left and its control on the right. UNTITLED-16 adopted it for the Finance home; Insight is that arrangement now, so the product's two analytical surfaces read the same way. |
+| `dashboards-01/02`, `-01/09` (Pro) | The filter-bar-plus-table grammar, carried forward. It is why a Report's rows are a table card rather than a list, and why its builder is a band above them. |
+| `informational-02/06` (Pro) | A filterable collection table with status badges **and progress bars in a column**. This is the single most load-bearing find of the pass: a grouped Report used to draw its rows as a table and then draw the same labels and figures again as a second list of bars underneath. The comparison is a COLUMN of the rows now. |
+| `dashboards-01/12`, `-01/13`, `-01/16` (Pro) | Confirmed the column-bar treatment is Untitled's pattern rather than one example's choice, and that a value axis belongs on a series plot rather than being implied by figures printed under the marks. |
+| `application/metrics` (Pro, **source unavailable**) | Identified by MCP as Untitled's metric-card family and deliberately NOT used: `has_pro_access` is true but the public component API refuses its body, and §7 of this phase's brief rules out a KPI card row for Insight anyway. Insight's figures are readings on the sections they describe, drawn with Untitled type roles alone. |
+| `application/progress-steps` (Pro, **source unavailable**) | Identified as the right upstream answer for the guided Review's step rail; the API refuses its body. The rail keeps its own markup — it is already a keyboard-complete list of real submit buttons with correct `aria-current` — and this pass migrated the parts of it that DO have a vendored Untitled answer (the progress bar, the status chip). Named here as the one place a Pro component was wanted and could not be had. |
+| `application/activity-feed`, `application/messaging`, `application/ai-assistant-modal`, `application/slideout-menus/ai-assistant-*` (Pro, **source unavailable**) | Studied by description and rejected on product grounds rather than on availability — see Rejected, below. |
+
+### Insight
+
+| DalyHub surface | Untitled Pro source | Actual use | Custom remaining, and why |
+| --- | --- | --- | --- |
+| Page composition | `dashboards-01/14` section grammar, via `overrides/section-heading` | Five flat sections separated by hairline rules, in narrative order: **Needs attention → What changed → Goals → Where the work landed → What happened** | The ORDER, which is a product decision about what an owner arrives asking |
+| The figures | Untitled type roles (`text-display-xs`, `text-tertiary`), the same rung the Finance home's totals use | A quiet label over a display-size figure over the comparison sentence, each figure a link to the records behind it | The comparison SENTENCE. "6 more than the previous period (18)" is checkable; "+33%" hides its base and from a base of zero is not a figure at all |
+| Window rail | `base/button-group` via `ViewSwitcher` | Seven spans, exactly one active, as real links | Unchanged by this pass |
+| Grain control | The same, via `SegmentedFilter` | Only the grains the window can hold, beside the completion plot | `alwaysWriteValue` — an absent `?grain=` means "the window's own default", not "the first option" |
+| Completion and backlog plots | `application/charts-base` via `MeasurementTrend` | Tasks completed per bucket; the backlog at each bucket's close | `wholeNumbers`, `tone="warning"`, and labels resolved by bucket KEY because the overdue read carries its own bound |
+| Areas breakdown | `base/progress-indicators` via `ProgressTrack` → `CategorySplit` | A labelled proportion list, share taken against the attributed total | The ATTRIBUTED total as the denominator: these rows divide a known quantity, so the bars sum to the whole |
+| What happened | The shared `ActivityFeed` (DS-05), in a section rather than a card | Thirty events at a time, newest first | The nested bounded viewport: a long list inside a page that also scrolls |
+| Loading | The shared `Skeleton` primitive | The shape of the sections that arrive | — |
+
+### Reports
+
+| DalyHub surface | Untitled Pro source | Actual use | Custom remaining, and why |
+| --- | --- | --- | --- |
+| Collection | `application/table` (`TableCard.Root` + the `table-card-header` override + `Table`) | One card per section — "Your reports", "Examples" — with a count badge, the section's sentence as its description, and a row per definition: name, question, state badge | The NAME is the link, not the row: a row-wide anchor cannot exist inside a real table, and the name is what an owner looks for |
+| Builder controls | `base/buttons/button` via `buttonClassName()` | Every option a link painted as a button; the selected one takes the primary family and states `aria-current` | An unconditional 44px floor. The shared button takes its floor from `(hover: none)`, which is right for an ordinary action and wrong for a wrapping rail of twenty adjacent targets where a mis-tap silently re-runs the report |
+| Result rows | `application/table` + `overrides/table-head` | Name / Share / measure, right-aligned tabular figures, the full period visible beneath a short one | `role="rowheader"` on the name cell is React Aria's; the COLUMNS are DalyHub's |
+| Grouped comparison | `base/progress-indicators` via `ProgressTrack`, as `informational-02/06` draws it | A proportion bar in a column of the same rows | Scaled against the LARGEST ROW, not the block total: a bounded report's rows do not add up to its total, so scaling against the total would draw every bar short by an amount the reader cannot see |
+| Series plot | `application/charts-base` via `PeriodTotals` | One bar per labelled period, beneath the rows | The axis reads the FORMATTED figures the table prints, so a money axis carries "$1,200.00" rather than 120000 minor units |
+| Export | — | An ordinary authenticated `GET` of the same definition through the same executor | Unchanged: a downloaded figure and the figure on screen cannot differ. Reports has no print view and this pass did not invent one |
+
+### Reviews
+
+| DalyHub surface | Untitled Pro source | Actual use | Custom remaining, and why |
+| --- | --- | --- | --- |
+| Guided flow | — (`application/progress-steps` unavailable) | A persistent rail of real submit buttons with `aria-current="step"`, a phone stepper, a step sheet | The whole navigation model: POST → redirect → GET, so Back, Forward and refresh all work and the resume bookmark records where the owner CHOSE to be |
+| Stepper progress | `base/progress-indicators` via `ProgressTrack` | The bar draws the fraction and reports "step 4 of 7" | `range` — see the Design System's Progress entry |
+| Review state | `base/badges` via the shared `Badge` | The Review's status, and both insight states, with the dot form | The tone mapping, which is DalyHub's meter vocabulary |
+| Type picker | `base/buttons/button` via `buttonClassName()` | One choice from a closed set | The RADIO semantics: `role="radio"` in a `radiogroup` is more honest than a run of toggles |
+| Prompt navigation | Untitled theme roles on the element | A two-line selectable row: the prompt over its answered state | No vendored Untitled component is a two-line selectable row. Every value — surface, hairline, selected fill, focus ring, state colour — is an Untitled role rather than a number invented here |
+| Cadence filter | `Select` over the vendored input styles | The collection's type filter | — |
+| Evidence trends | `application/charts-base` via `PeriodTotals` | Tasks completed per Review period, the period under review in the series colour | The period under review is NAMED in the summary as well as coloured (§15) |
+| Entity presentations | The existing shared ones | A Goal in a Review is the same Goal; a Project the same Project | Unchanged, and deliberately: this pass built no Review-specific entity card |
+
+### AI
+
+| DalyHub surface | Untitled Pro source | Actual use | Custom remaining, and why |
+| --- | --- | --- | --- |
+| Page shell | `overrides/section-heading`, a header band with a hairline | Title, the bounded promise, a divider, then the composer | The PROMISE is the product's: no internet, no conversation history, figures DalyHub calculated |
+| Composer | `base/textarea` via the shared `Textarea` | A three-row field with ⌘↵ to ask | ⌘↵ rather than bare Enter: this is a multi-line field for a question an owner may phrase over two lines, and Enter-to-send is the convention of a surface that expects one line. The hint is printed rather than left to be discovered |
+| Actions | `base/buttons/button` via the shared `Button` | Ask, with its loading state; the budget and the shortcut beside it | — |
+| Starting points | The same | Four wrapped buttons that fill the composer and hand back the caret | The four are the PARSER's own closed list, so what the page offers and what DalyHub can resolve cannot drift apart |
+| Answer | — | A labelled region with a focusable heading | Focus moves to the heading rather than an `aria-live` region wrapping the result: a live container would be re-read every time any part of it changed — opening the facts disclosure, say — which is exactly what §57 warns against |
+| Proposal review | `base/buttons`, `base/checkbox`, `base/select`, `base/textarea` via the shared primitives | Suggested and Applied as separate sections; nothing crosses without a press; every change shows its before and after; undo is the server's own inverse payload | Already correct before this pass and deliberately not churned. What this pass fixed were four browser-default checkboxes and a `class="dh-select"` that has had no rules since the Phase-5 sweep |
+
+### The chart inventory, whole
+
+| Chart / visualisation | Previous implementation | New implementation | Remaining custom, and why |
+| --- | --- | --- | --- |
+| Insight completion trend | `MeasurementTrend` | Unchanged | — |
+| Insight backlog trend | `MeasurementTrend` | Unchanged | — |
+| Insight Areas breakdown | `.dh-analytics__split` — a `<span>` track with an inline `inlineSize: N%`, six identity-accent overrides and a forced-colours arm | `CategorySplit` over Untitled's `ProgressBarBase` | Not a chart. No axis, no plot area, no tooltip; readable with every bar removed |
+| Report grouped result | `CategoryBars` — a hand-written `<svg>` rectangle per row | A `ProgressTrack` column of the Untitled table | As above |
+| Report series result | `TrendBars` — a 100×100 SVG stretched with `preserveAspectRatio="none"`, no value axis | `PeriodTotals` over `application/charts-base` | — |
+| Review evidence trends | `TrendBars` | `PeriodTotals` | — |
+| Goal / Habit / Asset trends | `MeasurementTrend` | Unchanged | — |
+| Habit adherence | `PeriodicAdherence` | Unchanged | — |
+| Finance monthly flow | `MoneyFlow` | Unchanged | — |
+| `ComparisonBars` | Hand-drawn SVG | **Deleted** — it had no consumer in `app/` at all | — |
+| `Sparkline` | Hand-drawn SVG | Unchanged | An indicator, not a chart: a shape inside a row, always beside the same figures in text |
+| `ProgressRing` | Hand-drawn SVG | Unchanged | An indicator: a ring is a percentage |
+
+The repository searches behind that table, run after the pass:
+
+- `TrendBars`, `CategoryBars`, `ComparisonBars` — **0 references in `app/`**, `e2e/`
+  and `test/`. The three components and their 324 lines of CSS are deleted.
+- `TrendLine` — 0 references; deleted in UNTITLED-12.
+- `recharts` imported outside `app/shared/charts/untitled/` — **0**.
+- `<svg` in `app/shared/charts/` — `Sparkline` and `ProgressRing` only, both
+  indicators, both readable with the SVG removed, both argued in
+  `charts/index.ts`.
+- Chart CSS — `charts.css` is 208 lines and paints the frame and those two
+  indicators. No module stylesheet paints a chart.
+
+### Rejected, and why
+
+- **A KPI card row for Insight** (`application/metrics`, and every analytics
+  template in the catalogue). Not because the component is unavailable — because
+  the page already had one and it was the problem: it buried the only signal that
+  asks for an action, and two of its five tiles restated the panels beneath them.
+  The figures are readings on the sections they describe.
+- **A chat thread for Ask DalyHub** (`application/messaging`,
+  `ai-assistant-modal`, the AI assistant slideout menus). DalyHub keeps NO
+  conversation history and has no follow-up turn. A thread would draw a memory
+  the product does not have, and the first thing an owner would do with it is ask
+  a follow-up that silently loses every word of context. Rejected on product
+  grounds; the source being unavailable is incidental.
+- **A sticky phone composer.** The same reason: it is the furniture of a surface
+  you return to repeatedly within one session. This surface is one question and
+  one answer, and the answer is the thing that should own the screen after a
+  press.
+- **A donut for the Areas breakdown.** Carried forward from UIX-05: a ring makes
+  two similar slices impossible to rank without reading the numbers off the
+  legend anyway.
+- **Streaming the answer.** The AI layer validates a structured result before
+  rendering any of it; streaming unvalidated prose would mean rendering something
+  the schema has not accepted yet, and an uncontrolled live region reading it as
+  it arrives is what §57 rules out.
+- **`application/activity-feed`.** Insight's "What happened" is the shared DS-05
+  `ActivityFeed`, which every other chronology in the product already draws.
+  Adopting a second feed for one surface is the duplicate this phase exists to
+  remove.
+
+### Documentation consulted
+
+[Introduction](https://www.untitledui.com/react/docs/introduction),
+[Theming](https://www.untitledui.com/react/docs/theming),
+[Dark mode](https://www.untitledui.com/react/docs/dark-mode),
+[MCP](https://www.untitledui.com/react/docs/mcp),
+[Charts](https://www.untitledui.com/react/components/charts),
+[Tables](https://www.untitledui.com/react/components/tables),
+[Progress indicators](https://www.untitledui.com/react/components/progress-indicators),
+[Badges](https://www.untitledui.com/react/components/badges),
+[Buttons](https://www.untitledui.com/react/components/buttons),
+[Textarea](https://www.untitledui.com/react/components/textarea) and
+[Select](https://www.untitledui.com/react/components/select).
+
+No screenshot, historical visual audit or legacy Material/MD3/DHDS stylesheet is
+an implementation reference for any surface in this pass.

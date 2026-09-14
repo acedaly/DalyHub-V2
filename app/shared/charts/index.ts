@@ -19,21 +19,35 @@
  * the theme roles every plot is painted with. Reach for `ChartFrame` when adding
  * a new chart; do not compose Recharts directly in a module.
  *
- * ── What remains hand-rolled, and why that is not chart debt ────────────────
+ * ── What remains hand-rolled, and why that is not chart debt ────────────
  *
- * The five primitives below are NOT charts in the sense above. Each is a small
+ * The TWO primitives below are NOT charts in the sense above. Each is a small
  * indicator drawn as SVG because a charting runtime would be heavier than the
  * mark it draws and would add nothing: a ring is a percentage, a sparkline is a
- * shape inside a table cell, `CategoryBars` is a labelled list with a bar per
- * row. None has an axis, a tooltip, a legend or a plot area, and every one of
- * them is readable with the SVG removed. Migrating them would be
+ * shape inside a table cell. Neither has an axis, a tooltip, a legend or a plot
+ * area, and both are readable with the SVG removed. Migrating them would be
  * re-implementing progress bars in Recharts.
  *
- * `TrendLine` was the exception and the debt: it IS a chart — axis, references,
- * a projection, an interactive readout. UNTITLED-12 moved its last consumers
- * (Analytics' completion and overdue trends) onto `MeasurementTrend` and deleted
- * it, so every chart in this directory is now either an Untitled-backed plot or
- * an indicator that has no business being one.
+ * ── UNTITLED-17 — the last hand-written PLOTS are gone ─────────────────
+ *
+ * Three exports left this file, and each for its own reason:
+ *
+ *   - `TrendBars` WAS a chart — a value per labelled period, an axis of them, a
+ *     magnitude the reader compares — drawn as a stretched 100×100 SVG with no
+ *     value axis at all. Its two consumers (Reports’ period results, the Review
+ *     insight trends) now draw {@link PeriodTotals}, which is
+ *     `application/charts-base` over Recharts.
+ *   - `CategoryBars` was NOT a chart: a labelled list with a bar per row, which
+ *     is a run of progress indicators with a shared denominator. It is now
+ *     `CategorySplit` in `~/shared/progress`, over Untitled’s own
+ *     `ProgressBarBase` — the same bar the rest of the product draws — and it
+ *     absorbed Analytics’ second, differently-painted copy of the same shape.
+ *   - `ComparisonBars` had no consumer in `app/` at all and was deleted.
+ *
+ * Every dated series, every period comparison and every categorical share in
+ * DalyHub now comes from one of three places: an Untitled-backed plot here,
+ * `CategorySplit`, or a figure stated in words. There is no second chart
+ * runtime, no module-local chart colour and no hand-written plot left.
  *
  * Every primitive here carries `role="img"` and a generated text summary,
  * because a chart conveys information rather than decorating a number stated
@@ -92,42 +106,18 @@ export {
   type MeasurementTrendProps,
   type MeasurementTrendReference,
 } from "./untitled/MeasurementTrend";
+export {
+  PeriodTotals,
+  type PeriodTotalsPoint,
+  type PeriodTotalsProps,
+} from "./untitled/PeriodTotals";
 
-/* ── The hand-drawn indicators ────────────────────────────────────────────── */
+/* ── The hand-drawn indicators ────────────────────────────────── */
 
 export { ProgressRing, type ProgressRingProps } from "./ProgressRing";
-export {
-  TrendBars,
-  type TrendBarsProps,
-  type TrendBarPoint,
-} from "./TrendBars";
-/*
- * UNTITLED-12 — `TrendLine` is DELETED.
- *
- * It was a hand-written 100×100 SVG with no value axis, whose scale was
- * communicated by four label strings the caller computed and passed in. ADR-126
- * replaced it for Goals and Habits; its last two consumers (Analytics'
- * completion and overdue trends) moved to `MeasurementTrend` in UNTITLED-12, and
- * the removal criterion `UNTITLED_UI_MIGRATION.md` states — "when the last
- * caller moves, the file and the component go together" — is met.
- *
- * Every dated series in the product is now one chart on one foundation.
- */
-export {
-  ComparisonBars,
-  type ComparisonBarsProps,
-  type ComparisonBarsPoint,
-} from "./ComparisonBars";
 /* UIX-03 — the card-sized trend, for surfaces a full chart cannot reach. */
 export {
   Sparkline,
   type SparklineProps,
   type SparklinePoint,
 } from "./Sparkline";
-/* V2.13 — a share across NAMED CATEGORIES, the one shape the four above could
- * not draw. Horizontal, label-first, and readable with the SVG removed. */
-export {
-  CategoryBars,
-  type CategoryBarsProps,
-  type CategoryBarsRow,
-} from "./CategoryBars";

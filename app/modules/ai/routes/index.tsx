@@ -1,5 +1,5 @@
 /**
- * AI-01 / AI-04 — Ask DalyHub.
+ * AI-01 / AI-04 / UNTITLED-17 — Ask DalyHub.
  *
  * A bounded question surface over the owner's own records. It is NOT a general
  * assistant: no internet access, no conversation history, no tools, no memory
@@ -9,10 +9,51 @@
  * Questions DalyHub can answer itself — counts, the latest Meeting, the Inbox
  * state — never reach a provider. That is not an optimisation: it is the correct
  * answer, arrived at deterministically and for nothing.
+ *
+ * ── UNTITLED-17: why this is not a chat thread ──────────────────────────────
+ *
+ * The obvious redesign for an "AI page" in 2026 is a message thread with a
+ * sticky composer, and it would be wrong here — not merely unfashionable to
+ * avoid, but a lie about what the product does. DalyHub keeps NO conversation
+ * history and has no follow-up turn: every question is answered from evidence
+ * selected for that question alone. A thread would draw a memory the surface
+ * does not have, and the first thing an owner would do with it is ask a
+ * follow-up that silently loses every word of context.
+ *
+ * So the page is what it actually is: a question, its answer, and the evidence
+ * behind the answer. One column, one measure, in reading order.
+ *
+ *     Ask DalyHub                     ← what it is, and its bounds, stated
+ *     ─────────────────────────────
+ *     [ Your question            ]    ← the composer, with ⌘↵
+ *     [ Ask ]  ⌘↵ · budget used
+ *     Start with one of these         ← a FEW contextual starting points
+ *     [ chip ] [ chip ] [ chip ]
+ *     ─────────────────────────────
+ *     Answer                          ← focus moves here when one arrives
+ *
+ * ── What this pass changed, and what it did not ─────────────────────────────
+ *
+ * Not one contract: the availability gates, the deterministic-first path, the
+ * fail-closed refusal, the budget line, the send notice and every citation are
+ * untouched. What changed is that the surface was drawn by `ai.css` — a bare
+ * `<textarea class="dh-ask__input">` with its own border and focus ring, a bare
+ * `<button>`, and the four starting points as a BULLETED LIST of bold text that
+ * did not look pressable at all (see the capture in the migration record). The
+ * composer is Untitled's `Textarea`, the actions are Untitled's `Button`, and
+ * the starting points are a wrapped row of real buttons.
  */
 
 import { env } from "cloudflare:workers";
-import { useCallback, useId, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+} from "react";
 
 import {
   AiCitationList,
@@ -34,7 +75,8 @@ import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 
 import { GROUNDED_ASK_EXAMPLES, readAiAvailability } from "~/platform/ai";
 import type { Route } from "./+types/index";
-import { buttonClassName } from "~/shared/ui";
+import { Button, Textarea } from "~/shared/ui";
+import { SectionHeading } from "~/shared/ui/untitled/overrides/section-heading";
 
 export function meta() {
   return [
@@ -70,6 +112,8 @@ export default function AskDalyHubRoute({ loaderData }: Route.ComponentProps) {
   const [question, setQuestion] = useState("");
   const [nonce, setNonce] = useState(0);
   const fieldId = useId();
+  const fieldRef = useRef<HTMLTextAreaElement | null>(null);
+  const answerRef = useRef<HTMLHeadingElement | null>(null);
 
   const unavailable: AiSurfaceState | null = !availability.enabled
     ? { kind: "disabled" }
@@ -96,8 +140,8 @@ export default function AskDalyHubRoute({ loaderData }: Route.ComponentProps) {
     (unavailable.kind === "disabled" || unavailable.kind === "unconfigured");
 
   const ask = useCallback(
-    (event: FormEvent) => {
-      event.preventDefault();
+    (event?: FormEvent) => {
+      event?.preventDefault();
       const trimmed = question.trim();
       if (trimmed.length === 0) return;
       const next = nonce + 1;
@@ -116,6 +160,52 @@ export default function AskDalyHubRoute({ loaderData }: Route.ComponentProps) {
   const state = controller.state;
   const answer = state.kind === "result" ? asAnswer(state.result) : null;
   const grounded = state.kind === "result" ? asGrounded(state.result) : null;
+  const busy = state.kind === "running" || state.kind === "cancelling";
+  const settled = state.kind === "result" || state.kind === "deterministic";
+
+  /*
+   * AGENTS.md §15 — the answer is ANNOUNCED by moving focus to its heading, not
+   * by a live region wrapped around it.
+   *
+   * A `aria-live` container around a result that arrives in one piece would be
+   * read once and would then re-read every time any part of it changed —
+   * opening the facts disclosure, for instance. Moving focus says "here is the
+   * answer" exactly once, puts the keyboard where the reader wants it, and
+   * leaves the region an ordinary landmark they can come back to.
+   *
+   * The GROUNDED path renders `AiGroundedAnswer`, which draws its own labelled
+   * region; the ref is not attached there, so the effect is a no-op and that
+   * path is reached by landmark rather than by focus. It only fires against a
+   * configured provider, which no test in this repository exercises — named
+   * here rather than papered over.
+   */
+  useEffect(() => {
+    if (settled) answerRef.current?.focus();
+  }, [settled, nonce]);
+
+  /**
+   * ⌘↵ / Ctrl+↵ asks.
+   *
+   * Deliberately NOT bare Enter: this is a multi-line field for a question an
+   * owner may want to phrase over two lines, and a chat box's Enter-to-send is
+   * the convention of a surface that expects one line at a time. The hint is
+   * printed beside the button rather than left to be discovered.
+   */
+  const onComposerKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLTextAreaElement>) => {
+      if (event.key !== "Enter") return;
+      if (!event.metaKey && !event.ctrlKey) return;
+      event.preventDefault();
+      if (!busy) ask();
+    },
+    [ask, busy],
+  );
+
+  /** A starting point fills the composer and hands the owner the caret. */
+  const applyExample = useCallback((text: string) => {
+    setQuestion(text);
+    fieldRef.current?.focus();
+  }, []);
 
   return (
     <div className="dh-ask">
@@ -134,52 +224,87 @@ export default function AskDalyHubRoute({ loaderData }: Route.ComponentProps) {
       ) : (
         <>
           {unavailable !== null ? <AiUnavailable state={unavailable} /> : null}
+
           <form className="dh-ask__form" onSubmit={ask}>
             <label className="dh-ask__label" htmlFor={fieldId}>
               Your question
             </label>
-            <textarea
+            {/*
+             * Untitled's `Textarea` through the shared primitive: the same box,
+             * radius, ring and focus treatment every other field in the product
+             * has. `.dh-ask__input` used to draw all four itself.
+             */}
+            <Textarea
               id={fieldId}
+              ref={fieldRef}
               className="dh-ask__input"
               value={question}
               maxLength={400}
               rows={3}
               placeholder="What follow-ups do I still owe?"
               onChange={(event) => setQuestion(event.target.value)}
+              onKeyDown={onComposerKeyDown}
             />
             <div className="dh-ask__actions">
-              <button
+              <Button
                 type="submit"
-                className={buttonClassName({ variant: "primary" })}
-                disabled={
-                  question.trim().length === 0 ||
-                  state.kind === "running" ||
-                  state.kind === "cancelling"
-                }
+                variant="primary"
+                disabled={question.trim().length === 0 || busy}
+                loading={busy}
               >
                 Ask
-              </button>
-              <span className="dh-ask__budget">
-                {availability.monthSpentUsd.toFixed(2)} of{" "}
-                {availability.monthlyBudgetUsd.toFixed(2)} USD used this month
-              </span>
+              </Button>
+              <p className="dh-ask__budget">
+                <span className="dh-ask__shortcut">
+                  <kbd className="rounded border border-secondary px-1 font-sans text-xs text-secondary">
+                    ⌘
+                  </kbd>
+                  <kbd className="rounded border border-secondary px-1 font-sans text-xs text-secondary">
+                    ↵
+                  </kbd>{" "}
+                  to ask
+                </span>
+                {/*
+                 * The separator exists only while the two facts share a line.
+                 * Wrapped onto two lines on a phone it dangled at the end of
+                 * the first one (found by looking at the 390px capture).
+                 */}
+                <span aria-hidden="true" className="hidden sm:inline">
+                  ·
+                </span>
+                <span>
+                  {availability.monthSpentUsd.toFixed(2)} of{" "}
+                  {availability.monthlyBudgetUsd.toFixed(2)} USD used this month
+                </span>
+              </p>
             </div>
           </form>
 
-          <div className="dh-ask__uncertainties">
-            <h2 className="dh-ask__subheading">
-              Questions DalyHub can work out
-            </h2>
+          {/*
+           * A FEW starting points, as real buttons.
+           *
+           * They were a `<ul>` of bold text with list bullets showing: a run of
+           * headings nobody would think to press. They are the parser's own
+           * closed list, so there are four of them rather than a grid of
+           * everything AI can do (§35).
+           */}
+          <section className="dh-ask__starters" aria-labelledby="ask-starters">
+            <SectionHeading
+              id="ask-starters"
+              level={2}
+              title="Questions DalyHub can work out"
+              description="DalyHub resolves these itself, from your own records."
+            />
             <ul className="dh-ask__examples">
               {examples.map((example) => (
                 <li key={example.intent}>
-                  <button
+                  <Button
                     type="button"
-                    className={buttonClassName({ variant: "subtle" })}
-                    onClick={() => setQuestion(example.question)}
+                    size="sm"
+                    onClick={() => applyExample(example.question)}
                   >
                     {example.question}
-                  </button>
+                  </Button>
                 </li>
               ))}
             </ul>
@@ -188,7 +313,7 @@ export default function AskDalyHubRoute({ loaderData }: Route.ComponentProps) {
               Projects DalyHub can find, or declined honestly when it cannot
               find enough.
             </p>
-          </div>
+          </section>
 
           {deterministicStillAnswers ? (
             // Honest in the off state: nothing leaves DalyHub. The questions it
@@ -207,7 +332,7 @@ export default function AskDalyHubRoute({ loaderData }: Route.ComponentProps) {
             </AiSendNotice>
           )}
 
-          {state.kind === "running" || state.kind === "cancelling" ? (
+          {busy ? (
             <AiProgress
               label={
                 state.kind === "cancelling"
@@ -251,6 +376,13 @@ export default function AskDalyHubRoute({ loaderData }: Route.ComponentProps) {
 
           {state.kind === "deterministic" ? (
             <section className="dh-ask__answer" aria-label="Answer">
+              <h2
+                className="dh-ask__answer-heading"
+                tabIndex={-1}
+                ref={answerRef}
+              >
+                Answer
+              </h2>
               <p className="dh-ask__badge">Based on DalyHub records</p>
               <p className="dh-ask__summary">{state.summary}</p>
               {state.citations.length > 0 ? (
@@ -290,6 +422,13 @@ export default function AskDalyHubRoute({ loaderData }: Route.ComponentProps) {
 
           {state.kind === "result" && answer !== null ? (
             <section className="dh-ask__answer" aria-label="Answer">
+              <h2
+                className="dh-ask__answer-heading"
+                tabIndex={-1}
+                ref={answerRef}
+              >
+                Answer
+              </h2>
               <p className="dh-ask__badge">
                 {answer.status === "answered"
                   ? "Based on DalyHub records"
@@ -320,7 +459,7 @@ export default function AskDalyHubRoute({ loaderData }: Route.ComponentProps) {
 
               {answer.uncertainties.length > 0 ? (
                 <div className="dh-ask__uncertainties">
-                  <h2 className="dh-ask__subheading">Not certain about</h2>
+                  <h3 className="dh-ask__subheading">Not certain about</h3>
                   <ul>
                     {answer.uncertainties.map((line, index) => (
                       <li key={index}>{line}</li>

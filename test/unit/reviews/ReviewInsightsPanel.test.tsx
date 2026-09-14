@@ -157,14 +157,28 @@ describe("the Review evidence surface", () => {
     expect(screen.getByText("On track → At risk")).toBeTruthy();
   });
 
+  /*
+   * UNTITLED-17 — the trend is `PeriodTotals` now, over
+   * `application/charts-base` and Recharts, so the plot itself mounts only in a
+   * browser (`ChartFrame` never renders Recharts on the server, and in jsdom
+   * there is no box to measure). That makes the TEXT form the only thing this
+   * test can assert here — which is exactly the property the rule exists for:
+   * the chart is an addition to the sentence, never a replacement for it.
+   *
+   * So the assertion is on the caption and its visually-hidden enumeration,
+   * both of which `ChartFrame` renders whether or not the plot ever arrives.
+   */
   it("states the trend in words as well as bars", () => {
     renderPanel(BUSY_WEEK());
-    const chart = screen.getByRole("img", { name: /Tasks completed over/ });
-    expect(chart).toBeTruthy();
+    const caption = document.querySelector(".dh-chart__caption");
+    expect(caption).toBeTruthy();
+    expect(caption?.textContent).toContain("Tasks completed over");
     // The same sentence is on the page, so a printed or narrow view keeps it.
-    expect(
-      screen.getByText(/up from 3 to 7/, { selector: ".dh-trend__summary" }),
-    ).toBeTruthy();
+    expect(caption?.textContent).toContain("up from 3 to 7");
+    // And every reading is enumerated for a reader who cannot see the plot.
+    expect(caption?.querySelector(".sr-only")?.textContent).toContain(
+      "27 Jul – 2 Aug: 7",
+    );
   });
 
   it("renders one sentence, not five empty sections, for a first Review", () => {

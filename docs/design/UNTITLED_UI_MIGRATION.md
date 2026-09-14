@@ -1422,3 +1422,201 @@ repair worth doing deliberately.
    re-point is mechanical; the triage of whatever those journeys then assert is
    not, which is why it wants its own pass rather than a corner of this one.
 7. **A bounded `people.getByIds`**, carried forward from UNTITLED-13.
+
+## UNTITLED-17 — Insight, Reports, Reviews and AI
+
+The per-surface inventory (Untitled source, how it is used, what stays custom
+and why), the Pro research record and the whole chart inventory are in
+[`UNTITLED_UI_IMPLEMENTATION.md`](UNTITLED_UI_IMPLEMENTATION.md#untitled-17-completion-record--insight-reports-reviews-and-ai).
+This records what MOVED and what is left behind.
+
+### What moved
+
+| Surface | Untitled source | Before → after | Kept deliberately |
+| --- | --- | --- | --- |
+| Insight page | `dashboards-01/14`'s section grammar via `overrides/section-heading` | Five equal figures in a bounded box above a two-column grid of `DashboardCard`s — the KPI row every analytics template ships with | Every figure the kernel produces, every link to the records behind it, and every test id. Two figures moved from a tile to the caption of the section they describe |
+| Insight Areas breakdown | `base/progress-indicators` via `ProgressTrack` → the shared `CategorySplit` | A `<span>` track with an inline `inlineSize: N%`, six identity-accent overrides and a forced-colours arm | The ATTRIBUTED total as the denominator, and the sentence saying so: a Task completed outside any Area is real work with no bar to sit in |
+| Insight "What changed" feed | The shared `ActivityFeed`, in a section rather than a `DashboardCard` | A bounded card on a page of unboxed sections | Its own bounded viewport — a long list inside a page that also scrolls |
+| Reports collection | `application/table` + the `table-card-header` override | A gallery of `.dh-reports__card` anchors: a bounded box per one-line definition, with the question — the only distinguishing fact — inside it at subtitle weight | Saved reports FIRST, and no figures at all: opening `/reports` never runs six reports |
+| Report result rows | `application/table` + `overrides/table-head` | A hand-written `<table class="dh-report__table">` and, beneath it, `CategoryBars` drawing the same labels and figures a second time | "Number, then rows, then chart", at every width. The rows are still never optional |
+| Report grouped comparison | `ProgressTrack` in a column, as `informational-02/06` draws it | A second list of hand-written `<svg>` bars under the table | The refusals: no share column for a row with no reading, or for a mixed-sign set |
+| Report series plot | `application/charts-base` via `PeriodTotals` | `TrendBars` — a stretched 100×100 SVG with no value axis | A series with any absent reading still draws NO chart: a null as a zero is the lie the result type exists to prevent |
+| Report builder controls | `base/buttons/button` via `buttonClassName()` | A bespoke pill with its own border, radius, surface, height and selected fill | An unconditional 44px floor — a wrapping rail of twenty adjacent targets is not an ordinary action row |
+| Review guided header | Untitled type roles | An `h1` with NO type role at all, rendering at body size, on a surface with no page gutter | The breadcrumb, the period and the "Save and exit" exit |
+| Review stepper | `ProgressTrack` with `range` | A `<div role="progressbar">` with a `<span>` fill sized by an inline percentage | The announced sentence, exactly: "step 4 of 7", `valuemin` 1, `valuemax` 7 |
+| Review status and insight states | `base/badges` via the shared `Badge` | A bespoke pill with a hand-drawn dot and three tone fills, and a second bespoke pill for the Review's own status | The tone mapping, which is DalyHub's meter vocabulary |
+| Review type picker | `base/buttons/button` via `buttonClassName()` | A bespoke option pill | `role="radio"` in a `radiogroup` |
+| Review evidence trends | `PeriodTotals` | `TrendBars` | The enumeration of every reading, now `ChartFrame`'s accessible caption |
+| Ask DalyHub | `base/textarea`, `base/buttons`, `overrides/section-heading` | A bare `<textarea>` drawing its own box and focus ring, a bare `<button>`, and four starting points as a bulleted list of bold text | Every contract: the availability gates, the deterministic-first path, the fail-closed refusal, the budget line, the send notice, every citation |
+| AI proposal controls | `base/checkbox`, `base/select` via the shared primitives | Four browser-default checkboxes and a `class="dh-select"` with no rules behind it, beside already-migrated fields | The propose → review → act semantics, untouched |
+
+### Stylesheets cut
+
+Measured `wc -l`, against `origin/main`. Two of the seven did not shrink, and
+saying which is the point of measuring rather than asserting.
+
+- `charts.css` — **532 → 207**. `.dh-trend__*`, `.dh-catbars__*` and
+  `.dh-cbars__*` in full, including three forced-colours arms and two phone
+  overrides. What survives is the Untitled chart frame's two rules and the two
+  genuine indicators.
+- `analytics.css` — **534 → 287**. The metric row's box and its six children,
+  the two-column panel grid with its three span overrides and its breakpoint,
+  the Area split with its six accent arms, the loading ghost's card paint, a
+  forced-colours border and a phone rule reaching into `DashboardCard`'s header
+  to wrap the grain control.
+- `reports.css` — **371 → 271**. The card gallery, the section heading and lede,
+  the option pill and its forced-colours arm, and the hand-written table with
+  its head, cell and detail rules.
+- `insights.css` — **241 → 210**. The status pill and its hand-made dot.
+- `review-guide.css` — **717 → 700**. The status pill, the stepper track and
+  fill with their reduced-motion arm, and the prompt-nav button's five paint
+  declarations.
+- `reviews.css` — **225 → 225**, and that is honest rather than a wash: the type
+  option's six paint declarations went and a touch floor plus the note recording
+  why replaced them at about the same length. The RULES are down by five; the
+  lines are not.
+- `ai.css` — **732 → 811, it GREW.** The composer's box and focus ring and the
+  checkbox's size came out; a page header with a divider, the starting-points
+  section, the keyboard-shortcut row and the answer heading's focus treatment
+  went in, because the surface genuinely had none of those. A pass that only
+  ever deletes CSS is a pass that is not building anything.
+
+### Defects surfaced, and what they were
+
+Five, and **four of them were invisible to every test** — they were found by
+looking at the rendered page, which is why this pass took captures before it
+took a position.
+
+1. **The guided Review's title rendered at body size.** Tailwind's preflight
+   resets a bare heading to inherit, and `review-guide.css` set only its margin
+   and its wrapping. The step heading beneath it was larger than the page's own
+   `h1`.
+2. **The guided Review had no page frame.** It rendered straight into the
+   shell's main region with no gutter, so the breadcrumb, the title and the step
+   rail all began within a few pixels of the sidebar's edge.
+3. **`class="dh-select"` draws nothing.** It has had no rules in any stylesheet
+   since the Phase-5 paint sweep, so three controls — the AI extraction review's
+   Project picker, the Reviews collection's cadence filter and (still, for the
+   next phase) the Settings notification picker — rendered as the browser's own
+   default `<select>` beside migrated Untitled fields. A bare select still
+   works, so no test could see it.
+4. **Ask DalyHub's starting points had list bullets.** The `<ul>` sat inside a
+   `.dh-ask__uncertainties` wrapper whose `ul { list-style: disc }` reached it,
+   and the buttons were `subtle` — no fill, no border. Four questions rendered
+   as a bulleted list of bold text that did not look pressable at all.
+5. **Three lines said one fact on Insight.** The reading states "21 overdue",
+   the plot's readout says "21 overdue at the close of …", and the caption said
+   "21 overdue now, read at the close of …". The visible caption now states how
+   the window was cut; the accessible summary still opens with the figure,
+   because it has no figure beside it to lean on.
+
+And one the captures found in a shared component: **a key with one entry is not
+a key.** `MeasurementTrend` drew a legend naming its single series directly
+above a caption naming the same series. The legend is now drawn only when the
+plot has something to distinguish — a projection, a target or a baseline. A
+Goal record still gets "Recorded readings · Target 50 · Start 0".
+
+### One capability this pass added to a shared primitive
+
+`LabelledProgressBar` dropped upstream `ProgressBarBase`'s `min` and `max`,
+because every caller it was built for measured a completion. A guided Review's
+stepper measures a POSITION, and forcing it through a percentage reported "57 of
+100" to a screen reader for a thing with seven steps. `range` restores what
+upstream has: the bar still DRAWS the fraction, and reports the position. It is
+the one reason this migration did not have to choose between the shared bar and
+a correct announcement.
+
+### The §46 investigation — the shared Button's pressed state
+
+Settled, with a measurement, and **not changed**. The full record is in
+[`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md#the-pressed-state-and-why-it-equals-hover).
+The short form: upstream Untitled's `button.tsx` declares no `pressed:` arm for
+any of its nine colour families, its own `nav-account-card` maps pressed to the
+hover treatment exactly, and `buttonClassName()` is built from the vendored
+component's own exported `styles` — so DalyHub carries precisely what upstream
+declares. Measured in Chromium: rest `rgb(105 63 117)`, hover `rgb(95 53 107)`,
+pressed `rgb(95 53 107)`, with `data-pressed="true"` present throughout. It is a
+design decision of the source system rather than a migration defect, so it is
+documented rather than silently changed.
+
+### Pre-existing failures, re-checked rather than inherited
+
+**The `ai-assistance` E2E failures PR #291 reported did not reproduce.** All 37
+journeys in `ai-assistance.spec.ts` passed against `origin/main` before a line
+of this pass was written — 57 of 57 across it and `analytics.spec.ts` in one
+baseline run — and they pass after it. The report is recorded here as not reproducible in this
+environment rather than carried forward as a standing list.
+
+One failure is real and is NOT this pass's:
+`assisted-ai.spec.ts` → "applies, replays as unchanged, refuses stale, and
+undoes exactly" times out at 30s when the AI specs run together, and **passes in
+isolation at 37.5 seconds**. It drives `/finance/transactions?uncategorised=1`,
+which is every uncategorised row in the shared local database, so its cost is a
+function of what ran before it. That is fixture contention against a 30s
+per-test ceiling, not a regression: nothing in this pass touches Finance
+transactions, and the journey's own comment already records that the queue is
+workspace-wide.
+
+Tests updated because their CONTRACT changed, each argued in place:
+
+- `ReportResultView.test.tsx` — Untitled tables are React Aria `role="grid"`
+  (every other migrated collection in the suite already queries it), and a
+  grouped result's comparison is a column of the rows rather than a second list,
+  so the ordering assertion moved to a SERIES, where a chart still sits beside
+  the rows. Gained a case pinning the mixed-sign refusal.
+- `ReviewInsightsPanel.test.tsx` — an Untitled-backed plot mounts only in a
+  browser, so the chart's TEXT form is what a jsdom test can assert. That is
+  exactly the property the rule exists for.
+- `AnalyticsScreen.test.tsx` — the distribution's bar is a real `progressbar`
+  with `aria-valuetext`; the activity section is "What happened"; a section that
+  cannot be read says "section" rather than "panel"; the overdue caption no
+  longer repeats the figure.
+- `analytics.spec.ts`, `reports.spec.ts`, `reviews-insights.spec.ts`,
+  `grounded-ai.spec.ts` — the same three structural facts, plus a name cell
+  addressed by `role="rowheader"` rather than by `th`, which React Aria's table
+  does not render.
+
+### Remaining, and named
+
+1. **`DashboardCard`'s only consumer in `app/` is now the design gallery route.**
+   Insight drew four of them and `WhatChangedPanel` a fifth; none remains. The
+   component, its `.dh-dcard__*` block in `card-family.css` and its entry in
+   `/design/card-family` should go together — a design-route deletion, which is
+   the next phase's work rather than a corner of this one.
+2. **`MetricTile` / `StatCard` / `MetricRow` have no product consumer either** —
+   only that same gallery. Named alongside `DashboardCard` so the three are
+   assessed once.
+3. **`class="dh-select"` survives in `settings/NotificationsSection.tsx`**, where
+   it draws a browser-default control. One line, in the next phase's module.
+4. **`FinanceImport`'s hand-written table, and the budgets and categories rows** —
+   carried forward from UNTITLED-16 untouched. This pass did not reach them and
+   did not sacrifice a primary module to.
+5. **Untitled's `application/progress-steps`** is the right upstream answer for
+   the guided Review's step rail and its source cannot be retrieved here. The
+   rail is correct and keyboard-complete; it is a repaint waiting on access.
+6. **A Habit's expected check-ins before a full week has passed** — carried
+   forward from UNTITLED-16, and **read this time rather than copied forward**.
+   The brief ranked it last and said to fix it only if the root cause were
+   obvious and low-risk. It is not, and what was checked is worth recording so
+   the next pass does not start from zero:
+
+   - `evaluateHabitConsistency` clamps its upper bound to the owner's today, so
+     no future day is ever expected;
+   - `activeOn` refuses every day before the Habit's first schedule version, so
+     "a Habit created on Friday did not fail Monday to Thursday";
+   - a `weekly_count` week contributes nothing unless the window fully contains
+     it AND it has elapsed (V2.3-GATE-01), so half a weekly target is never
+     pro-rated;
+   - the Review's own read (`habit-facts.server.ts`) goes through that same
+     evaluator and states its own window when it is truncated.
+
+   Three deliberate guards, each with its own argued comment, and the reported
+   symptom does not reproduce from any of these paths as read. The one place the
+   whole week IS counted including days still to come is `evaluateHabitWeek`,
+   which is the record's "N of 7 this week" — where the denominator is the
+   week's own target rather than what has been asked so far, and that reading is
+   arguably correct. **A fix needs a reproduction before it needs code**, and
+   inventing one from a one-line description risks "fixing" behaviour three
+   comments in this module argue for.
+7. **Eight E2E specs still scope to `.dh-topbar`**, a class the shell no longer
+   renders. Carried forward from UNTITLED-16 unchanged.

@@ -1,47 +1,77 @@
 /**
- * UIX-05 — the Analytics surface.
+ * UIX-05 / UNTITLED-17 — the Insight surface.
  *
  * DalyHub's first surface whose subject is not a record. Today asks "what now?",
  * a Review asks "what happened in that period, and what should change?", and
- * Analytics asks the one question neither can: **where has my effort actually
+ * Insight asks the one question neither can: **where has my effort actually
  * gone, and is that where I meant it to go?**
  *
- * ── The composition, and why it is this one ─────────────────────────────────
+ * ── UNTITLED-17 recomposed it, and this is the argument ─────────────────────
  *
- *     [ 7 days · 4 weeks · 12 weeks ]        5 – 11 August 2026
- *     ─────────────────────────────────────────────────────────
- *     Tasks completed   Projects finished   Goals on track   Areas worked in
- *     24                3                   5                4
- *     6 more than…      1 fewer than…       of 9, right now  61 Tasks…
- *     ─────────────────────────────────────────────────────────
- *     Completion trend                  Where the work landed
- *     ╱╲__╱╲___                         Health & Fitness  ████████  38%
- *                                       Work & Career     █████     24%
+ * It opened with five figures in a bounded box:
  *
- * The metric row leads because four exact figures answer the question faster
- * than any drawing of them, and each states its own comparison beneath it rather
- * than in a legend. The two panels below it are the SHAPE of those figures: when
- * the work happened, and where it went. Two charts, not six — the reference for
- * this screen shows a trend and a breakdown, and everything a third would add is
- * already a sentence on the row above.
+ *     [ Tasks completed ][ Projects finished ][ Goals moving ][ Overdue ][ Areas ]
+ *
+ * which is the KPI row every analytics template ships with, and it was wrong
+ * here for three specific reasons rather than as a matter of taste.
+ *
+ * 1. **It buried the only signal that asks for an action.** The workspace's
+ *    defining fact is its overdue backlog. It sat fourth in a row of five, with
+ *    the same weight as "Areas worked in" — a figure nobody acts on.
+ * 2. **Two of the five said what the panels below them already said.** "Goals
+ *    moving — 5 of 9" is what the Goals panel is about. "Areas worked in — 4,
+ *    61 Tasks attributed" is the distribution's own supporting line, printed
+ *    twice on one page.
+ * 3. **A box around a figure is not a hierarchy.** Five equal tiles in one
+ *    container say "these are the five things", and the page's actual claim is
+ *    that one of them needs attention and two of them describe a change.
+ *
+ * So the page is a NARRATIVE now, in flat sections separated by hairline rules
+ * on the page's own ground — Untitled's `dashboards-01/14` grammar, the same
+ * arrangement the Finance home adopted in UNTITLED-16, so two analytical
+ * surfaces in one product read the same way:
+ *
+ *     Insight                                [ 7 days · 4 weeks · 12 weeks ]
+ *     5 – 11 August 2026
+ *     ───────────────────────────────────────────────────────────────────────
+ *     Needs attention
+ *       Overdue  43        4 fewer than the previous period (47)
+ *       ╱╲__╱╲___   (the backlog, at the close of each period)
+ *     ───────────────────────────────────────────────────────────────────────
+ *     What changed                                       [ daily · weekly ]
+ *       Tasks completed  24        Projects finished  3
+ *       6 more than…               1 fewer than…
+ *       ╱╲__╱╲___   (completions per period)
+ *     ───────────────────────────────────────────────────────────────────────
+ *     Goals              5 goals moving · of 9 Goals, right now
+ *     ───────────────────────────────────────────────────────────────────────
+ *     Where the work landed      4 areas worked in · 61 Tasks attributed
+ *     ───────────────────────────────────────────────────────────────────────
+ *     What changed (the events)
+ *
+ * Every figure the kernel produces is still on the page, still linked to the
+ * records behind it, and still carries the same `data-testid`. Two of them moved
+ * from a tile to the heading line of the section they describe, which is where
+ * they stop being a duplicate and start being a caption.
  *
  * ── Three things this surface deliberately does not do ──────────────────────
  *
- * 1. **No focus time, and no daily-progress percentage.** The supplied reference
- *    carries both. DalyHub records no time and computes no percentage of a life,
- *    so both would have to be invented — see `~/kernel/analytics/analytics.ts`.
- *    The row shows what the product genuinely knows instead, and each figure
- *    links to the records behind it so a doubted number can be checked.
- * 2. **No donut.** The reference's breakdown is a ring with a centre total. The
- *    design system's agreed chart language (Part 2, A5) is line, sparkline,
- *    ring, horizontal progress and milestone track; a proportion across six or
- *    eight named categories is what horizontal bars are FOR, and a ring makes
- *    two similar slices impossible to rank without reading the numbers off the
- *    legend anyway. The bars carry each Area's own identity accent, so the panel
- *    also reads as the Areas the owner already recognises.
+ * 1. **No focus time, and no daily-progress percentage.** DalyHub records no
+ *    time and computes no percentage of a life, so both would have to be
+ *    invented — see `~/kernel/analytics/analytics.ts`. The page shows what the
+ *    product genuinely knows instead, and each figure links to the records
+ *    behind it so a doubted number can be checked.
+ * 2. **No donut.** A proportion across six or eight named categories is what
+ *    horizontal bars are FOR, and a ring makes two similar slices impossible to
+ *    rank without reading the numbers off the legend anyway. UNTITLED-17 moved
+ *    those bars onto the shared `CategorySplit` (over Untitled's own
+ *    `ProgressBarBase`) and dropped the per-Area identity accent with them: a
+ *    bar in a proportion list encodes magnitude, and eight hues make a ranking
+ *    harder to read while adding a second colour system beside the chart
+ *    foundation's (§43). Each Area is still named and still linked.
  * 3. **No score.** Not a productivity index, not a grade, not a weighted
  *    composite. REVIEW-03 refuses one for the reason that holds here too: a
- *    single number mixing tasks, Goals and Areas would look precise and mean
+ *    single number mixing Tasks, Goals and Areas would look precise and mean
  *    nothing.
  *
  * Presentation only — every figure, comparison, bucket and share is derived by
@@ -56,10 +86,10 @@ import {
   GRAIN_LABELS,
   GRAIN_NOUNS,
   INSIGHT_WINDOWS,
+  type AnalyticsMetric,
   type AnalyticsModel,
   type InsightWindowId,
 } from "~/kernel/analytics";
-import { DashboardCard } from "~/shared/card";
 import {
   MeasurementTrend,
   Sparkline,
@@ -71,14 +101,33 @@ import {
 } from "~/shared/collection-layout";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
-import { areaAccentForRank } from "~/shared/pill";
+import { CategorySplit } from "~/shared/progress";
 import { SegmentedFilter } from "~/shared/segmented-filter";
 import { Skeleton } from "~/shared/skeleton";
+import { buttonClassName } from "~/shared/ui";
+import { SectionHeading } from "~/shared/ui/untitled/overrides/section-heading";
 import { ViewSwitcher } from "~/shared/view-switcher";
 
 import { WhatChangedPanel } from "./WhatChangedPanel";
 import type { AnalyticsPageData } from "./analytics-context";
-import { buttonClassName } from "~/shared/ui";
+
+/**
+ * One section of the narrative.
+ *
+ * Flat on the page's own ground, with a hairline above it — Untitled's
+ * `dashboards-01/14` arrangement. Not a card: a page of five cards on a canvas
+ * is a dashboard, and every card boundary is a box the reader has to cross
+ * between one part of an argument and the next. The first section carries no
+ * rule, because the page header already drew one.
+ */
+const SECTION = "flex min-w-0 flex-col gap-4 border-t border-secondary pt-8";
+const SECTION_FIRST = "flex min-w-0 flex-col gap-4";
+
+/** The figure rung — the same one the Finance home's totals use (§41). */
+const FIGURE = "text-display-xs font-semibold text-primary tabular-nums";
+
+/** The sentence a section shows instead of a figure it cannot honestly draw. */
+const ABSENT = "m-0 text-sm text-pretty text-tertiary";
 
 export function AnalyticsScreen({
   data,
@@ -136,8 +185,9 @@ export function AnalyticsScreen({
   );
 
   /*
-   * The GRAIN sits beside the chart rather than in the header, at subordinate
-   * weight: it changes how the same window is CUT, not what the page is about.
+   * The GRAIN sits beside the completion chart rather than in the header, at
+   * subordinate weight: it changes how the same window is CUT, not what the
+   * page is about.
    *
    * It offers only the grains this window can actually hold — computed from the
    * grain maximums, not listed — so a grain the series would have to bound is
@@ -167,18 +217,15 @@ export function AnalyticsScreen({
     ) : null;
 
   /*
-   * The shared `CollectionLayout`, even though Analytics collects no records.
+   * The shared `CollectionLayout`, even though Insight collects no records.
    *
    * PX-02's scaffold is not "a list of cards" — it is a pane-filling surface with
    * a sticky header, correct scroll ownership within the pane, the one collection
    * header anatomy, and error/empty slots the caller cannot forget to wire.
-   * Analytics wants all four, and Views (which is also not a record collection)
+   * Insight wants all four, and Views (which is also not a record collection)
    * already reaches for it for the same reason. Building a private header here
    * would have meant a second sticky implementation and a second scroll owner for
    * one screen.
-   *
-   * The DASHBOARD measure (POLISH-02), because this page is two wide panels and a
-   * figure row rather than a column of records.
    */
   return (
     <CollectionLayout
@@ -218,7 +265,7 @@ export function AnalyticsScreen({
           <EmptyState
             icon={<EntityIcon type="task" />}
             title="Nothing completed in this period"
-            description="Analytics reads what you have actually finished. Complete a Task, or widen the range, and the shape of your effort appears here."
+            description="Insight reads what you have actually finished. Complete a Task, or widen the range, and the shape of your effort appears here."
             primaryAction={
               <Link
                 className={buttonClassName({ variant: "primary" })}
@@ -228,36 +275,38 @@ export function AnalyticsScreen({
               </Link>
             }
           />
-          <div className="dh-analytics__panels">
-            <WhatChangedPanel
-              window={data.window}
-              rangeLabel={data.rangeLabel}
-              todayIso={data.todayIso}
-            />
-          </div>
-        </div>
-      }
-    >
-      <div className="dh-analytics__body">
-        <MetricRow model={model} />
-        <div className="dh-analytics__panels">
-          <TrendPanel data={data} grainControl={grainControl} />
-          <DistributionPanel model={model} />
-          <OverduePanel data={data} />
-          <GoalSeriesPanel model={model} />
-          {/*
-           * V2.9 INS-04 — the events themselves, LAST.
-           *
-           * The figures above answer "how much"; this answers "what", and it
-           * is the conclusion drawn under them rather than the lead. DOM
-           * order, so the reading order and the tab order agree with it.
-           */}
           <WhatChangedPanel
             window={data.window}
             rangeLabel={data.rangeLabel}
             todayIso={data.todayIso}
           />
         </div>
+      }
+    >
+      <div className="dh-analytics__body">
+        {/*
+         * 1 — WHAT NEEDS ATTENTION. The only section that asks the owner to do
+         * something, so it leads.
+         */}
+        <AttentionSection data={data} />
+        {/* 2 — WHAT CHANGED, in figures and in shape. */}
+        <ChangeSection data={data} grainControl={grainControl} />
+        {/* 3 — MOMENTUM: the Goals the period moved. */}
+        <GoalsSection model={model} />
+        {/* 4 — SUPPORTING DETAIL: where the completed work landed. */}
+        <DistributionSection model={model} />
+        {/*
+         * 5 — the events themselves, LAST.
+         *
+         * The figures above answer "how much"; this answers "what", and it is
+         * the conclusion drawn under them rather than the lead. DOM order, so
+         * the reading order and the tab order agree with it.
+         */}
+        <WhatChangedPanel
+          window={data.window}
+          rangeLabel={data.rangeLabel}
+          todayIso={data.todayIso}
+        />
         {model.notes.length > 0 ? (
           <aside
             className="dh-analytics__notes"
@@ -274,6 +323,677 @@ export function AnalyticsScreen({
     </CollectionLayout>
   );
 }
+
+/* -------------------------------------------------------------------------- */
+/* Figures                                                                     */
+/* -------------------------------------------------------------------------- */
+
+/** One metric out of the kernel's list, by id. Never invented here. */
+function metric(
+  model: AnalyticsModel,
+  id: string,
+): AnalyticsMetric | undefined {
+  return model.metrics.find((entry) => entry.id === id);
+}
+
+/**
+ * A figure, its name and the sentence under it.
+ *
+ * The name is the quiet part and the figure is the loud one — the same
+ * inversion, at the same type rung, the Finance home's totals use, so the two
+ * analytical surfaces in the product state a number the same way (§41).
+ *
+ * The figure is a LINK to the records behind it, which is the whole difference
+ * between an analytical surface and a dashboard: a number the owner cannot check
+ * is a number they have to trust, and DalyHub does not ask to be trusted. It
+ * does not look like a link at rest — a row of underlined numbers is a row with
+ * no hierarchy left — and announces itself on hover and on focus, which is where
+ * a pointer and a keyboard both ask.
+ *
+ * The comparison sentence is a full sentence, not an arrow and a percentage. "6
+ * more than the previous period (18)" is checkable; "+33%" is a figure whose
+ * base is invisible, and from a base of zero it is not a figure at all — which
+ * is why the evaluator returns "No Tasks in the previous period" for that case
+ * rather than inventing one. It stays the ordinary quiet role in both
+ * directions, deliberately NOT green for up and red for down: a week with fewer
+ * completed Tasks is not a failure — it may be a week of one large Project —
+ * and painting it red would make the product an opinion rather than a record.
+ */
+function Reading({
+  entry,
+  size = "figure",
+}: {
+  readonly entry: AnalyticsMetric;
+  /** `figure` leads a section; `inline` sits under a section's heading. */
+  readonly size?: "figure" | "inline";
+}) {
+  const value =
+    entry.value === null ? (
+      <span className="text-tertiary">Not available</span>
+    ) : entry.to ? (
+      <Link
+        className="rounded-sm text-inherit underline decoration-transparent underline-offset-4 outline-focus-ring transition duration-100 ease-linear hover:decoration-current focus-visible:outline-2 focus-visible:outline-offset-2"
+        to={entry.to}
+      >
+        {entry.value}
+        <span className="sr-only">
+          {` ${entry.label.toLocaleLowerCase("en-AU")} — open`}
+        </span>
+      </Link>
+    ) : (
+      entry.value
+    );
+
+  /*
+   * The INLINE form, for a figure that is a statement ABOUT the section it
+   * introduces rather than a reading in its own right. "5 goals moving · of 9
+   * Goals, right now" is a caption; the same fact as a display-size tile at the
+   * top of the page was a duplicate of the section under it.
+   */
+  if (size === "inline") {
+    return (
+      <p className={ABSENT} data-testid={`analytics-metric-${entry.id}`}>
+        <span className="font-medium text-secondary tabular-nums">{value}</span>{" "}
+        {entry.label.toLocaleLowerCase("en-AU")} · {entry.supporting}
+      </p>
+    );
+  }
+
+  return (
+    <div
+      className="flex min-w-0 flex-col gap-1"
+      data-testid={`analytics-metric-${entry.id}`}
+    >
+      <p className="m-0 text-sm font-medium text-tertiary">{entry.label}</p>
+      {/*
+       * The FIGURE carries its own test id as well as the reading's.
+       *
+       * The reading is a label, a figure and a sentence, so its own text starts
+       * with the label — and a test reading "the first token of this element"
+       * to get the number would get the word "Overdue". The figure names itself
+       * so an assertion about the NUMBER addresses the number.
+       */}
+      <p
+        className={`m-0 ${FIGURE}`}
+        data-testid={`analytics-metric-${entry.id}-value`}
+      >
+        {value}
+      </p>
+      <p className={ABSENT}>{entry.supporting}</p>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* 1 — What needs attention                                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * CONVERGE-01 §8 — the backlog, and which way it is going.
+ *
+ * The audit's finding was blunt and correct: the workspace's defining fact is
+ * its overdue backlog, and this screen reported nothing about it. UNTITLED-17's
+ * finding is the next one along: it then reported it FOURTH, in a row of five
+ * equal tiles, beside a figure nobody acts on.
+ *
+ * ── Why a chart, and not just a number ──────────────────────────────────────
+ * "43 overdue" is a fact an owner can already get from `/tasks`. What they
+ * cannot get anywhere is whether that 43 is the top of a climb or the bottom of
+ * one — and that is the difference between a workspace that needs a triage
+ * afternoon and one that is already recovering. The figure carries the level;
+ * the line carries the direction, and they are the same series by construction
+ * (the figure IS the line's last reading).
+ *
+ * ── Why the chart may shout and the text may not ────────────────────────────
+ * The line takes the status ramp's `warning`, because a backlog genuinely IS a
+ * status statement and DalyHub has one vocabulary for those. The supporting
+ * sentence beside the figure stays the ordinary quiet role — "4 fewer than the
+ * previous period (12)" — because a delta is arithmetic, not a judgement, and
+ * "calm over urgent" (AGENTS.md §2) means the product does not manufacture red
+ * for a number that went the wrong way by four.
+ */
+function AttentionSection({ data }: { readonly data: AnalyticsPageData }) {
+  const { model } = data;
+  const overdue = metric(model, "overdue");
+
+  /*
+   * A failed read and an empty backlog are the same empty array, and — exactly
+   * as with the distribution — they must never be the same sentence. "Nothing is
+   * overdue" is the most reassuring thing this screen can say, which is precisely
+   * why it must never be said because a query fell over.
+   */
+  if (!model.overdueAvailable) {
+    return (
+      <section className={SECTION_FIRST} aria-labelledby="insight-attention">
+        <SectionHeading
+          id="insight-attention"
+          level={2}
+          size="md"
+          title="Needs attention"
+        />
+        {/*
+         * The FIGURE stays, and says "Not available" rather than disappearing.
+         * A missing figure reads as "nothing to report", which is the one thing
+         * a failed backlog read must never be mistaken for; the evaluator
+         * already words it, so the section keeps it and adds the reason.
+         */}
+        {overdue ? <Reading entry={overdue} /> : null}
+        <p className={ABSENT}>
+          This section could not be read just now. Nothing in your workspace has
+          changed — the figures below are unaffected.
+        </p>
+      </section>
+    );
+  }
+
+  /*
+   * Labels are resolved by BUCKET KEY, never by position.
+   *
+   * `overdueSeries` is not always parallel to `model.buckets`: the overdue read
+   * has its own bound (`MAX_OVERDUE_MOMENTS`), so on a window with more buckets
+   * than that — 12 weeks at daily grain, say — it carries the newest 39 while
+   * `bucketDates` still holds all 84. Indexing from zero then plots the most
+   * recent readings against the OLDEST dates in the window and announces them
+   * that way, which is a chart that is wrong rather than bounded.
+   */
+  const labels = bucketLabelsByKey(data);
+  const points: MeasurementTrendPoint[] = model.overdueSeries.map((point) => ({
+    key: point.key,
+    date: labels.get(point.key)?.date ?? data.bucketDates[0] ?? "",
+    value: point.overdue,
+  }));
+  const latest = points.length > 0 ? points[points.length - 1]!.value : 0;
+
+  /*
+   * A LEVEL has no total, so this headline states the latest reading and the
+   * span it was read across — never a sum. Adding six readings of a backlog
+   * together would produce a number with no meaning, and the completion trend's
+   * "84 in total" is only meaningful because those are flows.
+   */
+  const headline =
+    points.length < 2
+      ? "Not enough of this period has passed to show a trend."
+      : `Read at the close of each of ${points.length} periods.`;
+  /*
+   * The ACCESSIBLE summary still opens with the figure, because it is the
+   * chart's whole text form and must stand alone. The VISIBLE caption does not:
+   * the figure is stated at display size four lines above it, and printing "21
+   * overdue now" under a plot whose readout already says "21 overdue at the
+   * close of …" made three lines of one fact (found by looking at the page).
+   */
+  const summary =
+    points.length < 2
+      ? headline
+      : `${latest} overdue now, read at the close of each of ${points.length} periods. ${model.overdueSeries
+          .map(
+            (point) =>
+              `${labels.get(point.key)?.label ?? ""}: ${point.overdue}`,
+          )
+          .join("; ")}.`;
+
+  return (
+    <section className={SECTION_FIRST} aria-labelledby="insight-attention">
+      <SectionHeading
+        id="insight-attention"
+        level={2}
+        size="md"
+        title="Needs attention"
+      />
+      {overdue ? <Reading entry={overdue} /> : null}
+      {points.length < 2 ? (
+        <p className={ABSENT}>{headline}</p>
+      ) : (
+        <MeasurementTrend
+          points={points}
+          summary={summary}
+          caption={headline}
+          wholeNumbers
+          /*
+           * A BACKLOG, not a measurement: its existence is the attention
+           * whichever way it is moving. The caption still states the latest
+           * reading in words, so nothing is carried by hue.
+           */
+          tone="warning"
+          seriesLabel="Overdue at each close"
+          /*
+           * The readout's resting sentence names the LATEST reading, which is
+           * the figure above it — so the two can be read against each other
+           * without touching either, and a disagreement is visible rather than
+           * inferred.
+           */
+          restingReading={`${latest} overdue at the close of ${
+            labels.get(points[points.length - 1]!.key)?.label ?? ""
+          }`}
+          /*
+           * The axis is built from the POINTS, so on a bounded series it names
+           * the readings actually drawn rather than the window's own ends. The
+           * `overdueMoments` note says how many readings there are; the axis
+           * must not then claim they span a period they do not cover.
+           */
+          formatDate={formatAxisDate}
+          formatValue={(value) => String(value)}
+          data-testid="analytics-overdue-trend"
+        />
+      )}
+    </section>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* 2 — What changed                                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The two PERIOD figures, and the shape of them.
+ *
+ * ── UNTITLED-12 — the plot ──────────────────────────────────────────────────
+ *
+ * `TrendLine` was a hand-written 100×100 SVG stretched with
+ * `preserveAspectRatio="none"`, with no value axis at all: its scale was
+ * communicated by four loose strings the caller had to compute and pass in.
+ * ADR-126 replaced it for Goals and Habits; UNTITLED-12 moved these plots, and
+ * found two things:
+ *
+ *   1. **The series are COUNTS.** `niceDomain`'s 1/2/2.5/5 step ladder is right
+ *      for a measurement and wrong for a count — "2.5 Tasks" does not exist —
+ *      so `wholeNumbers` snaps the step to an integer.
+ *   2. **The bound was already handled correctly and stays that way.** Labels
+ *      are resolved by bucket KEY, never by position.
+ */
+function ChangeSection({
+  data,
+  grainControl,
+}: {
+  readonly data: AnalyticsPageData;
+  readonly grainControl: ReactNode;
+}) {
+  const { model } = data;
+  const tasks = metric(model, "tasks");
+  const projects = metric(model, "projects");
+
+  // By key, not by position — the same rule the overdue series needs and this
+  // one would need the moment the completion series ever grew a bound.
+  const labels = bucketLabelsByKey(data);
+  const points: MeasurementTrendPoint[] = model.series.map((point) => ({
+    key: point.key,
+    date: labels.get(point.key)?.date ?? data.bucketDates[0] ?? "",
+    value: point.tasksCompleted,
+  }));
+  /*
+   * The figure beside a series is the WINDOW'S OWN total — its own read, never
+   * the sum of the buckets (RECALL-02's reopen rule; and a Project completed
+   * twice across two buckets is one Project). Found by review: the caption
+   * and the secondary rows summed the series, so this section and the figure
+   * above it could disagree. Null when that read failed, and then the caption
+   * simply has no total.
+   */
+  const total = model.totals?.tasksCompleted ?? null;
+
+  const noun = GRAIN_NOUNS[model.grain];
+  // V2.9 INS-03 — every figure names its window AND its grain, so a
+  // Saturday-to-Friday week is stated rather than implied.
+  /*
+   * The visible caption states the SHAPE — how the window was cut — and not the
+   * total, which the figure above it already states at display size. The
+   * accessible summary keeps the total, because it is the chart's whole text
+   * form and has no figure beside it to lean on.
+   */
+  const headline =
+    points.length < 2
+      ? "Not enough of this period has passed to show a trend."
+      : `Tasks completed in each of ${points.length} ${noun}s.`;
+  const spoken =
+    points.length < 2
+      ? headline
+      : total === null
+        ? `Tasks completed across ${points.length} ${noun}s.`
+        : `Tasks completed across ${points.length} ${noun}s, ${total} in the period.`;
+  /*
+   * V2.9 INS-03 — the Projects and Goals lines, under the Tasks trend.
+   *
+   * Three series on one plot would need a legend, three colours and a key, and
+   * the two smaller ones are almost always near-flat beside a Task count an
+   * order of magnitude larger — a shared axis would flatten them into the
+   * baseline and say nothing. So each gets the design system's compact
+   * primitive with its FIGURES in words beside it, which is the same rule the
+   * Goals section follows and the one `Sparkline` itself records.
+   *
+   * A series with no completions at all is not drawn: absence renders less
+   * (ADR-079 d8), and a flat line at zero is a shape asserting nothing
+   * happened in a way a missing row says better.
+   */
+  const secondary = (
+    [
+      ["Projects completed", "projectsCompleted"],
+      ["Goals completed", "goalsCompleted"],
+    ] as const
+  ).flatMap(([label, key]) => {
+    // Drawn only when something happened in the window; the figure beside the
+    // shape is the window's own total, not the sum of the shape.
+    const seriesTotal = model.totals?.[key] ?? null;
+    if (seriesTotal === null || seriesTotal === 0) return [];
+    return [
+      {
+        label,
+        total: seriesTotal,
+        points: model.series.map((point) => ({
+          key: point.key,
+          date: labels.get(point.key)?.date ?? data.bucketDates[0] ?? "",
+          value: point[key],
+        })),
+      },
+    ];
+  });
+  const summary =
+    points.length < 2
+      ? headline
+      : `${spoken} ${model.series
+          .map(
+            (point) =>
+              `${labels.get(point.key)?.label ?? ""}: ${point.tasksCompleted}`,
+          )
+          .join("; ")}.`;
+
+  return (
+    <section className={SECTION} aria-labelledby="insight-change">
+      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between md:gap-4">
+        <SectionHeading
+          id="insight-change"
+          level={2}
+          size="md"
+          title="What changed"
+        />
+        {grainControl}
+      </div>
+
+      {/*
+       * The two figures, side by side at every width above a phone. They are
+       * the section's first line and the only place two numbers are drawn at
+       * display size.
+       */}
+      <div className="flex flex-wrap gap-x-12 gap-y-4">
+        {tasks ? <Reading entry={tasks} /> : null}
+        {projects ? <Reading entry={projects} /> : null}
+      </div>
+
+      {points.length < 2 ? (
+        <p className={ABSENT}>{headline}</p>
+      ) : (
+        <MeasurementTrend
+          points={points}
+          summary={summary}
+          /*
+           * CONVERGE-01 §I — the visible caption is the headline; the
+           * enumeration of every reading stays in the document, visually
+           * hidden, where a screen reader gets it and a sighted reader is not
+           * made to read a paragraph the axis already draws.
+           */
+          caption={headline}
+          wholeNumbers
+          seriesLabel="Tasks completed"
+          /* A short date rather than the bucket's long label — "3 Aug" rather
+             than "Week of 3 August 2026" — because a dense date axis is the
+             first thing to become unreadable at 320px, and the summary and the
+             tooltip both carry the long form. */
+          formatDate={formatAxisDate}
+          formatValue={(value) => String(value)}
+          data-testid="analytics-trend"
+        />
+      )}
+      {secondary.length > 0 ? (
+        <ul className="dh-analytics__secondary" aria-label="Also completed">
+          {secondary.map((entry) => (
+            <li key={entry.label} className="dh-analytics__secondary-row">
+              <span className="dh-analytics__secondary-label">
+                {entry.label}
+              </span>
+              <Sparkline points={entry.points} />
+              <span className="dh-analytics__secondary-figure">
+                {entry.total}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </section>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* 3 — Goals                                                                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * V2.9 INS-03 — a compact series for every measured Goal (DEBT-212's caller).
+ *
+ * A sparkline beside the Goal's name, linking to its record where the full
+ * chart lives. It is `aria-hidden` by design — the one chart in DalyHub that
+ * is — because it always sits beside the same figures in text, which is the
+ * rule `Sparkline` itself records.
+ *
+ * A Goal with fewer than two readings never reaches here: the loader drops it,
+ * because drawing one point as a line asserts a shape it does not have.
+ *
+ * UNTITLED-17 gave the section the "Goals moving" figure as its caption,
+ * because that figure is a statement ABOUT this section and was previously
+ * printed as a third tile at the top of the page as well.
+ */
+function GoalsSection({ model }: { readonly model: AnalyticsModel }) {
+  const goals = metric(model, "goals");
+  /*
+   * The two halves are INDEPENDENT reads (the measurement series and the
+   * across-Reviews record), so each fails on its own: a transient Review
+   * storage failure must not hide a Goal's measurements that read fine
+   * (review finding on the completion pass). The whole section says it could
+   * not be read only when BOTH halves failed. What no half may do is make
+   * the "nothing yet" claim while the other is unknown: "no Goal has two
+   * readings, and the Reviews have not recorded enough" is a statement about
+   * both reads, so it is made only when both succeeded and both are empty.
+   */
+  const measuredAvailable = model.measuredGoalsAvailable;
+  const contributionsAvailable = model.goalContributionsAvailable;
+
+  const heading = (
+    <div className="flex min-w-0 flex-col gap-1">
+      <SectionHeading id="insight-goals" level={2} size="md" title="Goals" />
+      {goals ? <Reading entry={goals} size="inline" /> : null}
+    </div>
+  );
+
+  if (!measuredAvailable && !contributionsAvailable) {
+    return (
+      <section className={SECTION} aria-labelledby="insight-goals">
+        {heading}
+        <p className={ABSENT}>
+          This section could not be read just now. Nothing in your workspace has
+          changed — the figures above are unaffected.
+        </p>
+      </section>
+    );
+  }
+  const measured = measuredAvailable ? model.measuredGoals : [];
+  const contributions = contributionsAvailable ? model.goalContributions : [];
+  if (
+    measuredAvailable &&
+    contributionsAvailable &&
+    measured.length === 0 &&
+    contributions.length === 0
+  ) {
+    return (
+      <section className={SECTION} aria-labelledby="insight-goals">
+        {heading}
+        <p className={ABSENT}>
+          No Goal has two readings in this period, and your Reviews have not yet
+          recorded enough to say how work reached them. Log a measurement on a
+          Goal, or complete another Review, and its shape appears here.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section className={SECTION} aria-labelledby="insight-goals">
+      {heading}
+      {measured.length > 0 || contributions.length > 0 ? (
+        <ul className="dh-analytics__goals" aria-label="Goals">
+          {measured.map((goal) => {
+            const first = goal.points[0];
+            const last = goal.points[goal.points.length - 1];
+            return (
+              <li key={goal.goalId} className="dh-analytics__goal">
+                <Link className="dh-analytics__goal-name" to={goal.to}>
+                  {goal.title}
+                </Link>
+                <Sparkline points={goal.points} />
+                {/*
+                 * The reading, in words, beside the shape — so the sparkline is
+                 * decoration over a fact rather than the fact itself. The bound
+                 * is said where it applies: a compact series is a recent shape.
+                 */}
+                <span className="dh-analytics__goal-reading">
+                  {`${first.value} → ${last.value}`}
+                  <span className="dh-analytics__goal-window">
+                    {goal.bounded
+                      ? `${goal.points.length} most recent readings in this period`
+                      : `${goal.points.length} readings in this period`}
+                  </span>
+                </span>
+              </li>
+            );
+          })}
+          {/*
+           * A Goal with no measurement, after every measured one — the shapes
+           * read as a group, and a sentence between two sparklines breaks the
+           * comparison they exist for. Its reading is the Reviews' own words
+           * and names its own window, so the two kinds of row are never
+           * mistaken for each other.
+           */}
+          {contributions.map((goal) => (
+            <li key={goal.goalId} className="dh-analytics__goal">
+              <Link className="dh-analytics__goal-name" to={goal.to}>
+                {goal.title}
+              </Link>
+              <span className="dh-analytics__goal-reading dh-analytics__goal-reading--wide">
+                {goal.reading}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {/* The failed half says so beneath what did read, never as a zero. */}
+      {!contributionsAvailable ? (
+        <p className={ABSENT}>
+          What your Reviews recorded about your other Goals could not be read
+          just now. Nothing in your workspace has changed.
+        </p>
+      ) : null}
+      {!measuredAvailable ? (
+        <p className={ABSENT}>
+          Your measured Goals could not be read just now. Nothing in your
+          workspace has changed.
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* 4 — Where the work landed                                                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Where the completed work landed.
+ *
+ * The shared `CategorySplit`, over Untitled's own `ProgressBarBase` — see its
+ * header for why this is a proportion LIST rather than a chart, and why the
+ * per-Area identity accent went with the migration.
+ *
+ * The total is the ATTRIBUTED count, not the range's task total, and it says so:
+ * a Task completed outside any Area is real work and simply has no bar to sit
+ * in, which is a different statement from "you did less than you think".
+ * UNTITLED-17 made that sentence the section's caption, because it is the "Areas
+ * worked in" figure and was previously a fifth tile at the top as well.
+ */
+function DistributionSection({ model }: { readonly model: AnalyticsModel }) {
+  const areas = metric(model, "areas");
+  const heading = (
+    <div className="flex min-w-0 flex-col gap-1">
+      <SectionHeading
+        id="insight-landed"
+        level={2}
+        size="md"
+        title="Where the work landed"
+      />
+      {areas ? <Reading entry={areas} size="inline" /> : null}
+    </div>
+  );
+
+  /*
+   * A failed read and an empty period are the same empty array, and they must
+   * never be the same sentence.
+   *
+   * "None of this period's completed work rolled up to an Area" is a CLAIM about
+   * the workspace. Saying it because a query fell over is the module's own
+   * "failure is said, not zeroed" rule broken in the easiest place to break it —
+   * the owner would go looking for a structural problem that does not exist.
+   */
+  if (!model.distributionAvailable) {
+    return (
+      <section className={SECTION} aria-labelledby="insight-landed">
+        {heading}
+        <p className={ABSENT}>
+          This section could not be read just now. Nothing in your workspace has
+          changed — the figures above are unaffected.
+        </p>
+      </section>
+    );
+  }
+  if (model.distribution.length === 0) {
+    return (
+      <section className={SECTION} aria-labelledby="insight-landed">
+        {heading}
+        <p className={ABSENT}>
+          None of this period’s completed work rolled up to an Area. Put a Task
+          in a Project, or a Project in an Area, and it appears here.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section className={SECTION} aria-labelledby="insight-landed">
+      {heading}
+      {/*
+       * The share is taken against the ATTRIBUTED total rather than the largest
+       * row, because these rows genuinely divide a known quantity — so the bars
+       * sum to the whole and the longest one is not automatically full.
+       */}
+      <CategorySplit
+        /*
+         * Bounded for the reason the Goals rows and the secondary completion
+         * lines are: a single Area holding all of a period's attributed work
+         * drew one full-width slab a metre across a 1440px page, with its
+         * figure stranded at the far end (found by looking at the page).
+         */
+        className="max-w-3xl"
+        label="Completed work by Area"
+        total={model.distributionTotal}
+        showShare
+        rows={model.distribution.map((row) => ({
+          key: row.areaId,
+          label: row.title,
+          value: row.tasksCompleted,
+          formatted: String(row.tasksCompleted),
+          href: row.to,
+        }))}
+      />
+    </section>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Shared helpers                                                              */
+/* -------------------------------------------------------------------------- */
 
 /**
  * Every bucket's three labels, by KEY.
@@ -335,609 +1055,24 @@ function formatAxisDate(iso: string): string {
 }
 
 /**
- * The metric row.
- *
- * Each figure is a LINK to the records behind it, which is the whole difference
- * between an analytics screen and a dashboard: a number the owner cannot check
- * is a number they have to trust, and DalyHub does not ask to be trusted.
- *
- * The comparison sentence is a full sentence, not an arrow and a percentage. "6
- * more than the previous period (18)" is checkable; "+33%" is a figure whose
- * base is invisible, and from a base of zero it is not a figure at all — which
- * is why the evaluator returns "No Tasks in the previous period" for that case
- * rather than inventing one.
- */
-function MetricRow({ model }: { readonly model: AnalyticsModel }) {
-  return (
-    <ul className="dh-analytics__metrics" aria-label="This period">
-      {model.metrics.map((metric) => (
-        <li key={metric.id} className="dh-analytics__metric">
-          <p className="dh-analytics__metric-label">{metric.label}</p>
-          <p
-            className="dh-analytics__metric-value"
-            data-testid={`analytics-metric-${metric.id}`}
-          >
-            {metric.value === null ? (
-              <span className="dh-analytics__metric-absent">Not available</span>
-            ) : metric.to ? (
-              <Link className="dh-analytics__metric-link" to={metric.to}>
-                {metric.value}
-                <span className="dh-visually-hidden">
-                  {` ${metric.label.toLocaleLowerCase()} — open`}
-                </span>
-              </Link>
-            ) : (
-              metric.value
-            )}
-          </p>
-          <p className="dh-analytics__metric-supporting">{metric.supporting}</p>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-/**
- * The completion trend.
- *
- * ── UNTITLED-12 — the last `TrendLine` in the product, and what moved ────────
- *
- * `TrendLine` was a hand-written 100×100 SVG stretched with
- * `preserveAspectRatio="none"`, with no value axis at all: its scale was
- * communicated by four loose strings the caller had to compute and pass in —
- * `startLabel`, `endLabel`, `lowLabel`, `highLabel` — printed as text around the
- * plot. ADR-126 already replaced it for Goals and Habits; UNTITLED-11 left these
- * two Analytics plots behind on the stated grounds that "its series are derived
- * differently from a Goal's readings; the axis and the bound need their own
- * pass". This is that pass, and it found two things:
- *
- *   1. **The series are COUNTS.** Tasks completed in a bucket; open items at the
- *      close of one. `niceDomain`'s 1/2/2.5/5 step ladder is right for a
- *      measurement and wrong for a count — "2.5 Tasks" does not exist — so
- *      `wholeNumbers` snaps the step to an integer. Same rule as ADR-104's for
- *      Habits, for the same reason.
- *   2. **The bound was already handled correctly and stays that way.** Labels
- *      are resolved by bucket KEY, never by position, because the overdue read
- *      carries its own `MAX_OVERDUE_MOMENTS` limit and is not always parallel to
- *      the window. That rule is untouched; only the axis it feeds changed.
- *
- * There is no target and no baseline — an Analytics series has neither — which
- * is what `scaleToTarget={false}` used to say and what omitting both now says.
- * Two buckets is the minimum a line means anything at, which every range in the
- * table exceeds; the panel still guards it rather than drawing a dot and calling
- * it a trend.
- *
- * What the four label strings bought is not lost, it is drawn properly: the date
- * axis names real dates at even intervals, the value axis is real text on a
- * round scale, and the tooltip and the keyboard readout name each reading — all
- * from `MeasurementTrend`, which is `application/charts-base` over Recharts.
- */
-function TrendPanel({
-  data,
-  grainControl,
-}: {
-  readonly data: AnalyticsPageData;
-  readonly grainControl: ReactNode;
-}) {
-  const { model } = data;
-  // By key, not by position — the same rule the overdue panel needs and this
-  // one would need the moment the completion series ever grew a bound.
-  const labels = bucketLabelsByKey(data);
-  const points: MeasurementTrendPoint[] = model.series.map((point) => ({
-    key: point.key,
-    date: labels.get(point.key)?.date ?? data.bucketDates[0] ?? "",
-    value: point.tasksCompleted,
-  }));
-  /*
-   * The figure beside a series is the WINDOW'S OWN total — its own read, never
-   * the sum of the buckets (RECALL-02's reopen rule; and a Project completed
-   * twice across two buckets is one Project). Found by review: the caption
-   * and the secondary rows summed the series, so this card and the metric
-   * card above it could disagree. Null when that read failed, and then the
-   * caption simply has no total.
-   */
-  const total = model.totals?.tasksCompleted ?? null;
-
-  /*
-   * The chart's own text form, and the only place the FULL bucket labels are
-   * spelled out. The axis takes the short form (see `bucketShortLabels`), so the
-   * plot carries one line of caption rather than three.
-   *
-   * CONVERGE-01 §I — it is now split in two, and the split is the fix.
-   *
-   * `summary` is the ACCESSIBLE description: every bucket, every reading, which
-   * is exactly what a screen reader needs and what makes the chart usable
-   * without seeing it. It was also being PRINTED under the plot, so a 12-week
-   * range drew a paragraph enumerating twelve readings the axis beneath it
-   * already showed — Analytics communicating its own accessibility rather than
-   * its data, which is the audit's phrasing and is fair.
-   *
-   * `caption` is the visible line: the headline the enumeration opens with. The
-   * long form stays in the document, visually hidden, so nothing is taken from
-   * anyone.
-   */
-  const noun = GRAIN_NOUNS[model.grain];
-  // V2.9 INS-03 — every figure names its window AND its grain, so a
-  // Saturday-to-Friday week is stated rather than implied.
-  const headline =
-    points.length < 2
-      ? "Not enough of this period has passed to show a trend."
-      : total === null
-        ? `Tasks completed across ${points.length} ${noun}s.`
-        : `Tasks completed across ${points.length} ${noun}s, ${total} in the period.`;
-  /*
-   * V2.9 INS-03 — the Projects and Goals lines, under the Tasks trend.
-   *
-   * Three series on one plot would need a legend, three colours and a key, and
-   * the two smaller ones are almost always near-flat beside a Task count an
-   * order of magnitude larger — a shared axis would flatten them into the
-   * baseline and say nothing. So each gets the design system's compact
-   * primitive with its FIGURES in words beside it, which is the same rule the
-   * Goals panel follows and the one `Sparkline` itself records.
-   *
-   * A series with no completions at all is not drawn: absence renders less
-   * (ADR-079 d8), and a flat line at zero is a shape asserting nothing
-   * happened in a way a missing row says better.
-   */
-  const secondary = (
-    [
-      ["Projects completed", "projectsCompleted"],
-      ["Goals completed", "goalsCompleted"],
-    ] as const
-  ).flatMap(([label, key]) => {
-    // Drawn only when something happened in the window; the figure beside the
-    // shape is the window's own total, not the sum of the shape.
-    const total = model.totals?.[key] ?? null;
-    if (total === null || total === 0) return [];
-    return [
-      {
-        label,
-        total,
-        points: model.series.map((point) => ({
-          key: point.key,
-          date: labels.get(point.key)?.date ?? data.bucketDates[0] ?? "",
-          value: point[key],
-        })),
-      },
-    ];
-  });
-  const summary =
-    points.length < 2
-      ? headline
-      : `${headline} ${model.series
-          .map(
-            (point) =>
-              `${labels.get(point.key)?.label ?? ""}: ${point.tasksCompleted}`,
-          )
-          .join("; ")}.`;
-
-  return (
-    <DashboardCard
-      className="dh-analytics__trend"
-      title="Completion trend"
-      density="standard"
-      headerAction={grainControl}
-    >
-      {points.length < 2 ? (
-        <p className="dh-analytics__absent">{headline}</p>
-      ) : (
-        <MeasurementTrend
-          points={points}
-          summary={summary}
-          caption={headline}
-          wholeNumbers
-          seriesLabel="Tasks completed"
-          /* A short date rather than the bucket's long label — "3 Aug" rather
-             than "Week of 3 August 2026" — because a dense date axis is the
-             first thing to become unreadable at 320px, and the summary and the
-             tooltip both carry the long form. */
-          formatDate={formatAxisDate}
-          formatValue={(value) => String(value)}
-          data-testid="analytics-trend"
-        />
-      )}
-      {secondary.length > 0 ? (
-        <ul className="dh-analytics__secondary" aria-label="Also completed">
-          {secondary.map((entry) => (
-            <li key={entry.label} className="dh-analytics__secondary-row">
-              <span className="dh-analytics__secondary-label">
-                {entry.label}
-              </span>
-              <Sparkline points={entry.points} />
-              <span className="dh-analytics__secondary-figure">
-                {entry.total}
-              </span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </DashboardCard>
-  );
-}
-
-/**
- * CONVERGE-01 §8 — the backlog, and which way it is going.
- *
- * The audit's finding is blunt and correct: the workspace's defining fact is its
- * overdue backlog, and this screen reported nothing about it. Four figures said
- * what had been finished; none said what had not.
- *
- * ── Why a second line chart, and not a second number ────────────────────────
- * "43 overdue" is a fact an owner can already get from `/tasks`. What they
- * cannot get anywhere is whether that 43 is the top of a climb or the bottom of
- * one — and that is the difference between a workspace that needs a triage
- * afternoon and one that is already recovering. The metric card carries the
- * level; this carries the direction, and they are the same series by
- * construction (the card's figure IS the line's last reading).
- *
- * ── Why the chart may shout and the text may not ────────────────────────────
- * The line takes the status ramp's `warning`, because a backlog genuinely IS a
- * status statement and DalyHub has one vocabulary for those. The supporting
- * sentence beside the figure stays the row's ordinary grey — "4 fewer than the
- * previous period (12)" — because a delta is arithmetic, not a judgement, and
- * "calm over urgent" (AGENTS.md §2) means the product does not manufacture red
- * for a number that went the wrong way by four.
- *
- * The full split CONVERGE-01 §I asks for is kept: the visible caption is one
- * headline line, and the enumeration of every reading is in the document
- * visually hidden, where a screen reader gets it and a sighted reader is not
- * made to read a paragraph the axis already draws.
- */
-function OverduePanel({ data }: { readonly data: AnalyticsPageData }) {
-  const { model } = data;
-
-  /*
-   * A failed read and an empty backlog are the same empty array, and — exactly
-   * as with the distribution — they must never be the same sentence. "Nothing is
-   * overdue" is the most reassuring thing this screen can say, which is precisely
-   * why it must never be said because a query fell over.
-   */
-  if (!model.overdueAvailable) {
-    return (
-      <DashboardCard
-        className="dh-analytics__overdue"
-        title="Overdue"
-        density="standard"
-      >
-        <p className="dh-analytics__absent">
-          This panel could not be read just now. Nothing in your workspace has
-          changed — the figures above are unaffected.
-        </p>
-      </DashboardCard>
-    );
-  }
-
-  /*
-   * Labels are resolved by BUCKET KEY, never by position.
-   *
-   * `overdueSeries` is not always parallel to `model.buckets`: the overdue read
-   * has its own bound (`MAX_OVERDUE_MOMENTS`), so on a window with more buckets
-   * than that — 12 weeks at daily grain, say — it carries the newest 39 while
-   * `bucketDates` still holds all 84. Indexing from zero then plots the most
-   * recent readings against the OLDEST dates in the window and announces them
-   * that way, which is a chart that is wrong rather than bounded.
-   */
-  const labels = bucketLabelsByKey(data);
-  const points: MeasurementTrendPoint[] = model.overdueSeries.map((point) => ({
-    key: point.key,
-    date: labels.get(point.key)?.date ?? data.bucketDates[0] ?? "",
-    value: point.overdue,
-  }));
-  const values = points.map((point) => point.value);
-  const latest = values.length > 0 ? values[values.length - 1] : 0;
-
-  /*
-   * A LEVEL has no total, so this headline states the latest reading and the
-   * span it was read across — never a sum. Adding six readings of a backlog
-   * together would produce a number with no meaning, and the completion trend's
-   * "84 in total" is only meaningful because those are flows.
-   */
-  const headline =
-    points.length < 2
-      ? "Not enough of this period has passed to show a trend."
-      : `${latest} overdue now, read at the close of each of ${points.length} periods.`;
-  const summary =
-    points.length < 2
-      ? headline
-      : `${headline} ${model.overdueSeries
-          .map(
-            (point) =>
-              `${labels.get(point.key)?.label ?? ""}: ${point.overdue}`,
-          )
-          .join("; ")}.`;
-
-  return (
-    <DashboardCard
-      className="dh-analytics__overdue"
-      title="Overdue"
-      density="standard"
-    >
-      {points.length < 2 ? (
-        <p className="dh-analytics__absent">{headline}</p>
-      ) : (
-        <MeasurementTrend
-          points={points}
-          summary={summary}
-          caption={headline}
-          wholeNumbers
-          /*
-           * A BACKLOG, not a measurement: its existence is the attention
-           * whichever way it is moving, which is what `TrendLine`'s
-           * `status="warning"` said and what this says. The caption still
-           * states the latest reading in words, so nothing is carried by hue.
-           */
-          tone="warning"
-          seriesLabel="Overdue at each close"
-          /*
-           * The readout's resting sentence names the LATEST reading, which is
-           * the figure the Overdue card above states — so the card and the
-           * chart can be read against each other without touching either, and
-           * a disagreement between them is visible rather than inferred. It is
-           * also what the chart this replaced said with nothing selected.
-           */
-          restingReading={`${latest} overdue at the close of ${
-            labels.get(points[points.length - 1]!.key)?.label ?? ""
-          }`}
-          /*
-           * The axis is built from the POINTS, so on a bounded series it names
-           * the readings actually drawn rather than the window's own ends. The
-           * `overdueMoments` note says how many readings there are; the axis
-           * must not then claim they span a period they do not cover.
-           */
-          formatDate={formatAxisDate}
-          formatValue={(value) => String(value)}
-          data-testid="analytics-overdue-trend"
-        />
-      )}
-    </DashboardCard>
-  );
-}
-
-/**
- * Where the completed work landed.
- *
- * Horizontal proportion bars in each Area's OWN identity accent (D22) — the same
- * rank its row in `/areas` and its Projects' marks already use, so the panel is
- * recognisable as the Areas the owner knows rather than as an arbitrary palette.
- * Every bar carries its count and its share as text beside it, so the colour is
- * never the signal.
- *
- * The total beneath is the ATTRIBUTED count, not the range's task total, and it
- * says so: a Task completed outside any Area is real work and simply has no bar
- * to sit in, which is a different statement from "you did less than you think".
- */
-function DistributionPanel({ model }: { readonly model: AnalyticsModel }) {
-  /*
-   * A failed read and an empty period are the same empty array, and they must
-   * never be the same sentence.
-   *
-   * "None of this period's completed work rolled up to an Area" is a CLAIM about
-   * the workspace. Saying it because a query fell over is the module's own
-   * "failure is said, not zeroed" rule broken in the easiest place to break it —
-   * the owner would go looking for a structural problem that does not exist.
-   */
-  if (!model.distributionAvailable) {
-    return (
-      <DashboardCard title="Where the work landed" density="standard">
-        <p className="dh-analytics__absent">
-          This panel could not be read just now. Nothing in your workspace has
-          changed — the figures above are unaffected.
-        </p>
-      </DashboardCard>
-    );
-  }
-  if (model.distribution.length === 0) {
-    return (
-      <DashboardCard title="Where the work landed" density="standard">
-        <p className="dh-analytics__absent">
-          None of this period’s completed work rolled up to an Area. Put a Task
-          in a Project, or a Project in an Area, and it appears here.
-        </p>
-      </DashboardCard>
-    );
-  }
-
-  return (
-    <DashboardCard
-      title="Where the work landed"
-      supporting={`${model.distributionTotal} attributed`}
-      density="standard"
-    >
-      <ul className="dh-analytics__split" aria-label="Completed work by Area">
-        {model.distribution.map((row) => (
-          <li key={row.areaId} className="dh-analytics__split-row">
-            <Link className="dh-analytics__split-name" to={row.to}>
-              {row.title}
-            </Link>
-            <span
-              className="dh-analytics__split-track"
-              data-accent={
-                row.colourRank === null
-                  ? undefined
-                  : String(areaAccentForRank(row.colourRank))
-              }
-              role="img"
-              aria-label={`${row.title}: ${row.tasksCompleted} of ${model.distributionTotal} attributed Tasks, ${row.percent}%`}
-            >
-              <span
-                className="dh-analytics__split-fill"
-                style={{ inlineSize: `${Math.max(row.percent, 1)}%` }}
-              />
-            </span>
-            <span className="dh-analytics__split-figure">
-              {row.tasksCompleted}
-              <span className="dh-analytics__split-percent">
-                {row.percent}%
-              </span>
-            </span>
-          </li>
-        ))}
-      </ul>
-    </DashboardCard>
-  );
-}
-
-/**
- * V2.9 INS-03 — a compact series for every measured Goal (DEBT-212's caller).
- *
- * A sparkline beside the Goal's name, linking to its record where the full
- * chart lives. It is `aria-hidden` by design — the one chart in DalyHub that
- * is — because it always sits beside the same figures in text, which is the
- * rule `Sparkline` itself records.
- *
- * A Goal with fewer than two readings never reaches here: the loader drops it,
- * because drawing one point as a line asserts a shape it does not have.
- */
-function GoalSeriesPanel({ model }: { readonly model: AnalyticsModel }) {
-  /*
-   * The two halves are INDEPENDENT reads (the measurement series and the
-   * across-Reviews record), so each fails on its own: a transient Review
-   * storage failure must not hide a Goal's measurements that read fine
-   * (review finding on the completion pass). The whole panel says it could
-   * not be read only when BOTH halves failed. What no half may do is make
-   * the "nothing yet" claim while the other is unknown: "no Goal has two
-   * readings, and the Reviews have not recorded enough" is a statement about
-   * both reads, so it is made only when both succeeded and both are empty.
-   */
-  const measuredAvailable = model.measuredGoalsAvailable;
-  const contributionsAvailable = model.goalContributionsAvailable;
-  if (!measuredAvailable && !contributionsAvailable) {
-    return (
-      <DashboardCard
-        className="dh-analytics__goals-panel"
-        title="Goals"
-        density="standard"
-      >
-        <p className="dh-analytics__absent">
-          This panel could not be read just now. Nothing in your workspace has
-          changed — the figures above are unaffected.
-        </p>
-      </DashboardCard>
-    );
-  }
-  const measured = measuredAvailable ? model.measuredGoals : [];
-  const contributions = contributionsAvailable ? model.goalContributions : [];
-  if (
-    measuredAvailable &&
-    contributionsAvailable &&
-    measured.length === 0 &&
-    contributions.length === 0
-  ) {
-    return (
-      <DashboardCard
-        className="dh-analytics__goals-panel"
-        title="Goals"
-        density="standard"
-      >
-        <p className="dh-analytics__absent">
-          No Goal has two readings in this period, and your Reviews have not yet
-          recorded enough to say how work reached them. Log a measurement on a
-          Goal, or complete another Review, and its shape appears here.
-        </p>
-      </DashboardCard>
-    );
-  }
-
-  return (
-    <DashboardCard
-      className="dh-analytics__goals-panel"
-      title="Goals"
-      supporting={
-        measured.length > 0 ? `${measured.length} measured` : undefined
-      }
-      density="standard"
-    >
-      {measured.length > 0 || contributions.length > 0 ? (
-        <ul className="dh-analytics__goals" aria-label="Goals">
-          {measured.map((goal) => {
-            const first = goal.points[0];
-            const last = goal.points[goal.points.length - 1];
-            return (
-              <li key={goal.goalId} className="dh-analytics__goal">
-                <Link className="dh-analytics__goal-name" to={goal.to}>
-                  {goal.title}
-                </Link>
-                <Sparkline points={goal.points} />
-                {/*
-                 * The reading, in words, beside the shape — so the sparkline is
-                 * decoration over a fact rather than the fact itself. The bound
-                 * is said where it applies: a compact series is a recent shape.
-                 */}
-                <span className="dh-analytics__goal-reading">
-                  {`${first.value} → ${last.value}`}
-                  <span className="dh-analytics__goal-window">
-                    {goal.bounded
-                      ? `${goal.points.length} most recent readings in this period`
-                      : `${goal.points.length} readings in this period`}
-                  </span>
-                </span>
-              </li>
-            );
-          })}
-          {/*
-           * A Goal with no measurement, after every measured one — the shapes
-           * read as a group, and a sentence between two sparklines breaks the
-           * comparison they exist for. Its reading is the Reviews' own words
-           * and names its own window, so the two kinds of row are never
-           * mistaken for each other.
-           */}
-          {contributions.map((goal) => (
-            <li key={goal.goalId} className="dh-analytics__goal">
-              <Link className="dh-analytics__goal-name" to={goal.to}>
-                {goal.title}
-              </Link>
-              <span className="dh-analytics__goal-reading dh-analytics__goal-reading--wide">
-                {goal.reading}
-              </span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-      {/* The failed half says so beneath what did read, never as a zero. */}
-      {!contributionsAvailable ? (
-        <p className="dh-analytics__absent dh-analytics__goals-note">
-          What your Reviews recorded about your other Goals could not be read
-          just now. Nothing in your workspace has changed.
-        </p>
-      ) : null}
-      {!measuredAvailable ? (
-        <p className="dh-analytics__absent dh-analytics__goals-note">
-          Your measured Goals could not be read just now. Nothing in your
-          workspace has changed.
-        </p>
-      ) : null}
-    </DashboardCard>
-  );
-}
-
-/**
  * The Insight page's own loading shape (PX-02 → Loading).
  *
  * The shared `CollectionSkeleton` draws a column of record cards, which is the
- * wrong shape here: this surface is a figure row above two wide panels, and a
- * ghost that promises a list and resolves into panels is a worse answer than
- * no ghost at all. Same skeleton PRIMITIVE, laid out as what actually arrives.
+ * wrong shape here: this surface is a run of sections, each a heading over a
+ * figure and a plot, and a ghost that promises a list and resolves into
+ * sections is a worse answer than no ghost at all. Same skeleton PRIMITIVE,
+ * laid out as what actually arrives.
  */
 function AnalyticsSkeleton() {
   return (
     <div className="dh-analytics__body" aria-hidden="true">
-      <ul className="dh-analytics__metrics">
-        {[0, 1, 2, 3].map((index) => (
-          <li key={index} className="dh-analytics__metric">
-            <Skeleton width="5rem" height="0.75rem" />
-            <Skeleton width="3rem" height="1.75rem" />
-            <Skeleton width="80%" height="0.75rem" />
-          </li>
-        ))}
-      </ul>
-      <div className="dh-analytics__panels">
-        {[0, 1, 2, 3].map((index) => (
-          <div key={index} className="dh-analytics__panel-skeleton">
-            <Skeleton width="8rem" height="0.875rem" />
-            <Skeleton width="100%" height="9rem" />
-          </div>
-        ))}
-      </div>
+      {[0, 1, 2].map((index) => (
+        <div key={index} className={index === 0 ? SECTION_FIRST : SECTION}>
+          <Skeleton width="8rem" height="1rem" />
+          <Skeleton width="4rem" height="2rem" />
+          <Skeleton width="100%" height="9rem" />
+        </div>
+      ))}
     </div>
   );
 }
