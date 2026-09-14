@@ -1541,10 +1541,10 @@ documented rather than silently changed.
 
 ### Pre-existing failures, re-checked rather than inherited
 
-**The `ai-assistance` E2E failures PR #291 reported did not reproduce.** All 38
+**The `ai-assistance` E2E failures PR #291 reported did not reproduce.** All 37
 journeys in `ai-assistance.spec.ts` passed against `origin/main` before a line
-of this pass was written (`analytics.spec.ts` too — 57 of 57 in that run), and
-they pass after it. The report is recorded here as not reproducible in this
+of this pass was written — 57 of 57 across it and `analytics.spec.ts` in one
+baseline run — and they pass after it. The report is recorded here as not reproducible in this
 environment rather than carried forward as a standing list.
 
 One failure is real and is NOT this pass's:
