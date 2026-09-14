@@ -8,6 +8,7 @@ import {
   expectMinTouchTarget,
   gotoFixture,
   openCollectionControls,
+  openMenuFrom,
   ownerToday,
   pickCalendarDate,
   taskRows,
@@ -49,7 +50,14 @@ const SAVED_VIEW = "E2E deep work view";
 async function planForToday(page: Page, title: string) {
   const card = taskRow(page, title).first();
   await card.hover();
-  await card.getByRole("button", { name: /^More actions for / }).click();
+  /*
+   * The press that opens the row's menu can be dropped by a re-render exactly
+   * as the header's can (see `openMenuFrom`). When it is, no menu item is
+   * pressed, no `/tasks/bulk` write is sent, and the wait below fails as a 90s
+   * `waitForResponse` for a request that was never made — which is how
+   * `:649` failed in run 34894702514.
+   */
+  await openMenuFrom(card.getByRole("button", { name: /^More actions for / }));
   /*
    * DEBT-203 — wait for the PLAN to land, not for the optimistic paint.
    *
@@ -138,22 +146,32 @@ test.describe("TASKS-03 — the primary workspace", () => {
      * click — from the ⋯ instead of from a segment.
      */
     await gotoFixture(page, "/tasks");
-    for (const [label, marker] of [
-      ["Sectors", ".dh-tasks-sectors"],
-      ["Board", ".dh-tasks-board"],
+    for (const [label, marker, view] of [
+      ["Sectors", ".dh-tasks-sectors", "sectors"],
+      ["Board", ".dh-tasks-board", "board"],
       // DS-04 — the List presentation is the product-level task list, not the
       // generic card collection it was configured from.
-      ["List", ".dh-tasklist"],
+      ["List", ".dh-tasklist", "list"],
     ] as const) {
-      await page.getByTestId("tasks-overflow").click();
-      await page
+      /*
+       * The presentation change revalidates the loader, and a press dispatched
+       * at a header React is re-rendering is silently dropped — the menu never
+       * opens and the `menuitem` below waits out its whole budget instead.
+       * MEASURED on `main` in runs 34807921899 and 34826437375, both times on
+       * this loop's THIRD iteration. `openMenuFrom` waits for the menu to
+       * actually be open, which is the product's own answer to the press.
+       */
+      const menu = await openMenuFrom(page.getByTestId("tasks-overflow"));
+      await menu
         .getByRole("menuitem", { name: `${label} layout`, exact: true })
         .click();
       await expect(page.locator(marker).first()).toBeVisible();
-      // The presentation change revalidates the loader; the NEXT iteration
-      // opens the same menu, and a click dispatched into a re-rendering header
-      // is silently dropped.
-      await page.waitForLoadState("networkidle");
+      /*
+       * And the transition has LANDED before the next iteration presses again:
+       * the address bar is the presentation's own record of itself, and it is
+       * written by the same navigation whose revalidation does the re-rendering.
+       */
+      await expect(page).toHaveURL(new RegExp(`view=${view}`));
     }
     await expect(page).toHaveURL(/view=list|\/tasks$/);
   });

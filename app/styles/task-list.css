@@ -204,6 +204,20 @@
   gap: var(--dh-control-gap);
 
   /*
+   * The width the PRIORITY mark is entitled to, stated once.
+   *
+   * The mark is `flag + gap + tag` and the tag is two characters, so the object
+   * is ~34.5px at the row's metadata size; the phone tier's floor rounds that
+   * up. It lives here rather than inside that tier because TWO rules depend on
+   * the same number from opposite sides — the priority cell reserves it, and
+   * the project cell must not grow into it — and a reservation that two rules
+   * spell separately is one edit away from being two different numbers. In
+   * `rem` so it stays true under OS text scaling, which a pixel value would
+   * not.
+   */
+  --taskrow-priority-floor: 3.5rem;
+
+  /*
    * The row's height IS the completion control's target, and nothing else.
    *
    * `--dh-row-height` at compact resolves to `max(2.75rem, 45px)` — the WCAG 2.2
@@ -1522,6 +1536,27 @@
   .dh-taskrow__cell--project {
     min-inline-size: 4rem;
     flex: 0 1 auto;
+    /*
+     * V2.9 CI-GREEN — and it never takes the WHOLE metadata line.
+     *
+     * DS-04 §10 is that metadata yields before the title does, and
+     * `today-focus.spec.ts:566` measures it as the title's track being strictly
+     * wider than the project's cell. Once the line wraps, a long enough Project
+     * name satisfies neither: it gets a line of its own and fills it, so the
+     * metadata is exactly as wide as the title and the priority mark is pushed
+     * onto a line by itself. MEASURED on CI run 1045's p10 at 320: title 159,
+     * project 159.
+     *
+     * The cap is the priority mark's own floor plus the gap it keeps, so the
+     * project can never grow into the space the mark is entitled to — which is
+     * the same reservation the `padding-inline-start` below makes, said from
+     * the other side. The mark therefore stays on the project's line instead of
+     * wrapping past it, the project stays strictly narrower than the track, and
+     * the ellipsis does what an ellipsis is for.
+     */
+    max-inline-size: calc(
+      100% - var(--dh-space-2) - var(--taskrow-priority-floor)
+    );
   }
 
   .dh-taskrow__cell .dh-inline-edit__trigger {
@@ -1601,7 +1636,7 @@
      * its own content, and stating that in `rem` keeps it true under OS text
      * scaling, which a pixel value would not.
      */
-    min-inline-size: 3.5rem;
+    min-inline-size: var(--taskrow-priority-floor);
   }
 
   /*

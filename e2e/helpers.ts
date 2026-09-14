@@ -1180,6 +1180,54 @@ export async function revealRowActions(row: Locator): Promise<void> {
 }
 
 /**
+ * Press a menu trigger and return the menu it opened — confirming that it DID
+ * open, and pressing again if a re-render swallowed the press.
+ *
+ * ── The defect this exists for ───────────────────────────────────────────────
+ * A React Router loader revalidation re-renders the surface holding the
+ * trigger. Playwright's own actionability checks pass (the button is visible,
+ * stable, enabled and hit-testable) and the event is then dispatched at a node
+ * React has since replaced, so it lands on nothing. Nothing throws: the click
+ * "succeeds", the menu never opens, and the NEXT step — a `menuitem` locator, or
+ * a `waitForResponse` for the write that item would have sent — waits out its
+ * whole budget and fails somewhere else entirely.
+ *
+ * MEASURED, and not on this branch: `tasks-collection.spec.ts:128` failed this
+ * way on `main` in runs 34807921899 and 34826437375 and again in 34894702514,
+ * always on the THIRD presentation of the loop and always as
+ * `locator.click: Test timeout ... waiting for getByRole('menuitem', { name:
+ * 'List layout' })` — the item was never there to click because the press that
+ * should have revealed it went to a detached button. `:649` failed in the same
+ * run as a 90s `page.waitForResponse` for `/tasks/bulk`, which is the same
+ * dropped press one surface deeper: no press, no menu item, no write, no
+ * response to wait for.
+ *
+ * ── Why this is synchronisation and not a retry that hides a race ────────────
+ * The state transition being waited for is "the menu is open", which is the
+ * product's own answer to the press and the precondition every caller actually
+ * depends on. Asserting it turns a silent drop into an immediate, named failure
+ * instead of a timeout three steps later. Re-pressing is what a person does when
+ * a press does nothing, and it cannot mask a real defect: a menu that never
+ * opens still fails here, with the trigger named, rather than passing.
+ *
+ * It is deliberately NOT `waitForTimeout` and NOT a raised timeout. A sleep
+ * guesses at how long a runner takes to re-render; this waits for the thing
+ * itself, so a slow machine makes it slower and never makes it wrong.
+ */
+export async function openMenuFrom(
+  trigger: Locator,
+  options: { readonly menu?: Locator } = {},
+): Promise<Locator> {
+  const page = trigger.page();
+  const menu = options.menu ?? page.getByRole("menu");
+  await expect(async () => {
+    await trigger.click();
+    await expect(menu.first()).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000, intervals: [200, 400, 800, 1_600] });
+  return menu;
+}
+
+/**
  * Today's week summary, with its `Last 7 days` disclosure OPEN.
  *
  * TODAY-12 put the week's measures behind one line so the day itself owns the
