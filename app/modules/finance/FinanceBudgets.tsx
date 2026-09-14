@@ -189,7 +189,7 @@ export function FinanceBudgets(props: FinanceBudgetsData) {
 
                 return (
                   <Table.Row key={category.id} id={category.id} size="sm">
-                    <Table.Cell className="px-4 py-3 text-sm break-words text-primary max-sm:px-3">
+                    <Table.Cell className="px-4 py-3 text-sm wrap-anywhere text-primary max-sm:px-3">
                       <label htmlFor={inputId}>{category.name}</label>
                     </Table.Cell>
                     <Table.Cell className="px-4 py-3 text-sm max-sm:px-3">

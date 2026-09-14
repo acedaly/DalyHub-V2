@@ -208,10 +208,15 @@ test.describe("Today — the day surface", () => {
      * where they can check it. "Tasks captured" deliberately does not link —
      * there is no canonical view of "created in the last seven days", and a
      * link to an approximation of itself is worse than none.
+     *
+     * UNTITLED-18 — the `.dh-stat--interactive` absence check that stood here
+     * is GONE rather than re-pointed. `StatCard` is deleted (it had no product
+     * consumer at all), so nothing in the application can emit that class and
+     * the assertion could no longer fail. A guard that cannot fail reads like a
+     * live one and is not; the rule it protected is now held by the component
+     * not existing, and by `TodayScreen.test.tsx`, which makes the same absence
+     * claim where it costs a millisecond rather than a page load.
      */
-    const stats = page.locator(".dh-stat--interactive");
-    expect(await stats.count()).toBe(0);
-
     /*
      * The measures sit inside the summary's own `Last 7 days` disclosure, and
      * that `<details>` renders CLOSED — TODAY-12 put the week behind one line so
@@ -250,9 +255,19 @@ test.describe("Today — the day surface", () => {
      * Nothing on this row carries a tone. The `attention` treatment belonged to
      * the overdue FIGURE, and overdue work is now actionable rows in Focus and
      * nothing else — which is the "one fact, one place" rule the page states.
+     *
+     * UNTITLED-18 — asserted against the MEASURES, rather than against
+     * `.dh-stat__value[data-tone="attention"]`, a selector for a component that
+     * no longer exists. Scoping to `[data-tone]` alone was wrong in the other
+     * direction and this run caught it: `.dh-day-section` carries a tone
+     * legitimately, and two of them sit inside this disclosure. The claim is
+     * about the week's FIGURES, so it is made about the figures.
      */
+    expect(await summary.locator(".dh-today__measure[data-tone]").count()).toBe(
+      0,
+    );
     expect(
-      await page.locator('.dh-stat__value[data-tone="attention"]').count(),
+      await summary.locator(".dh-today__measure-value[data-tone]").count(),
     ).toBe(0);
   });
 
@@ -619,14 +634,28 @@ test.describe("Today — narrow widths", () => {
     await expect(greeting(page)).toBeVisible();
     await expect.poll(() => hasNoHorizontalOverflow(page)).toBe(true);
 
-    // TODAY-11 — "Needs attention" still comes before "Continue working", and
-    // the order is now read off the SUPPORT rank that holds both. Nothing on
-    // this screen is moved by CSS `order`, so the DOM order is the phone order.
+    /*
+     * TODAY-11 — "Needs attention" still comes before "Continue working".
+     *
+     * UNTITLED-18 — read off the PAGE's panel order rather than off
+     * `.dh-today__rank--support`, a wrapper the screen stopped rendering. The
+     * two panels now sit in different columns, so scoping to a shared ancestor
+     * found nothing and the `if` below silently skipped the whole assertion.
+     * Nothing on this screen is moved by CSS `order`, so DOM order IS the phone
+     * order, and comparing the two panels' positions in it states the rule
+     * without depending on where either one currently lives.
+     */
     const headings = await page
-      .locator(".dh-today__rank--support .dh-today__panel-title")
+      .locator(".dh-today__panel-title")
       .allInnerTexts();
-    if (headings.length > 1) {
-      expect(headings[0]).toBe("Needs attention");
+    const attention = headings.indexOf("Needs attention");
+    const carryOn = headings.indexOf("Continue working");
+    expect(
+      attention,
+      "the attention panel is on the phone screen",
+    ).toBeGreaterThanOrEqual(0);
+    if (carryOn >= 0) {
+      expect(attention).toBeLessThan(carryOn);
     }
   });
 });

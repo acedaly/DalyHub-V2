@@ -138,8 +138,15 @@ test.describe("keyboard — modal focus restoration through the shared machinery
         const active = document.activeElement;
         return {
           inDialog: node.contains(active),
+          /*
+           * UNTITLED-18 — the primary navigation LANDMARK, not `.dh-sidebar`.
+           * That class family went with the Untitled shell rebuild, so half of
+           * this check silently stopped looking: focus escaping into the rail
+           * would not have been caught. A landmark's accessible name is the
+           * contract; a class is an implementation detail that moved.
+           */
           inBackground: Boolean(
-            active?.closest(".dh-sidebar, main#main-content"),
+            active?.closest('nav[aria-label="Primary"], main#main-content'),
           ),
         };
       });

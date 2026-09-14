@@ -728,7 +728,7 @@ export function FinanceImport(props: FinanceImportData) {
                         ? "—"
                         : financeDate(row.occurredOn)}
                     </Table.Cell>
-                    <Table.Cell className="px-4 py-3 text-sm break-words max-sm:px-3">
+                    <Table.Cell className="px-4 py-3 text-sm wrap-anywhere max-sm:px-3">
                       {row.payeeDisplay ?? row.sourceDescription}
                     </Table.Cell>
                     <Table.Cell className="px-4 py-3 text-right text-sm whitespace-nowrap tabular-nums max-sm:px-3">

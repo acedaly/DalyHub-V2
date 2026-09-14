@@ -33,6 +33,25 @@
  * knows there ARE two rows — and because the previous arrangement needed a
  * `.dh-settings-group__rows > .dh-settings-row + .dh-settings-row` selector, plus
  * a second copy of it for the danger tone, to express one idea.
+ *
+ * `wrap-anywhere`, not `break-words`, and the difference is load-bearing:
+ * `overflow-wrap: anywhere` reduces an element's MIN-CONTENT width and
+ * `break-word` does not. MEASURED at 320px on Privacy & data, whose copy names
+ * `docs/development/WORKSPACE_DELETION.md`: with `break-words` the text block
+ * reported a 331px minimum inside a 288px column and the DOCUMENT scrolled
+ * sideways. The rule this replaced said `anywhere` and said why; the Tailwind
+ * translation has to say it too.
+ *
+ * `dh-settings-row`, `dh-settings-row__label` and `dh-settings-row__control`
+ * carry NO rules in any stylesheet and are kept as LOCATOR HOOKS, the same
+ * device `dh-pcard*` and `dh-switch__thumb` are. Two end-to-end contracts need
+ * to address the two HALVES of a row and there is no role for either: the
+ * calendar suite scopes a row by its label text rather than by position (a
+ * positional locator silently acts on the wrong calendar the moment creation
+ * order changes), and the Settings suite proves a row's control never repeats
+ * the row's own label — the double-label defect this component's two naming
+ * patterns exist to prevent. A hook that is only ever read is cheaper than
+ * either test asserting nothing.
  */
 
 import { useId, type ReactNode } from "react";
@@ -137,14 +156,14 @@ export function SettingsRow({
         <div className="flex min-w-0 flex-[1_1_16rem] flex-col gap-1">
           <span
             id={labelId}
-            className="text-sm font-medium break-words text-secondary"
+            className="dh-settings-row__label text-sm font-medium wrap-anywhere text-secondary"
           >
             {label}
           </span>
           {hasDescription ? (
             <span
               id={descriptionId}
-              className="text-sm break-words text-tertiary"
+              className="text-sm wrap-anywhere text-tertiary"
             >
               {description}
             </span>
@@ -153,7 +172,7 @@ export function SettingsRow({
       ) : null}
       <div
         className={cx(
-          "flex min-w-0 flex-col items-start gap-1",
+          "dh-settings-row__control flex min-w-0 flex-col items-start gap-1",
           label ? "flex-[0_1_auto]" : "w-full flex-[1_1_100%]",
           "@max-[32rem]:w-full @max-[32rem]:items-stretch",
         )}
@@ -162,7 +181,10 @@ export function SettingsRow({
         {hasStatus ? (
           <span
             id={statusId}
-            className={cx("text-xs break-words", STATUS_TONE_CLASS[statusTone])}
+            className={cx(
+              "text-xs wrap-anywhere",
+              STATUS_TONE_CLASS[statusTone],
+            )}
             aria-live={statusLive ? "polite" : undefined}
           >
             {status}

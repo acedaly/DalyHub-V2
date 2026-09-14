@@ -202,14 +202,30 @@ test.describe("UX-01 — Today answers what is on today", () => {
       page.getByRole("heading", { level: 2, name: "Today’s plan" }),
     ).toBeVisible();
 
-    // The Meetings SECTION is conditional now — a day with no meetings renders
-    // no label rather than an empty section teaching nothing. When it is there,
-    // it is a real time-ordered list.
-    const meetings = page.getByRole("heading", { level: 3, name: "Meetings" });
-    if ((await meetings.count()) > 0) {
-      await expect(
-        page.locator(".dh-day-row--meeting .dh-day-row__time").first(),
-      ).toBeVisible();
+    /*
+     * The day's meetings are a real time-ordered list when there are any.
+     *
+     * UNTITLED-18 — re-pointed at the SCHEDULE panel, which is where they live
+     * now. This looked for an `h3` named "Meetings" and then for
+     * `.dh-day-row--meeting .dh-day-row__time`; neither the heading nor either
+     * class exists anywhere in the application, so the `if` was false on every
+     * run and the assertion inside it had never executed. Two dead locators, one
+     * behind the other, is why it went unnoticed.
+     *
+     * The panel states its own count, so the condition is read from the fact
+     * rather than inferred from a heading: when the day HAS meetings, the list
+     * draws each one's start time.
+     */
+    const schedule = page.getByTestId("today-schedule");
+    await expect(schedule).toBeVisible();
+    const meetingsFact = schedule.getByTestId("today-meetings-today");
+    if ((await meetingsFact.count()) > 0) {
+      const count = Number(await meetingsFact.getAttribute("data-count"));
+      if (count > 0) {
+        await expect(
+          schedule.locator(".dh-schedule__time-start").first(),
+        ).toBeVisible();
+      }
     }
 
     // The Focus placeholder is gone — the same rule POLISH-01 applied to Weather

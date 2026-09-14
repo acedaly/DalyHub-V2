@@ -86,8 +86,14 @@ test.describe("UIQ — task-row hover contract (Tasks)", () => {
     const row = firstRow(page);
     await expect(row).toBeVisible();
 
-    // UIQ-001 — the touch swipe affordance does not paint on a fine pointer.
-    const tray = row.locator(".dh-taskrow__swipe-tray");
+    /*
+     * UIQ-001 — the touch swipe affordance does not paint on a fine pointer.
+     *
+     * UNTITLED-18 — `.dh-card__swipe-tray`, which is what `CardSwipeTray`
+     * emits. It read `.dh-taskrow__swipe-tray`, a name nothing in the
+     * application has, so the `if` below skipped and this assertion never ran.
+     */
+    const tray = row.locator(".dh-card__swipe-tray");
     if ((await tray.count()) > 0) {
       await expect(tray).toHaveCSS("display", "none");
     }
