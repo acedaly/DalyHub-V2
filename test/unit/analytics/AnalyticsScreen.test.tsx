@@ -307,16 +307,26 @@ describe("Analytics screen (UIX-05)", () => {
     expect(screen.queryByRole("list", { name: "Also completed" })).toBeNull();
   });
 
-  // Horizontal proportion bars, not a donut — and never colour alone.
+  /*
+   * Horizontal proportion bars, not a donut — and never colour alone.
+   *
+   * UNTITLED-17 moved this panel onto the shared `CategorySplit`, over
+   * Untitled's own `ProgressBarBase`, so the bar is a real `progressbar` with
+   * `aria-valuetext` instead of a `<span>` carrying `role="img"` and a
+   * hand-written sentence. The contract is the same and stronger: the share is
+   * announced AND printed, and it is taken against the ATTRIBUTED total, so the
+   * bars divide the whole rather than ranking against the leader.
+   */
   it("draws the distribution with each share stated in words", () => {
     renderScreen(pageData());
     const split = screen.getByRole("list", { name: "Completed work by Area" });
     expect(
-      within(split).getByRole("img", {
-        name: "Health & Fitness: 14 of 20 attributed Tasks, 70%",
-      }),
-    ).toBeInTheDocument();
+      within(split).getByRole("progressbar", { name: "Health & Fitness" }),
+    ).toHaveAttribute("aria-valuetext", "70% — 14");
     expect(within(split).getByText("70%")).toBeInTheDocument();
+    expect(
+      within(split).getByRole("link", { name: "Health & Fitness" }),
+    ).toBeInTheDocument();
   });
 
   it("says a read failed rather than drawing a page of zeroes", () => {

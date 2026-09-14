@@ -79,9 +79,14 @@ test.describe("Reports", () => {
       ).toBeVisible();
     }
 
-    // The collection draws no figures at all: opening Reports must never mean
-    // running six reports before first paint.
-    await expect(page.getByTestId("report-bars")).toHaveCount(0);
+    /*
+     * The collection draws no figures at all: opening Reports must never mean
+     * running six reports before first paint. It DOES draw two Untitled table
+     * cards of definitions, so the absence asserted here is the report RESULT's
+     * table and its comparison bars, both of which are named.
+     */
+    await expect(page.getByTestId("report-share")).toHaveCount(0);
+    await expect(page.getByTestId("report-trend")).toHaveCount(0);
     await expect(page.locator(".dh-report__table")).toHaveCount(0);
   });
 
@@ -229,7 +234,7 @@ test.describe("Reports", () => {
       "/reports/view?src=finance&m=money_out&w=12-months&by=g%3Aproject",
     );
     await expect(page.locator(".dh-report__table")).toHaveCount(0);
-    await expect(page.getByTestId("report-bars")).toHaveCount(0);
+    await expect(page.getByTestId("report-share")).toHaveCount(0);
     await expect(
       page.getByRole("heading", { name: /can’t be opened/i }),
     ).toBeVisible();
@@ -260,20 +265,30 @@ test.describe("Reports", () => {
     await expectNoHorizontalOverflow(page);
 
     /*
-     * DOM order is reading order is tab order: the rows come BEFORE the chart
-     * at every width, so the question is answerable with the chart removed.
+     * DOM order is reading order is tab order.
+     *
+     * UNTITLED-17 changed what that means for a GROUPED result, and made the
+     * rule easier to keep rather than harder. The comparison used to be a
+     * second list beneath the table — the same labels, the same order, the same
+     * figures, drawn twice — and the assertion was that the text came first.
+     * The comparison is now a COLUMN of the same rows (a `ProgressTrack` in an
+     * Untitled table cell), so there is one list and the question cannot be put
+     * in the wrong order at all.
+     *
+     * What is asserted instead is the property that mattered: every bar sits in
+     * a row that also prints its figure as text, so the answer survives the
+     * chart being removed.
      */
-    const order = await page.evaluate(() => {
-      const body = document.querySelector(".dh-report__block");
-      if (!body) return null;
-      const nodes = [
-        ...body.querySelectorAll(".dh-report__table, .dh-catbars"),
-      ];
-      return nodes.map((node) => node.className.split(" ")[0]);
-    });
-    if (order && order.length === 2) {
-      expect(order[0]).toBe("dh-report__table");
-      expect(order[1]).toBe("dh-catbars");
+    const bars = table.getByRole("progressbar");
+    const barCount = await bars.count();
+    expect(barCount).toBeGreaterThan(0);
+    for (let index = 0; index < barCount; index += 1) {
+      const row = table.getByRole("row").nth(index + 1);
+      await expect(row.getByRole("progressbar")).toHaveCount(1);
+      // The figure cell is never empty, whatever the bar draws.
+      expect(
+        (await row.locator("td").last().innerText()).trim().length,
+      ).toBeGreaterThan(0);
     }
   });
 
@@ -341,7 +356,16 @@ test.describe("Reports", () => {
 
     // The rows are the ones the page drew.
     const table = page.locator(".dh-report__table").first();
-    const firstLabel = await table.locator("tbody tr th").first().innerText();
+    /*
+     * The row's name cell. React Aria renders every body cell as a `<td>` and
+     * marks the row-header column with `role="rowheader"`, so the name is
+     * addressed by ROLE rather than by `th` — which the hand-written table used
+     * and the Untitled one does not have.
+     */
+    const firstLabel = await table
+      .locator('tbody [role="rowheader"]')
+      .first()
+      .innerText();
     expect(csv).toContain(`"${firstLabel.trim()}"`);
   });
 

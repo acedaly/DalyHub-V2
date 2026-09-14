@@ -11,8 +11,12 @@
  *      overflow and the bars are fluid, so a long category name or a wide
  *      figure column never makes the whole surface scroll.
  *
- * The chart styles themselves are `charts.css`'s: `CategoryBars` is a
- * design-system primitive, not a Reports component.
+ * UNTITLED-17 moved almost all of this file's paint into components. The rows
+ * are the genuine Untitled `application/table`, a grouped result's share is a
+ * `ProgressTrack` in a column of it, a series' plot is `PeriodTotals` over
+ * Recharts, and every builder option is the shared button. What remains here is
+ * LAYOUT: the gaps between the sections of a report, the headline figure, and
+ * the notes. No card, no table, no pill and no chart is painted in this file.
  */
 
 /* -------------------------------------------------------------------------- */
@@ -31,77 +35,21 @@
   min-inline-size: 0;
 }
 
-.dh-reports__heading {
-  margin: 0;
-  color: var(--dh-color-text);
-  font-size: var(--dh-text-section-title-size);
-  line-height: var(--dh-text-section-title-line-height);
-  font-weight: var(--dh-text-section-title-weight);
-}
-
-.dh-reports__lede,
-.dh-reports__absent {
-  margin: 0;
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-body-size);
-  line-height: var(--dh-text-body-line-height);
-  text-wrap: pretty;
-}
-
 /*
- * A responsive grid rather than a fixed column count: the cards are questions,
- * and a question is one to three lines whatever the viewport. `auto-fill` with a
- * minimum is what keeps one card full-width on a phone and four across on a
- * desktop with no breakpoint to maintain.
+ * UNTITLED-17 — `.dh-reports__heading`, `.dh-reports__lede` and
+ * `.dh-reports__absent` are deleted. The section heading and the sentence under
+ * it are `TableCard.Header`'s title and description, which Untitled paints.
  */
-.dh-reports__list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(18rem, 100%), 1fr));
-  gap: var(--app-space-3);
-}
-
-.dh-reports__item {
-  min-inline-size: 0;
-}
-
-.dh-reports .dh-reports__card,
-.dh-reports .dh-reports__card:visited {
-  display: grid;
-  gap: var(--app-space-1);
-  block-size: 100%;
-  padding: var(--app-space-4);
-  border: var(--dh-border-width) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-lg);
-  background: var(--dh-color-surface);
-  color: var(--dh-color-text);
-  text-decoration: none;
-}
-
-.dh-reports .dh-reports__card:hover {
-  border-color: var(--dh-color-border-strong);
-  background: var(--dh-color-surface-selected);
-}
-
-.dh-reports__title {
-  font-size: var(--dh-text-card-title-size);
-  line-height: var(--dh-text-card-title-line-height);
-  font-weight: var(--dh-text-card-title-weight);
-  overflow-wrap: anywhere;
-}
-
-.dh-reports__question {
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-  text-wrap: pretty;
-}
-
-.dh-reports__badge {
-  margin-block-start: var(--app-space-1);
-}
+/*
+ * UNTITLED-17 — the card gallery is DELETED.
+ *
+ * `.dh-reports__list`, `.dh-reports__item`, `.dh-reports__card`,
+ * `.dh-reports__title`, `.dh-reports__question` and `.dh-reports__badge` drew a
+ * bounded box per report with its own border, radius, surface and hover — a
+ * third bespoke card family beside the record card and the Untitled surface
+ * card. Both sections are the genuine Untitled `application/table` now
+ * (`TableCard.Root` + `TableCard.Header` + `Table`), which paints itself.
+ */
 
 /* -------------------------------------------------------------------------- */
 /* One report                                                                  */
@@ -154,40 +102,27 @@
   min-inline-size: 0;
 }
 
-.dh-report .dh-report__option,
-.dh-report .dh-report__option:visited {
-  display: inline-flex;
-  align-items: center;
-  min-block-size: var(--app-touch-target-min);
-  padding-inline: var(--app-space-3);
-  border: var(--dh-border-width) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-pill);
-  background: var(--dh-color-surface);
-  color: var(--dh-color-text);
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-  text-decoration: none;
-}
-
-.dh-report .dh-report__option:hover {
-  border-color: var(--dh-color-border-strong);
-}
-
 /*
- * The selected option is marked by a FILL and a border, and it also carries
- * `aria-current` — the tint is the fast visual cue, never the only one.
+ * UNTITLED-17 — the option PILL is deleted; one rule survives, and it is not
+ * paint.
+ *
+ * The pill drew its own border, radius, surface, type rung, hover and selected
+ * fill for a control that is a button in every respect except who painted it.
+ * Each option now carries `buttonClassName()`, built on the vendored Untitled
+ * button's own exported `styles`, so the selected state, the hover, the focus
+ * ring and the forced-colours behaviour are all the shared button's.
+ *
+ * The TOUCH FLOOR stays, and stays unconditional. The shared button takes its
+ * 44px minimum from `(hover: none)`, which is right for an ordinary action: a
+ * mouse can hit a 36px button comfortably. A report's builder is a dense
+ * WRAPPING RAIL of twenty or more adjacent targets — a tag vocabulary, a
+ * Project list — where a mis-tap silently re-runs the report against a
+ * different question. So every option is a full target at every pointer, which
+ * is what this surface guaranteed before the migration and what
+ * `reports.spec.ts` asserts at four widths.
  */
-.dh-report .dh-report__option[data-selected="true"] {
-  border-color: var(--dh-color-accent);
-  background: var(--dh-color-accent-subtle);
-  font-weight: var(--dh-text-label-strong-weight);
-}
-
-@media (forced-colors: active) {
-  .dh-report .dh-report__option[data-selected="true"] {
-    border-color: Highlight;
-    outline: 2px solid Highlight;
-  }
+.dh-report__option {
+  min-block-size: var(--app-touch-target-min);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -243,57 +178,22 @@
   min-inline-size: 0;
 }
 
-.dh-report__table {
-  inline-size: 100%;
-  border-collapse: collapse;
-  font-size: var(--dh-text-row-size);
-  line-height: var(--dh-text-row-line-height);
-}
+/*
+ * UNTITLED-17 — the hand-written table is deleted.
+ *
+ * `.dh-report__table`'s collapse, padding, rules, head type and `tbody th`
+ * weight, plus `.dh-report__cell-detail`, belonged to a `<table>` this module
+ * drew itself. The rows are the genuine Untitled `application/table` now, which
+ * paints all of it; `.dh-report__table` survives only as a hook the E2E suite
+ * addresses the result by. The wrapper above keeps the horizontal overflow,
+ * because that is the page's rule rather than the table's.
+ */
 
-.dh-report__table th,
-.dh-report__table td {
-  padding: var(--app-space-2) var(--app-space-3);
-  border-block-end: var(--dh-border-width) solid var(--dh-color-border);
-  text-align: start;
-  vertical-align: baseline;
-}
-
-.dh-report__table thead th {
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-label-size);
-  font-weight: var(--dh-text-label-strong-weight);
-}
-
-.dh-report__table tbody th {
-  font-weight: var(--dh-text-row-weight);
-  overflow-wrap: anywhere;
-}
-
-.dh-report__cell--figure {
-  text-align: end;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.dh-report__cell-detail {
-  display: block;
-  margin-block-start: var(--app-space-px);
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-}
-
-/* "No reading" is a WORD, never an empty cell and never a zero. */
-.dh-report__no-reading {
-  color: var(--dh-color-text-muted);
-  font-style: italic;
-}
-
-.dh-report__row--remainder th,
-.dh-report__row--remainder td {
-  color: var(--dh-color-text-muted);
-  font-style: italic;
-}
+/*
+ * UNTITLED-17 — "No reading" and the remainder row take Untitled text roles on
+ * the cell itself (`text-tertiary`), so the two italic overrides that used to
+ * live here are gone. The class names survive as hooks only.
+ */
 
 /* -------------------------------------------------------------------------- */
 /* Notes, refusals and saving                                                  */

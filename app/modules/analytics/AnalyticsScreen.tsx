@@ -37,8 +37,11 @@
  *    ring, horizontal progress and milestone track; a proportion across six or
  *    eight named categories is what horizontal bars are FOR, and a ring makes
  *    two similar slices impossible to rank without reading the numbers off the
- *    legend anyway. The bars carry each Area's own identity accent, so the panel
- *    also reads as the Areas the owner already recognises.
+ *    legend anyway. UNTITLED-17 moved those bars onto the shared `CategorySplit`
+ *    (over Untitled's own `ProgressBarBase`) and dropped the per-Area identity
+ *    accent with them: a bar in a proportion list encodes magnitude, and eight
+ *    hues make a ranking harder to read while adding a second colour system
+ *    beside the chart foundation's. Each Area is still named and still linked.
  * 3. **No score.** Not a productivity index, not a grade, not a weighted
  *    composite. REVIEW-03 refuses one for the reason that holds here too: a
  *    single number mixing tasks, Goals and Areas would look precise and mean
@@ -71,7 +74,7 @@ import {
 } from "~/shared/collection-layout";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
-import { areaAccentForRank } from "~/shared/pill";
+import { CategorySplit } from "~/shared/progress";
 import { SegmentedFilter } from "~/shared/segmented-filter";
 import { Skeleton } from "~/shared/skeleton";
 import { ViewSwitcher } from "~/shared/view-switcher";
@@ -743,36 +746,37 @@ function DistributionPanel({ model }: { readonly model: AnalyticsModel }) {
       supporting={`${model.distributionTotal} attributed`}
       density="standard"
     >
-      <ul className="dh-analytics__split" aria-label="Completed work by Area">
-        {model.distribution.map((row) => (
-          <li key={row.areaId} className="dh-analytics__split-row">
-            <Link className="dh-analytics__split-name" to={row.to}>
-              {row.title}
-            </Link>
-            <span
-              className="dh-analytics__split-track"
-              data-accent={
-                row.colourRank === null
-                  ? undefined
-                  : String(areaAccentForRank(row.colourRank))
-              }
-              role="img"
-              aria-label={`${row.title}: ${row.tasksCompleted} of ${model.distributionTotal} attributed Tasks, ${row.percent}%`}
-            >
-              <span
-                className="dh-analytics__split-fill"
-                style={{ inlineSize: `${Math.max(row.percent, 1)}%` }}
-              />
-            </span>
-            <span className="dh-analytics__split-figure">
-              {row.tasksCompleted}
-              <span className="dh-analytics__split-percent">
-                {row.percent}%
-              </span>
-            </span>
-          </li>
-        ))}
-      </ul>
+      {/*
+       * UNTITLED-17 — the shared proportion list.
+       *
+       * This panel and Reports' `CategoryBars` were one shape drawn two bespoke
+       * ways: a `<span>` track with an inline percentage width painted from
+       * `analytics.css`, and a hand-written `<svg>` rectangle per row painted
+       * from `charts.css`. Both are now `CategorySplit`, over the same Untitled
+       * `ProgressBarBase` the rest of the product's bars are drawn with.
+       *
+       * The bars no longer carry each Area's own identity accent. That is a
+       * deliberate convergence (§43): a bar in a proportion list encodes
+       * magnitude, and eight hues make the ranking harder to read while adding
+       * a second colour system beside the chart foundation's. Each Area is
+       * still named and still linked, which is how the owner recognises it.
+       *
+       * The share is taken against the ATTRIBUTED total rather than the largest
+       * row, because these rows genuinely divide a known quantity — so the bars
+       * sum to the whole and the longest one is not automatically full.
+       */}
+      <CategorySplit
+        label="Completed work by Area"
+        total={model.distributionTotal}
+        showShare
+        rows={model.distribution.map((row) => ({
+          key: row.areaId,
+          label: row.title,
+          value: row.tasksCompleted,
+          formatted: String(row.tasksCompleted),
+          href: row.to,
+        }))}
+      />
     </DashboardCard>
   );
 }

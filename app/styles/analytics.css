@@ -298,116 +298,24 @@
 }
 
 /* -------------------------------------------------------------------------- */
-/* The distribution split                                                     */
+/* The Area split — DELETED (UNTITLED-17)                                     */
 /* -------------------------------------------------------------------------- */
 
 /*
- * Horizontal proportion bars, one row per Area — the design system's agreed
- * chart language for a share across named categories (Part 2, A5), and NOT a
- * donut. See `AnalyticsScreen.tsx` for why.
+ * `.dh-analytics__split*` was a second, differently-painted implementation of
+ * the shape Reports drew with `CategoryBars`: a track, a fill sized by an inline
+ * percentage, six identity-accent overrides and a forced-colours rule, for a
+ * labelled list of shares. Both are now the shared `CategorySplit`
+ * (`~/shared/progress`), over Untitled's own `ProgressBarBase` — so the track,
+ * the fill, the radius and the forced-colours arm are the component's and no
+ * stylesheet owns them.
  *
- * A grid rather than a flex line, so every bar starts and ends on the same two
- * vertical rules whatever the Area names are. That is the property that makes
- * eight shares comparable at a glance, and it is the same reason a gallery pins
- * its progress bars to one baseline.
+ * The per-Area accent went with it, deliberately: a bar in a proportion list
+ * encodes magnitude, and eight hues make a ranking harder to read while adding
+ * a second colour system beside the chart foundation's (§43). Each Area is
+ * still named and still linked.
  */
-.dh-analytics__split {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: var(--app-space-3);
-  min-inline-size: 0;
-}
 
-.dh-analytics__split-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) auto;
-  align-items: center;
-  gap: var(--app-space-3);
-  min-inline-size: 0;
-}
-
-.dh-analytics .dh-analytics__split-name,
-.dh-analytics .dh-analytics__split-name:visited {
-  min-inline-size: 0;
-  color: var(--dh-color-text);
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-  text-decoration: none;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.dh-analytics .dh-analytics__split-name:hover,
-.dh-analytics .dh-analytics__split-name:focus-visible {
-  text-decoration: underline;
-}
-
-/* The 8px entity rung (D5): a bar whose entire job is a proportion gets the
- * thicker rule. The track is the neutral sunken surface, so an empty bar can
- * never read as a full one in another colour. */
-.dh-analytics__split-track {
-  display: block;
-  inline-size: 100%;
-  block-size: var(--app-progress-bar-height-entity);
-  border-radius: var(--dh-radius-pill);
-  background: var(--dh-color-bg-sunken);
-  overflow: hidden;
-}
-
-.dh-analytics__split-fill {
-  display: block;
-  block-size: 100%;
-  border-radius: inherit;
-  background: var(--dh-color-accent);
-}
-
-/*
- * D22 — each bar takes its AREA's own identity accent, resolved from the same
- * stable rank the Area's row and its Projects' marks already use. A workspace's
- * Analytics panel is therefore recognisable as the Areas the owner knows, rather
- * than as an arbitrary palette invented for one chart. The count and the share
- * are printed beside every bar, so the colour is never the signal.
- */
-.dh-analytics__split-track[data-accent="1"] .dh-analytics__split-fill {
-  background: var(--dh-color-area-1);
-}
-.dh-analytics__split-track[data-accent="2"] .dh-analytics__split-fill {
-  background: var(--dh-color-area-2);
-}
-.dh-analytics__split-track[data-accent="3"] .dh-analytics__split-fill {
-  background: var(--dh-color-area-3);
-}
-.dh-analytics__split-track[data-accent="4"] .dh-analytics__split-fill {
-  background: var(--dh-color-area-4);
-}
-.dh-analytics__split-track[data-accent="5"] .dh-analytics__split-fill {
-  background: var(--dh-color-area-5);
-}
-.dh-analytics__split-track[data-accent="6"] .dh-analytics__split-fill {
-  background: var(--dh-color-area-6);
-}
-
-.dh-analytics__split-figure {
-  display: flex;
-  align-items: baseline;
-  gap: var(--app-space-2);
-  flex: none;
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-  font-weight: 500;
-  color: var(--dh-color-text);
-  font-variant-numeric: tabular-nums;
-}
-
-.dh-analytics__split-percent {
-  font-weight: 400;
-  color: var(--dh-color-text-muted);
-}
-
-/* -------------------------------------------------------------------------- */
 /* Notes                                                                      */
 /* -------------------------------------------------------------------------- */
 
@@ -461,19 +369,11 @@
     font-size: var(--dh-text-record-title-size);
     line-height: var(--dh-text-record-title-line-height);
   }
-
-  .dh-analytics__split-row {
-    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto;
-    gap: var(--app-space-2);
-  }
 }
 
 @media (forced-colors: active) {
   .dh-analytics__metrics {
     border: var(--app-border-width-thin) solid CanvasText;
-  }
-  .dh-analytics__split-fill {
-    background: CanvasText;
   }
 }
 

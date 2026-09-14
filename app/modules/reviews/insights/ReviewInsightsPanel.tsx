@@ -31,7 +31,7 @@ import type {
   ProjectChangeInsight,
   ReviewInsights,
 } from "~/kernel/review-insights";
-import { TrendBars } from "~/shared/charts";
+import { PeriodTotals } from "~/shared/charts";
 
 export interface ReviewInsightsPanelProps {
   readonly insights: ReviewInsights;
@@ -323,11 +323,23 @@ export function ReviewInsightsPanel({
         >
           <div className="dh-insights__trends">
             {insights.trends.map((trend) => (
-              <figure className="dh-insights__trend" key={trend.id}>
-                <figcaption className="dh-insights__trend-label">
-                  {trend.label}
-                </figcaption>
-                <TrendBars
+              /*
+               * UNTITLED-17 — the shared Untitled-backed plot.
+               *
+               * `TrendBars` drew this as a stretched SVG with no value axis, so
+               * two trends stacked on one page could not be read against each
+               * other: each normalised to its own peak with no numbers on the
+               * side. `PeriodTotals` gives every trend a real value axis, a
+               * hairline grid and a tooltip, and marks the period under review
+               * in the series colour against its neighbours' quieter one.
+               *
+               * The chart supplies its own `<figure>` and `<figcaption>`
+               * (`ChartFrame`), so the label above it is an ordinary heading for
+               * the pair rather than a second caption.
+               */
+              <div className="dh-insights__trend" key={trend.id}>
+                <p className="dh-insights__trend-label">{trend.label}</p>
+                <PeriodTotals
                   points={trend.points.map((point) => ({
                     key: point.key,
                     // The axis gets the short form; the summary beneath it —
@@ -336,12 +348,15 @@ export function ReviewInsightsPanel({
                     value: point.value,
                     current: point.current,
                   }))}
+                  seriesLabel={trend.label}
                   summary={trend.summary}
                   // CONVERGE-01 §I — the enumeration stays the announced
                   // description; the printed caption is the shape of the trend.
                   caption={trend.headline}
+                  // Every Review trend counts records; none has a fraction.
+                  wholeNumbers
                 />
-              </figure>
+              </div>
             ))}
           </div>
         </Section>

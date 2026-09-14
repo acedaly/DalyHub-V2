@@ -11,6 +11,19 @@ export {
   normaliseProgressPercent,
   type ProgressTrackProps,
 } from "./ProgressTrack";
+/**
+ * UNTITLED-17 — the shared proportion LIST, over the same Untitled bar.
+ *
+ * Reports' `CategoryBars` and Analytics' `dh-analytics__split` were one shape
+ * drawn two bespoke ways. Its own header says why it lives here rather than in
+ * `~/shared/charts`: it has no axis and no plot area, and is a run of progress
+ * indicators with a shared denominator.
+ */
+export {
+  CategorySplit,
+  type CategorySplitProps,
+  type CategorySplitRow,
+} from "./CategorySplit";
 export {
   METER_STATUSES,
   meterStatusAttribute,

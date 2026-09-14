@@ -111,6 +111,25 @@ export function ReportScreen(data: ReportPageData) {
  * Rendered as a fieldset of link groups. A `<ul>` of links inside a labelled
  * group is what this genuinely is — a set of alternative destinations — and it
  * is keyboard-complete for free, which a custom listbox would not be.
+ *
+ * ── UNTITLED-17 — the paint is Untitled's, and a rail would have been wrong ─
+ *
+ * `.dh-report__option` was a bespoke pill: its own background, border, radius,
+ * height, hover and forced-colours arm, in `reports.css`, for a control that is
+ * a button in every respect except who painted it. Every option now carries
+ * `buttonClassName()`, which is built on the vendored Untitled button's own
+ * exported `styles` — so a report control, a report action and every other
+ * button in the product are one implementation, and the pill block is deleted.
+ *
+ * It is deliberately NOT `ViewSwitcher`/Untitled `ButtonGroup`, which is what a
+ * one-of-N control usually wants here. A segmented rail is a single row with
+ * hairline dividers and cannot wrap: right for "7 days · 4 weeks · 12 weeks",
+ * wrong for a tag vocabulary or a Project list, where a workspace can hand this
+ * control thirty options. These wrap, because the number of them is the
+ * owner's data rather than a fixed set.
+ *
+ * The selected option takes the PRIMARY family and states `aria-current`, so
+ * the choice is a shape and a announced fact rather than a tint (§15).
  */
 function ReportControls({
   controls,
@@ -128,25 +147,28 @@ function ReportControls({
             className="dh-report__options"
             aria-labelledby={`ctl-${control.id}`}
           >
-            {control.options.map((option) => (
-              <li key={`${control.id}-${option.value}`}>
-                <Link
-                  className="dh-report__option"
-                  to={option.href}
-                  /* The current choice is stated for assistive technology, not
-                   * left to the tint that marks it visually. */
-                  aria-current={
-                    option.value === control.value ? "true" : undefined
-                  }
-                  data-selected={
-                    option.value === control.value ? "true" : undefined
-                  }
-                  replace
-                >
-                  {option.label}
-                </Link>
-              </li>
-            ))}
+            {control.options.map((option) => {
+              const selected = option.value === control.value;
+              return (
+                <li key={`${control.id}-${option.value}`}>
+                  <Link
+                    className={buttonClassName({
+                      variant: selected ? "primary" : "secondary",
+                      size: "sm",
+                      className: "dh-report__option",
+                    })}
+                    to={option.href}
+                    /* The current choice is stated for assistive technology,
+                     * not left to the fill that marks it visually. */
+                    aria-current={selected ? "true" : undefined}
+                    data-selected={selected ? "true" : undefined}
+                    replace
+                  >
+                    {option.label}
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </div>
       ))}
