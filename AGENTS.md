@@ -140,6 +140,8 @@ screenshot; historical screenshots and visual references are not authority.
 
 - **Density is a system, not a per-surface decision.** Compact information must never cost touch accessibility. Existing density tokens are compatibility machinery while consumers migrate; new density decisions use Untitled/Tailwind semantics and are recorded in [`DESIGN_SYSTEM.md`](docs/design/DESIGN_SYSTEM.md#11-density-ds-01).
 
+- **The Untitled migration is COMPLETE, and that changes the shape of a frontend answer.** Every module has had its pass; what remains is named maintenance in [`UNTITLED_UI_MIGRATION.md`](docs/design/UNTITLED_UI_MIGRATION.md#named-maintenance-debt), and "migrate module X" is no longer a thing to propose. Two rules carry most of the weight: a surface's stylesheet PAINT is deleted in the same change that migrates the surface (module CSS is unlayered, so a leftover rule silently outranks every Untitled utility and only a measurement finds it), and a `/design/*` fixture may only draw what the product draws.
+
 - **Generic components carry no product rules, and they live in [`app/shared/ui/`](app/shared/ui/index.ts).** A `Button`, `Menu`, `Dialog`, `Input` or `Checkbox` knows interaction and accessibility; it does not know Areas, Goals, Projects, Tasks, priorities or overdue dates. Product components (`TaskRow`, `ProjectCard`, `GoalProgress`, `QuickCapture`) compose those primitives. Use [`UNTITLED_UI_IMPLEMENTATION.md`](docs/design/UNTITLED_UI_IMPLEMENTATION.md) and the configured Untitled MCP before adding a generic control. Building a second generic component library beside Untitled is a design-system defect.
 
 ---

@@ -1,23 +1,48 @@
 # Untitled UI migration guide
 
-> DalyHub is progressively rebuilding its presentation layer around Untitled UI
-> React Pro, Untitled Application UI patterns, Tailwind CSS v4 and React Aria.
-> Backend, database, migrations, Cloudflare infrastructure, API contracts and
-> business logic remain out of scope for this frontend reset.
+> DalyHub's presentation layer is built from Untitled UI React Pro, Untitled
+> Application UI patterns, Tailwind CSS v4 and React Aria. Backend, database,
+> migrations, Cloudflare infrastructure, API contracts and business logic remain
+> out of scope for this frontend reset.
+
+## Status: the broad migration is COMPLETE
+
+Every module in the phase list below has had its dedicated pass, and UNTITLED-18
+closed the last of them (Settings) together with the residual debt three earlier
+passes had carried forward. **There is no next module.**
+
+What that means for a future change:
+
+- **There is no "migration phase" to join.** A new surface is built on Untitled
+  from the start; an existing one is changed in place. Nothing is waiting for a
+  broad rewrite, and proposing another one is the wrong shape of answer to
+  anything on the debt list below.
+- **The generic UI layer is Untitled's.** The inventory — every generic concept,
+  its current source, and whether it is Untitled-backed — is in
+  [`UNTITLED_UI_IMPLEMENTATION.md`](UNTITLED_UI_IMPLEMENTATION.md#the-generic-ui-inventory-at-the-end-of-this-pass).
+  Read it before building a control; the answer is almost always "that already
+  exists and it is Untitled's".
+- **What is left is MAINTENANCE**, named and bounded in
+  [Named maintenance debt](#named-maintenance-debt). Each item is a specific
+  file, a specific count, or a specific blocked dependency — not a module.
 
 ## Current frontend debt
 
+Kept as a statement of what is still TRUE, not as a work queue; the queue is
+[below](#named-maintenance-debt).
+
 - Legacy CSS still carries `--dh-*`, `--app-*` and `--md-*` compatibility
-  vocabulary.
-- Some shared primitives predate Untitled adoption and should be replaced by
-  Untitled source when their consumers migrate.
-- Some feature components mix product decisions, presentation state and mutation
-  wiring in one file, making visual migration riskier than it needs to be.
-- Historical design documents and screenshots described Material, MD3, DHDS and
-  bespoke DalyHub patterns; those are superseded by
-  [`UNTITLED_UI_IMPLEMENTATION.md`](UNTITLED_UI_IMPLEMENTATION.md).
-- Untitled-derived shell, Today and Tasks work already exists, but the remaining
-  modules still need consumer-by-consumer migration.
+  vocabulary. This is deliberate: they are real, generated, tested design tokens,
+  and the boundary between them and Untitled's is enforced by
+  `scripts/dhds-token-audit.mjs`.
+- Module stylesheets are UNLAYERED, so any rule in one outranks every Untitled
+  utility regardless of specificity. That is what makes the migration safe
+  surface by surface (see `app/styles/untitled/untitled.css`), and it is also the
+  mechanism by which a leftover rule can silently repaint a migrated control —
+  UNTITLED-18 found and measured six of those. When a surface migrates, its
+  stylesheet's paint must go with it.
+- A small number of shared primitives predate Untitled adoption and are named
+  individually below rather than described in general.
 
 ## Reusable backend and domain logic
 
@@ -86,7 +111,12 @@ The historical design files were classified before removal:
 | Offline/PWA | Offline support keeps a minimised, owner-scoped capture/task model with honest limitations and recovery paths. | Mobile install/offline states should be clear and calm. | Old mobile visual frames and reference screenshots. |
 | Product Experience | DalyHub remains a calm personal operating system with stable navigation, direct manipulation, progressive disclosure and no dead ends. | One shell, one row grammar, contextual overlays, record/drawer patterns and accessible mobile behaviour. | Material/MD3/DHDS token architecture, old theme experiments and visual north-star screenshots. |
 
-## Migration phases
+## Migration phases — the record of how it was done
+
+All eighteen are complete. Kept because the ORDER is the reusable lesson: the
+foundation and the shell first, then the surfaces the owner uses daily, then the
+ones they configure, then the removal of what was displaced. A future broad
+change to the presentation layer should follow the same shape.
 
 Preferred order:
 
@@ -1620,3 +1650,185 @@ Tests updated because their CONTRACT changed, each argued in place:
    comments in this module argue for.
 7. **Eight E2E specs still scope to `.dh-topbar`**, a class the shell no longer
    renders. Carried forward from UNTITLED-16 unchanged.
+
+## UNTITLED-18 — Settings, shared forms, Finance admin, and the retirement of the old generic UI
+
+The provenance record — every MCP search, what it returned, what was adopted and
+rejected, and the whole generic-UI inventory — is in
+[`UNTITLED_UI_IMPLEMENTATION.md`](UNTITLED_UI_IMPLEMENTATION.md#untitled-18-completion-record--settings-shared-forms-finance-admin-and-the-dead-frontend).
+This records what MOVED, what was MEASURED, and what is left.
+
+### What moved
+
+| Surface | Untitled source | Before → after | Kept deliberately |
+| --- | --- | --- | --- |
+| Settings group | `section-headers/section-label` via the `section-heading` override | A CARD, which on a record's Settings tab meant a group card inside a settings card inside a record card — three borders contributing one piece of hierarchy between them | The structure DS-14 wanted. A reader can still see where one group ends and the next begins; it is a rule and a heading rather than a frame |
+| Settings row | `base/input`'s `Label` + `HintText` roles, and a Tailwind CONTAINER query | A hand-written two-column row with its own four status tones and its own container query, plus a duplicate phone arm in a media query | Both accessible-naming patterns, and the row-owned name that stops a bare control being labelled twice |
+| Settings rail | `command-menus/command-menu-item` (stacked) + `nav-item`'s selected treatment | ~250 lines: a grouped rail, a two-line row, an `::after` target overlay, a hover, a focus ring, a selected surface and a phone arm for each | The summary as the link's accessible DESCRIPTION rather than part of its name — now with one element instead of a link plus a described sibling under a pseudo-element |
+| Switch | `base/toggle`'s `ToggleBase` `size="md"` | Material Design 3's anatomy: a 52×32 track, a thumb growing 16→24px, a check glyph, 203 lines of `switch.css` | The native `<input type="checkbox">` with `role="switch"`, the 44px LABEL target, uncontrolled form participation, and a forced-colours arm upstream has none of |
+| Confirmed actions | Untitled's own destructive/warning modal PAIR, as the argument | One weight, and it was "destructive" — so an Area's Archive, whose copy reads "you can restore it at any time", was painted identically to Delete permanently | The confirmation itself on both. What differs is what it is FOR |
+| Finance import preview | `application/table` + `table-head` | A hand-written `<table>` with its own cell padding, hairline, alignment, nowrap and scroller — the largest left in the product | The per-row outcome on the row, the amount/date alignment, the "import it anyway?" checkbox, the caption |
+| Finance budgets | `application/table` + `table-head` | Twelve full-width bordered cards, each holding a name, a number, one button and a sentence | The variance SENTENCE with the figures that produced it. No bar, no percentage, no score — FIN-02's decision, not revisited |
+| Finance categories | `application/table` + `table-head` | A four-column bordered grid row per category | "Money out" as a WORD in a column. Two kinds is not a status, and a coloured pill per row would be badge soup (§21) |
+| File picker | — | `RestoreFromBackup` had the accessible label-around-hidden-input pattern in `settings.css`; Finance's CSV import drew the browser's own widget beside migrated Untitled fields | Both now share `~/shared/ui/FilePicker`: the control the browser DRAWS is replaced, the control it PROVIDES is not |
+| Status badge | `base/badges` via `UntitledStatusBadge` | Backups and the Goal condition tag drew the legacy `dh-badge`; `StatusPill` now has **zero** product consumers | The tone vocabulary, which is DalyHub's meter language |
+
+### What was deleted
+
+Nine components, verified by reference count against `app/` rather than taken
+from this document — which had undercounted by five.
+
+- `DashboardCard`, `MetricTile`, `MetricRow`, `StatCard` — named by UNTITLED-17
+  as gallery-only. Confirmed.
+- `ExpressiveSummary`, `SupportingSurface` — **no consumer at all.** They
+  referenced only each other.
+- `CardMetaFact` — no consumer but its own barrel entry.
+- `~/shared/card`'s `Timeline` / `TimelineItem` — gallery only. (The `Timeline`
+  forty files import is the activity feed's; there were two of that name.)
+- `SummaryCards`, its producer `personRelationshipCards`, and the tone helper
+  that fed it — UNTITLED-13 removed their one adopter and left them behind.
+
+**The design gallery went with them, and the rule is now written on the route:**
+*a fixture may only draw what the product draws.* `/design/card-family` was the
+only caller of five of the nine, which is how they survived four passes — a
+fixture that outlives its component becomes the consumer, and the deletion never
+happens.
+
+### Stylesheets cut
+
+Measured `wc -l` against `origin/main`. **46,488 → 41,940 lines across 87
+stylesheets**, and the three that GREW are the point: each is a surface that
+genuinely had nothing where it needed something.
+
+- `card-family.css` — **2,643 → 1,356.** The whole of `DashboardCard`,
+  `MetricTile`, `StatCard`, `ExpressiveSummary`, `SupportingSurface`,
+  `CardMetaFact` and `TimelineItem`, removed by matching each rule's selector
+  against the classes surviving markup actually emits.
+- `settings.css` — **1,161 → 532.** The surface root, the group card, the row,
+  the rail, the danger button, and 110 lines of `dh-settings-switch` /
+  `dh-settings-select` that NO markup had emitted since their consumers moved.
+- `switch.css` — **203 → deleted.**
+- `summary-cards.css` — **94 → deleted.**
+- `collection-layout.css`, `filters.css`, `offline.css`, `references.css` — small
+  cuts, each one a rule that was repainting a migrated control (below).
+- `help.css` **249 → 276**, `views.css` **205 → 214**, `finance.css` **451 → 462**,
+  `ai.css` **811 → 818** — all four GREW, and all four grew because this pass gave
+  a surface a page frame, a heading rung or a label role it did not have.
+
+### Defects surfaced, and what they were
+
+Eight, and **every one was found by looking at or measuring the rendered page** —
+none was failing a test.
+
+1. **Unlayered module CSS was silently repainting already-migrated controls.**
+   Six rules in `ai.css`, `filters.css`, `offline.css` (×2) and `references.css`
+   re-derived a control's height, padding, border, radius, surface and type.
+   MEASURED in Chromium on one identical control, inside and outside
+   `.dh-ai-review__field`: **38px tall with an 8px corner and a ring outside the
+   rule; 45px with a 10px corner and a 1px border inside it.** The migration had
+   happened and could not be seen. This is the recurring defect of the whole
+   programme and is why "when a surface migrates, its stylesheet's paint goes
+   with it" is now stated at the top of this file.
+2. **The Settings rail did not fit the screen.** MEASURED: twelve two-line rows
+   at 240px wide make it **1278px tall in a 950px viewport**, at 1024 and 1440
+   alike. A persistent navigation column that must be scrolled to reach its last
+   four destinations is not persistent. The summary is `md:sr-only` now — still
+   the accessible description at every width, visible on the phone where the list
+   IS the screen — and the rail is 610px.
+3. **A reversible action was painted as permanent destruction**, on two record
+   types, while its own RESTORE — no more and no less reversible — drew a calm
+   secondary button from thirty-five lines of hand-rolled dialog wiring.
+4. **Four Finance admin screens had no page frame.** MEASURED at 1440: heading,
+   form and preview table all began at the sidebar's edge and ran to the
+   viewport's, while `/finance` itself is inset like every other route.
+5. **Nine headings had no type role at all**, so "Import a statement", "Budgets"
+   and "Categories" rendered at body size — Tailwind's preflight resets a bare
+   heading to inherit. The same defect UNTITLED-17 found on the guided Review.
+6. **Help's topic heading and its own first sentence were the same size**, at
+   16px/500 against 16px/400 — so a page of thirty topics had nothing but a
+   half-step of weight to say where one answer ended. A systematic sweep for the
+   defect class (every visible heading whose computed size is ≤ body size and
+   whose weight is < 600, across 28 routes) also found Help's contents groups at
+   12.5px above 13px links, and Views' group heading at 14px/500 above
+   thirty-two 14px/400 rows.
+7. **Every Finance form's submit was a full-width slab** from the sidebar to the
+   viewport edge — a flex column's `stretch` default, right for its fields and
+   wrong for its one button.
+8. **The CSV picker was the browser's own widget**, beside migrated Untitled
+   fields.
+
+And one this branch CAUSED and the re-pointed E2E suite caught immediately:
+`SettingsRow` was translated to `break-words` where the rule it replaced said
+`overflow-wrap: anywhere`. Only `anywhere` reduces min-content width. MEASURED at
+320px on Privacy & data, whose copy names a long path: a **331px minimum inside a
+288px column**, and the document scrolled sideways.
+
+### Verified rather than assumed
+
+- **Horizontal overflow: zero.** 33 routes × 9 widths (320 → 1920), with loaded
+  fixtures. Not one document scrolled sideways.
+- **Touch targets and accessibility: 151 of 151 pass** (`touch-targets.spec.ts`
+  and `accessibility.spec.ts`). A crude independent sweep flagged 84 controls
+  under 44px; every one was a false positive the repo's own guards already know
+  about — a visually-hidden input whose LABEL is the target, a whole-row link
+  overlay, or an inline link inside prose, which §37 exempts by name.
+- **The `.dh-topbar` debt was already closed.** Every remaining mention is prose
+  explaining why a locator moved. The audit it was really asking for — every
+  `.dh-*` selector in an `e2e/` locator, matched against what the markup emits,
+  with comments stripped — found **fifteen** dead selectors, six of them
+  load-bearing and silently skipping their assertions.
+
+### Named maintenance debt
+
+Each item is a file, a count or a blocked dependency. None is a module.
+
+1. **Two badges.** `~/shared/pill/UntitledStatusBadge` (genuine `base/badges`) is
+   used by 18 files; `~/shared/ui/Badge` (`dh-badge` token paint) by **11 call
+   sites in 7 files** — `ReviewGuide`, `ReviewInsightsPanel`, `ReportsHome`,
+   `DiaryDetailsPanel`, `DiaryTypeFilter`, `PersonSummary`,
+   `StayInTouchIndicator`. Both read the same tone vocabulary. This is the
+   largest remaining generic-UI duplication. The tension to resolve first:
+   `Badge`'s own header argues deliberately against a stadium shape in a 36px
+   row, and Untitled's badge is a stadium — so this is a design decision to make
+   once, not a mechanical swap. `StatusPill` itself now has zero consumers and
+   can go with whatever is decided.
+2. **`md-state-layer` has 34 usages across 23 files** — `Drawer`, `Sheet`,
+   `Inspector`, `NotificationCenter`, `RecordRow`, `FilterChip`,
+   `EntityIdentityPicker`, `SelectField`, `TagsField`, `AppearanceSelector` and
+   the rest. This is NOT "one forgotten control", which is the condition under
+   which a product-wide Material interaction system should simply be deleted; it
+   is a working, tested, single-implementation hover/focus/pressed model with
+   two dozen live consumers. Retiring it means migrating those consumers to
+   Untitled's own hover treatments, one component at a time, and it wants its own
+   pass. All eight hosts in `base.css`'s selector list are live.
+3. **`application/progress-steps` for the guided Review's step rail.** Still
+   `access: "pro"` and still not retrievable without an interactive login. What
+   IS now established: **public** component source is retrievable through the CLI
+   (proved by fetching `file-upload-base`), so this is specifically a Pro gate
+   rather than a general one.
+4. **`application/file-upload`'s drop zone for the attachment picker.** Public,
+   retrievable, and a genuine upstream answer to a surface DalyHub built itself
+   (`AttachmentPicker` + `AttachmentList` + `AttachmentRow`, ~370 lines). Not
+   taken here because attachments were out of scope and have their own
+   architectural guard.
+5. **`~/shared/ui/Card`.** Now that a settings group is a section rather than a
+   card, the question is whether the product still needs a generic bounded box at
+   all, or whether every remaining caller wants `TableCard` or a section.
+6. **Goals** — a Project inside a Goal record still carries no HEALTH. Carried
+   forward unchanged.
+7. **The Diary week strip's focus order**, and the inert legacy class names with
+   the `.dh-btn` hook and the `.dh-input` / `.dh-control` layout bridges.
+8. **A bounded `people.getByIds`**, carried forward from UNTITLED-13.
+9. **A Habit's expected check-ins before a full week has passed.** Read again,
+   not copied forward: the three guards UNTITLED-17 documented
+   (`evaluateHabitConsistency`'s clamp to the owner's today, `activeOn`'s refusal
+   of days before a Habit's first schedule version, and `weekly_count`'s refusal
+   to pro-rate an unelapsed week) are all still in place and still argued in
+   comments. **No reproduction was attempted this pass and no code was changed**;
+   the brief ranked it last and the standing instruction is that a fix needs a
+   reproduction before it needs code.
+10. **`assisted-ai.spec.ts`'s one contended journey.** Times out at 30s when the
+    AI specs run together and passes in isolation, because it drives
+    `/finance/transactions?uncategorised=1` — every uncategorised row in the
+    shared local database, so its cost is a function of what ran before it.
+    Fixture scope, not a regression. Not addressed this pass.

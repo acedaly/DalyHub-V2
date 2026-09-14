@@ -97,13 +97,22 @@
   margin-block-start: var(--app-space-5);
 }
 
+/*
+ * UNTITLED-18 — the group heading outranks its rows.
+ *
+ * MEASURED at 1440: "Tasks 32" rendered at 14px/500 above thirty-two rows whose
+ * titles are 14px/400 — a half-step of weight as the only thing separating a
+ * run of tasks from a run of meetings on a page whose whole job is to show five
+ * kinds at once. It takes the section rung, which is the rung every other
+ * grouped collection in the product gives the same job.
+ */
 .dh-views__group-heading {
   display: flex;
   align-items: center;
   gap: var(--app-space-2);
   margin: 0 0 var(--app-space-2);
-  font-size: var(--dh-text-compact-title-size);
-  font-weight: 500;
+  font-size: var(--dh-text-section-title-size);
+  font-weight: 600;
   color: var(--dh-color-text);
 }
 

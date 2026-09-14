@@ -16,7 +16,7 @@
  * shown only inside an explicitly-opened details disclosure.
  *
  * ── Colour is never the signal ───────────────────────────────────────────────
- * The health state is a `StatusPill`, which always says its state in text; the
+ * The health state is a `UntitledStatusBadge`, which always says its state in text; the
  * tone is a shortcut for a reader who has seen it before, never the carrier. The
  * same applies to every row in the history: "Successful" and "Failed" are words.
  *
@@ -43,7 +43,7 @@ import {
   type BackupRunView,
   type BackupStatusView,
 } from "~/kernel/backup";
-import { StatusPill } from "~/shared/pill";
+import { UntitledStatusBadge } from "~/shared/pill";
 import { SettingsGroup, SettingsLayout, SettingsRow } from "~/shared/settings";
 
 import type { BackupSettingsData } from "~/platform/backup";
@@ -141,9 +141,9 @@ function BackupHealthGroup({
             aria-live="polite"
             data-testid="backup-health"
           >
-            <StatusPill tone={BACKUP_HEALTH_TONES[status.health]}>
+            <UntitledStatusBadge tone={BACKUP_HEALTH_TONES[status.health]}>
               {BACKUP_HEALTH_LABELS[status.health]}
-            </StatusPill>
+            </UntitledStatusBadge>
           </span>
         }
       />
@@ -464,9 +464,9 @@ function BackupHistoryRow({
         <span className="dh-backup-history__when">
           {formatBackupInstant(run.startedAt, timeZone, now)}
         </span>
-        <StatusPill tone={tone}>
+        <UntitledStatusBadge tone={tone}>
           {BACKUP_RUN_STATUS_LABELS[run.status]}
-        </StatusPill>
+        </UntitledStatusBadge>
       </div>
 
       <dl className="dh-backup-history__facts">

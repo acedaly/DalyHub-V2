@@ -96,11 +96,20 @@
   min-inline-size: 0;
 }
 
+/*
+ * UNTITLED-18 — a contents GROUP outranks the topics it lists.
+ *
+ * MEASURED at 1440: it was 12.5px/500 above a list of 13px links, so the six
+ * group names were the smallest text in the column they were supposed to be
+ * organising and the contents read as one run of thirty links. The label rung at
+ * the emphasized weight is what the settings rail's own group headings use, and
+ * it is the same job.
+ */
 .dh-help__contents-heading {
   margin: 0;
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-meta-size);
-  font-weight: 500;
+  color: var(--dh-color-text);
+  font-size: var(--dh-text-label-size);
+  font-weight: 600;
 }
 
 .dh-help__contents-list {
@@ -150,11 +159,14 @@
   min-inline-size: 0;
 }
 
+/* The group a run of topics belongs to. One rung above a topic (see its note),
+ * so the page's three levels are three sizes. */
 .dh-help__section-heading {
   margin: 0;
   color: var(--dh-color-text);
-  font-size: var(--dh-text-section-title-size);
-  font-weight: 500;
+  font-size: var(--dh-text-page-title-size);
+  font-weight: 600;
+  line-height: 1.3;
 }
 
 /*
@@ -189,11 +201,25 @@
   box-shadow: inset 0 0 0 1px var(--dh-color-accent);
 }
 
+/*
+ * UNTITLED-18 — a topic heading now OUT-RANKS the sentence under it.
+ *
+ * MEASURED at 1440: the heading was `--dh-text-lead-size` at weight 500 and the
+ * lead paragraph directly beneath it was the SAME size at weight 400 — so a
+ * page of thirty topics read as thirty runs of undifferentiated body text, with
+ * nothing but a half-step of weight to say where one answer ended and the next
+ * began. The section heading above them was 18px, one point clear of both.
+ *
+ * A documentation page is scanned before it is read, and the heading is the
+ * whole of what makes scanning possible. It takes the section rung and the
+ * emphasized weight; the section heading above it steps up to the page rung, so
+ * the three levels are three sizes rather than two weights.
+ */
 .dh-help__topic-heading {
   margin: 0;
   color: var(--dh-color-text);
-  font-size: var(--dh-text-lead-size);
-  font-weight: 500;
+  font-size: var(--dh-text-section-title-size);
+  font-weight: 600;
   line-height: 1.35;
 }
 
@@ -204,6 +230,7 @@
   max-inline-size: var(--app-width-prose);
   color: var(--dh-color-text);
   font-size: var(--dh-text-lead-size);
+  font-weight: 500;
   line-height: 1.5;
 }
 
