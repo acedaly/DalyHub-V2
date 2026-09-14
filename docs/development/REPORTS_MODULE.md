@@ -42,7 +42,8 @@ stored, cached, snapshotted or pre-aggregated.
 | [`app/platform/reports/report-adapters.server.ts`](../../app/platform/reports/report-adapters.server.ts) | The five source adapters — the only place a Report touches a store. |
 | [`app/platform/reports/report-execution.server.ts`](../../app/platform/reports/report-execution.server.ts) | The trusted seam between a workspace scope and the executor. |
 | [`app/modules/reports/`](../../app/modules/reports/) | The `/reports` surface, its URL codec, its controls and its mutation route. |
-| [`app/shared/charts/CategoryBars.tsx`](../../app/shared/charts/CategoryBars.tsx) | The shared horizontal-bar primitive V2.13 added. |
+| [`app/shared/progress/CategorySplit.tsx`](../../app/shared/progress/CategorySplit.tsx) | The shared proportion LIST, over Untitled's own `ProgressBarBase`. UNTITLED-17 replaced V2.13's hand-drawn `CategoryBars` with it, and a grouped result now draws its share as a column of the Untitled table rather than as a second list beneath it. |
+| [`app/shared/charts/untitled/PeriodTotals.tsx`](../../app/shared/charts/untitled/PeriodTotals.tsx) | The shared bar plot for one value per labelled period, over `application/charts-base` and Recharts. A series result's chart. |
 
 ---
 

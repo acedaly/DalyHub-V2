@@ -56,12 +56,18 @@ test.describe("UIX-05 — Insight", () => {
       page.getByRole("heading", { level: 1, name: "Insight" }),
     ).toBeVisible();
 
-    // Either the figures OR the one empty state — never a blank region, and
-    // never a page of zeroes. Which of the two depends on the seeded workspace's
-    // completion history, so the assertion covers both honestly.
-    const metrics = page.getByRole("list", { name: "This period" });
+    /*
+     * Either the figures OR the one empty state — never a blank region, and
+     * never a page of zeroes. Which of the two depends on the seeded
+     * workspace's completion history, so the assertion covers both honestly.
+     *
+     * UNTITLED-17 — the figures are readings on the sections they belong to
+     * rather than five tiles in a `<ul aria-label="This period">`, so they are
+     * addressed by the id the kernel gives each metric.
+     */
+    const tasks = page.getByTestId("analytics-metric-tasks");
     const empty = page.getByText("Nothing completed in this period");
-    await expect(metrics.or(empty).first()).toBeVisible();
+    await expect(tasks.or(empty).first()).toBeVisible();
   });
 
   test("every window is a real, shareable URL", async ({ page }) => {
@@ -112,12 +118,18 @@ test.describe("UIX-05 — Insight", () => {
   /*
    * V2.9 INS-04 — the events themselves, in the same window as the figures.
    */
-  test("lists what changed in the window, or says there is nothing", async ({
+  test("lists what happened in the window, or says there is nothing", async ({
     page,
   }) => {
     await gotoFixture(page, "/analytics");
+    /*
+     * UNTITLED-17 renamed this section to "What happened". The page's second
+     * section is "What changed" now — the period's completion figures and their
+     * comparisons — and two sections sharing one name is a page a reader cannot
+     * navigate by heading.
+     */
     await expect(
-      page.getByRole("heading", { name: "What changed" }),
+      page.getByRole("heading", { name: "What happened" }),
     ).toBeVisible();
     // UNTITLED-13: the shared stream is a labelled `group` now, not a `feed`.
     const feed = page
@@ -141,14 +153,14 @@ test.describe("UIX-05 — Insight", () => {
 
   test("every figure links to the records behind it", async ({ page }) => {
     await gotoFixture(page, "/analytics");
-    const metrics = page.getByRole("list", { name: "This period" });
-    if ((await metrics.count()) === 0) {
+    const tasks = page.getByTestId("analytics-metric-tasks");
+    if ((await tasks.count()) === 0) {
       test.skip(true, "The seeded workspace completed nothing in this window.");
     }
     // At least the Tasks figure always resolves to a link when the read
     // succeeded; a figure whose read failed renders "Not available" instead,
     // which is the honest alternative and is asserted by the unit tests.
-    await expect(metrics.getByRole("link").first()).toHaveAttribute(
+    await expect(tasks.getByRole("link").first()).toHaveAttribute(
       "href",
       /\/(tasks|projects|goals|areas)/,
     );
@@ -170,7 +182,16 @@ test.describe("UIX-05 — Insight", () => {
     const card = page.getByTestId("analytics-metric-overdue");
     await expect(card).toBeVisible();
 
-    const figure = (await card.innerText()).trim().split(/\s/)[0];
+    /*
+     * The FIGURE, by its own id. UNTITLED-17 made the reading a label, a figure
+     * and a sentence, so the element's own first token is the word "Overdue";
+     * the number names itself instead of being parsed out of the label.
+     */
+    const figure = (
+      await page.getByTestId("analytics-metric-overdue-value").innerText()
+    )
+      .trim()
+      .split(/\s/)[0];
     // A degraded read renders "Not available" instead — honest, and asserted by
     // the unit tests rather than skipped over here.
     test.skip(
@@ -186,8 +207,8 @@ test.describe("UIX-05 — Insight", () => {
     await expect(chart).toHaveAttribute("data-meter-status", "warning");
 
     // The readout names the latest reading with nothing selected, and the
-    // latest reading IS the card's figure — by construction, so a disagreement
-    // is a real regression rather than a flake.
+    // latest reading IS the section's figure — by construction, so a
+    // disagreement is a real regression rather than a flake.
     const readout = chart.getByRole("status");
     await expect(readout).toContainText(
       new RegExp(`^${figure} overdue at the close of `),
@@ -204,12 +225,19 @@ test.describe("UIX-05 — Insight", () => {
      * pinning the implementation. What must hold is that the long form is IN the
      * caption and is not what a sighted reader sees.
      */
+    /*
+     * UNTITLED-17 — the VISIBLE caption states how the window was cut; the
+     * figure is stated at display size above the plot and by the readout, so
+     * repeating it here made three lines of one fact. The accessible summary
+     * still opens with it, which the hidden span below carries.
+     */
     const caption = chart.locator("figcaption");
-    await expect(caption).toContainText(`${figure} overdue now, read at the`);
+    await expect(caption).toContainText("Read at the close of each of");
     const hidden = caption.locator("span").first();
     await expect(hidden).toHaveCount(1);
-    // It carries the ENUMERATION — every bucket and its reading — which is what
-    // makes the chart usable without seeing it.
+    // It carries the FIGURE and the ENUMERATION — every bucket and its reading —
+    // which is what makes the chart usable without seeing it.
+    await expect(hidden).toContainText(`${figure} overdue now`);
     await expect(hidden).toContainText(/\d+ \w+ 20\d\d[^:]*: \d+;/);
     // And it is clipped to nothing, which is the actual claim. Measured rather
     // than asserted by class name: `not.toBeVisible()` does not hold for a

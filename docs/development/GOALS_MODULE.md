@@ -727,7 +727,7 @@ it — see [Migration](#migration-safety) below.
 | Repository contract | `app/kernel/goals/goal-measurement-repository.ts` |
 | D1 adapter | `app/platform/storage/d1/d1-goal-measurement-repository.ts` |
 | Shared vocabulary + components | `app/shared/goal-progress` |
-| Chart primitives | `app/shared/charts` (`TrendLine`, `ComparisonBars`) |
+| Chart primitives | `app/shared/charts` (`MeasurementTrend` over `application/charts-base`; `TrendLine` and `ComparisonBars` are deleted — UNTITLED-12 and UNTITLED-17) |
 | Record section | `app/modules/goals/GoalMeasurementPanel.tsx` |
 | Write endpoints | `POST /goals/:goalId/mutate` (`set_measurement`), `POST /goals/:goalId/measurements` |
 

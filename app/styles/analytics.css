@@ -1,10 +1,23 @@
 /*
- * UIX-05 — the Analytics surface.
+ * UIX-05 / UNTITLED-17 — the Insight surface.
  *
- * Tokens only (no raw hex, px, radius, shadow or duration), and no bespoke card:
- * the two panels are the shared `DashboardCard` and the trend is the shared
- * `TrendLine`, so this file draws exactly two things the shared system does not
- * already own — the metric ROW, and the horizontal proportion SPLIT.
+ * Almost nothing is left here, and that is the point of the pass.
+ *
+ * This file used to draw the metric ROW (a bounded box around five figures), the
+ * two-column PANEL GRID with its three span overrides and its breakpoint, the
+ * Area SPLIT (a track, a fill sized by an inline percentage, six identity-accent
+ * overrides and a forced-colours arm), the loading GHOST's card paint, and a
+ * phone rule reaching into `DashboardCard`'s header to wrap the grain control.
+ *
+ * Every one of those is now a component's: the page is a run of flat sections
+ * separated by hairline rules (Untitled's `dashboards-01/14` arrangement, drawn
+ * with Untitled utilities in `AnalyticsScreen.tsx`), the split is the shared
+ * `CategorySplit` over Untitled's `ProgressBarBase`, and the charts paint
+ * themselves. Each deletion is recorded in place below rather than silently.
+ *
+ * What remains is LAYOUT for three things Untitled has no opinion about: the
+ * body's own rhythm, the `name · shape · reading` rows the Goals section and the
+ * secondary completion lines share, and the notes.
  */
 
 /*
@@ -21,149 +34,30 @@
 }
 
 /* -------------------------------------------------------------------------- */
-/* The metric row                                                             */
+/* The metric row — DELETED (UNTITLED-17)                                     */
 /* -------------------------------------------------------------------------- */
 
 /*
- * Four figures, on the canvas rather than in four boxes.
- *
- * This is D11's reasoning applied to a second surface: Today's figures are a row
- * of quiet cards because a hero would spend the page's largest type on a
- * headline and leave the numbers at label size beside it. An Analytics row has
- * the same job and the same answer — the figures ARE the page's first sentence,
- * so they get the type and the surface gets out of the way.
- *
- * `auto-fit` with a real minimum, so a narrow window wraps to two-by-two rather
- * than crushing four columns; the `min(…, 100%)` guard is what keeps a 320px
- * phone at one column with no horizontal overflow.
+ * `.dh-analytics__metrics` and its six children drew a bounded box with its own
+ * surface, radius and shadow around five equal figures — the KPI row every
+ * analytics template ships with. `AnalyticsScreen.tsx` records the three
+ * specific reasons it was wrong for this page. The figures are now readings on
+ * the sections they belong to, drawn with Untitled type roles alone, so there
+ * is no box, no forced-colours arm and no phone override to keep.
  */
-.dh-analytics__metrics {
-  list-style: none;
-  margin: 0;
-  padding: var(--app-card-padding);
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr));
-  gap: var(--app-space-4);
-  background: var(--dh-color-surface);
-  border-radius: var(--app-shape-entity-card);
-  box-shadow: var(--app-elevation-resting);
-}
-
-.dh-analytics__metric {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-1);
-  min-inline-size: 0;
-}
-
-.dh-analytics__metric-label {
-  margin: 0;
-  font-size: var(--dh-text-body-size);
-  line-height: var(--dh-text-body-line-height);
-  color: var(--dh-color-text-muted);
-}
-
-/*
- * The figure. `display-small` emphasized is the product's ONE hero-metric style,
- * and this is the surface it exists for — an Analytics row is four numbers and
- * nothing else, so the numbers are allowed to be the loudest thing on it.
- */
-.dh-analytics__metric-value {
-  margin: 0;
-  font-size: var(--dh-text-display-size);
-  line-height: var(--dh-text-display-line-height);
-  font-weight: var(--dh-text-display-weight);
-  letter-spacing: var(--dh-text-display-tracking);
-  color: var(--dh-color-text);
-  font-variant-numeric: tabular-nums;
-}
-
-/*
- * The figure is a LINK to the records behind it, and it does not look like one
- * at rest — a row of four underlined blue numbers is a row with no hierarchy
- * left. It announces itself on hover and focus, which is where a pointer and a
- * keyboard both ask.
- */
-.dh-analytics .dh-analytics__metric-link,
-.dh-analytics .dh-analytics__metric-link:visited {
-  color: inherit;
-  text-decoration: none;
-  border-radius: var(--app-shape-control);
-}
-
-.dh-analytics .dh-analytics__metric-link:hover,
-.dh-analytics .dh-analytics__metric-link:focus-visible {
-  color: var(--dh-color-accent);
-  text-decoration: underline;
-}
-
-/* A figure whose read failed says so at the figure's own size, so the row keeps
- * its rhythm and the absence is impossible to mistake for a zero. */
-.dh-analytics__metric-absent {
-  font-size: var(--dh-text-section-title-size);
-  line-height: var(--dh-text-display-line-height);
-  font-weight: var(--dh-text-section-title-weight);
-  color: var(--dh-color-text-muted);
-}
-
-/*
- * The comparison sentence.
- *
- * `on-surface-variant`, deliberately NOT green for up and red for down. A week
- * with fewer completed Tasks is not a failure — it may be a week of one large
- * Project — and painting it red would make the product an opinion rather than a
- * record. The sentence states the direction in words; nothing here needs a hue.
- */
-.dh-analytics__metric-supporting {
-  margin: 0;
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-  color: var(--dh-color-text-muted);
-  text-wrap: pretty;
-}
 
 /* -------------------------------------------------------------------------- */
-/* The two panels                                                             */
+/* The panel GRID — DELETED (UNTITLED-17)                                     */
 /* -------------------------------------------------------------------------- */
 
 /*
- * The trend takes the wider track, because a line needs horizontal room to have
- * a shape at all and a list of named bars does not. Below `lg` they stack, the
- * trend first — it is the answer to "when", which is the question an owner
- * arrives with.
+ * `.dh-analytics__panels` was a two-column grid of `DashboardCard`s, with three
+ * `grid-column: 1 / -1` overrides for the panels that had outgrown it and a
+ * breakpoint collapsing the rest. Insight is a NARRATIVE now — a run of flat
+ * sections separated by hairline rules, in reading order, one column at every
+ * width — so there is no grid, no span override and no breakpoint. The sections
+ * carry their own rule and spacing as Untitled utilities.
  */
-.dh-analytics__panels {
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
-  gap: var(--app-space-4);
-  align-items: start;
-  min-inline-size: 0;
-}
-
-/*
- * CONVERGE-01 §8 — the overdue trend takes the whole width, on its own row.
- *
- * It is a LINE, and the note above already says why a line gets the wider track:
- * it needs horizontal room to have a shape at all. There is no third panel to
- * pair it with, and half a row beside an empty half is worse than a full one —
- * so it spans both tracks rather than leaving a hole where a fourth panel would
- * be if one existed.
- *
- * It sits LAST rather than beside the completion trend, and that is the reading
- * order rather than a ranking: "how much did I finish" and "where did it land"
- * are both about the period, and "how deep is the backlog, and which way is it
- * going" is the conclusion drawn under them. Nothing is moved by `order` — this
- * is the DOM order, so the tab order and the reading order agree with it.
- */
-.dh-analytics__overdue {
-  grid-column: 1 / -1;
-}
-
-@media (max-width: 64rem) {
-  .dh-analytics__panels {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
 
 /*
  * V2.9 INS-03 — the Projects and Goals lines, under the Tasks trend.
@@ -171,6 +65,15 @@
  * Label, shape, figure — the same three-column row the Goals panel uses, at
  * meta weight, because these are a footnote to the trend above rather than a
  * second chart competing with it.
+ */
+/*
+ * UNTITLED-17 — a BOUND on how wide these rows may stretch.
+ *
+ * They are `label · shape · figure`, so on a 1440px page an unbounded grid put
+ * the figure a quarter of a metre from the word it belongs to, with the 6rem
+ * sparkline stranded between them (found by looking at the page). The rows are
+ * a footnote to the plot above, not a table, so they take the measure a
+ * footnote takes and stop.
  */
 .dh-analytics__secondary {
   list-style: none;
@@ -180,6 +83,7 @@
   flex-direction: column;
   gap: var(--app-space-2);
   min-inline-size: 0;
+  max-inline-size: 34rem;
 }
 
 .dh-analytics__secondary-row {
@@ -197,21 +101,8 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* V2.9 INS-04 — the event list spans both tracks: it is a list of sentences. */
-.dh-analytics__changed {
-  grid-column: 1 / -1;
-}
-
-/*
- * V2.9 INS-03 — the measured-Goal panel also spans both tracks, for the reason
- * above rather than a different one: its rows are `name · shape · reading`, a
- * three-column line that wants width, and it follows a panel that already spans
- * the row, so half a track beside a hole is the only other option.
- */
-.dh-analytics__goals-panel {
-  grid-column: 1 / -1;
-}
-
+/* Bounded for the reason the secondary rows are: `name · shape · reading` with
+ * no ceiling put the reading a page away from the name it belongs to. */
 .dh-analytics__goals {
   list-style: none;
   margin: 0;
@@ -220,6 +111,7 @@
   flex-direction: column;
   gap: var(--app-space-2);
   min-inline-size: 0;
+  max-inline-size: 44rem;
 }
 
 /*
@@ -275,27 +167,12 @@
 }
 
 /*
- * The loading shape, laid out as what actually arrives (see `AnalyticsSkeleton`)
- * rather than as the shared collection's column of record cards.
+ * UNTITLED-17 — `.dh-analytics__panel-skeleton` and `.dh-analytics__absent` are
+ * deleted. The loading ghost is the shape of the sections that arrive, drawn
+ * with the shared `Skeleton` primitive and Untitled spacing; the sentence a
+ * section shows instead of a figure it cannot honestly draw is an Untitled text
+ * role stated once in `AnalyticsScreen.tsx` rather than a class here.
  */
-.dh-analytics__panel-skeleton {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-3);
-  padding: var(--app-card-padding);
-  background: var(--dh-color-surface);
-  border-radius: var(--app-shape-entity-card);
-  box-shadow: var(--app-elevation-resting);
-}
-
-/* The sentence a panel shows instead of a chart it cannot honestly draw. */
-.dh-analytics__absent {
-  margin: 0;
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-body-size);
-  line-height: var(--dh-text-body-line-height);
-  text-wrap: pretty;
-}
 
 /* -------------------------------------------------------------------------- */
 /* The Area split — DELETED (UNTITLED-17)                                     */
@@ -358,23 +235,6 @@
   .dh-analytics__body {
     gap: var(--app-space-4);
   }
-
-  .dh-analytics__metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--app-space-4);
-    padding: var(--app-card-padding-compact);
-  }
-
-  .dh-analytics__metric-value {
-    font-size: var(--dh-text-record-title-size);
-    line-height: var(--dh-text-record-title-line-height);
-  }
-}
-
-@media (forced-colors: active) {
-  .dh-analytics__metrics {
-    border: var(--app-border-width-thin) solid CanvasText;
-  }
 }
 
 /*
@@ -412,23 +272,16 @@
 }
 
 /*
- * V2.9 INS-03, narrow widths — the grain control sits beside the trend card's
- * title, and at 320px the two could not share the line: the title broke one
- * syllable per row ("Com / pleti / on / tren / d", found by the visual review).
- * Below 30rem the header wraps and the control takes the row beneath the title.
+ * UNTITLED-17 — the grain control's phone rule is deleted.
+ *
+ * It sat beside the trend CARD's title, and at 320px the two could not share the
+ * line: the title broke one syllable per row ("Com / pleti / on / tren / d",
+ * found by the visual review). The section heading and the control are now a
+ * flex row that is `md:flex-row` and column below it, so the control takes its
+ * own line on a phone by construction rather than by a `flex-wrap` override
+ * reaching into another component's header.
+ *
+ * `.dh-analytics__goals-note` is deleted with it: a half of the Goals section
+ * that could not be read says so as an ordinary sentence in the section's own
+ * flow.
  */
-@media (max-width: 30rem) {
-  .dh-analytics__trend .dh-dcard__header {
-    flex-wrap: wrap;
-  }
-
-  .dh-analytics__trend .dh-dcard__header-action {
-    flex-basis: 100%;
-  }
-}
-
-/* A half of the Goals panel that could not be read says so beneath the rest. */
-.dh-analytics__goals-note {
-  margin-block-start: var(--app-space-3);
-  font-size: var(--dh-text-meta-size);
-}

@@ -375,7 +375,7 @@ describe("Analytics screen (UIX-05)", () => {
    * stays true; hiding the one panel that shows what actually happened, on the
    * surface whose job is to show it, would not.
    */
-  it("keeps What changed beneath the empty state", () => {
+  it("keeps What happened beneath the empty state", () => {
     renderScreen(
       pageData({
         current: { tasksCompleted: 0, projectsCompleted: 0, goalsCompleted: 0 },
@@ -396,7 +396,7 @@ describe("Analytics screen (UIX-05)", () => {
       screen.getByText("Nothing completed in this period"),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "What changed" }),
+      screen.getByRole("heading", { name: "What happened" }),
     ).toBeInTheDocument();
   });
 
@@ -478,15 +478,25 @@ describe("Analytics screen (UIX-05)", () => {
   /*
    * CONVERGE-01 §I — the enumeration of every reading belongs to assistive tech,
    * not to the page's body text. The visible caption is one headline line.
+   *
+   * UNTITLED-17 — and that line no longer repeats the FIGURE. The reading above
+   * the plot states "Overdue / 16 / 19 more than the previous period (2)" at
+   * display size, and the plot's own readout says "16 overdue at the close of
+   * …", so a caption opening "16 overdue now" made three lines of one fact
+   * (found by looking at the page, not by a test). The ACCESSIBLE summary still
+   * opens with the figure, because it is the chart's whole text form and has no
+   * figure beside it to lean on — which is what the second assertion checks.
    */
   it("hides the overdue enumeration behind the visible caption", () => {
     renderScreen(pageData());
     const chart = screen.getByTestId("analytics-overdue-trend");
     const caption = chart.querySelector("figcaption");
     expect(caption?.firstChild?.textContent).toBe(
-      "16 overdue now, read at the close of each of 7 periods.",
+      "Read at the close of each of 7 periods.",
     );
-    expect(captionEnumeration(chart)).toContain("10");
+    const spoken = captionEnumeration(chart);
+    expect(spoken).toContain("16 overdue now");
+    expect(spoken).toContain("10");
   });
 
   it("says a failed overdue read rather than drawing a clear backlog", () => {
@@ -533,8 +543,15 @@ describe("the What changed panel", () => {
       );
       // The panel names its period, so the list and the charts above it can
       // never be read as different windows.
+      /*
+       * UNTITLED-17 renamed this section to "What happened". The page's second
+       * section is now "What changed" — the period's completion figures and
+       * their comparisons — and two sections sharing one name is a page a
+       * reader cannot navigate by heading. "What happened" is also the more
+       * precise name for a feed: it lists occurrences, not deltas.
+       */
       expect(
-        screen.getByRole("heading", { name: "What changed" }),
+        screen.getByRole("heading", { name: "What happened" }),
       ).toBeInTheDocument();
       await waitFor(() => expect(requested.length).toBeGreaterThan(0));
       // …and it asks for exactly that window, in the SAME vocabulary the
@@ -665,7 +682,7 @@ describe("the Goals panel", () => {
     );
     expect(screen.queryByRole("list", { name: "Goals" })).toBeNull();
     expect(
-      screen.getByText(/This panel could not be read just now/),
+      screen.getByText(/This section could not be read just now/),
     ).toBeInTheDocument();
   });
 
