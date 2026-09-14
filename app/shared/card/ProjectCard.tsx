@@ -242,7 +242,20 @@ export function ProjectCard({
          * at row scale a uniform height is what a list gives, and equal-height
          * columns are a two-column idea.
          */
-        "max-md:grid max-md:h-auto max-md:grid-cols-[auto_minmax(0,1fr)] max-md:content-start max-md:gap-x-3 max-md:gap-y-1 max-md:p-4",
+        /*
+         * MOBILE-02 §6 — and the phone inset is the ROW's, not the card's.
+         *
+         * This kept `p-4` from the desktop composition, which is a card-scale
+         * inset on a control the paragraph above calls a compact row. The
+         * product's own phone row — `.dh-taskrow` below 34rem — takes
+         * `padding-block: var(--dh-space-3)`, 12px, and that is the rung a row
+         * belongs on. MEASURED at 393x852: 126px per card at `p-4`, of which 32
+         * were the block inset; 118px at `py-3`, which is what lets the fifth
+         * record finish above the fold rather than two pixels below it. The
+         * inline inset stays at 16px — it is the page gutter the mark aligns
+         * to, not the row's rhythm.
+         */
+        "max-md:grid max-md:h-auto max-md:grid-cols-[auto_minmax(0,1fr)] max-md:content-start max-md:gap-x-3 max-md:gap-y-1 max-md:px-4 max-md:py-3",
         muted ? "dh-pcard--muted opacity-70" : null,
         className,
       ]
