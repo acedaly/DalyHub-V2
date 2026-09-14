@@ -314,6 +314,18 @@ test.describe("PEOPLE-01 — the People foundation", () => {
 
   test("record header actions meet the 44px touch target", async ({ page }) => {
     await createPerson(page, `${TITLE_PREFIX}${Date.now()}`);
+    /*
+     * At a PHONE width, which is where the floor this test names applies.
+     *
+     * It used to assert at the default desktop viewport, where the record tab
+     * is deliberately Untitled's 32px: `RecordTabs` states the 44px floor as
+     * `max-md:min-h-[var(--app-touch-target-min)]` and says in place that "the
+     * desktop height is untouched" — a fine pointer is not a thumb, and WCAG
+     * 2.2 AA asks 24px there, not 44. So this was asserting a contract the
+     * product deliberately does not make, and asserting nothing about the one
+     * it does. Now it tests the case it is named after.
+     */
+    await page.setViewportSize({ width: 390, height: 844 });
     await expectMinTouchTarget(page.getByRole("tab", { name: "Summary" }));
   });
 

@@ -158,6 +158,7 @@ export function AppShell({
   unreadNotifications = 0,
   children,
 }: AppShellProps) {
+  const [hydrated, setHydrated] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notificationsOpener, setNotificationsOpener] =
@@ -173,6 +174,9 @@ export function AppShell({
   // `--app-keyboard-inset`, which every keyboard-aware surface styles against —
   // there is never a per-form resize listener (MOBILE-01 §B3).
   useKeyboardInset();
+
+  // Published on the pane below, once — see the note there.
+  useEffect(() => setHydrated(true), []);
   // The element focus returns to when each surface closes — whatever opened it.
   const searchOpenerRef = useRef<HTMLElement | null>(null);
   const commandOpenerRef = useRef<HTMLElement | null>(null);
@@ -475,7 +479,32 @@ export function AppShell({
                       notificationsOpen={notificationsOpen}
                     />
 
-                    <main id="main-content" className="dh-pane" tabIndex={-1}>
+                    <main
+                      id="main-content"
+                      className="dh-pane"
+                      tabIndex={-1}
+                      /*
+                       * The ONE hydration marker every route has.
+                       *
+                       * A record's tab strip, a collection's rows and a create
+                       * Drawer's button are all server-rendered and look
+                       * interactive well before React attaches, so a click that
+                       * lands in that window is received by markup with no
+                       * handler and is simply lost. `openRecordTab` and
+                       * `waitForInteractive` in the E2E helpers both exist to
+                       * describe that window, and until now only Today and the
+                       * `/design/*` fixtures published a marker to wait on — so
+                       * on every other route the suite had to settle the NETWORK
+                       * and hope, which on a contended CI runner it regularly
+                       * lost (clicks that navigated nowhere on `/assets`,
+                       * `/projects`, `/notes` and `/areas`).
+                       *
+                       * It is one boolean on the element the pane already has,
+                       * it changes nothing a person sees, and it says the only
+                       * thing a test actually needs to know: React is attached.
+                       */
+                      data-app-hydrated={hydrated ? "true" : "false"}
+                    >
                       {/* PWA-03 — the calm connection/sync surface. It renders
                   NOTHING while DalyHub is online, up to date and has nothing
                   queued: the absence of a warning is the healthy state. */}

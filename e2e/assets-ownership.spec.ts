@@ -29,6 +29,7 @@ import {
   expectNoHorizontalOverflow,
   gotoFixture,
   openCollectionControls,
+  waitForInteractive,
 } from "./helpers";
 
 const owned = new Set<string>();
@@ -193,7 +194,15 @@ test("record a service, a repair and a meter reading, and see the history", asyn
   const title = uniqueAssetTitle("ownership-history");
   const url = await createAsset(page, title);
 
+  /*
+   * These two journeys are the only ones here that land on a record without a
+   * `?tab=` and then CLICK a tab, and they are the only two that need the
+   * hydration wait: a React Aria `Tab` renders its role and name on the
+   * server, so a click before hydration is accepted and does nothing. See the
+   * same note in `assets.spec.ts`.
+   */
   await page.goto(url);
+  await waitForInteractive(page);
   await page.getByRole("tab", { name: "History" }).click();
 
   // A brand-new asset teaches the first entry rather than showing an empty list.
@@ -277,6 +286,7 @@ test("a date obligation reaches Today, and completing it schedules exactly one s
   // 1. Put the registration on a yearly schedule, due inside the lead window so
   //    it is genuinely something Today should mention.
   await page.goto(url);
+  await waitForInteractive(page);
   await page.getByRole("tab", { name: "Obligations" }).click();
   await expect(page.getByText("Nothing scheduled yet")).toBeVisible();
   await page.getByRole("button", { name: "Add obligation" }).click();
@@ -333,7 +343,15 @@ test("a date obligation reaches Today, and completing it schedules exactly one s
   // 6. EXACTLY ONE successor, a year on, and exactly one completed occurrence.
   const laterList = page.getByRole("list", { name: "Later obligations" });
   await expect(
-    laterList.locator(".dh-obligation-row__name", {
+    /*
+     * UNTITLED-16 — the row's open link, by its product hook.
+     *
+     * This addressed `.dh-obligation-row__name`, a presentation class that went
+     * when the row was rebuilt on Untitled. The link is the thing the test
+     * actually means, and `obligation-row-open` is what the row has always
+     * called it.
+     */
+    laterList.getByTestId("obligation-row-open").filter({
       hasText: "Renew registration",
     }),
   ).toHaveCount(1);
@@ -451,10 +469,16 @@ test("completing the linked Task does not assert the work happened", async ({
   await drawer(page).getByRole("button", { name: "Add obligation" }).click();
 
   // 1. Create the actionable Task from the obligation.
-  await page
-    .getByRole("button", { name: /^Create task for Book the annual service/ })
-    .click();
+  //
+  // UNTITLED-16 — through the row's overflow, because that is where every
+  // secondary obligation action lives now.
   const dueList = page.getByRole("list", { name: "This week obligations" });
+  await dueList
+    .getByRole("button", { name: /^More actions for Book the annual service/ })
+    .click();
+  await page
+    .getByRole("menuitem", { name: /^Create task for Book the annual service/ })
+    .click();
   await expect(dueList.getByText(/Tracked as a task/)).toBeVisible();
   const taskLink = dueList.getByRole("link", { name: "Open task" });
   await expect(taskLink).toBeVisible();
@@ -472,11 +496,17 @@ test("completing the linked Task does not assert the work happened", async ({
    *    product still states it.
    */
   await expect(dueList.getByRole("link", { name: "Open task" })).toHaveCount(1);
+  // And the obligation stops OFFERING a second one: the menu opens and the item
+  // is simply not in it.
+  await dueList
+    .getByRole("button", { name: /^More actions for Book the annual service/ })
+    .click();
   await expect(
-    dueList.getByRole("button", {
+    page.getByRole("menuitem", {
       name: /^Create task for Book the annual service/,
     }),
   ).toHaveCount(0);
+  await page.keyboard.press("Escape");
 
   // 3. Complete the Task.
   await page.goto(`${url}?tab=obligations`);
@@ -673,9 +703,8 @@ test("the whole workflow is keyboard-operable with visible focus", async ({
   await expect(
     page
       .getByRole("list", { name: "This week obligations" })
-      .locator(".dh-obligation-row__name", {
-        hasText: "Keyboard obligation",
-      }),
+      .getByTestId("obligation-row-open")
+      .filter({ hasText: "Keyboard obligation" }),
   ).toHaveCount(1);
 });
 
@@ -716,12 +745,19 @@ test.describe("on a real phone", () => {
       .fill(isoInDays(4));
     await drawer(page).getByRole("button", { name: "Add obligation" }).click();
 
-    // The compact action row must still be reachable with a thumb.
+    /*
+     * The compact action row must still be reachable with a thumb.
+     *
+     * UNTITLED-16 — the row's controls are now ONE primary button and the
+     * shared overflow, so those are the two things a thumb has to hit. "Hold"
+     * is inside the menu, and a menu item's own floor is the shared menu's to
+     * keep; what this surface owes is that the trigger can be opened at all.
+     */
     await expectMinTouchTarget(
       page.getByRole("button", { name: /^Complete Touch target/ }),
     );
     await expectMinTouchTarget(
-      page.getByRole("button", { name: /^Hold Touch target/ }),
+      page.getByRole("button", { name: /^More actions for Touch target/ }),
     );
   });
 });

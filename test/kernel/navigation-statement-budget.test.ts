@@ -110,7 +110,7 @@ interface RouteUnderTest {
  *   /projects          9 → 3                    15 → 15
  *   /goals             9 → 5                    23 → 22
  *   /obligations       4 → 3                     4 → 4
- *   /finance           5 → 3                     9 → 9
+ *   /finance           5 → 3                     9 → 9   (10 since UNTITLED-16)
  *   /analytics         6 → 4                    14 → 14
  *
  * The ceilings are the measured value, with no headroom on statements (the
@@ -159,11 +159,31 @@ const ROUTES: readonly RouteUnderTest[] = [
     large: { statements: 4, depth: 3, bytes: 30_000 },
   },
   {
+    /*
+     * UNTITLED-16 — TEN statements, where the ceiling was nine.
+     *
+     * The tenth is the Finance home's twelve-month flow chart: ONE grouped
+     * `summariseRange` over a fourteen-month window, and the exact same read
+     * `monthSummary` is itself defined in terms of, so the September bar and the
+     * September figure above it cannot disagree.
+     *
+     * It costs no DEPTH, which is the property this instrument is actually
+     * about: it depends on the owner's month and on nothing else, so it is
+     * issued in the SAME concurrent wave as the other five reads rather than
+     * behind any of them. And it is flat — one statement whatever the window and
+     * whatever the workspace holds, which
+     * `finance-statement-budget.test.ts` pins separately at one month and at
+     * twelve.
+     *
+     * The ceiling is raised here, in the change that raised the cost, with the
+     * new measurement quoted — which is what the note at the head of this file
+     * asks a route that legitimately grows to do.
+     */
     name: "/finance",
     loader: measurable(financeLoader),
     url: "https://perf.test/finance",
-    small: { statements: 9, depth: 3, bytes: 4_000 },
-    large: { statements: 9, depth: 3, bytes: 12_000 },
+    small: { statements: 10, depth: 3, bytes: 4_000 },
+    large: { statements: 10, depth: 3, bytes: 12_000 },
   },
   {
     name: "/analytics",

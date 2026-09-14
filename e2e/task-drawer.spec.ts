@@ -367,6 +367,30 @@ test.describe("TODAY-02 — desktop", () => {
     await expect(page.getByRole("dialog")).toBeVisible();
     await expectNoHorizontalOverflow(page);
   });
+});
+
+/*
+ * The 44px floor is a TOUCH promise, so it is measured on a touch device.
+ *
+ * `tokens.css` restores `--app-touch-target-min` under `(pointer: coarse)` and
+ * deliberately does not on a fine one, where WCAG 2.2 AA asks 24px and the
+ * shared control draws 36. This test lived in the desktop block and measured 36
+ * against 44 — failing on a contract the product does not make while asserting
+ * nothing about the one it does.
+ *
+ * A WIDTH alone does not fix it, and that is the trap worth recording: a 390px
+ * window still reports `pointer: fine`, so `setViewportSize` moves nothing here
+ * (it is enough for `RecordTabs`, whose floor is a `max-md:` width query, which
+ * is why the same correction in `people.spec.ts` needed only the width). This
+ * block emulates a real phone — touch and mobile — which is the only thing that
+ * makes the query true.
+ */
+test.describe("TODAY-02 — the completion control, on a real phone", () => {
+  test.use({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  });
 
   test("meets the 44px touch target on the completion control", async ({
     page,

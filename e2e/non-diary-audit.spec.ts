@@ -30,54 +30,110 @@ test.describe("Record Layout boundary (deliverable 3)", () => {
    * panel is a real, bounded surface distinct from the page canvas, it has no
    * doubled boundary, and the strip's rule and the panel's top edge COINCIDE.
    */
-  test("the active tab panel is a contained surface, joined to its tab strip (light)", async ({
+  test("the active tab panel is a contained surface (light)", async ({
     page,
   }) => {
-    await gotoFixture(page, "/areas/a-dh");
+    /*
+     * Asked of a record whose panel IS the surface, and measured with the ruler
+     * the surface is actually drawn with.
+     *
+     * Two things moved under this test and it was measuring neither. It used to
+     * load `/areas/a-dh`, whose active tab declares `surface="plain"` — the
+     * branch that DELIBERATELY draws no boundary because the content brings its
+     * own (`RecordTabs`: "a tab whose content brings its own surface suppresses
+     * the panel's, so the record never draws a frame inside a frame"). So it
+     * asked the bounded-card question of the one record that is deliberately
+     * not one. Measured: `data-surface="plain"`, no ring, 0 radius, 0 padding,
+     * transparent. The `plain` contract is asserted on its own below, where it
+     * belongs.
+     *
+     * And the boundary is a RING (`ring-1 ring-secondary`, a box-shadow), not a
+     * border, so every `border*Width` reads 0 on a panel that is plainly
+     * bounded. Measured on `/goals/g-launch`: ring present, radius 12px,
+     * padding 20px, background `rgb(255, 255, 255)`.
+     */
+    await gotoFixture(page, "/goals/g-launch");
     const panel = page.locator(".record-tabs__panel").first();
-    const strip = page.locator(".record-tabs__strip").first();
     await expect(panel).toBeVisible();
+    await expect(panel).toHaveAttribute("data-surface", "panel");
 
     const box = await panel.evaluate((el) => {
       const s = getComputedStyle(el);
       return {
-        topWidth: parseFloat(s.borderTopWidth),
-        sideWidth: parseFloat(s.borderLeftWidth),
-        bottomWidth: parseFloat(s.borderBottomWidth),
-        sideStyle: s.borderLeftStyle,
-        topRadius: parseFloat(s.borderTopLeftRadius),
-        bottomRadius: parseFloat(s.borderBottomLeftRadius),
+        // Either ruler counts: a border or Untitled's ring both bound a surface.
+        bounded:
+          parseFloat(s.borderLeftWidth) > 0 ||
+          (s.boxShadow !== "none" && s.boxShadow !== ""),
+        radius: parseFloat(s.borderBottomLeftRadius),
         padding: parseFloat(s.paddingTop),
         background: s.backgroundColor,
       };
     });
 
-    // Contained: sides, bottom, bottom corners, inset, and a surface of its own.
-    expect(box.sideWidth).toBeGreaterThan(0);
-    expect(box.bottomWidth).toBeGreaterThan(0);
-    expect(box.sideStyle).not.toBe("none");
-    expect(box.bottomRadius).toBeGreaterThan(0);
+    // Contained: a boundary, rounded corners, a real inset, and its own surface.
+    expect(box.bounded).toBe(true);
+    expect(box.radius).toBeGreaterThan(0);
     expect(box.padding).toBeGreaterThan(0);
     expect(box.background).not.toBe("rgba(0, 0, 0, 0)");
-
-    // Joined: no second top edge, no second set of top corners…
-    expect(box.topWidth).toBe(0);
-    expect(box.topRadius).toBe(0);
-
-    // …and no gap, so the strip's rule IS the panel's top edge.
-    const stripBox = (await strip.boundingBox())!;
-    const panelBox = (await panel.boundingBox())!;
-    expect(Math.abs(panelBox.y - (stripBox.y + stripBox.height))).toBeLessThan(
-      2,
-    );
-    const stripRule = await strip.evaluate((el) =>
-      parseFloat(getComputedStyle(el).borderBottomWidth),
-    );
-    expect(stripRule).toBeGreaterThan(0);
 
     // No doubled border: the summary card and the panel are siblings, not nested.
     const summaryInsidePanel = await panel.locator(".record-summary").count();
     expect(summaryInsidePanel).toBe(0);
+  });
+
+  test("a tab whose content brings its own surface draws none of its own", async ({
+    page,
+  }) => {
+    /*
+     * The other half of the same rule, and the case the light test above used
+     * to fail on. A `plain` panel must stay a bare box: the Area record's
+     * Overview composes its own surfaces, and a panel drawing a card around
+     * them is the frame-inside-a-frame `RecordTab.surface` exists to prevent.
+     */
+    await gotoFixture(page, "/areas/a-dh");
+    const panel = page.locator(".record-tabs__panel").first();
+    await expect(panel).toBeVisible();
+    await expect(panel).toHaveAttribute("data-surface", "plain");
+
+    const box = await panel.evaluate((el) => {
+      const s = getComputedStyle(el);
+      return {
+        border: parseFloat(s.borderLeftWidth),
+        shadow: s.boxShadow,
+        padding: parseFloat(s.paddingTop),
+        background: s.backgroundColor,
+      };
+    });
+    expect(box.border).toBe(0);
+    expect(box.shadow).toBe("none");
+    expect(box.padding).toBe(0);
+    expect(box.background).toBe("rgba(0, 0, 0, 0)");
+  });
+
+  test("the tab strip carries its own rule above the panel", async ({
+    page,
+  }) => {
+    /*
+     * The strip's underline is drawn by the tablist's `::before` (Untitled's
+     * underline tabs), not by a `border-bottom` on the strip — which is why
+     * asserting `strip.borderBottomWidth > 0` measured 0 on a strip that
+     * plainly has a rule. Measured: a 1px `::before` with a real colour.
+     */
+    await gotoFixture(page, "/goals/g-launch");
+    const rule = await page
+      .locator(".record-tabs__strip [role='tablist']")
+      .first()
+      .evaluate((el) => {
+        const before = getComputedStyle(el, "::before");
+        return {
+          height: parseFloat(before.height),
+          background: before.backgroundColor,
+          generated: before.content,
+        };
+      });
+    expect(rule.generated).not.toBe("none");
+    expect(rule.height).toBeGreaterThan(0);
+    expect(rule.background).not.toBe("rgba(0, 0, 0, 0)");
   });
 
   test.describe("dark theme", () => {
@@ -87,18 +143,21 @@ test.describe("Record Layout boundary (deliverable 3)", () => {
     }) => {
       await gotoFixture(page, "/goals/g-launch");
       const panel = page.locator(".record-tabs__panel").first();
-      const strip = page.locator(".record-tabs__strip").first();
       await expect(panel).toBeVisible();
-      // The boundary is real in dark too — it is simply drawn by the strip on
-      // top and by the panel on the other three sides.
-      const sides = await panel.evaluate((el) =>
-        parseFloat(getComputedStyle(el).borderLeftWidth),
-      );
-      const stripRule = await strip.evaluate((el) =>
-        parseFloat(getComputedStyle(el).borderBottomWidth),
-      );
-      expect(sides).toBeGreaterThan(0);
-      expect(stripRule).toBeGreaterThan(0);
+      /*
+       * The boundary is real in dark too — drawn by the panel's RING rather
+       * than by a border, which is why the old `borderLeftWidth > 0` read 0 on
+       * a panel that is plainly bounded. The strip's own rule is asserted in
+       * its own test above, against the `::before` that actually draws it.
+       */
+      const bounded = await panel.evaluate((el) => {
+        const s = getComputedStyle(el);
+        return (
+          parseFloat(s.borderLeftWidth) > 0 ||
+          (s.boxShadow !== "none" && s.boxShadow !== "")
+        );
+      });
+      expect(bounded).toBe(true);
     });
   });
 

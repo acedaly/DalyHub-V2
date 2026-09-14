@@ -14,11 +14,14 @@
  *      TASKS-09 measured and the hook's own comment predicts for "a second
  *      actionable collection".
  *
- *   2. The record's action buttons are DISABLED while that obligation has a
- *      mutation in flight. The shared row has passed `busy` since LIFE-02; the
- *      record read `actions.pendingId` and never used it, so "Create task"
+ *   2. Every one of the record's write paths is GUARDED while that obligation
+ *      has a mutation in flight. The shared row has passed `busy` since LIFE-02;
+ *      the record read `actions.pendingId` and never used it, so "Create task"
  *      stayed live and two clicks could create two Tasks racing to claim one
- *      `task_id`.
+ *      `task_id`. UNTITLED-16 moved three of the four into the shared overflow,
+ *      where the guard is the item's `pending` flag rather than a button's
+ *      `disabled` — the same contract through a different mechanism, and this
+ *      test counts both.
  *
  *   3. The record offers meter editing on the SUBJECT'S capability, not on
  *      whether a meter target is already set. The Asset tab passes the unit
@@ -71,22 +74,45 @@ describe("the Obligation record guards a mutation in flight", () => {
     expect(source).toMatch(/actions\.pendingId\s*===\s*obligation\.id/);
   });
 
-  it("disables every write button while it is set", () => {
+  it("guards every write path while it is set", () => {
     /*
-     * Counted rather than named, so a fifth button added later without a guard
-     * fails here. Four today: create task, hold, dismiss, and reopen.
+     * Counted rather than named, so a fifth write path added later without a
+     * guard fails here. Four today: create task, hold, dismiss, and reopen.
+     *
+     * UNTITLED-16 — there are now TWO shapes of guard, because the record no
+     * longer draws five equal-weight buttons. Completing is the primary control
+     * and editing is the one other thing a record is for; Create task, Hold and
+     * Dismiss moved into the shared `OverflowMenu`, where the guard is the
+     * item's own `pending` flag — which shows a busy state and BLOCKS
+     * activation, so the contract this test exists for is unchanged. Reopen is
+     * still a button and still carries `disabled={busy}`.
+     *
+     * The assertion counts both, so a write path that loses either shape of
+     * guard still fails.
      */
-    const guards = source.match(/disabled=\{busy\}/g) ?? [];
-    expect(guards).toHaveLength(4);
+    const buttonGuards = source.match(/disabled=\{busy\}/g) ?? [];
+    const menuGuards =
+      source.match(/\.\.\.\(busy \? \{ pending: true \} : \{\}\)/g) ?? [];
+    expect(buttonGuards.length + menuGuards.length).toBe(4);
   });
 
   it("leaves createTask behind that guard specifically", () => {
     // The one where a double click costs a real, orphaned Task.
     const createTask = source.slice(
-      Math.max(0, source.indexOf("actions.createTask") - 400),
       source.indexOf("actions.createTask"),
+      source.indexOf("actions.createTask") + 400,
     );
-    expect(createTask).toContain("disabled={busy}");
+    expect(createTask).toMatch(/busy \? \{ pending: true \}/);
+  });
+
+  it("keeps the destructive action out of the primary control row", () => {
+    /*
+     * UNTITLED-16 — "Dismiss" is what makes a commitment stop asking, and it sat
+     * in a row of five equal buttons one place from "Record it as done". It is a
+     * menu item in the destructive tone now, behind a separator.
+     */
+    expect(source).toMatch(/id: "dismiss"[\s\S]{0,200}tone: "danger"/);
+    expect(source).toMatch(/id: "dismiss"[\s\S]{0,200}separatorBefore: true/);
   });
 });
 

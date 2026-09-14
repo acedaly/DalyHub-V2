@@ -122,7 +122,36 @@ const MANIFEST = join(ROOT, "e2e", "partitions.json");
  * feature PR whose own coverage is four tests. Raised as its own entry in
  * `PRODUCT_DEBT.md` with these numbers, so the next pass takes it deliberately.
  */
-export const PARTITION_COUNT = 13;
+/*
+ * ── EIGHTEEN since the run-34768998924 re-measurement ───────────────────────
+ *
+ * Thirteen was derived against a manifest that said 208.3 min of test time.
+ * Every partition's real durations, read back from all thirteen
+ * `e2e-results-p*` artifacts of that run, total **295.7 min** — so each
+ * partition was carrying ~22.7 min against a 16.7 min ceiling, running ~25 min
+ * of wall clock, and being killed by `globalTimeout` with tests it had never
+ * reached. Twelve of the thirteen partitions overran; two starved 27 and 31
+ * tests apiece.
+ *
+ * `PARTITION_OVERHEAD_FACTOR` was NOT the problem and is unchanged: measured
+ * per partition on that run it is 1.09 … 1.18, mean 1.11, which is what this
+ * file already claims. The estimates were simply stale.
+ *
+ * 295.7 min ÷ 16.7 min needs 17.7 partitions, so eighteen. That figure is
+ * deliberately PESSIMISTIC for the suite this change ships: much of the
+ * measured time is timeout waste from locators that matched nothing (a single
+ * dead `.dh-topbar` scope cost `search.spec.ts` 391 s against 80 s recorded,
+ * ×4.9), and the same change fixes those. The next run measures them at their
+ * real cost and `generate --from` can bring the count back down — over-
+ * provisioning strands runner capacity, whereas under-provisioning loses
+ * coverage silently, which is the failure this whole mechanism exists to end.
+ *
+ * Eighteen shards queue rather than all starting at once (see the note above).
+ * That is latency for the gate, not correctness for a partition: a job that has
+ * not started spends none of its `globalTimeout`, and the workflow allows each
+ * 40 min.
+ */
+export const PARTITION_COUNT = 18;
 
 /**
  * The estimate a spec file gets when nothing has measured it yet.

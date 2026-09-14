@@ -59,6 +59,23 @@
   margin: 0;
 }
 
+/*
+ * The acknowledgement label WRAPS rather than forcing the step wider.
+ *
+ * Untitled's button recipe is `whitespace-nowrap`, which is right for the
+ * verbs a button usually carries. This one carries a sentence — "Continue
+ * without writing a reflection" is the honest name for the choice it makes,
+ * and shortening it to fit would make the owner guess what they are agreeing
+ * to. At 320px that sentence is wider than the panel, so the button takes two
+ * lines instead of taking the page with it.
+ *
+ * Only this button: the nav's Back/Continue pair stays on one line.
+ */
+.dh-review-guide__acknowledge > .dh-btn {
+  white-space: normal;
+  text-align: center;
+}
+
 .dh-review-guide__status {
   display: inline-flex;
   align-items: center;
@@ -174,6 +191,22 @@
 
 .dh-review-guide__panel {
   display: grid;
+  /*
+   * The panel's ONE column is capped, not intrinsic.
+   *
+   * A grid with no declared template gets an implicit `auto` column, whose
+   * minimum is the widest item's min-content — so a single unwrappable control
+   * makes the whole step wider than the panel's own box, and every sibling
+   * stretches to that width along with it. On a 320px phone the acknowledgement
+   * button ("Continue without writing a reflection") asked for 316px inside a
+   * 288px box, which the sticky nav's full-bleed negative margins then turned
+   * into 348px of DOCUMENT: the page scrolled sideways.
+   *
+   * `minmax(0, 1fr)` is the same containment `.dh-review-guide__body` already
+   * declares. An item that cannot fit now handles its own overflow rather than
+   * exporting it to the page.
+   */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--app-space-4);
   min-width: 0;
   padding: var(--app-space-5);

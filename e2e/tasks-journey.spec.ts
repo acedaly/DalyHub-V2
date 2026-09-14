@@ -8,6 +8,7 @@ import {
   gotoFixture,
   ownerToday,
   pickCalendarDate,
+  setCheckbox,
 } from "./helpers";
 
 /**
@@ -142,7 +143,7 @@ async function selectTask(page: Page, title: string): Promise<void> {
   if ((await box.count()) === 0) {
     await enterTaskSelection(page);
   }
-  await box.check();
+  await setCheckbox(box);
 }
 
 /** Run a bulk-bar action and wait until the mutation commits (the bar clears). */

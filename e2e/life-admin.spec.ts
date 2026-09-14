@@ -49,11 +49,21 @@ test.afterAll(() => {
  */
 const OBLIGATION_RECORD_URL = /\/obligations\/[0-9a-fA-F-]{20,}(?:[?#]|$)/;
 
-/** Open the ONE global search surface, the way an owner does. */
+/**
+ * Open the ONE global search surface, the way an owner does.
+ *
+ * Scoped to the desktop bar so this never accidentally resolves the phone
+ * opener, which is a different control with the same name. The scope is the
+ * bar's test id, NOT `.dh-topbar`: that class went with the `dh-topbar__*`
+ * family (see `DesktopTopBar.tsx`), so the old selector had been matching
+ * nothing and these journeys were failing on a 30s timeout rather than
+ * running. Eight other specs still carry the same dead scope — named in
+ * `UNTITLED_UI_MIGRATION.md`, out of this pass's scope to re-point.
+ */
 async function openSearch(page: Page) {
   await page.waitForLoadState("networkidle");
   await page
-    .locator(".dh-topbar")
+    .locator('[data-testid="desktop-top-bar"]')
     .getByRole("button", { name: /^Search DalyHub/ })
     .first()
     .click();
@@ -178,8 +188,27 @@ test.describe("Life Admin, with no Asset anywhere in it", () => {
       .first();
     await expect(heading).toBeVisible();
 
-    const label = (await heading.textContent()) ?? "";
-    const stated = Number(/\((\d+)\)/.exec(label)?.[1] ?? "0");
+    /*
+     * UNTITLED-16 — the count is the band card's BADGE now, beside the heading
+     * rather than inside it.
+     *
+     * The contract this test exists for is unchanged and is what is asserted
+     * below: the number is of the whole band across the collection, not of the
+     * loaded page. What changed is where it is said. It used to be a
+     * parenthesised digit INSIDE the `h2`, so the heading's accessible name was
+     * "This week (3)" — a bare number welded onto a date range, which a
+     * screen-reader user has to decode. Outside the heading it has to name what
+     * it counts, which is asserted here too, and is the same fix the Meetings
+     * day card made.
+     */
+    await expect(heading).not.toHaveText(/\(\d+\)/);
+    const badge = page
+      .locator('[data-untitled-source="application/table:table-card"]')
+      .filter({ has: heading })
+      .getByText(/^\d+ obligations?$/)
+      .first();
+    const label = (await badge.textContent()) ?? "";
+    const stated = Number(/^(\d+)/.exec(label.trim())?.[1] ?? "0");
     const counted = d1Query<{ n: number }>(
       `SELECT COUNT(*) AS n FROM obligation_details
         WHERE workspace_id = 'local-dev-workspace'
@@ -226,12 +255,23 @@ test.describe("Today, for an obligation about nothing", () => {
      */
     await gotoFixture(page, "/obligations");
     await waitForInteractive(page);
-    await page
-      .getByRole("button", { name: `Create task for ${title}` })
-      .click();
     const row = page
       .locator('[data-testid="obligation-row"]')
       .filter({ hasText: title });
+    /*
+     * UNTITLED-16 — "Create task" is a MENU item now.
+     *
+     * The row used to carry five permanent buttons; it carries one (Complete)
+     * plus the shared overflow. This is the journey a person now takes, which is
+     * why the test takes it too rather than reaching for a control that is no
+     * longer on the row.
+     */
+    await row
+      .getByRole("button", { name: `More actions for ${title}` })
+      .click();
+    await page
+      .getByRole("menuitem", { name: `Create task for ${title}` })
+      .click();
     await expect(row.getByRole("link", { name: "Open task" })).toBeVisible();
 
     await gotoFixture(page, "/today");

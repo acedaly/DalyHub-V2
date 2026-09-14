@@ -29,6 +29,29 @@ function tooltip(page: Page): Locator {
 }
 
 /**
+ * The tooltip's PAINTED container.
+ *
+ * `[role="tooltip"]` is the positioned wrapper. DalyHub's shared tooltip paints
+ * that node itself; Untitled's paints an inner container inside it
+ * (`bg-primary-solid`), so reading the wrapper's own background there returns
+ * `rgba(0, 0, 0, 0)` — transparent — and says nothing about whether the
+ * tooltip is painted. This resolves whichever node actually carries the paint,
+ * which is the tooltip a person sees either way.
+ */
+async function tooltipBackground(page: Page): Promise<string> {
+  return tooltip(page).evaluate((node: HTMLElement) => {
+    const transparent = new Set(["rgba(0, 0, 0, 0)", "transparent", ""]);
+    for (const element of [node, ...node.querySelectorAll("*")]) {
+      const background = getComputedStyle(
+        element as HTMLElement,
+      ).backgroundColor;
+      if (!transparent.has(background)) return background;
+    }
+    return getComputedStyle(node).backgroundColor;
+  });
+}
+
+/**
  * Hover a control and wait for ITS tooltip — the one `aria-describedby` points
  * at — to settle.
  *
@@ -42,6 +65,28 @@ function tooltip(page: Page): Locator {
 async function hover(control: Locator): Promise<void> {
   await control.hover();
   await control.hover();
+
+  /*
+   * Then APPROACH it, in steps, from outside its own box.
+   *
+   * `hover()` teleports the pointer to the element's centre in a single move,
+   * and React Aria's tooltip does not open for a pointer that arrives that way
+   * — measured directly: the trigger takes `data-hovered="true"` and never
+   * takes `aria-describedby`, and no `[role="tooltip"]` is rendered, however
+   * long the pointer then waits. A pointer that TRAVELS in opens it within the
+   * 300ms delay. So the product is right for the only pointer a person has,
+   * and the teleport was the unfaithful part of this helper.
+   *
+   * The assertions below are unchanged. Only the gesture is.
+   */
+  const box = await control.boundingBox();
+  if (box) {
+    const page = control.page();
+    const midY = box.y + box.height / 2;
+    await page.mouse.move(Math.max(0, box.x - 40), midY);
+    await page.mouse.move(box.x + box.width / 2, midY, { steps: 10 });
+  }
+
   await expect(control).toHaveAttribute("aria-describedby", /.+/);
   await expect(tooltip(control.page())).toHaveCount(1);
 }
@@ -172,7 +217,7 @@ test.describe("the shared tooltip", () => {
     await page.setViewportSize({ width: 1024, height: 768 });
     await gotoFixture(page, "/today");
     const capture = page
-      .locator(".dh-topbar")
+      .locator('[data-testid="desktop-top-bar"]')
       .getByRole("link", { name: "Help", exact: true });
     await hover(capture);
 
@@ -194,9 +239,7 @@ test.describe("the shared tooltip", () => {
       await gotoFixture(page, "/today");
       const palette = paletteUtility(page);
       await hover(palette);
-      const background = await tooltip(page).evaluate(
-        (node: HTMLElement) => getComputedStyle(node).backgroundColor,
-      );
+      const background = await tooltipBackground(page);
       // Painted, not transparent — the M3 plain-tooltip pair resolves in both.
       expect(background).not.toBe("rgba(0, 0, 0, 0)");
       painted.push(background);
@@ -218,7 +261,13 @@ test.describe("the shared tooltip", () => {
     await page.setViewportSize({ width: 700, height: 1000 });
     await gotoFixture(page, "/today");
 
-    const search = page.locator(".dh-mobilebar__action").last();
+    // By its NAME inside the phone bar, not by `.dh-mobilebar__action`: that
+    // class went with the retired mobile bar, so the locator resolved to
+    // nothing and this test spent its whole timeout waiting. The control's name
+    // is the contract (AGENTS.md §23), which is what the note above says too.
+    const search = page
+      .getByTestId("mobile-top-bar")
+      .getByRole("button", { name: "Search" });
     await focusByKeyboard(page, search);
     await expect(tooltip(page)).toHaveText(/Search/);
     await expectNoHorizontalOverflow(page);

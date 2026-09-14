@@ -91,6 +91,44 @@ export default defineConfig({
       "@codemirror/view",
       "@lezer/common",
       "@lezer/markdown",
+      /*
+       * UNTITLED-04 / PR #286 — the migration's own runtime, for exactly the
+       * reason stated above, and MEASURED rather than assumed.
+       *
+       * The Playwright trace for `account-security.spec.ts:243` on run
+       * 34792235989 carries two console errors and nothing else of note:
+       *
+       *   504 (Outdated Optimize Dep) .vite/deps/tailwind-merge.js?v=19a0b42f
+       *   504 (Outdated Optimize Dep) .vite/deps/recharts.js?v=7b7833b2
+       *
+       * A chunk that 504s is a chunk the client never gets, so React never
+       * attaches — and a page that never hydrates fails in whatever way its
+       * test happens to press on. That is why five tests failed on all three of
+       * runs 1021, 1022 and 1025 while passing locally every time: a plain
+       * `<button onClick>` does nothing (`account-security:243`, the account
+       * menu never opens), a `<Link>` does not navigate (`assets:66`, "the URL
+       * did not change"), a tab never selects (`activity-actor:83`), and a
+       * React Router `<Form>` falls back to a NATIVE GET submit — which is
+       * precisely the shape of `ai-assistance:243`'s received URL,
+       * `/new/meeting?`, trailing question mark and all.
+       *
+       * These are the deps the Untitled layer and the chart foundation pull in
+       * that the optimiser's first crawl does not reach, because they arrive
+       * through lazily-loaded route modules. Declaring them means the first
+       * crawl is complete and there is no second one to invalidate what has
+       * already been served. Every entry is imported by application code; the
+       * `@react-types/*` packages are deliberately absent, being types only.
+       */
+      "recharts",
+      "tailwind-merge",
+      "react-aria",
+      "react-aria-components",
+      "@react-stately/utils",
+      "@untitledui/icons",
+      "@untitledui/file-icons",
+      "@internationalized/date",
+      "react-hotkeys-hook",
+      "ical.js",
     ],
   },
 });

@@ -6,6 +6,7 @@ import {
   expectNoHorizontalOverflow,
   gotoFixture,
   openCollectionControls,
+  waitForInteractive,
 } from "./helpers";
 import { addTag } from "./tag-helpers";
 import {
@@ -282,7 +283,20 @@ test.describe("NOTES-02/03/06 — knowledge, organisation and export", () => {
      * only once something is set. It is simply made against the shared surface.
      */
     await gotoFixture(page, "/notes");
-    const search = page.getByTestId("notes-search").getByLabel("Search Notes");
+    /*
+     * The FIELD, by its role.
+     *
+     * `getByLabel("Search Notes")` matches two controls inside this band, and
+     * that is correct of the product rather than a defect in it:
+     * `CollectionSearchField` renders the phone toggle that OPENS the field and
+     * the field itself, and both are honestly named "Search Notes". CSS hides
+     * whichever does not apply at the current width, so only one is ever in the
+     * accessibility tree — but both are in the DOM, so the by-label locator was
+     * ambiguous and failed strict mode rather than finding anything wrong.
+     */
+    const search = page
+      .getByTestId("notes-search")
+      .getByRole("searchbox", { name: "Search Notes" });
     await expect(search).toBeVisible();
     await search.fill(title);
     // The field is DEBOUNCED and writes `?q=` itself; wait for that write to
@@ -489,6 +503,19 @@ test.describe("NOTES-02/03/06 — knowledge, organisation and export", () => {
         page.getByRole("heading", { name: "Referenced by" }),
       ).toBeVisible();
       await expectNoHorizontalOverflow(page);
+      /*
+       * Scan the HYDRATED page.
+       *
+       * This arrives by a bare `page.goto`, and a heading is visible from the
+       * server render — so without this the scan ran before React Aria had
+       * assigned the record tab strip's roving `tabindex`. Measured at scan
+       * time: all six tabs `tabindex="-1"`, which makes the horizontally
+       * scrolling `tablist` a scroll container with nothing tabbable in it, and
+       * `scrollable-region-focusable` is right to say so for that instant. One
+       * frame later the selected tab carries `tabindex="0"` and the page is
+       * clean. The user's page is the hydrated one, so that is the one to scan.
+       */
+      await waitForInteractive(page);
       await expectNoAxeViolations(page);
 
       /*

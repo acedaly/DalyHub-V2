@@ -123,7 +123,10 @@ export function MobileTopBar({
           <BrandMark />
         </span>
       ) : null}
-      <p className="min-w-0 flex-1 truncate px-1 text-md font-semibold text-primary">
+      <p
+        data-testid="mobile-top-bar-title"
+        className="min-w-0 flex-1 truncate px-1 text-md font-semibold text-primary"
+      >
         {title ?? fallbackLabel}
       </p>
 

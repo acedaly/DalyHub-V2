@@ -28,6 +28,7 @@ import {
   obligationStateTone,
   type SerializedObligation,
 } from "~/shared/obligations";
+import { UntitledStatusBadge } from "~/shared/pill";
 import { buttonClassName, TagChipList } from "~/shared/ui";
 
 import { AssetDatesTab } from "./AssetDatesTab";
@@ -254,11 +255,15 @@ export function AssetOverview({
           <p
             className={`dh-asset-next__line dh-asset-next__line--${next.state}`}
           >
-            <span
-              className={`dh-obligation-badge dh-obligation-badge--${obligationStateTone(next.state)}`}
-            >
+            {/*
+              UNTITLED-16 — the genuine Untitled badge, shared with the row.
+              This was the LAST consumer of the hand-drawn
+              `dh-obligation-badge` stadium and its five-tone container map, so
+              the map went with it.
+            */}
+            <UntitledStatusBadge tone={obligationStateTone(next.state)}>
               {next.stateLabel}
-            </span>{" "}
+            </UntitledStatusBadge>{" "}
             <span className="dh-asset-next__title">{next.title}</span>{" "}
             <span className="dh-asset-next__text">{next.stateText}</span>
           </p>

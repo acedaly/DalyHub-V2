@@ -161,17 +161,29 @@ test.describe("SETTINGS-01A — application settings", () => {
   }) => {
     await gotoFixture(page, "/settings");
     await choose(page, "Default Diary mode", "Timeline");
+    /*
+     * `aria-current="page"`, and a `navigation` named "Diary views".
+     *
+     * `DiaryModeTabs` is a `ViewTabs` rail: a `<nav aria-label="Diary views">`
+     * of anchors, each marking itself with `aria-current="page"` — the token
+     * for "this link points at the page you are on", which is what a routed
+     * rail's entries are. `"true"` is the generic fallback and the rail has
+     * never emitted it; `role="group"` and the singular "Diary view" are both
+     * from a shape that predates the rail. Three wrong details in one locator,
+     * each of which made this assertion wait out its timeout rather than check
+     * the preference it is named for.
+     */
     await gotoFixture(page, "/diary");
     await expect(page.getByRole("link", { name: "Timeline" })).toHaveAttribute(
       "aria-current",
-      "true",
+      "page",
     );
     await gotoFixture(page, "/diary?mode=day");
     await expect(
       page
-        .getByRole("group", { name: "Diary view" })
+        .getByRole("navigation", { name: "Diary views" })
         .getByRole("link", { name: "Day", exact: true }),
-    ).toHaveAttribute("aria-current", "true");
+    ).toHaveAttribute("aria-current", "page");
   });
 
   test("merges independent preference writes made from two devices at once", async ({

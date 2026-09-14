@@ -60,6 +60,24 @@ export interface ChartFrameProps {
   /** The reserved block size of the plot area, in pixels. */
   readonly height?: number;
   /**
+   * UNTITLED-16 — the least INLINE size the plot is readable at, in pixels.
+   *
+   * Omitted, a plot fills its container and shrinks with it, which is right for
+   * a line: fewer pixels per point still draws a line. It is wrong for a chart
+   * made of MARKS with a minimum width. Measured at 390px: twelve months × two
+   * bars in a 342px box gave each bar under two pixels and the plot rendered
+   * with an axis, month labels and no visible bars at all — a chart that says
+   * nothing, under a caption claiming it says something.
+   *
+   * Given one, the plot keeps that width and its own bounded horizontal
+   * scroller. That is the one exception §55 allows to the no-sideways-scroll
+   * rule ("diagrams, each inside its own `overflow-x: auto` container"), and it
+   * is bounded: the document never scrolls, only the plot. The caption, the key
+   * and the readout stay outside it at the page's own width, so the chart's TEXT
+   * form is never behind a scroll.
+   */
+  readonly minPlotWidth?: number;
+  /**
    * The live readout beneath the plot, for a chart whose points can be stepped
    * through. Keeps its line when nothing is selected, so pointing at the chart
    * does not shift the page under the cursor.
@@ -94,6 +112,7 @@ export function ChartFrame({
   caption,
   children,
   height = CHART_HEIGHT,
+  minPlotWidth,
   readout,
   legend,
   className,
@@ -125,10 +144,23 @@ export function ChartFrame({
        * measured width.
        */}
       <div
-        className="dh-chart__plot w-full min-w-0"
+        className={
+          minPlotWidth === undefined
+            ? "dh-chart__plot w-full min-w-0"
+            : "dh-chart__plot w-full min-w-0 overflow-x-auto"
+        }
         style={{ blockSize: `${height}px` }}
       >
-        {mounted ? children({ reducedMotion, summaryId }) : null}
+        <div
+          className="h-full"
+          style={
+            minPlotWidth === undefined
+              ? undefined
+              : { minInlineSize: `${minPlotWidth}px` }
+          }
+        >
+          {mounted ? children({ reducedMotion, summaryId }) : null}
+        </div>
       </div>
 
       {legend === undefined ? null : (

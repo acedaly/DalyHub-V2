@@ -214,6 +214,41 @@ describe("V2.12 — the Finance reads are flat", () => {
     expect(summary.categories.length).toBeGreaterThan(0);
   });
 
+  it("reads the twelve-month flow series in one statement", async () => {
+    /*
+     * UNTITLED-16 — the Finance home's chart.
+     *
+     * It is `summariseRange` grouped by month, which is the read `monthSummary`
+     * is itself defined in terms of — so the September bar and the September
+     * figure directly above it are the same arithmetic and cannot disagree. The
+     * property measured here is that asking for TWELVE months costs exactly what
+     * asking for one does: a chart whose cost grew with its window would be a
+     * chart nobody could afford to widen.
+     */
+    await seed(2, 5);
+    const oneMonth = countingDb(env.DB);
+    await repository(oneMonth.db).summariseRange({
+      fromIso: "2026-09-01",
+      toIso: "2026-09-30",
+      groupBy: "month",
+    });
+    expect(oneMonth.prepareCount()).toBe(1);
+
+    const twelveMonths = countingDb(env.DB);
+    const rows = await repository(twelveMonths.db).summariseRange({
+      fromIso: "2025-10-01",
+      toIso: "2026-09-30",
+      groupBy: "month",
+    });
+    expect(twelveMonths.prepareCount()).toBe(1);
+    // And it actually returned the month, keyed as `YYYY-MM`: a count with no
+    // rows behind it would satisfy the budget and break the chart.
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((row) => /^\d{4}-\d{2}$/.test(row.groupKey ?? ""))).toBe(
+      true,
+    );
+  });
+
   it("counts the whole category vocabulary in one statement", async () => {
     await seed(1, 30);
     const counting = countingDb(env.DB);

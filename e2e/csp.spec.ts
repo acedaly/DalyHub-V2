@@ -35,7 +35,12 @@
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { enterTaskSelection, taskRows, waitForInteractive } from "./helpers";
+import {
+  enterTaskSelection,
+  setCheckbox,
+  taskRows,
+  waitForInteractive,
+} from "./helpers";
 
 const PROD_BASE = "http://localhost:4174";
 
@@ -375,10 +380,7 @@ test.describe("AUDIT-10 — normal application use raises no CSP violation", () 
 
     // Selection mode and the bulk action bar.
     await enterTaskSelection(page);
-    await page
-      .getByRole("checkbox", { name: /^Select / })
-      .first()
-      .check();
+    await setCheckbox(page.getByRole("checkbox", { name: /^Select / }).first());
     await expect(
       page.getByRole("group", { name: "Bulk task actions" }),
     ).toBeVisible();

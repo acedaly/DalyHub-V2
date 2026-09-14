@@ -541,8 +541,23 @@ export function TaskRow({
               </span>
             ) : null}
             {checklist !== null ? (
+              /*
+               * `max-md:hidden` — the measured decision, which the table row
+               * had lost.
+               *
+               * `task-checklist.css` records why the list presentation stops
+               * drawing the figure below `md`, with the numbers: at 393px a row
+               * with "1 of 2" is 100px against 81px for the same row without a
+               * checklist, because there the row is two stacked lines and a
+               * five-character value takes width off the title rather than
+               * sitting in spare space. Nineteen pixels a row, on the surface
+               * where density matters most. The Untitled table row is the same
+               * row on the same phone and the rule is the same; it simply did
+               * not carry it, because the rule was written as CSS on a class
+               * this presentation does not use.
+               */
               <span
-                className="shrink-0 text-xs text-tertiary"
+                className="shrink-0 text-xs text-tertiary max-md:hidden"
                 data-testid="task-row-checklist"
               >
                 {checklist}

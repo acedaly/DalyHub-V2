@@ -361,6 +361,65 @@ Every fact in both readings must be STORED. Meetings counts real
 nothing rather than printing zeros, and neither reading invents a workflow state
 to have something to show.
 
+## Money on a surface untitled 16
+
+Every figure DalyHub draws is money the owner recorded. The rules below are what
+keep a column of them readable and a page of them honest.
+
+- **A figure is TABULAR, and a column of figures is right-aligned.** Digits line
+  up under each other and the eye reads magnitude from length. This is the one
+  piece of typographic machinery money insists on, and it applies to the heading
+  as well as the cells beneath it.
+- **Direction and sign are never the only carrier.** Money out is the figure AND
+  the word "out"; a liability's negative balance is `$1,240.00 owing`, not a minus
+  sign; a budget says `$75.00 over`. `financeAmountLabel` and `balanceLabel`
+  (`~/shared/finance`) exist so no surface decides this for itself.
+- **A money COLUMN is not tinted.** Not green for income and not red for spending.
+  A purchase is not a failure, and a product that paints one as an error is asking
+  the owner to feel something about their groceries.
+- **An axis may round; a stated figure may not.** `moneyTick` drops the minor
+  units and goes compact above five digits, in the currency's own minor-unit
+  count. `money` never does either. A tooltip, a caption and a summary state the
+  figure.
+- **Nothing is converted between currencies, ever.** A total that has excluded a
+  currency says so (`exclusionNote`); a chart plots ONE currency and names the
+  rest. A bar made of two currencies added together is a number that does not
+  exist.
+- **A page carries at most two display-size figures.** Everything else is a table
+  or a sentence. That is what stops a money surface becoming a row of vanity
+  cards, and it is the rule the Finance home is composed by.
+
+## The due-state row untitled 16
+
+A row for something with a date and a state — an obligation, a renewal, a
+commitment — is drawn one way.
+
+- **The state's WORD leads, in a badge**, on the shared tone vocabulary
+  (`UntitledStatusBadge`). The tint reinforces the word; it never replaces it.
+- **The DATE stays in the quiet meta line.** Not a pill, not a colour. A
+  collection where every row carries a bright date has no emphasis left for the
+  one row that has been missed — so only overdue and due-soon take a strong tone,
+  and "upcoming" stays calm.
+- **ONE visible control**, for the thing the row exists for. Everything else is
+  the shared `OverflowMenu`, with anything destructive behind a separator in the
+  `danger` tone. A twenty-row collection with five buttons a row is a hundred
+  controls, four fifths of them for something the owner is not doing.
+- **The row decides its own action set from its STATE**, not from the surface it
+  is on. A completed occurrence offers no "Complete"; one with a live Task says
+  "Open task" rather than "Create task". A surface passes the handlers it can
+  honour and passes none for a read-only rendering.
+
+## A table inside a record untitled 16
+
+`TableCard.Root` draws a bounded card, which is right on a page and wrong inside
+a record: a record tab and a `<details>` disclosure both already draw a boundary,
+and a ring inside a ring is a frame inside a frame.
+
+So a table on a PAGE keeps the card's ring and shadow; a table inside a record
+tab or a disclosure keeps the card's overflow clipping and its divided body and
+drops its own edge. The table's header band is then the only inner boundary,
+which reads as a table header rather than as a second frame.
+
 ## Stay in touch signal people 03
 
 People surfaces use care language and relationship history. Follow-up signals

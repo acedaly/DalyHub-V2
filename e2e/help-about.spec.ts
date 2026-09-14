@@ -374,9 +374,11 @@ test.describe("DEBT-60 — the phone top bar names the page", () => {
   ] as const) {
     test(`${path} reads "${title}" on the phone top bar`, async ({ page }) => {
       await gotoFixture(page, path);
-      const bar = page.locator(".dh-mobilebar");
+      // The bar and its title by TEST ID: the `dh-mobilebar*` class family went
+      // with the retired phone bar, so both locators matched nothing.
+      const bar = page.getByTestId("mobile-top-bar");
       await expect(bar).toBeVisible();
-      await expect(bar.locator(".dh-mobilebar__title")).toHaveText(title);
+      await expect(bar.getByTestId("mobile-top-bar-title")).toHaveText(title);
       // And the page still says it too — publishing a title replaced nothing.
       await expect(
         page.getByRole("heading", { level: 1, name: title }),

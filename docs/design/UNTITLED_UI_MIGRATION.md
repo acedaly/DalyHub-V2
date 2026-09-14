@@ -1135,3 +1135,290 @@ and a first version of the script reported floor breaches that do not exist.
    pass's; the measurement is in `meetings-people-shot.mjs` whenever they are.
 5. Settings, Goals' Project health, the Diary week strip's focus order, and the
    inert legacy class names — all carried forward from UNTITLED-12 unchanged.
+
+## UNTITLED-16 — Finance, Assets and Life Admin
+
+The per-surface inventory (Untitled source, how it is used, what stays custom
+and why) is in
+[`UNTITLED_UI_IMPLEMENTATION.md`](UNTITLED_UI_IMPLEMENTATION.md#untitled-16-completion-record--finance-assets-and-life-admin).
+This records what MOVED and what is left behind.
+
+### What moved
+
+| Surface | Untitled source | Before → after | Kept deliberately |
+| --- | --- | --- | --- |
+| Finance home | `application/table`, `application/section-headers`, `application/charts-base` | Four hand-written `<ul>`s of `dh-finance-*` rows, every band at the same weight, with net worth — the page's single largest fact — in a generic `Card` below an unordered list | FIN-02's reading ORDER, unchanged, because it was right. What was wrong was the weight, not the sequence |
+| Money in / money out | `application/charts-base` over Recharts | The band answered "what happened in September" and could not answer "is that normal?" | Both figures still exclude uncategorised money and say so — and the chart now does too, which is the defect below |
+| Spending by category | `application/table` | A `<ul>` whose figures were a `text-align: end` span — a column of money whose digits did not line up | The budget in WORDS. Untitled's own finance dashboards all draw a bar |
+| Accounts | `application/table` | A `<ul>` of bordered boxes, and a second `<ul>` for the closed ones that printed the balance differently | `balanceLabel`'s qualifier as a word beside the figure |
+| Transaction row | `application/table` + `overrides/table-head` | An `<li class="dh-transaction-row">` with a three-part flex body and five rules deciding its height, hover, columns and phone arrangement | The phone is still the design target: the row RECOMPOSES rather than scrolling sideways, and the category control is a real button at the touch floor |
+| Month control | `base/buttons/button-utility` via `iconButtonClassName` | Bare `<a>` elements holding `←` and `→`, whose box was the glyph — 20×20 against a 44px floor | They are still LINKS, so a middle-click opens September in a new tab |
+| Obligation row | `base/badges`, `base/buttons`, the shared `OverflowMenu` | Up to FIVE permanent `dh-btn dh-btn--ghost dh-btn--sm` class strings per row — a hundred controls down a twenty-row collection, two of them one mis-tap from silencing a commitment | ONE visible control, and the row still decides its own action set from its STATE |
+| Obligation band | `application/table`'s `TableCard.Root` / `.Header` | An `h3` in a bespoke uppercase letter-spaced rule with the count welded inside its own text, above a bare `<ul>` of free-floating boxes | The count is of the WHOLE band across the collection, not of the page |
+| Obligation record fold | `base/buttons`, `OverflowMenu`, `UntitledStatusBadge` | Five equal-weight buttons, so "Record it as done" sat beside "Dismiss" | The completion form still opens INLINE rather than in a dialog over the record |
+| Asset dates | `application/table` | An `<ol>` of `<span>`s in three aligned columns, with the status ALSO painted as a coloured left border by a rule per state | Only overdue and due-soon take a strong tone (§28) |
+| Asset value history | `MeasurementTrend` on the shared chart foundation | A `<span>` per row whose `width` was `value / max` as a percentage — no axis, no scale, no zero, so $42,000 beside $40,000 drew 100% and 95% | The `hasTrend` gate: two points are two points, not a trend |
+| Asset history | Untitled's divided-list anatomy, `base/badges`, `OverflowMenu` | A bordered, radiused box per entry with a per-category painted arm and two permanent buttons | The date leads in a fixed column: a history is read by when |
+
+### Stylesheets cut
+
+- `finance.css` — 653 → 446 lines. The whole home block (the page, its header,
+  its totals, its category lines and its account rows), the entire transaction
+  row, the month control, and the transactions header, lens and count. Five
+  identical error selectors became one; two identical quiet-note selectors became
+  one. What survives is the import table, the budget and category rows, the
+  picker, the drawer and the settle control.
+- `obligations.css` — 313 → 126 lines. The band, the list, the row, the five-tone
+  badge, the collection's filter bar and the record's fold and Overview. What
+  survives is the subject picker, the disclosures, the create page, and ONE rule:
+  an empty action column draws no gap.
+- `assets.css` — 789 → 642 lines. The history list and its eight rules, the dates
+  list and its five painted state arms, and the whole value-history block
+  including the CSS bar.
+
+### Defects surfaced, and what they were
+
+Each was real, each is fixed here, and the first three were found by driving the
+actual browser rather than by a test:
+
+- **The chart and the month band disagreed about uncategorised money.** The band
+  excludes it and reports it separately; `rangeDirectionAmount` classifies it by
+  its sign, which is right for a Report. So the first draft drew a September bar
+  of $4,590.39 under a figure reading $3,497.69, with a caption claiming a
+  surplus the two figures above it contradicted. The series is categorised money
+  only now, and the surface states the count it left out — the same exclusion, in
+  the same place, as the band.
+- **The Finance pages had NO side gutter.** They render neither
+  `CollectionLayout` nor `RecordLayout`, so nothing above them supplied the
+  shell's padding: measured at 390px, a zero-pixel left gutter against §55's floor
+  of 16, with the page title, the month label and a display-size figure all hard
+  against the navigation rail. It is a pre-existing defect this pass inherited and
+  fixes.
+- **The flow chart drew no bars at all at 390px.** Twelve months × two bars in a
+  342px box is under two pixels each — an axis, month labels and nothing between
+  them, under a caption saying it said something. `ChartFrame` gained
+  `minPlotWidth`, which gives a plot with MARKS its own bounded horizontal
+  scroller; the caption, the key and the readout stay outside it, so the chart's
+  text form is never behind a scroll.
+- **The table's row separator stopped halfway across on a phone.** Untitled draws
+  it as an `::after` on every cell, which is right for a table: in the phone grid
+  the date and account cells are hidden, so their rules drew nothing and the ones
+  that remained drew a line INSIDE each row. It is a border on the row below `md`.
+- **Assets claimed a rule it did not have.** `AssetsCollection`'s own header has
+  said "search stays visible, because a search box behind a button is a search box
+  nobody uses" since UIX-05, and `persistentControls` does not lift the shared
+  rule that hides the filter band on a phone — so at 393px the search field AND
+  the tag field both vanished, and a bookmarked `?tag=` URL narrowed the gallery
+  with no control showing it. UNTITLED-13 measured the same defect on People and
+  left `keepFiltersOnCompact` as the way to say it. Life Admin had it too.
+- **The value history's bar was a chart pretending to be an indicator.** §40 asks
+  for each remaining bar to be classified; this one has dated numeric points, a
+  trend gate and a proportional mark with no axis, which classifies it as a chart.
+- **The obligation band's heading announced a parenthesised digit.** "Overdue
+  (24)" was its accessible name, because the count was inside the `h2`. The same
+  defect the Meetings day card fixed, in the same way.
+
+### Three defects this pass INTRODUCED, caught in review, and fixed
+
+Named rather than quietly amended, because two of them were arguments this
+document made and the code did not keep:
+
+- **Every obligation band became a PEER of the section containing it.** Dropping
+  `headingLevel` was argued here on the grounds that "a record tab introduces no
+  heading of its own". That is false of this surface and of three beside it: all
+  four Asset tabs draw a visually-hidden `h2` naming themselves. So the Asset
+  record's Obligations tab announced "Obligations, Overdue, This week" as three
+  peers. Untitled's `TableCard.Header` hard-codes `h2`, so the rank needs
+  `overrides/table-card-header` — the same override `section-heading` already is,
+  one component along. Worse: `AssetObligationsTab.test.tsx` had NOTICED the
+  clash and filtered the tab's own heading out of its assertion rather than
+  reporting it. The filter is gone and the rank is now part of what that test
+  pins.
+- **The chart's exclusion note stated a figure that contradicted its own
+  count.** `readMonthlyFlow` summed only `outMinor` for a non-leading currency
+  while counting transactions in both directions, so an excluded USD salary with
+  no USD spending read "$0.00 in 1 transaction" — a sentence that says nothing
+  was excluded in the act of saying something was. It sums both directions now,
+  which is what the chart is not drawing.
+- **The design fixture's `--clear` deleted an `entities` row before its detail
+  row.** For a transaction written into a seeded account by something other than
+  this script, the entity was deleted straight from a sub-select over
+  `finance_transaction_details`, whose entity foreign key is `ON DELETE
+  RESTRICT`. Reproduced exactly — a hand-built foreign transaction in a seeded
+  account, then that one statement, then "FOREIGN KEY constraint failed" — and
+  it had survived only because the runs that exercised it happened to have no
+  such row at that moment. The ids are captured into the script's own scratch
+  table first, the details go, then the entities, then the scratch table is
+  dropped.
+
+### The cascade audit
+
+§48 asks for it again, and this time it came back CLEAN for these surfaces, which
+is worth recording because the previous three passes each found something:
+
+- the legacy layer declares no bare element selectors beyond `body`, `html` and
+  `pre`, so the new `<table>`, `<ul>`, `<li>` and `<a>` markup has nothing
+  unlayered competing for it;
+- the two container selectors that DO reach elements — `.page` and
+  `.dh-pane-body`, which carry `h2`, `ul`, `li` and `a` prose rules — have no
+  Finance, Assets or Obligations consumer, and the Finance gutter deliberately
+  takes the measurement without the class for exactly that reason;
+- the one inert class name kept (`.dh-obligation-row`) carries exactly one rule,
+  stated in `obligations.css` with its reason.
+
+### The §40 sweep, and what it found
+
+§40 asks for every remaining bar, mini-chart and CSS graph in the touched
+modules to be classified. Swept for `<svg>`, `canvas`, the five shared
+indicators, and any inline or stylesheet `width` used as a proportion:
+
+- **One genuine chart**, the Asset value history's bar. Dated numeric points, a
+  trend gate and a proportional mark with no axis. Migrated to
+  `MeasurementTrend`.
+- **Nothing else.** Finance, Assets and Life Admin now contain no hand-drawn
+  SVG, no canvas, no CSS bar and no consumer of `TrendBars`, `CategoryBars`,
+  `Sparkline`, `ProgressRing` or `ComparisonBars`. The only plots in the three
+  modules are `MoneyFlow` and `MeasurementTrend`, both on the shared Untitled
+  foundation.
+
+### The fixtures
+
+`scripts/finance-assets-admin-seed.mjs`, a sibling of `meetings-people-seed.mjs`
+and written for the same reason: on the shared E2E seed Finance is at its EMPTY
+state — no account, no category, no transaction — so the screen this pass rebuilt
+could not be photographed at all. It adds four accounts across four kinds (two of
+them liabilities, because "owing" is a word `balanceLabel` exists to say),
+fourteen months of transactions with amounts that vary month to month, five
+uncategorised rows in both directions, one transfer pair, two budgets (one under
+and one over) and nine obligations across every band.
+
+One thing it had to learn: `INSERT OR REPLACE` on `entities` is a DELETE followed
+by an INSERT, and every detail table's entity foreign key is `ON DELETE
+RESTRICT` — so the script ran once and failed on the second run with a bare
+"FOREIGN KEY constraint failed", which is the database correctly refusing to
+orphan an account's details. It clears its own prefix first and then inserts
+plainly.
+
+### CI's E2E suite is red on `main`, and the cause is the partition manifest
+
+Worth recording because it outlives this pass. Every `E2E p01`–`p13` and the
+`CI Gate` behind them fail on `main` at **`a98fd4b`** — this pass's own merge
+base — with `Scope`, `Static`, `Build` and `Unit` green; the four merges before
+it are red the same way, so the suite has been red across five consecutive
+merges.
+
+It is not a test failure. `p07` reports it in the repo's own words: "**DID NOT
+COMPLETE** — 31 of 120 assigned tests never executed (Playwright
+globalTimeout). This is a partition-budget failure, not a test failure … 
+Re-derive the split from measured time (`pnpm run e2e:partitions:generate`)
+rather than raising a timeout", at **25.0 min against a 16.6 min budget**.
+`globalTimeout` is 25 min, so Playwright kills the partition before it
+finishes. The manifest's estimates have drifted below real runtimes — it
+records `finance.spec.ts` at **114.9 s**, and on `main` that file measures
+**258 s** on one machine — and `e2e:partitions:check` cannot catch it, because
+it checks the manifest's own arithmetic rather than the clock.
+
+On this branch `p07` is strictly BETTER than on `main`: five failures against
+six and 27 starved tests against 31, with an identical failing set bar one.
+`the Finance surfaces are axe-clean` fails in both, at `:404` on `main` and
+`:411` here — the same test, moved down the file by edits above it. Measured
+back to back on one machine, this pass costs `finance.spec.ts` 258 s → 276 s
+and that axe test 26.2 s → 27.8 s: real, and nowhere near the eight and a half
+minutes `p07` is over by.
+
+The fix — regenerate the manifest from a run's `e2e-results-p*` artifacts — is
+a repo-wide change touching all 142 spec files and wants its own pass, so it is
+named here and on the PR rather than folded into a module migration.
+
+### Pre-existing failures, re-checked rather than inherited
+
+The full unit suite (7,757 tests) is green. Eight tests were updated because
+their CONTRACTS changed in this pass, and each change is argued in the test:
+
+- `AssetObligationsTab.test.tsx` — the band heading is an `h3` (Untitled's
+  `TableCard.Header`, through the `table-card-header` override), and Edit,
+  Create task, Hold and Dismiss are menu items. The tests take the journey a
+  person now takes.
+- `AssetHistoryTab.test.tsx` — the same, for Edit and Remove. The contract the
+  tests exist for — that each action NAMES its entry — is unchanged and now
+  covers the trigger as well.
+- `life-admin-surface-conventions.test.ts` — the record's four write paths are
+  still all guarded; three of them are guarded by the menu item's `pending` flag
+  rather than by a button's `disabled`. The assertion counts both, and gained a
+  third case pinning Dismiss's destructive tone and separator.
+- `AssetOverview.test.tsx` — the value-history fixture carries its currency.
+
+Four Life Admin E2E journeys failed on first run. Two were this pass's and are
+fixed above (the band count moved to the card header badge; the menu's
+accessible names now contain their visible labels). The other two were **dead,
+not failing**, and had been for some time:
+
+`openSearch` scoped its click to `.dh-topbar`. That class went with the
+`dh-topbar__*` family — `DesktopTopBar.tsx` records its own removal — so the
+locator had been matching nothing and both journeys were spending thirty
+seconds timing out rather than searching. It was checked against the rendered
+DOM rather than assumed: at `/obligations`, `.dh-topbar` resolves to **0**, the
+search button resolves to **1** by role alone, and `git diff origin/main --
+app/shared/shell/ app/styles/shell.css` is empty, so the same is true on main.
+
+The helper is re-pointed at `[data-testid="desktop-top-bar"]`, which keeps the
+original intent (never resolve the phone opener, a different control with the
+same name). Both journeys pass, and the create → complete → successor journey
+now actually exercises the search step it claims to.
+
+Five Assets journeys failed the same way — **dead rather than failing, and
+nothing to do with this pass**. Each navigates straight to a record URL and
+clicks a tab. A record tab is a React Aria `Tab`: the server-rendered markup
+already carries the `role` and the accessible name, so Playwright finds it and
+clicks it happily before any handler exists. The URL never gains `?tab=`, the
+panel never changes, and the journey then spends its whole timeout waiting for
+a field on a tab that was never selected. Every other journey reaches the
+record through `gotoFixture` or a `?tab=` URL, both of which settle; these five
+did not. In `assets-ownership.spec.ts` the correspondence is exact: the two
+bare `page.goto(recordUrl)` sites in that file are the two journeys that
+failed, and the other fourteen pass untouched.
+
+Proved rather than assumed: with `origin/main`'s entire Assets module and
+stylesheet checked back out over this branch, **all three collection journeys
+fail identically**, at the same step, with the same locator. The fix is the
+`waitForInteractive` helper the suite already owns, at the five bare
+`page.goto(recordUrl)` sites. No assertion changed. All eight Assets journeys
+and all sixteen ownership journeys pass, and the long one drops from timing out
+at 2.1 minutes to **36.9 seconds** — it had never reached step 2.
+
+**Eight other specs carry the same dead scope** — `search`,
+`find-empty-search`, `recall-01-search-content`, `keyboard`, `tooltip`,
+`tasks-daily-driver`, `project-templates` and `product-frame`. They are outside
+these three modules, and re-pointing them would surface triage this pass cannot
+do honestly, so they are named here rather than touched. This is a suite-wide
+repair worth doing deliberately.
+
+### Next
+
+1. **`SummaryCards` has no consumer in `app/`, and this document said it did.**
+   UNTITLED-13's Next list recorded "Projects, Areas and Assets still draw it";
+   they do not — UNTITLED-13 itself removed the last one when the Person
+   workspace stopped being a grid of counting tiles. The component, its 94-line
+   M3 stylesheet (`md-state-layer`, `card.css` paint) and its producer
+   `personRelationshipCards` are all unreferenced outside their own tests. The
+   removal criterion this document states — "when the last caller moves, the file
+   and the component go together" — is met, and it is a People deletion rather
+   than a Finance/Assets/Life Admin one.
+2. **The Finance import screen.** `FinanceImport.tsx` is 783 lines and still
+   draws its own `<table class="dh-finance-import__table">` with its own column
+   and scroll rules. It is the largest remaining hand-written table in the three
+   modules and was out of this pass's stated scope.
+3. **The budgets and categories screens.** `dh-finance-budget-row` and
+   `dh-finance-category-row` are still grid rows with their own phone rules, and
+   they are the last two consumers of `finance.css`'s narrow block.
+4. **Settings** — record Settings tabs still draw the shared settings groups
+   inside a record panel, and `tone="danger"` paints a reversible Archive group as
+   destructive. Carried forward from UNTITLED-12 unchanged.
+5. **Goals** — a Project inside a Goal record still carries no HEALTH.
+6. **The Diary week strip's focus order**, and the inert legacy class names with
+   the `.dh-btn` hook and the `.dh-input` / `.dh-control` layout bridges.
+7. **Eight E2E specs still scope to `.dh-topbar`**, a class the shell no longer
+   renders (above). Every journey through those locators is silently dead. The
+   re-point is mechanical; the triage of whatever those journeys then assert is
+   not, which is why it wants its own pass rather than a corner of this one.
+7. **A bounded `people.getByIds`**, carried forward from UNTITLED-13.

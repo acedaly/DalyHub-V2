@@ -108,7 +108,7 @@ test.describe("keyboard — modal focus restoration through the shared machinery
     // to (opening via the `/` shortcut with nothing focused would legitimately
     // restore to <body>).
     const opener = page
-      .locator(".dh-topbar")
+      .locator('[data-testid="desktop-top-bar"]')
       .getByRole("button", { name: /^Search DalyHub/ })
       .first();
     await opener.click();

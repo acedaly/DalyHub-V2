@@ -126,7 +126,7 @@ export function BottomNav({
        */
       className="fixed inset-x-0 bottom-0 z-20 border-t border-secondary bg-primary pb-[var(--dh-safe-bottom)] transition-transform duration-100 ease-linear translate-y-[var(--app-keyboard-inset,0px)] md:hidden"
     >
-      <ul className="flex items-stretch">
+      <ul data-testid="bottom-nav-list" className="flex items-stretch">
         {slots.map((slot) => {
           if (slot.kind === "capture") {
             return (
@@ -134,6 +134,7 @@ export function BottomNav({
                 <button
                   type="button"
                   ref={captureRef}
+                  data-testid="bottom-nav-control"
                   className="flex min-h-14 w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-lg outline-focus-ring transition duration-100 ease-linear focus-visible:outline-2 focus-visible:-outline-offset-2"
                   onClick={() => {
                     if (captureRef.current) {
@@ -150,7 +151,10 @@ export function BottomNav({
                   >
                     <PlusIcon />
                   </span>
-                  <span className="text-xs font-semibold text-secondary">
+                  <span
+                    data-testid="bottom-nav-label"
+                    className="text-xs font-semibold text-secondary"
+                  >
                     Add
                   </span>
                 </button>
@@ -164,6 +168,7 @@ export function BottomNav({
                 <button
                   type="button"
                   ref={moreRef}
+                  data-testid="bottom-nav-control"
                   className="flex min-h-14 w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-lg outline-focus-ring transition duration-100 ease-linear focus-visible:outline-2 focus-visible:-outline-offset-2"
                   aria-expanded={moreOpen}
                   aria-controls="primary-navigation-mobile"
@@ -184,7 +189,10 @@ export function BottomNav({
                   >
                     <MoreIcon />
                   </span>
-                  <span className="text-xs font-semibold text-secondary">
+                  <span
+                    data-testid="bottom-nav-label"
+                    className="text-xs font-semibold text-secondary"
+                  >
                     More
                   </span>
                 </button>
@@ -207,6 +215,7 @@ export function BottomNav({
                  * because it painted.
                  */
                 prefetch={PRIMARY_NAV_PREFETCH}
+                data-testid="bottom-nav-control"
                 className="flex min-h-14 w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-lg outline-focus-ring transition duration-100 ease-linear focus-visible:outline-2 focus-visible:-outline-offset-2"
                 aria-current={active ? "page" : undefined}
                 aria-busy={item.href === pendingHref ? true : undefined}
@@ -229,6 +238,7 @@ export function BottomNav({
                   <DestinationIcon item={item} />
                 </span>
                 <span
+                  data-testid="bottom-nav-label"
                   className={cx(
                     "text-xs transition duration-100 ease-linear",
                     active

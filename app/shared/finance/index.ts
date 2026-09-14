@@ -10,7 +10,18 @@
  * V2.11's one surface, with nothing Finance-shaped added to it.
  */
 
-export { TransactionRow, type TransactionRowProps } from "./TransactionRow";
+/**
+ * UNTITLED-16 — `TransactionRow` is gone; the row is a row of the ONE table.
+ *
+ * It was a hand-written `<li>` with its own flex body, its own hover, its own
+ * phone arrangement and an amount column whose digits did not line up. Every
+ * surface that drew it now draws `TransactionsTable`, which is the genuine
+ * Untitled `application/table`.
+ */
+export {
+  TransactionsTable,
+  type TransactionsTableProps,
+} from "./TransactionsTable";
 export { CategoryPicker, type CategoryPickerProps } from "./CategoryPicker";
 export {
   TransactionDrawer,
@@ -25,6 +36,7 @@ export {
   financeAmountLabel,
   financeDate,
   money,
+  moneyTick,
   type SerializedCategoryMonthLine,
   type SerializedMonthBudget,
   type SerializedCommitment,
@@ -33,5 +45,7 @@ export {
   type SerializedFinanceCategory,
   type SerializedFinanceImport,
   type SerializedFinanceTransaction,
+  type SerializedFlowMonth,
   type SerializedImportRow,
+  type SerializedMonthlyFlow,
 } from "./finance-view";

@@ -104,7 +104,7 @@ export function FinanceBudgets(props: FinanceBudgetsData) {
       </header>
 
       {error === null ? null : (
-        <p role="alert" className="dh-finance-budgets__error">
+        <p role="alert" className="dh-finance-error">
           {error}
         </p>
       )}
@@ -242,7 +242,7 @@ export function FinanceBudgets(props: FinanceBudgetsData) {
       >
         Copy last month&rsquo;s budgets
       </Button>
-      <p className="dh-finance-budgets__note">
+      <p className="dh-finance-note">
         Budgets do not carry over on their own. Copying leaves any budget you
         have already set for this month exactly as it is.
       </p>

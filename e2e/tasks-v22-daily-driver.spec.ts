@@ -7,8 +7,9 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
-  taskRows,
+  setCheckbox,
   taskRow,
+  taskRows,
 } from "./helpers";
 
 /**
@@ -127,7 +128,7 @@ async function selectTask(page: Page, title: string) {
   if ((await box.count()) === 0) {
     await enterTaskSelection(page);
   }
-  await box.check();
+  await setCheckbox(box);
 }
 
 /** Run a bulk action and wait for it to COMMIT (the bar clears its selection). */
@@ -293,12 +294,14 @@ test.describe("TASKS-06 — bulk management", () => {
     await expect(selectionPrompt(page)).toBeVisible();
 
     // Shift-range: pick the first, then Shift-click the fourth.
-    await page
-      .getByRole("checkbox", { name: `Select E2E bulk ${stamp} 3` })
-      .check();
-    await page
-      .getByRole("checkbox", { name: `Select E2E bulk ${stamp} 0` })
-      .click({ modifiers: ["Shift"] });
+    await setCheckbox(
+      page.getByRole("checkbox", { name: `Select E2E bulk ${stamp} 3` }),
+    );
+    await setCheckbox(
+      page.getByRole("checkbox", { name: `Select E2E bulk ${stamp} 0` }),
+      true,
+      { shift: true },
+    );
     await expect(bulkBar(page)).toContainText("4 selected");
 
     // MOVE — one bounded atomic mutation, not four requests.
@@ -459,8 +462,8 @@ test.describe("TASKS-06 — bulk management", () => {
     const rowChecks = taskRows(page).getByRole("checkbox", {
       name: /^Select /,
     });
-    await rowChecks.nth(0).check();
-    await rowChecks.nth(100).click({ modifiers: ["Shift"] });
+    await setCheckbox(rowChecks.nth(0));
+    await setCheckbox(rowChecks.nth(100), true, { shift: true });
     await expect(bulkBar(page)).toContainText("101 selected");
     await expect(bulkBar(page)).toContainText("Deselect 1 to continue.");
     await expect(

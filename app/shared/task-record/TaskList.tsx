@@ -28,6 +28,7 @@ import { Link } from "react-router";
 import { ChevronDownIcon } from "~/shared/icons";
 import { DH_MOTION_BASE_MS, usePresence } from "~/shared/motion";
 import { Table, TableCard } from "~/shared/ui/untitled/application/table/table";
+import { LabelledTableHead } from "~/shared/ui/untitled/overrides/table-head";
 import type { TaskDensity } from "~/kernel/task-views";
 
 /**
@@ -104,23 +105,50 @@ export function TaskList({
           data-dh-density={densityPreset(density)}
           tabIndex={-1}
         >
+          {/*
+            `LabelledTableHead`, not the vendored `Table.Head` — the same
+            correction `ProjectsTable` and `AssetDatesTab` already carry.
+            Upstream puts the label inside an `AriaGroup`, and the
+            accessible-name algorithm does not descend into a `group`, so every
+            column here drew its heading and announced nothing. The override
+            keeps upstream's classes and moves the label out of the group.
+          */}
           <Table.Header className="bg-secondary max-md:hidden">
-            <Table.Head id="completion" label="Done" className="w-16" />
-            <Table.Head
+            <LabelledTableHead id="completion" label="Done" className="w-16" />
+            <LabelledTableHead
               id="task"
               label="Task"
               isRowHeader
               className="w-full min-w-72"
             />
-            <Table.Head
+            <LabelledTableHead
               id="due"
               label="Due"
               className="w-36 whitespace-nowrap"
             />
-            <Table.Head id="project" label="Project / Area" className="w-48" />
-            <Table.Head id="priority" label="Priority" className="w-24" />
-            <Table.Head id="status" label="Status" className="w-32" />
-            <Table.Head id="actions" label="" className="w-14" />
+            <LabelledTableHead
+              id="project"
+              label="Project / Area"
+              className="w-48"
+            />
+            <LabelledTableHead
+              id="priority"
+              label="Priority"
+              className="w-24"
+            />
+            <LabelledTableHead id="status" label="Status" className="w-32" />
+            {/*
+              The row's action rail. Its heading is `sr-only` rather than
+              absent: an empty `<th>` is `empty-table-header` to axe and an
+              unnamed column to a screen reader, and "Actions" is the word the
+              column would carry if it drew one.
+            */}
+            <LabelledTableHead
+              id="actions"
+              label="Actions"
+              labelHidden
+              className="w-14"
+            />
           </Table.Header>
           <Table.Body>{children}</Table.Body>
         </Table>

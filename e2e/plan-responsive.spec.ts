@@ -132,7 +132,21 @@ test("the phone day rail moves the day, by pointer and by keyboard", async ({
   await page.setViewportSize({ width: 393, height: 852 });
   await gotoFixture(page, "/plan");
 
-  const rail = page.getByRole("navigation", { name: "Days of the week" });
+  /*
+   * `tablist`, and this one really is one.
+   *
+   * PR #283 swept `tablist` → `navigation` across the specs, correctly: the
+   * routed rails (`ViewTabs`, `ViewSwitcher`) render a `nav` of anchors with
+   * `aria-current="page"`, because ARIA's tab pattern requires each tab to
+   * control a panel and a rail that navigates controls nothing. The sweep took
+   * this rail with it, and this rail is the exception it was not looking for —
+   * `PlanWorkspace` renders `role="tablist"` over `role="tab"` buttons that
+   * switch which day-`section` the phone tier shows, in the same document, from
+   * data the loader already holds. Nothing routes and nothing is fetched, so the
+   * tab pattern is the right one and the product still uses it. The locator
+   * matched nothing for a week and waited out its timeout rather than failing.
+   */
+  const rail = page.getByRole("tablist", { name: "Days of the week" });
   const tabs = rail.getByRole("tab");
   await expect(tabs).toHaveCount(7);
 
@@ -288,7 +302,26 @@ test("keeps focus after a mutation and announces the outcome", async ({
   const checkbox = queue.getByRole("checkbox", {
     name: `Select ${unplaced.title} to place on a day`,
   });
-  await checkbox.check();
+  /*
+   * Selected by KEYBOARD, because the control has no pointer target of its own.
+   *
+   * Untitled's checkbox is React Aria's: a `<label>` wrapping a visually-hidden
+   * `<input>` and the painted `<div>` that is what a person actually clicks.
+   * Playwright's `check()` aims at the INPUT's box, which sits under that div,
+   * so it refuses — MEASURED: "`<div class="relative flex size-4 …">` intercepts
+   * pointer events", then the `<li class="dh-taskrow">`, then the row's select
+   * span, retried for the full 30s. That is a working control being asked the
+   * one way it cannot be asked, and no amount of waiting changes it.
+   *
+   * Space on the focused input is a real interaction rather than a
+   * `force: true` that would skip the actionability checks altogether, it is
+   * the interaction this test is named for (what focus does after a mutation),
+   * and the assertion below is `check()`'s own postcondition, so nothing is
+   * weakened: a control that does not end up selected still fails here.
+   */
+  await checkbox.focus();
+  await page.keyboard.press(" ");
+  await expect(checkbox).toBeChecked();
 
   const target = page.getByTestId("plan-place-day").nth(2);
   await target.focus();

@@ -17,6 +17,7 @@ import type {
   SerializedFinanceImport,
   SerializedFinanceTransaction,
   SerializedMonthBudget,
+  SerializedMonthlyFlow,
 } from "~/shared/finance";
 
 /** The month vocabulary every Finance surface shares. */
@@ -55,6 +56,14 @@ export interface FinanceHomeData extends FinanceMonthContext {
   readonly netWorth: SerializedNetWorth;
   readonly commitments: SerializedCommitments;
   readonly imports: readonly SerializedFinanceImport[];
+  /**
+   * UNTITLED-16 — the twelve months ending at `month`, in the lead currency.
+   *
+   * Empty where there is nothing to plot; the home then renders no chart rather
+   * than an empty frame. See `readMonthlyFlow` for why a month with no rows
+   * inside the window is a zero and a month before the first row is not in it.
+   */
+  readonly flow: SerializedMonthlyFlow;
   readonly failed: boolean;
 }
 

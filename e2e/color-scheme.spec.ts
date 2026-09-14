@@ -304,6 +304,22 @@ test.describe("THEME-01 — choosing a colour scheme", () => {
 
   test("keeps working surfaces NEUTRAL in every scheme", async ({ page }) => {
     /*
+     * A real budget for the only test in this file that reloads FIVE times — a
+     * BUDGET CORRECTION, not a retry and not a way to wait out a defect.
+     *
+     * MEASURED at this commit: 23.8 s of genuine work against the suite's 30 s
+     * default, which is 21% of headroom for five full loads of `/today` — the
+     * heaviest authenticated route in the product. Every other test in this
+     * file finishes in 3–13 s. On a contended runner that margin is not there,
+     * and run 34792235989 duly spent the whole 30 s and reported a timeout
+     * inside `page.evaluate` rather than anything about a scheme's neutrality.
+     *
+     * Nothing about what is asserted changes: all five schemes, the same 12
+     * point saturation bar, the same failure message naming the offending
+     * canvas colour.
+     */
+    test.setTimeout(90_000);
+    /*
      * §11 — the failure mode this whole architecture exists to prevent: "violet
      * theme = everything purple, blue theme = everything blue". The page canvas
      * is measured in every scheme and required to stay within a few points of

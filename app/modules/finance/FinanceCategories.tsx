@@ -136,7 +136,7 @@ export function FinanceCategories({
       </p>
 
       {error === null ? null : (
-        <p role="alert" className="dh-finance-categories__error">
+        <p role="alert" className="dh-finance-error">
           {error}
         </p>
       )}

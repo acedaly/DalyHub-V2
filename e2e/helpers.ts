@@ -164,7 +164,6 @@ export async function openRecordTab(
    */
   await page.waitForLoadState("networkidle");
   const tab = page.getByRole("tab", { name });
-  await tab.scrollIntoViewIfNeeded();
 
   /*
    * Then RETRY the click, because settling is not the same as being wired.
@@ -177,8 +176,16 @@ export async function openRecordTab(
    * The assertion is UNCHANGED in strength — the tab must end up selected — so
    * a tab that genuinely never selects still fails, just after several honest
    * attempts rather than after one unlucky one.
+   *
+   * The SCROLL is inside the retry for the same reason the click is. It used to
+   * run once, before the loop, and `scrollIntoViewIfNeeded` throws rather than
+   * retries when its target detaches: "Element is not attached to the DOM",
+   * MEASURED on run 34782096458 as a hard failure in the one window this helper
+   * exists to survive. Retried, a strip that remounts mid-scroll is just
+   * another attempt.
    */
   await expect(async () => {
+    await tab.scrollIntoViewIfNeeded();
     await tab.click();
     await expect(tab).toHaveAttribute("aria-selected", "true", {
       timeout: 1_000,
@@ -309,9 +316,65 @@ export async function hasNoHorizontalOverflow(page: Page): Promise<boolean> {
   });
 }
 
+/**
+ * NAME the element that is too wide, so a failure says what to look at.
+ *
+ * The assertion below is `documentElement.scrollWidth > clientWidth`, which is
+ * true of a page and tells you nothing about which of its two thousand boxes
+ * caused it — so every overflow failure in this suite has cost a bisect in a
+ * browser before it could be read. This walks the rendered tree once and
+ * reports the widest boxes that cross the viewport's right edge, nearest the
+ * leaves first, which is where the cause almost always is.
+ *
+ * Diagnostic only: it runs when the assertion has already failed, so it can
+ * never change what passes.
+ */
+async function widestOverflowingElements(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const limit = document.documentElement.clientWidth;
+    const offenders: { readonly depth: number; readonly line: string }[] = [];
+    const walk = (element: Element, depth: number) => {
+      const rect = element.getBoundingClientRect();
+      if (rect.width > 0 && rect.right > limit + 1) {
+        const id = element.id ? `#${element.id}` : "";
+        const cls = element.className.toString().trim().slice(0, 60);
+        offenders.push({
+          depth,
+          line:
+            `${element.tagName.toLowerCase()}${id}${cls ? `.${cls}` : ""} ` +
+            `right=${Math.round(rect.right)} width=${Math.round(rect.width)}`,
+        });
+      }
+      for (const child of element.children) walk(child, depth + 1);
+    };
+    walk(document.body, 0);
+    return offenders
+      .sort((a, b) => b.depth - a.depth)
+      .slice(0, 6)
+      .map((entry) => `  ${entry.line}`)
+      .join("\n");
+  });
+}
+
 /** Assert (with polling, to allow layout to settle) that the page never scrolls sideways. */
 export async function expectNoHorizontalOverflow(page: Page): Promise<void> {
-  await expect.poll(() => hasNoHorizontalOverflow(page)).toBe(true);
+  if (await hasNoHorizontalOverflow(page)) return;
+  // Give layout the same chance to settle the poll used to.
+  await expect
+    .poll(() => hasNoHorizontalOverflow(page))
+    .toBe(true)
+    .catch(async (error: unknown) => {
+      const { innerWidth, scrollWidth } = await page.evaluate(() => ({
+        innerWidth: document.documentElement.clientWidth,
+        scrollWidth: document.documentElement.scrollWidth,
+      }));
+      throw new Error(
+        `the document scrolls sideways at ${innerWidth}px ` +
+          `(scrollWidth ${scrollWidth}). Widest boxes past the right edge, ` +
+          `innermost first:\n${await widestOverflowingElements(page)}\n\n` +
+          String(error),
+      );
+    });
 }
 
 /**
@@ -336,6 +399,39 @@ export async function gotoFixture(page: Page, path: string): Promise<void> {
  * is there, the click "succeeds", and nothing happens. Gating on readiness makes
  * the journey assert the behaviour it means to.
  */
+/**
+ * Wait until the application STYLESHEET has actually applied.
+ *
+ * The Vite dev server injects CSS through JavaScript, so a freshly loaded
+ * document has a brief window in which it is fully rendered and completely
+ * unstyled — every control at its intrinsic text size, every
+ * `display: none`-by-breakpoint element visible. `expectMinTouchTarget`'s own
+ * docstring already records this and polls around it; nothing else did.
+ *
+ * It is not a cosmetic race. MEASURED on run 34785352070, `areas.spec.ts`'s axe
+ * sweep scanned inside that window and reported 33 violations against a page
+ * with none: a `min-h-14` (56px) bottom-nav control measuring "53px by 22.3px",
+ * and "more than one banner landmark" because the desktop sidebar and the phone
+ * bar are separated by a media query that had not applied yet. Both are true of
+ * the unstyled document and of nothing a person ever sees.
+ *
+ * `--dh-shell-gutter` is a `:root` token from `tokens.css`, so its presence is
+ * exactly "the app stylesheet is in force" and nothing else. Production serves
+ * a render-blocking `<link>`, where this resolves on the first poll.
+ */
+async function waitForStylesheet(page: Page): Promise<void> {
+  await page
+    .waitForFunction(
+      () =>
+        getComputedStyle(document.documentElement)
+          .getPropertyValue("--dh-shell-gutter")
+          .trim().length > 0,
+      undefined,
+      { timeout: 15_000 },
+    )
+    .catch(() => undefined);
+}
+
 export async function waitForInteractive(page: Page): Promise<void> {
   // Settle the document FIRST. This function is called precisely when a journey
   // has arrived through the product, which means a client-side navigation may
@@ -346,12 +442,73 @@ export async function waitForInteractive(page: Page): Promise<void> {
   // (Seen in CI: a Note capture handed off to the canonical editor, `/notes/`
   // matched, Today's marker was still counted, and `.first()` resolved to
   // nothing.) Settling first makes the count describe the document we landed on.
-  await page.waitForLoadState("networkidle");
+  //
+  // BOUNDED, because `networkidle` is a best-effort settle and not a contract.
+  // It resolves only after 500 ms with no more than two connections in flight,
+  // and the Vite dev server keeps an HMR websocket open and fetches modules on
+  // demand — so on a loaded runner it can simply never be reached. MEASURED on
+  // run 34792235989: `project-health.spec.ts:209` spent its entire 90 s budget
+  // inside this one line, at `gotoFixture`, having asserted nothing at all. The
+  // gates below (`waitForStylesheet`, then the two hydration markers) are the
+  // ones that actually answer "is this page wired up yet?", and each of them is
+  // already bounded and already swallows its own timeout. This is the same
+  // rule, applied to the line that was still exempt from it: a gate waits
+  // generously, and then it gets out of the way.
+  await page
+    .waitForLoadState("networkidle", { timeout: 10_000 })
+    .catch(() => undefined);
+  await waitForStylesheet(page);
+
+  /*
+   * The SHELL's marker first — the one every authenticated route has.
+   *
+   * `AppShell`'s pane publishes `data-app-hydrated` once React has attached, so
+   * "is this page wired up yet?" finally has an answer on `/assets`,
+   * `/projects`, `/notes` and everywhere else, rather than only on Today and
+   * the `/design/*` fixtures. Settling the NETWORK was the best this could do
+   * before, and on a contended runner it regularly lost the race: a create
+   * button clicked in that window navigates nowhere, which is what
+   * `assets.spec.ts:66` and `activity-actor.spec.ts:51` report as "the URL did
+   * not change".
+   *
+   * Absent is not a failure — an unauthenticated or error document has no
+   * shell — so this waits only when the attribute is there to wait on.
+   *
+   * ── It is a GATE, and a gate never fails a test ─────────────────────────────
+   *
+   * The first version of this used `expect.poll(...).toBe(true)` on the default
+   * 5s budget, and that was a mistake worth spelling out: on a contended runner
+   * hydration can take longer than five seconds, and a failing POLL reports
+   * "expected true, received false" against the helper rather than anything
+   * about the surface under test. MEASURED on run 34789120450 — seven tests
+   * across `account-security`, `activity-actor` and `follow-01-week-account`
+   * failed with exactly that message, several of which had passed the run
+   * before. Turning a race into an uninformative hard failure is worse than the
+   * race.
+   *
+   * So it waits generously and then gets out of the way. If React genuinely
+   * never attaches, the test's own next assertion fails on its own terms and
+   * says something useful; this is only ever here to remove the window, not to
+   * police it. `waitForStylesheet` above takes the same shape and for the same
+   * reason.
+   */
+  await page
+    .waitForFunction(
+      () => {
+        const shell = document.querySelector("[data-app-hydrated]");
+        return (
+          shell === null || shell.getAttribute("data-app-hydrated") === "true"
+        );
+      },
+      undefined,
+      { timeout: 15_000 },
+    )
+    .catch(() => undefined);
 
   // `[data-hydrated]` is published only by the surfaces that have a meaningful
-  // hydration boundary — Today and the design routes. A product navigation can
-  // leave a stale marker mounted briefly while the new route is already usable,
-  // so only routes that own the marker wait on it.
+  // hydration boundary of their own — Today and the design routes. A product
+  // navigation can leave a stale marker mounted briefly while the new route is
+  // already usable, so only routes that own the marker wait on it.
   const pathname = new URL(page.url()).pathname;
   if (!pathname.startsWith("/today") && !pathname.startsWith("/design/")) {
     return;
@@ -359,15 +516,27 @@ export async function waitForInteractive(page: Page): Promise<void> {
 
   // Where the marker belongs to the active route it is the real gate, because
   // server-rendered markup is interactive-looking well before React attaches.
-  const marker = page.locator("[data-hydrated]").first();
-  await expect
-    .poll(async () => {
-      if ((await marker.count()) === 0) {
-        return true;
-      }
-      return (await marker.getAttribute("data-hydrated")) === "true";
-    })
-    .toBe(true);
+  //
+  // Same shape, and for the same reason as the shell gate above: this was the
+  // ONE `expect.poll(...).toBe(true)` left in the pair, on the default 5s
+  // budget, and it failed rather than waited. MEASURED on run 34792235989 —
+  // `accessibility.spec.ts:132` and `responsive-desktop.spec.ts:42`, both on
+  // `/design/cards-filters`, both reporting "expected true, received false"
+  // with "Timeout 5000ms exceeded while waiting on the predicate" and nothing
+  // about the page they were auditing; both pass locally in 2 minutes. A gate
+  // that turns a slow runner into a mystery failure is worse than no gate.
+  await page
+    .waitForFunction(
+      () => {
+        const marker = document.querySelector("[data-hydrated]");
+        return (
+          marker === null || marker.getAttribute("data-hydrated") === "true"
+        );
+      },
+      undefined,
+      { timeout: 15_000 },
+    )
+    .catch(() => undefined);
 }
 
 /**
@@ -514,6 +683,14 @@ export async function expectNoAxeViolations(
   page: Page,
   options: AxeScanOptions = {},
 ): Promise<void> {
+  /*
+   * Never scan an UNSTYLED document — see `waitForStylesheet`. A scan that
+   * lands in the dev server's CSS-injection window audits a page nobody sees
+   * and reports target sizes and landmark duplicates that a media query is
+   * about to resolve. Callers that reached this surface by clicking rather than
+   * by `gotoFixture` have not passed through that gate.
+   */
+  await waitForStylesheet(page);
   const results = await buildAxeScan(page, options).analyze();
   const summary = results.violations.map((violation) => ({
     id: violation.id,
@@ -814,6 +991,51 @@ export async function setSwitch(toggle: Locator, on: boolean): Promise<void> {
   await toggle.focus();
   await toggle.press(" ");
   await expect(toggle).toBeChecked({ checked: on });
+}
+
+/**
+ * Set an UNTITLED checkbox (`~/shared/ui/Checkbox`'s React Aria path) to
+ * `checked`. `setSwitch`'s reasoning, for the other control it applies to.
+ *
+ * The product has two kinds of checkbox and only one of them can be driven by
+ * `locator.check()`. A task row shows both, a few pixels apart:
+ *
+ *   - COMPLETE is a plain `<input class="dh-check-circle">`, styled directly.
+ *     A pointer reaches it, so `check()` works and the callers that use it are
+ *     left alone.
+ *   - SELECT is the shared `Checkbox`, which is React Aria's: a `<label>`
+ *     wrapping a VISUALLY-HIDDEN `<input>` and the painted `<div>` a person
+ *     actually clicks. `check()` aims at the input's own 1px box, which sits
+ *     under that div, so the hit test names the div and Playwright retries
+ *     until the budget is gone.
+ *
+ * That is a true statement about the pointer rather than a defect — the same
+ * shape `setSwitch` already records — and it is expensive: MEASURED on run
+ * 34777810234, five 120s timeouts in `tasks-v22-daily-driver` alone, which is
+ * what left partition p13 at `globalTimeout` with twelve tests never executed.
+ *
+ * Space on the focused input is a real interaction and not a `force: true` that
+ * would skip the actionability checks altogether; the assertion afterwards is
+ * `check()`'s own postcondition, so a control that does not end up in the
+ * wanted state still fails, and one that cannot be focused fails before that.
+ *
+ * Already-in-the-wanted-state is a no-op, like `check()` and like `setSwitch`.
+ *
+ * `shift` extends a RANGE from the last selected row, the way Shift-clicking
+ * does — and it is the same act, not an approximation of one: `TaskRow` reads
+ * `event.shiftKey` off the control's `keydown` for Space and Enter exactly as it
+ * reads it off `pointerdown`, so the product treats the two identically.
+ */
+export async function setCheckbox(
+  checkbox: Locator,
+  checked = true,
+  options: { readonly shift?: boolean } = {},
+): Promise<void> {
+  await checkbox.scrollIntoViewIfNeeded();
+  if (!options.shift && (await checkbox.isChecked()) === checked) return;
+  await checkbox.focus();
+  await checkbox.press(options.shift ? "Shift+ " : " ");
+  await expect(checkbox).toBeChecked({ checked });
 }
 
 /**

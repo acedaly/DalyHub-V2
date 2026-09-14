@@ -252,7 +252,7 @@ test.describe("TASKS-04 — Inbox is active, unassigned work", () => {
 
     await page.waitForLoadState("networkidle");
     await page
-      .locator(".dh-topbar")
+      .locator('[data-testid="desktop-top-bar"]')
       .getByRole("button", { name: /^Search DalyHub/ })
       .first()
       .click();

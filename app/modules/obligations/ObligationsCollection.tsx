@@ -195,13 +195,17 @@ export function ObligationsCollection(props: ObligationsCollectionProps) {
         { hasMore: pagination.hasMore },
       );
 
+  /*
+   * Search only, and VISIBLE at every width.
+   *
+   * It is the one control an owner reaches for without deciding to filter, and a
+   * search box behind a button is a search box nobody uses. Status and category
+   * are in the sheet beside it, where a deliberate act belongs.
+   */
   const filterBar = (
-    <div className="dh-obligations-filters">
-      <label
-        className="dh-obligations-filters__search"
-        htmlFor="obligations-search"
-      >
-        <span className="dh-visually-hidden">Search obligations</span>
+    <div className="flex min-w-0 flex-wrap gap-3">
+      <label className="min-w-0 flex-[1_1_17rem]" htmlFor="obligations-search">
+        <span className="sr-only">Search obligations</span>
         <Input
           id="obligations-search"
           type="search"
@@ -227,6 +231,18 @@ export function ObligationsCollection(props: ObligationsCollectionProps) {
       subtitle={subtitle}
       filterBar={filterBar}
       persistentControls
+      /*
+       * UNTITLED-16 — the phone kept the sheet and LOST the search box.
+       *
+       * `persistentControls` makes the shared sheet the control surface at every
+       * width, which is right here; it does not lift the shared rule that hides
+       * the desktop filter band on a phone, so at 393px Life Admin had no search
+       * at all. That is the exact defect UNTITLED-13 measured on People and then
+       * built `keepFiltersOnCompact` to state properly. This band is search and
+       * nothing else, so keeping it costs one row and returns the one control an
+       * owner reaches for without deciding to filter.
+       */
+      keepFiltersOnCompact
       mobileControls={
         <CollectionControls
           groups={controlGroups}
@@ -279,7 +295,6 @@ export function ObligationsCollection(props: ObligationsCollectionProps) {
     >
       <ObligationBands
         groups={groups}
-        headingLevel={2}
         renderRow={(obligation) => (
           <ObligationRow
             key={obligation.id}

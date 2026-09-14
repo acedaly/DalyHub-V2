@@ -37,12 +37,30 @@ export interface LabelledTableHeadProps
   extends Omit<AriaColumnProps, "children" | "className"> {
   /** The column's heading. Drawn, and the column's accessible name. */
   readonly label: string;
+  /**
+   * Keep the heading OUT OF SIGHT, and in the accessibility tree.
+   *
+   * For the column a table has no word for: the trailing rail of per-row
+   * actions, whose header is blank by design because a word above three icon
+   * buttons is noise. Blank in the MARKUP is a different claim, and a wrong
+   * one — axe reports `empty-table-header` against it (MEASURED on run
+   * 34777810234: `#react-aria-…-actions`, failing the WCAG 2.2 AA sweep on the
+   * Tasks collection in two specs at once), and a screen-reader user moving
+   * across the row hears an unnamed column where every other one is named.
+   *
+   * So the column keeps its name and loses only its paint. `sr-only` rather
+   * than `aria-label` on the `columnheader`: a label would override
+   * name-from-content, which is the mechanism this whole override exists to
+   * restore.
+   */
+  readonly labelHidden?: boolean;
   readonly className?: string;
   readonly children?: ReactNode;
 }
 
 export function LabelledTableHead({
   label,
+  labelHidden = false,
   className,
   children,
   ...props
@@ -70,7 +88,13 @@ export function LabelledTableHead({
        * to the algorithm.
        */}
       <span className="flex items-center gap-1">
-        <span className="text-xs font-semibold whitespace-nowrap text-quaternary">
+        <span
+          className={
+            labelHidden
+              ? "sr-only"
+              : "text-xs font-semibold whitespace-nowrap text-quaternary"
+          }
+        >
           {label}
         </span>
         {children}

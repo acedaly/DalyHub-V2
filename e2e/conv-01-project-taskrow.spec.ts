@@ -14,6 +14,7 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
+  setCheckbox,
   taskRow,
   taskRows,
   waitForInteractive,
@@ -340,7 +341,9 @@ test.describe("CONV-01 — the Project record renders the shared Task row", () =
     await expect(tab(page).getByTestId("task-select").first()).toBeVisible();
     await expect(tab(page).getByTestId("task-complete")).toHaveCount(0);
     for (const title of titles) {
-      await page.getByRole("checkbox", { name: `Select ${title}` }).check();
+      await setCheckbox(
+        page.getByRole("checkbox", { name: `Select ${title}` }),
+      );
     }
     const bar = page.getByRole("group", { name: "Bulk task actions" });
     await expect(bar).toContainText("3 selected");

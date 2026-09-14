@@ -88,7 +88,29 @@ describe("the sealed-secret primitive", () => {
     const key = await importEncryptionKey(KEY);
     const sealed = await sealSecret(key, TEST_FEED_URL, AAD);
     const parts = sealed.split(".");
-    const flipped = `${parts[0]}.${parts[1]}.${parts[2]!.slice(0, -2)}AA`;
+    /*
+     * Tamper DETERMINISTICALLY, and at the FRONT.
+     *
+     * This used to replace the last two base64url characters with a literal
+     * "AA", which is not a change at all whenever the ciphertext already ends
+     * in "AA" — and `sealSecret` draws a fresh IV per seal, so the ciphertext
+     * differs every run and that happens by chance. The test then handed
+     * `openSecret` a value nobody had altered and asked GCM to reject it, which
+     * is the one thing GCM must not do. Seen failing exactly that way in CI.
+     *
+     * Not rare, either. This payload seals to 64 bytes — 86 base64url
+     * characters — whose final group encodes ONE byte as `c0 << 2 | c1 >> 4`,
+     * so "AA" restores the identical string whenever that last byte is already
+     * zero. Measured over 20,000 seals: **67, or 1 in 299**.
+     *
+     * The FIRST character is substituted rather than the last because it always
+     * carries six significant bits of ciphertext byte 0, whereas the final
+     * character of a base64 string can be mostly padding whose bits a decoder
+     * discards — so altering it is not guaranteed to alter a byte.
+     */
+    const body = parts[2]!;
+    const head = body.slice(0, 1) === "A" ? "B" : "A";
+    const flipped = `${parts[0]}.${parts[1]}.${head}${body.slice(1)}`;
     // GCM's tag is verified on open, so a stored value is either exactly what
     // was sealed or an error — never a substituted URL the synchroniser fetches.
     await expect(openSecret(key, flipped, AAD)).rejects.toBeInstanceOf(

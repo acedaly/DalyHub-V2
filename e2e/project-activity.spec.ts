@@ -6,6 +6,7 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
+  openRecordTab,
 } from "./helpers";
 
 /**
@@ -49,7 +50,29 @@ test.describe("PROJ-04 project Activity tab", () => {
       "Settings",
     ]);
 
-    await page.getByRole("tab", { name: "Activity" }).click();
+    /*
+     * `openRecordTab`, not a bare click — here and at the eight other places
+     * this file opened the tab.
+     *
+     * The helper exists for exactly what was happening to this file on CI: "a
+     * record's tab strip is server-rendered and looks interactive well before
+     * React attaches to it, so a click that arrives in that window is received
+     * by markup with no handler and is simply lost — the tab stays unselected
+     * and whatever the test asserts next fails somewhere else entirely". Which
+     * is what `group "Project activity" not found` is: the panel never changed,
+     * so the feed was never rendered to be found.
+     *
+     * MEASURED on run 34777810234, partition p09: eleven of this file's tests
+     * failed on that locator while `:124` — the same three lines, in the same
+     * order, against the same record — passed. A deterministic defect does not
+     * do that; losing a race on a loaded runner does. Every one of these tests
+     * passes locally, where the race is easy to win.
+     *
+     * Nothing is weakened: the helper's own assertion is that the tab ends up
+     * `aria-selected="true"`, so a tab that genuinely never selects still
+     * fails, after several honest attempts rather than after one unlucky one.
+     */
+    await openRecordTab(page, "Activity");
     const feed = page.getByRole("group", { name: "Project activity" });
     await expect(feed).toBeVisible();
     // Real event articles from the shared Activity model (not a bespoke list).
@@ -62,7 +85,7 @@ test.describe("PROJ-04 project Activity tab", () => {
 
   test("loads a second page and never duplicates events", async ({ page }) => {
     await gotoFixture(page, RECORD);
-    await page.getByRole("tab", { name: "Activity" }).click();
+    await openRecordTab(page, "Activity");
     const feed = page.getByRole("group", { name: "Project activity" });
     await expect(feed).toBeVisible();
 
@@ -102,7 +125,7 @@ test.describe("PROJ-04 project Activity tab", () => {
   test("reflects lifecycle events without a hard reload", async ({ page }) => {
     // pr-activity is seeded COMPLETED (so it stays out of Today's "Continue working").
     await gotoFixture(page, RECORD);
-    await page.getByRole("tab", { name: "Activity" }).click();
+    await openRecordTab(page, "Activity");
     const feed = page.getByRole("group", { name: "Project activity" });
     await expect(feed).toBeVisible();
 
@@ -125,7 +148,7 @@ test.describe("PROJ-04 project Activity tab", () => {
     page,
   }) => {
     await gotoFixture(page, RECORD);
-    await page.getByRole("tab", { name: "Activity" }).click();
+    await openRecordTab(page, "Activity");
     const feed = page.getByRole("group", { name: "Project activity" });
     await expect(feed).toBeVisible();
 
@@ -145,7 +168,7 @@ test.describe("PROJ-04 project Activity tab", () => {
     page,
   }) => {
     await gotoFixture(page, "/projects/pr-empty");
-    await page.getByRole("tab", { name: "Activity" }).click();
+    await openRecordTab(page, "Activity");
     await expect(page.getByText(/No activity yet/i)).toBeVisible();
   });
 
@@ -153,7 +176,7 @@ test.describe("PROJ-04 project Activity tab", () => {
     page,
   }) => {
     await gotoFixture(page, RECORD);
-    await page.getByRole("tab", { name: "Activity" }).click();
+    await openRecordTab(page, "Activity");
     await expect(
       page.getByRole("group", { name: "Project activity" }),
     ).toBeVisible();
@@ -237,7 +260,7 @@ test.describe("PROJ-04 accessibility (light)", () => {
     await gotoFixture(page, RECORD);
     await expectNoAxeViolations(page);
 
-    await page.getByRole("tab", { name: "Activity" }).click();
+    await openRecordTab(page, "Activity");
     await expect(
       page.getByRole("group", { name: "Project activity" }),
     ).toBeVisible();
@@ -254,7 +277,7 @@ test.describe("PROJ-04 accessibility (dark)", () => {
     await gotoFixture(page, RECORD);
     await expectNoAxeViolations(page);
 
-    await page.getByRole("tab", { name: "Activity" }).click();
+    await openRecordTab(page, "Activity");
     await expect(
       page.getByRole("group", { name: "Project activity" }),
     ).toBeVisible();
@@ -289,7 +312,7 @@ test.describe("PROJ-04 responsive", () => {
         height: viewport.height,
       });
       await gotoFixture(page, RECORD);
-      await page.getByRole("tab", { name: "Activity" }).click();
+      await openRecordTab(page, "Activity");
       await expect(
         page.getByRole("group", { name: "Project activity" }),
       ).toBeVisible();

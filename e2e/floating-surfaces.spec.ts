@@ -130,6 +130,84 @@ async function openRowEditor(page: Page, row: Locator, testId: string) {
     .toBe(true);
 }
 
+/**
+ * Reach a row's editor THE WAY A KEYBOARD ACTUALLY DOES, and open it.
+ *
+ * The Tasks collection is an Untitled / React Aria TABLE now, and a React Aria
+ * table is a GRID: it owns focus for everything inside it. Calling `.focus()`
+ * on a control in a cell therefore does not focus that control — MEASURED:
+ * immediately after `trigger.focus()`, `document.activeElement` is `<body>`, so
+ * the Enter that followed went to the document and no menu could open. Both
+ * keyboard journeys below did exactly that, and neither was a race: retrying
+ * the same synthetic focus fifteen times changed nothing.
+ *
+ * The route a person has, also measured, is the grid pattern: focus the ROW,
+ * then ArrowRight steps along its focusable contents — complete, open, due
+ * date, project, priority — and Enter opens the editor under the cursor.
+ * Driving that is a STRONGER keyboard test than the synthetic focus it
+ * replaces, because it proves the whole path rather than the last press of it.
+ *
+ * Getting INTO the grid is the same rule one level up. Focusing a row hands
+ * React Aria the focus and it decides which row actually takes it — measured,
+ * focusing the `<table>` and focusing a row both land on a `<tr role="row">`,
+ * and no row ever carries `tabindex="0"`, so there is no "the focusable row" to
+ * aim at. ArrowDown then walks to the wanted one, which is again the grid
+ * pattern rather than a workaround.
+ *
+ * Both walks are bounded and ASSERTED rather than counted: a row's contents
+ * vary (a repeat glyph, a blocked note) and its position moves, so a fixed
+ * press count would pin today's list rather than test the route. If the cell is
+ * never reached, that is a real failure and it says so.
+ *
+ * The whole sequence retries, for the reason `openRowEditor` above already
+ * records: capturing a probe re-renders the list a beat later, which detaches
+ * the row mid-walk. A retry starts again from whatever the list now is.
+ */
+async function openRowEditorByKeyboard(
+  page: Page,
+  row: Locator,
+  testId: string,
+): Promise<Locator> {
+  const isFocused = (locator: Locator) =>
+    locator.evaluate((element) => element === document.activeElement);
+  const inCell = () =>
+    page.evaluate(
+      (selector) =>
+        document.activeElement?.closest(selector) !== null &&
+        document.activeElement?.tagName.toLowerCase() === "button",
+      `[data-testid="${testId}"]`,
+    );
+
+  await expect(async () => {
+    // In at the row, then down to it if the grid put us somewhere else.
+    await row.focus();
+    for (let step = 0; step < 40 && !(await isFocused(row)); step += 1) {
+      await page.keyboard.press("ArrowDown");
+    }
+    expect(
+      await isFocused(row),
+      "the row never took focus — a keyboard user cannot get to it",
+    ).toBe(true);
+
+    // …then along it to the cell.
+    for (let step = 0; step < 10 && !(await inCell()); step += 1) {
+      await page.keyboard.press("ArrowRight");
+    }
+    expect(
+      await inCell(),
+      `ArrowRight never reached ${testId} from the row — a keyboard user ` +
+        "cannot get to this editor",
+    ).toBe(true);
+
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("menu", { name: "Priority" })).toBeVisible({
+      timeout: 1_000,
+    });
+  }).toPass({ timeout: 20_000 });
+
+  return row.locator(`[data-testid="${testId}"] button`).first();
+}
+
 /** Every ancestor that clips the open surface — the defect this system removes. */
 async function clippedBy(page: Page): Promise<readonly string[]> {
   return page.evaluate(() => {
@@ -267,12 +345,11 @@ test.describe("DHDS-09 — the keyboard drives every surface", () => {
     const title = await captureProbe(page, "keyboard");
     const row = taskRow(page, title).first();
 
-    const trigger = row
-      .locator('[data-testid="task-row-priority"] button')
-      .first();
-    await trigger.focus();
-    await page.keyboard.press("Enter");
-
+    const trigger = await openRowEditorByKeyboard(
+      page,
+      row,
+      "task-row-priority",
+    );
     const menu = page.getByRole("menu", { name: "Priority" });
     await expect(menu).toBeVisible();
 
@@ -304,12 +381,11 @@ test.describe("DHDS-09 — the keyboard drives every surface", () => {
   }) => {
     await gotoFixture(page, PROBE_VIEW);
     const row = taskRows(page).first();
-    const trigger = row
-      .locator('[data-testid="task-row-priority"] button')
-      .first();
-
-    await trigger.focus();
-    await page.keyboard.press("Enter");
+    const trigger = await openRowEditorByKeyboard(
+      page,
+      row,
+      "task-row-priority",
+    );
     await expect(page.getByRole("menu", { name: "Priority" })).toBeVisible();
 
     await page.keyboard.press("Escape");
@@ -381,7 +457,24 @@ test.describe("DHDS-09 — a phone gets a sheet, not a squeezed popover", () => 
   test("the row's priority opens the shared bottom sheet, full width", async ({
     page,
   }) => {
-    await gotoFixture(page, PROBE_VIEW);
+    /*
+     * TODAY, because `/tasks` has no row priority to press on a phone.
+     *
+     * The Tasks collection draws the Untitled TABLE, and that row hides its
+     * parent, priority and state cells below `md` (`max-md:hidden` on each) —
+     * a phone gets checkbox, title, date and the overflow, which is the
+     * migration's deliberate phone row. MEASURED at 393px: the priority `<td>`
+     * computes `display: none`, so its trigger is a 0×0 box and the click this
+     * test made retried for its whole 30s budget against a control that is
+     * correctly not there.
+     *
+     * Today draws the `<li class="dh-taskrow">` presentation, which KEEPS its
+     * priority cell on a phone — measured at 393px as a 48×24 trigger — so
+     * "the row's priority" stays literally what is pressed, on the surface a
+     * person most often presses it from. Nothing else about the journey moves,
+     * and it still mutates nothing: it opens the sheet and measures it.
+     */
+    await gotoFixture(page, "/today");
     const row = taskRows(page).first();
     await row
       .locator('[data-testid="task-row-priority"] button')

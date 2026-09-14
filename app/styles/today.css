@@ -1,12 +1,29 @@
 /* Today composition: Untitled UI application dashboard grammar over DalyHub data. */
 
 @layer components {
+  /*
+   * DHDS-13 — the page's gutter is the SHELL's, applied ONCE.
+   *
+   * This carried its own `px-4 sm:px-6 lg:px-8` ladder and `.dh-today__head`
+   * then tried to cancel `PaneHeader`'s with `px-0`. It never won: the header's
+   * `px-[var(--dh-shell-gutter)]` is a utility and this rule is in
+   * `@layer components`, so Today drew BOTH gutters and its title started a
+   * whole gutter further in than every other page's — MEASURED at 1440px, the
+   * `h1` at x=72 inside the pane against x=40 on `/tasks`, `/plan`, `/projects`,
+   * `/goals`, `/notes`, `/areas` and `/analytics`, and the same doubling at 900
+   * (48 vs 24) and 393 (32 vs 16).
+   *
+   * So the padding moves off the page wrapper and onto the CONTENT, from the
+   * shared token rather than from a ladder of its own. The header now sits on
+   * the one vertical line the whole product starts on, and the panels below it
+   * line up with it instead of sitting eight pixels to its left.
+   */
   .dh-today {
-    @apply mx-auto flex w-full max-w-[var(--dh-shell-content-max-width)] flex-col gap-6 px-4 pb-8 sm:px-6 lg:px-8;
+    @apply mx-auto flex w-full max-w-[var(--dh-shell-content-max-width)] flex-col gap-6 pb-8;
   }
 
   .dh-today__head {
-    @apply max-w-none px-0 pb-1 pt-6;
+    @apply max-w-none pb-1 pt-6;
   }
 
   .dh-today__identity {
@@ -38,7 +55,7 @@
    * `order` anywhere on this page.
    */
   .dh-today__grid {
-    @apply flex min-w-0 flex-col gap-4;
+    @apply flex min-w-0 flex-col gap-4 px-[var(--dh-shell-gutter)];
   }
   .dh-today__col {
     display: contents;

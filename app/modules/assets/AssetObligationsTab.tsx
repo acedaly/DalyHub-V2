@@ -193,13 +193,22 @@ export function AssetObligationsTab({
             </p>
           ) : null}
 
-          <ObligationBands groups={groups} renderRow={renderRow} />
+          {/* `h3`: this tab already draws a visually-hidden `h2` above, so a
+              band is a section INSIDE it rather than a peer of it. */}
+          <ObligationBands
+            groups={groups}
+            renderRow={renderRow}
+            headingLevel={3}
+          />
 
           {settled.length > 0 ? (
             <details className="dh-asset-disclosure">
               <summary>Completed and set aside ({settled.length})</summary>
               <div className="dh-asset-disclosure__body">
-                <ObligationList ariaLabel="Completed and set-aside obligations">
+                <ObligationList
+                  ariaLabel="Completed and set-aside obligations"
+                  bounded
+                >
                   {settled.map(renderRow)}
                 </ObligationList>
               </div>

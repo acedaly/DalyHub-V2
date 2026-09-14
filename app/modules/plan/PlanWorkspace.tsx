@@ -1094,6 +1094,45 @@ function PlanQueue({
   const armed = data.days.find((day) => day.dateIso === armedDay) ?? null;
 
   /*
+   * V2.4-GATE-02 — Escape leaves selection, and it has to be a NATIVE listener.
+   *
+   * The rule is unchanged and the guard below is the same one the React handler
+   * carried: the region answers Escape only when nothing nearer has already
+   * claimed it (`defaultPrevented`), so an inline editor open over a row still
+   * handles its own key first — `InlineTextField` calls `preventDefault()` on
+   * Escape for exactly this reason — and a key pressed anywhere else on the
+   * page is still not this region's.
+   *
+   * What changed is that the key stopped ARRIVING. React Aria's focusable
+   * primitives stop propagation of key events they do not handle unless a
+   * handler calls `continuePropagation()`, and that stop is on React's
+   * SYNTHETIC event: it ends React's own bubbling to this section's `onKeyDown`
+   * while leaving the native event untouched. The row's selection control
+   * became the shared Untitled `Checkbox` — React Aria's — so Escape pressed
+   * with focus on a row checkbox, which is precisely where a person standing in
+   * selection mode is, silently stopped leaving the mode.
+   *
+   * MEASURED on `/plan`: Escape from the mode toggle leaves (`aria-pressed`
+   * false), Escape from the queue heading leaves, Escape from a row checkbox
+   * does not — while native listeners on this same section, and on `document`,
+   * all see the event with `defaultPrevented: false`. Listening natively is
+   * therefore not a workaround around React; it is listening where the event
+   * still is.
+   */
+  const queueRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    const node = queueRef.current;
+    if (!node || !selecting) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      event.preventDefault();
+      onStopSelecting();
+    };
+    node.addEventListener("keydown", onKeyDown);
+    return () => node.removeEventListener("keydown", onKeyDown);
+  }, [selecting, onStopSelecting]);
+
+  /*
    * Group the queue by band, PRESERVING the loader's order.
    *
    * The loader already emitted the entries in band order (the kernel's declared
@@ -1147,19 +1186,16 @@ function PlanQueue({
      * bar's "Done" both leave the mode by pointer), and nothing here makes the
      * section itself a target — no tabindex, no role, no click handler. Same
      * shape `UnsavedChangesGuard` states for its own Escape handling.
+     *
+     * The listener itself is attached natively in the effect above; see it for
+     * why the React handler this replaced stopped receiving the key at all.
      */
-    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <section
+      ref={queueRef}
       className="dh-plan__queue"
       aria-labelledby="plan-queue-heading"
       data-testid="plan-queue"
       data-selecting={selecting ? "true" : undefined}
-      onKeyDown={(event) => {
-        if (event.key === "Escape" && selecting && !event.defaultPrevented) {
-          event.preventDefault();
-          onStopSelecting();
-        }
-      }}
     >
       <header className="dh-plan__queue-head">
         {/* `tabIndex={-1}` so focus can be MOVED here after a placement without

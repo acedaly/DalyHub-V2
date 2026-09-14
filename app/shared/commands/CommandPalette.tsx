@@ -363,7 +363,15 @@ function CommandFeedback({ controller }: { controller: CommandController }) {
         {execution.message}
       </span>
       {execution.retryable ? (
-        <Button size="sm" onPress={controller.retryExecution}>
+        // `min-h-11` for the same reason the close control above states it: an
+        // Untitled `sm` button is under 44px, and a failed command is recovered
+        // by THUMB on a phone as readily as by pointer. This was the one
+        // control in the palette below the touch floor.
+        <Button
+          size="sm"
+          className="min-h-11 shrink-0"
+          onPress={controller.retryExecution}
+        >
           Retry
         </Button>
       ) : null}

@@ -191,6 +191,7 @@ export type SerializedValuationPoint = {
   readonly dateLabel: string;
   readonly amount: string;
   readonly minor: number;
+  readonly currencyCode: string;
   readonly source: string | null;
 };
 
@@ -206,6 +207,18 @@ export type SerializedValueHistory = {
   readonly hasTrend: boolean;
   /** A plain-text summary, so the history is legible without the chart (§16). */
   readonly summary: string | null;
+  /**
+   * UNTITLED-16 — the currency the plot's value axis is in.
+   *
+   * The LATEST point's, because that is the currency the current recorded value
+   * is stated in. A history whose currency changed part-way is vanishingly rare
+   * and, where it happens, the dated list beneath the plot still states every
+   * amount in its own currency — DalyHub never converts, so the plot is not
+   * given a second one to draw.
+   */
+  readonly currencyCode: string | null;
+  /** Whether every point shares that currency. A mixed history says so. */
+  readonly singleCurrency: boolean;
 };
 
 export function serializeValueHistory(
@@ -217,6 +230,7 @@ export function serializeValueHistory(
     dateLabel: formatHistoryDate(point.date) ?? point.date,
     amount: formatAmount(point.valueMinor, point.currencyCode) ?? "",
     minor: point.valueMinor,
+    currencyCode: point.currencyCode,
     source: point.source,
   }));
   const last = formatted.at(-1) ?? null;
@@ -235,11 +249,16 @@ export function serializeValueHistory(
           : "stayed level";
     summary = `${formatted.length} valuations recorded between ${first.dateLabel} and ${last.dateLabel}. The recorded value has ${direction} from ${first.amount} to ${last.amount}.`;
   }
+  const currencyCode = last?.currencyCode ?? null;
   return {
     points: formatted,
     currentAmount: last?.amount ?? null,
     hasTrend: formatted.length > 2,
     summary,
+    currencyCode,
+    singleCurrency:
+      currencyCode !== null &&
+      formatted.every((point) => point.currencyCode === currencyCode),
   };
 }
 

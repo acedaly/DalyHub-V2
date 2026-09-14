@@ -84,6 +84,27 @@ function goalRow(page: Page, title: string): Locator {
   return page.getByTestId("goal-row").filter({ hasText: title }).first();
 }
 
+/**
+ * The collection's movement facts for ONE Goal, read where it now states them.
+ *
+ * `GoalStoryRow` deliberately drops the movement line from a row that has
+ * nothing to report AND nothing to report it against — it says so in place: the
+ * status line already carries "No measurement", and adding "No movement yet this
+ * week." under it gives a new workspace "six rows of the same two sentences, and
+ * the only thing distinguishing one Goal from another is its title". A Goal that
+ * HAS moved keeps its line, and so does a measured one whatever it says.
+ *
+ * The same note records where the full statement went: "The pane and the record
+ * are unchanged: they have room for the full statement, its evidence and its
+ * window, and they draw it." So an unmeasured, unmoved Goal is asked on the
+ * pane — which is the collection, in its master-detail form — and the claim
+ * this file exists to prove is untouched: one derivation, three surfaces.
+ */
+async function paneMovement(page: Page, id: string): Promise<MovementFacts> {
+  await gotoFixture(page, `/goals?goal=${encodeURIComponent(id)}`);
+  return readMovement(page.getByTestId("goal-workspace-pane"));
+}
+
 /** One Goal's tile in Today's Goal panel. */
 function todayTile(page: Page, title: string): Locator {
   return page
@@ -139,11 +160,12 @@ test.describe("did the goals move?", () => {
      * A Goal that has NOT moved says so in words, and is never given a `0%`, an
      * empty ring or a figure with no denominator.
      */
-    const stillRow = goalRow(page, STILL.title);
-    const still = await readMovement(stillRow);
+    const still = await paneMovement(page, STILL.id);
     expect(still.key).toBe("no_movement_yet");
     expect(still.events).toBe(0);
     expect(still.headline).toMatch(/^No movement yet this week\.$/);
+    // …and the ROW beside it still never invents a figure or a verdict.
+    const stillRow = goalRow(page, STILL.title);
     expect(await stillRow.innerText()).not.toMatch(/%/);
     // Absence of evidence in a bounded window is described as exactly that.
     expect(await stillRow.innerText()).not.toMatch(
@@ -166,9 +188,7 @@ test.describe("did the goals move?", () => {
      * moving. This row is the difference between "did it move?" and "did
      * something happen?".
      */
-    expect((await readMovement(goalRow(page, METADATA.title))).key).toBe(
-      "no_movement_yet",
-    );
+    expect((await paneMovement(page, METADATA.id)).key).toBe("no_movement_yet");
 
     /*
      * GOAL-02 is untouched. The measurable Goal still states its own reading,

@@ -57,6 +57,30 @@ const RUN = String(Date.now());
  */
 const TARGET_DATE = ownerDayPlus(100);
 
+/**
+ * What a test that calls `createMeasurableGoal` has actually bought.
+ *
+ * It is not one interaction: a record is created through the real creation
+ * dialog (six fields, a measurement kind, a target date), the Goal record is
+ * loaded, and most callers then log two readings through the check-in sheet
+ * before they assert anything. The 30s default is sized for one interaction.
+ *
+ * MEASURED, and this is the whole of the argument. Locally these journeys run
+ * in 8.3s, 10.3s, 10.5s and 9.9s. On run 34777810234 (partition p08) all four
+ * hit `Test timeout of 30000ms exceeded` — and the file's own width matrix,
+ * which already carries an explicit budget, took 37.7s locally and exceeded
+ * 120s there. That is a consistent ~3x on a contended shared runner, which is
+ * a fact about the runner rather than about the product: nothing in these
+ * journeys FAILED, they ran out of clock.
+ *
+ * This is DEBT-126's shape, and the repair is the one `projects-mobile` and
+ * `reviews-guided` already use for their journeys: a bound on ONE interaction
+ * is not a bound on a journey. No assertion changes, nothing is skipped, and
+ * the suite-level ceiling is untouched — a genuinely hung journey still fails,
+ * it just fails on being hung rather than on being a journey.
+ */
+const GOAL_JOURNEY_TIMEOUT_MS = 90_000;
+
 /** Create a measurable Goal through the product and return its record URL. */
 async function createMeasurableGoal(
   page: Page,
@@ -116,6 +140,8 @@ async function openGoalPane(page: Page, title: string): Promise<Locator> {
 }
 
 test.describe("UIX-03 — the Goal row reads as an outcome", () => {
+  test.describe.configure({ timeout: GOAL_JOURNEY_TIMEOUT_MS });
+
   test("leads with the reading, states the journey, and shows a trend", async ({
     page,
   }) => {
@@ -266,6 +292,8 @@ test.describe("UIX-03 — the status views", () => {
 });
 
 test.describe("UIX-03 — the Goal record's chart", () => {
+  test.describe.configure({ timeout: GOAL_JOURNEY_TIMEOUT_MS });
+
   test("draws the target it is aiming at, and names it in text", async ({
     page,
   }) => {
@@ -289,7 +317,10 @@ test.describe("UIX-03 — the Goal record's chart", () => {
      * used to be dropped from the chart entirely, so the plot answered "have I
      * moved?" and silently refused "am I getting there?".
      */
-    await expect(chart.locator(".dh-linechart__target")).toHaveCount(1);
+    // `.dh-chart-reference--target` since the charts became Untitled/Recharts:
+    // `.dh-linechart__target` went with the hand-rolled SVG, so this had become
+    // a count of an element that no longer existed.
+    await expect(chart.locator(".dh-chart-reference--target")).toHaveCount(1);
     await expect(chart).toContainText("Target 68 kg");
     // Never colour alone — the caption states both the series and the target.
     await expect(chart.getByRole("img")).toHaveAttribute(
@@ -297,8 +328,19 @@ test.describe("UIX-03 — the Goal record's chart", () => {
       /3 measurements/,
     );
 
-    // ONE tab stop for the whole series, not one per reading.
-    await expect(chart.locator("[tabindex]")).toHaveCount(1);
+    /*
+     * ONE tab stop for the whole series, not one per reading.
+     *
+     * Counted as TABBABLE elements rather than as "anything carrying a
+     * `tabindex`". Recharts marks its own layer groups and its tooltip wrapper
+     * `tabindex="-1"` — focusable by script, deliberately NOT in the tab order —
+     * so the bare `[tabindex]` this used to count returned 14 for a chart with
+     * exactly one tab stop: 1 × `svg[tabindex="0"]`, 12 × `g[tabindex="-1"]`
+     * and the tooltip wrapper. The contract is the tab ORDER, and it is kept.
+     */
+    await expect(chart.locator('[tabindex]:not([tabindex="-1"])')).toHaveCount(
+      1,
+    );
     // …and it names a reading without any interaction at all.
     await expect(chart).toContainText(/81 kg on /);
   });
@@ -339,6 +381,8 @@ test.describe("UIX-03 — the Goal record's chart", () => {
 });
 
 test.describe("UIX-03 — phone and accessibility", () => {
+  test.describe.configure({ timeout: GOAL_JOURNEY_TIMEOUT_MS });
+
   test.use({
     viewport: { width: 390, height: 844 },
     isMobile: true,
@@ -398,6 +442,15 @@ test.describe("UIX-03 — the responsive matrix", () => {
   test("the Goals workspace never scrolls sideways at any supported width", async ({
     page,
   }) => {
+    /*
+     * A real budget, for the SAME reason the record's matrix below states one:
+     * this loads `/goals` at ELEVEN widths, each `gotoFixture` waiting for the
+     * network to settle, and that exceeds the default 30s deterministically
+     * rather than flakily. The eleven widths are still all asserted and no
+     * assertion is relaxed — only the clock is honest about what the journey
+     * costs.
+     */
+    test.setTimeout(120_000);
     for (const viewport of GOAL_VIEWPORTS) {
       await page.setViewportSize({
         width: viewport.width,
@@ -427,7 +480,7 @@ test.describe("UIX-03 — the responsive matrix", () => {
      * widths are still asserted. `linked-items.spec.ts` sets its own budget for
      * the same reason.
      */
-    test.setTimeout(120_000);
+    test.setTimeout(2 * GOAL_JOURNEY_TIMEOUT_MS);
     const url = await createMeasurableGoal(page, {
       title: `Cycle 2,000 km ${RUN}`,
       unit: "km",
