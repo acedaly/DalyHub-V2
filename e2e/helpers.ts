@@ -459,14 +459,37 @@ export async function waitForInteractive(page: Page): Promise<void> {
    *
    * Absent is not a failure — an unauthenticated or error document has no
    * shell — so this waits only when the attribute is there to wait on.
+   *
+   * ── It is a GATE, and a gate never fails a test ─────────────────────────────
+   *
+   * The first version of this used `expect.poll(...).toBe(true)` on the default
+   * 5s budget, and that was a mistake worth spelling out: on a contended runner
+   * hydration can take longer than five seconds, and a failing POLL reports
+   * "expected true, received false" against the helper rather than anything
+   * about the surface under test. MEASURED on run 34789120450 — seven tests
+   * across `account-security`, `activity-actor` and `follow-01-week-account`
+   * failed with exactly that message, several of which had passed the run
+   * before. Turning a race into an uninformative hard failure is worse than the
+   * race.
+   *
+   * So it waits generously and then gets out of the way. If React genuinely
+   * never attaches, the test's own next assertion fails on its own terms and
+   * says something useful; this is only ever here to remove the window, not to
+   * police it. `waitForStylesheet` above takes the same shape and for the same
+   * reason.
    */
-  const shell = page.locator("[data-app-hydrated]").first();
-  await expect
-    .poll(async () => {
-      if ((await shell.count()) === 0) return true;
-      return (await shell.getAttribute("data-app-hydrated")) === "true";
-    })
-    .toBe(true);
+  await page
+    .waitForFunction(
+      () => {
+        const shell = document.querySelector("[data-app-hydrated]");
+        return (
+          shell === null || shell.getAttribute("data-app-hydrated") === "true"
+        );
+      },
+      undefined,
+      { timeout: 15_000 },
+    )
+    .catch(() => undefined);
 
   // `[data-hydrated]` is published only by the surfaces that have a meaningful
   // hydration boundary of their own — Today and the design routes. A product
