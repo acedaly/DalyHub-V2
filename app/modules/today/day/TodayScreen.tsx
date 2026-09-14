@@ -1055,16 +1055,25 @@ function ReviewDoorCard({ door }: { readonly door: TodayReviewDoor }) {
             className={
               door.state === "completed"
                 ? "dh-today__panel-action"
-                : /* `dh-today__review-door-open` lets this one sentence-length
-                     label wrap where the shared button's `nowrap` would push
-                     the document sideways — see `today.css` (DEBT-221). */
-                  "dh-btn dh-btn--outlined dh-btn--sm dh-today__review-door-open"
+                : /*
+                   * UNTITLED-19 — the LAST `.dh-btn` literal in the product,
+                   * and with it the whole `.dh-btn:not(.dh-button)` block.
+                   *
+                   * The comment this replaces pointed at
+                   * `dh-today__review-door-open` in `today.css` for the wrap
+                   * behaviour. No such rule exists in any stylesheet — it had
+                   * been deleted at some point and the class was inert, so the
+                   * wrapping was really just the legacy button not setting
+                   * `white-space` at all. Untitled's button does, hence
+                   * `whitespace-normal` stated here where it can be seen.
+                   */
+                  `${buttonClassName({ variant: "secondary", size: "sm" })} whitespace-normal text-left`
             }
             data-testid="today-review-door-action"
             to={door.href}
           >
             {door.state === "completed" ? null : (
-              <span className="dh-btn__icon" aria-hidden="true">
+              <span aria-hidden="true">
                 <ReviewIcon />
               </span>
             )}

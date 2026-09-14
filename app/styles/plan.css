@@ -475,16 +475,6 @@
 }
 
 /* "Today" is a WORD. The tint reinforces it; it never carries it alone. */
-.dh-plan__day-now {
-  padding: 0 var(--dh-space-2);
-  border-radius: var(--dh-radius-pill);
-  background: var(--dh-color-accent-subtle);
-  color: var(--dh-color-text-on-accent-subtle);
-  font-size: var(--dh-text-meta-size);
-  line-height: calc(var(--dh-text-meta-line-height) * 1.4);
-  font-weight: var(--dh-text-label-weight);
-}
-
 /* -------------------------------------------------------------------------- */
 /* A day's two bands                                                          */
 /* -------------------------------------------------------------------------- */
@@ -1000,10 +990,6 @@
 
   .dh-plan__place-day {
     border-color: ButtonBorder;
-  }
-
-  .dh-plan__day-now {
-    border: var(--dh-border-width) solid CanvasText;
   }
 }
 
