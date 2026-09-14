@@ -424,11 +424,12 @@ export function RestoreFromBackup() {
           control={
             <button
               type="button"
-              className={
-                state.preview.destructive
-                  ? "dh-settings-danger-button"
-                  : "dh-btn dh-btn--primary"
-              }
+              // Genuinely destructive on the replace path — this is the one
+              // control in Settings that overwrites a populated workspace — and
+              // the ordinary primary action when the workspace is empty.
+              className={buttonClassName({
+                variant: state.preview.destructive ? "danger" : "primary",
+              })}
               data-testid="restore-apply"
               disabled={!canRestore(state)}
               onClick={(event) => {

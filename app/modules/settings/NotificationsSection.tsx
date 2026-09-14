@@ -34,7 +34,7 @@ import type {
   NotificationActionResult,
   NotificationSettingsView,
 } from "./routes/notifications";
-import { buttonClassName, inputClassName } from "~/shared/ui";
+import { Select, buttonClassName, inputClassName } from "~/shared/ui";
 
 /** Everything this section renders that only the server can know. */
 export type NotificationSettingsData = {
@@ -276,9 +276,18 @@ function DigestTimeGroup({
           settings.timeZone === null ? " — from your profile" : ""
         }.`}
         control={
-          <select
+          /*
+           * UNTITLED-18 — the shared `Select`.
+           *
+           * This was `className="dh-select"`, a class with no rules in any
+           * stylesheet since the Phase-5 paint sweep, so it drew the browser's
+           * own default control beside a migrated Untitled time field one row
+           * above. UNTITLED-17 found all three survivors by LOOKING at the
+           * page — a bare select still works, so no test could see it — fixed
+           * two, and named this one for this pass. It is the last.
+           */
+          <Select
             aria-label="Notification timezone"
-            className="dh-select"
             value={settings.timeZone ?? ""}
             data-testid="notification-timezone"
             disabled={!settings.enabled}
@@ -290,7 +299,7 @@ function DigestTimeGroup({
                 {zone}
               </option>
             ))}
-          </select>
+          </Select>
         }
       />
     </SettingsGroup>

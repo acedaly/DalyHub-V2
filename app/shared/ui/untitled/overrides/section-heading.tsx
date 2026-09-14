@@ -52,6 +52,16 @@ export interface SectionHeadingProps {
   readonly level?: 2 | 3 | 4;
   readonly isRequired?: boolean;
   readonly id?: string;
+  /**
+   * An id for the DESCRIPTION paragraph, so a container can point
+   * `aria-describedby` at it.
+   *
+   * UNTITLED-18's addition, and the same kind of addition `level` is: a settings
+   * group is a labelled region whose supporting text describes the whole region,
+   * not just the heading — which is exactly what `aria-describedby` on the
+   * region says and what an unaddressable paragraph cannot.
+   */
+  readonly descriptionId?: string;
   readonly className?: string;
   readonly children?: ReactNode;
 }
@@ -63,6 +73,7 @@ export function SectionHeading({
   level = 3,
   isRequired,
   id,
+  descriptionId,
   className,
   children,
 }: SectionHeadingProps) {
@@ -83,7 +94,7 @@ export function SectionHeading({
       </Heading>
 
       {description ? (
-        <p className={cx("text-tertiary", styles[size].subheading)}>
+        <p id={descriptionId} className={cx("text-tertiary", styles[size].subheading)}>
           {description}
         </p>
       ) : null}

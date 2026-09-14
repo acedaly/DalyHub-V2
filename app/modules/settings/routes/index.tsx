@@ -1,4 +1,5 @@
 import { env } from "cloudflare:workers";
+import { ArrowLeft } from "@untitledui/icons";
 import { useMemo, useRef, useState } from "react";
 import { Link, useFetcher, useSearchParams } from "react-router";
 
@@ -78,7 +79,12 @@ import {
   AccountSecuritySection,
   type AccountSecurityData,
 } from "../AccountSecuritySection";
-import { SettingsGroup, SettingsLayout, SettingsRow } from "~/shared/settings";
+import {
+  SettingsGroup,
+  SettingsLayout,
+  SettingsNav,
+  SettingsRow,
+} from "~/shared/settings";
 // The specific module, not the `~/shared/shell` barrel: the barrel also exports
 // `AppShell`, and importing it here would pull the whole application frame into
 // the Settings route chunk for the sake of one control.
@@ -1071,14 +1077,28 @@ export default function SettingsRoute({ loaderData }: Route.ComponentProps) {
    * no hydration mismatch, and Back genuinely returns to the list because each
    * section is a real URL.
    */
+  const navGroups = SECTION_GROUPS.map((group) => ({
+    id: group.id,
+    label: group.label,
+    items: SECTIONS.filter((section) => section.group === group.id).map(
+      (section) => ({
+        id: section.id,
+        label: section.label,
+        summary: section.summary,
+        href: sectionHref(section.id),
+        current: active === section.id,
+      }),
+    ),
+  }));
+
   return (
     <div
       className="dh-settings-page"
       data-chosen={sectionChosen ? "true" : "false"}
     >
-      <header className="dh-settings-page__header">
-        <h1 className="dh-settings-page__title">Settings</h1>
-        <p className="dh-settings-page__description">
+      <header className="dh-settings-page__header flex min-w-0 flex-col gap-1">
+        <h1 className="text-display-xs font-semibold text-primary">Settings</h1>
+        <p className="text-md text-tertiary">
           Application preferences for this owner and workspace.
         </p>
       </header>
@@ -1086,84 +1106,30 @@ export default function SettingsRoute({ loaderData }: Route.ComponentProps) {
       {/* A list of links between sections is navigation, not complementary
        * content. It was an <aside>; RELEASE-01 added a top-level /about route,
        * which made an unscoped "About" link ambiguous and surfaced the wrong
-       * landmark role at the same time. */}
-      <nav className="dh-settings-page__nav" aria-label="Settings sections">
-        {SECTION_GROUPS.map((group) => (
-          <div key={group.id} className="dh-settings-page__nav-group">
-            {/*
-             * The group label is a real heading for the list beneath it, and the
-             * list is named BY it — so a screen reader hears "Your data, list, 3
-             * items" rather than eight links in one undifferentiated run.
-             */}
-            <h2
-              className="dh-settings-page__nav-group-label"
-              id={`dh-settings-group-${group.id}`}
-            >
-              {group.label}
-            </h2>
-            <ul
-              className="dh-settings-page__nav-list"
-              aria-labelledby={`dh-settings-group-${group.id}`}
-            >
-              {SECTIONS.filter((section) => section.group === group.id).map(
-                (section) => (
-                  <li
-                    key={section.id}
-                    /* FINAL-UI — the ROW is the state-layer host, because the
-                     * row is what the link's `::after` makes clickable. */
-                    className="dh-settings-page__nav-item md-state-layer"
-                  >
-                    <Link
-                      to={sectionHref(section.id)}
-                      className={
-                        active === section.id
-                          ? "dh-settings-page__nav-link dh-settings-page__nav-link--active"
-                          : "dh-settings-page__nav-link"
-                      }
-                      aria-current={active === section.id ? "page" : undefined}
-                      aria-describedby={`dh-settings-summary-${section.id}`}
-                      preventScrollReset
-                    >
-                      {section.label}
-                    </Link>
-                    {/*
-                     * The summary is a SIBLING of the link, described by it
-                     * rather than inside it.
-                     *
-                     * Inside, it would join the link's accessible NAME, so a
-                     * screen reader would announce "Account & security Who you
-                     * are signed in as, recent activity, and signing out, link"
-                     * — a name that is a paragraph, on a rail where the summary
-                     * is not even visible. As a description it is announced
-                     * AFTER the name, which is what supporting text is for, and
-                     * the whole row is still one target because the link's
-                     * ::after covers the item (the same whole-row-link pattern
-                     * every row family in the product uses).
-                     */}
-                    <span
-                      className="dh-settings-page__nav-summary"
-                      id={`dh-settings-summary-${section.id}`}
-                    >
-                      {section.summary}
-                    </span>
-                  </li>
-                ),
-              )}
-            </ul>
-          </div>
-        ))}
-      </nav>
+       * landmark role at the same time.
+       *
+       * UNTITLED-18 — the rail's twelve rows are `SettingsNav`, on Untitled's
+       * stacked destination-row grammar. What remains in `settings.css` for it
+       * is the page GRID and the phone's two-screen swap; the rows themselves
+       * carry no stylesheet rules at all. */}
+      <SettingsNav
+        className="dh-settings-page__nav"
+        aria-label="Settings sections"
+        groups={navGroups}
+        sectionChosen={sectionChosen}
+      />
 
-      <div className="dh-settings-page__content">
-        {/* Phone only — the way back to the list. It is a real link to the
-         * section-less URL, so it is also what Back does. */}
+      <div className="dh-settings-page__content min-w-0">
+        {/* Phone only — the way back to the section list. It is a real link to
+         * the section-less URL, so it is also what Back does. */}
         <p className="dh-settings-page__back">
           <Link
             to="?"
             preventScrollReset
             className={buttonClassName({ variant: "subtle" })}
           >
-            <span aria-hidden="true">←</span> All settings
+            <ArrowLeft data-icon aria-hidden="true" className="size-4" /> All
+            settings
             {activeSection ? (
               <span className="dh-visually-hidden">
                 {` — leaving ${activeSection.label}`}
@@ -1365,7 +1331,18 @@ function NavigationSection({
           control={
             <resetFetcher.Form method="post">
               <input type="hidden" name="intent" value="reset-navigation" />
-              <button type="submit" className="dh-settings-danger-button">
+              {/*
+                UNTITLED-18 — `secondary`, not destructive.
+
+                It drew the danger button, and resetting navigation destroys
+                nothing: it restores every module row, and the owner can hide
+                them again in the rows immediately above. The control that
+                UNDOES a hiding was the loudest one on the section.
+              */}
+              <button
+                type="submit"
+                className={buttonClassName({ variant: "secondary" })}
+              >
                 Reset navigation
               </button>
             </resetFetcher.Form>

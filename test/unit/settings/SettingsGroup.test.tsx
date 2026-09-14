@@ -31,11 +31,35 @@ describe("DS-10b SettingsGroup & SettingsLayout", () => {
     expect(
       screen.getByRole("heading", { name: /Danger zone/ }),
     ).toBeInTheDocument();
-    // The differentiating class is present, and the warning glyph is decorative.
-    const section = container.querySelector(".dh-settings-group--danger");
-    expect(section).not.toBeNull();
-    const glyph = section!.querySelector("svg");
+    /*
+     * UNTITLED-18 — asserted on the CUE, not on a class name.
+     *
+     * This read `.dh-settings-group--danger`, a modifier that existed only to
+     * select the tint in `settings.css`. The paint is Untitled utilities on the
+     * component now, so that class is gone and the class it was replaced by
+     * would be just as much an implementation detail to pin.
+     *
+     * What the test is actually for is the RULE: the dangerous region must be
+     * distinguishable by something other than colour (AGENTS.md §15). Two things
+     * carry that — the heading text, asserted above, and a warning glyph, which
+     * is decorative because the heading already says it in words. Both survive a
+     * repaint; neither survives being silently dropped.
+     */
+    const glyph = container.querySelector("svg");
+    expect(glyph).not.toBeNull();
     expect(glyph).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("draws no danger glyph on an ordinary group", () => {
+    // The other half of the rule above: if every group had the mark, the mark
+    // would say nothing. Without this, dropping the `tone` check entirely would
+    // still pass the test before it.
+    const { container } = render(
+      <SettingsGroup title="General" description="Ordinary settings.">
+        <div>row</div>
+      </SettingsGroup>,
+    );
+    expect(container.querySelector("svg")).toBeNull();
   });
 
   it("renders the surface heading at the requested level", () => {
