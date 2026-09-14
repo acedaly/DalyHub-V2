@@ -145,13 +145,21 @@ describe("the table is never optional", () => {
     const bars = within(table).getAllByRole("progressbar");
     expect(bars).toHaveLength(2);
     /*
-     * The shared bar always announces "NN% — …", where the percentage is the
-     * bar's own value and the figure is the fact. The share is taken against
-     * the LARGEST ROW, so the leader is full and every other bar is honestly
-     * relative to it — a bounded report's rows do not add up to its total.
+     * The announced text is the FIGURE and nothing else. The bar is drawn
+     * against the LARGEST ROW, so $500 fills 42% of the $1,200 leader's track —
+     * and 42% is not this row's share of the $1,700 result, which is 29%. A
+     * column that announced "42%" beside a heading reading "Share" would be
+     * stating the one number that is false, so it announces neither: the bar
+     * reports its position in the range it was actually scaled against, and the
+     * column is called "Relative size".
      */
-    expect(bars[0]).toHaveAttribute("aria-valuetext", "100% — $1,200.00");
-    expect(bars[1]).toHaveAttribute("aria-valuetext", "42% — $500.00");
+    expect(bars[0]).toHaveAttribute("aria-valuetext", "$1,200.00");
+    expect(bars[1]).toHaveAttribute("aria-valuetext", "$500.00");
+    expect(bars[1]).toHaveAttribute("aria-valuenow", "50000");
+    expect(bars[1]).toHaveAttribute("aria-valuemax", "120000");
+    expect(
+      within(table).getByRole("columnheader", { name: "Relative size" }),
+    ).toBeInTheDocument();
   });
 
   it("prints them all when the visual is TABLE, with no chart", () => {

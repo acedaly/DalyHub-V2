@@ -113,7 +113,20 @@ export default function AskDalyHubRoute({ loaderData }: Route.ComponentProps) {
   const [nonce, setNonce] = useState(0);
   const fieldId = useId();
   const fieldRef = useRef<HTMLTextAreaElement | null>(null);
-  const answerRef = useRef<HTMLHeadingElement | null>(null);
+  /*
+   * Typed as `HTMLElement` because the three settled branches aim it at
+   * different things: two at their own "Answer" heading, and the grounded one
+   * at its labelled region, which has no heading to aim at.
+   */
+  const answerRef = useRef<HTMLElement | null>(null);
+  /*
+   * A callback ref, so ONE ref serves all three: an `h2` and a `section` are
+   * different element types, and a shared `RefObject<HTMLElement>` cannot be
+   * handed to either without widening what each element promises.
+   */
+  const setAnswerRef = useCallback((node: HTMLElement | null) => {
+    answerRef.current = node;
+  }, []);
 
   const unavailable: AiSurfaceState | null = !availability.enabled
     ? { kind: "disabled" }
@@ -173,11 +186,12 @@ export default function AskDalyHubRoute({ loaderData }: Route.ComponentProps) {
    * answer" exactly once, puts the keyboard where the reader wants it, and
    * leaves the region an ordinary landmark they can come back to.
    *
-   * The GROUNDED path renders `AiGroundedAnswer`, which draws its own labelled
-   * region; the ref is not attached there, so the effect is a no-op and that
-   * path is reached by landmark rather than by focus. It only fires against a
-   * configured provider, which no test in this repository exercises — named
-   * here rather than papered over.
+   * All THREE settled branches are announced, the grounded one included. It
+   * draws a labelled region with no heading in it, so the ref goes on the
+   * region itself and `AiGroundedAnswer` makes that focusable — an answer that
+   * only fires against a configured provider is exactly the one a reader would
+   * never be told about, and "no test exercises it" is a reason to be careful
+   * rather than a reason to leave it silent.
    */
   useEffect(() => {
     if (settled) answerRef.current?.focus();
@@ -359,6 +373,7 @@ export default function AskDalyHubRoute({ loaderData }: Route.ComponentProps) {
           {grounded !== null && state.kind === "result" ? (
             <>
               <AiGroundedAnswer
+                focusRef={setAnswerRef}
                 status={grounded.status}
                 summary={grounded.summary}
                 observations={grounded.observations}
@@ -379,7 +394,7 @@ export default function AskDalyHubRoute({ loaderData }: Route.ComponentProps) {
               <h2
                 className="dh-ask__answer-heading"
                 tabIndex={-1}
-                ref={answerRef}
+                ref={setAnswerRef}
               >
                 Answer
               </h2>
@@ -425,7 +440,7 @@ export default function AskDalyHubRoute({ loaderData }: Route.ComponentProps) {
               <h2
                 className="dh-ask__answer-heading"
                 tabIndex={-1}
-                ref={answerRef}
+                ref={setAnswerRef}
               >
                 Answer
               </h2>
