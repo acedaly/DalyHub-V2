@@ -66,6 +66,31 @@ function rowTitles(page: Page) {
   return page.getByTestId("goal-row").locator(".dh-mrow__title");
 }
 
+/**
+ * The measurement region's text, read once its chart has finished drawing.
+ *
+ * A Goal's measurement chart is Recharts inside a `ResponsiveContainer`, which
+ * measures its own box through a `ResizeObserver` AFTER hydration — so a
+ * document that is fully interactive still carries no axes on it for a frame
+ * or two. `innerText` sampled inside that window is missing everything the
+ * axes contribute, and the readings either side of a reload are then not the
+ * same kind of reading at all. MEASURED: exactly eight lines short — the four
+ * date ticks and the four value ticks — while every fact the assertion is
+ * actually about ("Recorded readings", "Target 50", "Start 0", the trend and
+ * the derived value) was present and identical on both sides.
+ *
+ * Waiting on a painted tick is what makes the comparison honest. The claim is
+ * unchanged and deliberately still whole-text: the history must survive a move
+ * VERBATIM, not merely approximately.
+ */
+async function measurementText(page: Page): Promise<string> {
+  const region = page.getByTestId("goal-progress");
+  await expect(
+    region.locator(".recharts-cartesian-axis-tick-value").first(),
+  ).toBeVisible();
+  return (await region.innerText()).trim();
+}
+
 test.describe("STEER-01 — what /goals answers", () => {
   test("orders the workspace by outcome, counts it truthfully, and states the owner's condition beside the facts", async ({
     page,
@@ -217,9 +242,7 @@ test.describe("STEER-02 — the owner's hand", () => {
     await gotoFixture(page, `/goals/${STEER_GOALS.movable.id}`);
     // What the Goal knows BEFORE the move: its measurement history, drawn from
     // its own readings.
-    const measurementBefore = await page
-      .getByTestId("goal-progress")
-      .innerText();
+    const measurementBefore = await measurementText(page);
     // The machine value, not a rendered label: the Area name appears in the
     // breadcrumb, in the picker's trigger and in the identity field's help
     // text, and a test that matched on the words would be asserting about
@@ -247,9 +270,7 @@ test.describe("STEER-02 — the owner's hand", () => {
     // Its measurement history survived the move verbatim: the readings, the
     // derived value and the status are what they were a moment ago.
     await page.reload();
-    expect((await page.getByTestId("goal-progress").innerText()).trim()).toBe(
-      measurementBefore.trim(),
-    );
+    expect(await measurementText(page)).toBe(measurementBefore);
     await expect(page.getByTestId("goal-area-edit-value")).toBeVisible();
 
     // The move is in the Goal's own history, through the repository's
