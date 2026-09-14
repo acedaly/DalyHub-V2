@@ -27,6 +27,9 @@
  */
 
 import { execFileSync } from "node:child_process";
+import { readdirSync } from "node:fs";
+import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 
 /** How many times a transient failure is re-attempted before it is a failure. */
 const ATTEMPTS = 5;
@@ -49,10 +52,18 @@ export function sqlLiteral(value: string): string {
  * still fails, and loudly, but the message names contention rather than the
  * missing statement. If a teardown fails here, check the ORDER of the statements
  * before assuming the database was busy.
+ *
+ * `database is locked` is the SAME condition seen through a different messenger.
+ * Wrangler surfaces SQLite's busy result as the symbolic `SQLITE_BUSY`;
+ * `node:sqlite` — which `d1Query` now uses — reports it by SQLite's own message
+ * text instead. Matching only the symbol would have left the read path with a
+ * retry loop that never fired, which is worse than no retry loop because it
+ * looks like one.
  */
 function isTransientD1Error(output: string): boolean {
   return (
     output.includes("SQLITE_BUSY") ||
+    output.includes("database is locked") ||
     output.includes("FOREIGN KEY constraint failed")
   );
 }
@@ -143,6 +154,33 @@ export function d1ExecuteFile(path: string): void {
 }
 
 /**
+ * Where miniflare keeps the local D1, for the READ path below.
+ *
+ * The file is named by a content hash, so it is discovered rather than spelled:
+ * the directory holds exactly one `*.sqlite` that is not miniflare's own
+ * `metadata.sqlite`. Resolved once and cached — the path does not move inside a
+ * run, and the gate deletes and recreates the whole directory between runs.
+ */
+const D1_DIR = ".wrangler/state/v3/d1/miniflare-D1DatabaseObject";
+
+let databaseFile: string | null = null;
+
+function localDatabaseFile(): string {
+  if (databaseFile !== null) return databaseFile;
+  const candidates = readdirSync(D1_DIR).filter(
+    (name) => name.endsWith(".sqlite") && name !== "metadata.sqlite",
+  );
+  if (candidates.length !== 1) {
+    throw new Error(
+      `d1: expected exactly one database in ${D1_DIR}, found ${candidates.length}` +
+        ` (${candidates.join(", ") || "none"}). Has the local D1 been created?`,
+    );
+  }
+  databaseFile = join(D1_DIR, candidates[0] as string);
+  return databaseFile;
+}
+
+/**
  * Run one SELECT and return its rows.
  *
  * The read half of the same helper, with the same retry rule, added by PWA-12
@@ -150,22 +188,40 @@ export function d1ExecuteFile(path: string): void {
  * — "exactly one successor" is not observable from the interface alone once the
  * completed occurrence leaves the default view.
  *
- * `--json` is what makes this parseable; without it wrangler prints a table
- * whose formatting is not a contract. A caller whose SQL is not a pure read must
- * use `d1Execute` instead.
+ * ── This does NOT spawn wrangler, and the reason is a measurement ────────────
+ *
+ * `wrangler d1 execute --local` costs **3.1 seconds of process startup** before
+ * it reads a byte (MEASURED, 14 September 2026, this sandbox). That is not a
+ * detail: `assisted-ai.spec.ts`'s "applies, replays as unchanged, refuses stale,
+ * and undoes exactly" makes EIGHT fixture reads, so roughly twenty-five seconds
+ * of its thirty-second budget was wrangler booting — which is why it passed
+ * alone and timed out under load, and why three passes looking for contention in
+ * the PRODUCT found nothing. The queue page it drives loads in 1.9s, faster than
+ * `/tasks`; there was never anything wrong with it.
+ *
+ * Reading the SQLite file directly costs **8ms** for the same query — the same
+ * bytes, through the same file miniflare writes. `readOnly` is the whole safety
+ * argument: this connection cannot write, so it cannot corrupt the database the
+ * dev server owns, and it sees committed data through the WAL exactly as a
+ * second wrangler process would.
+ *
+ * WRITES deliberately stay on wrangler (`d1Execute`, `d1ExecuteFile`). The win
+ * is concentrated in reads, and a second writing process against a file the
+ * server also writes is a risk worth no amount of wall clock.
+ *
+ * The retry loop still wraps it, because the contention this module exists for
+ * — SQLite serialising against the dev server's writer — is a property of the
+ * file, not of wrangler.
  */
 export function d1Query<T = Record<string, unknown>>(
   command: string,
 ): readonly T[] {
   return withRetries(() => {
-    const output = runOnce({ command }, true);
-    // Wrangler prefixes its JSON with human-readable lines; the payload is the
-    // first well-formed array in the output.
-    const start = output.indexOf("[");
-    if (start === -1) return [] as readonly T[];
-    const parsed = JSON.parse(output.slice(start)) as {
-      results?: T[];
-    }[];
-    return (parsed[0]?.results ?? []) as readonly T[];
+    const db = new DatabaseSync(localDatabaseFile(), { readOnly: true });
+    try {
+      return db.prepare(command).all() as unknown as readonly T[];
+    } finally {
+      db.close();
+    }
   });
 }

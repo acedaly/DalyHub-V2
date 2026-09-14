@@ -1,9 +1,38 @@
 /**
- * DS-02 — the DalyHub Badge.
+ * DS-02 / UNTITLED-19 — the DalyHub Badge.
  *
  * The generic form of what the product has called a "status pill" since M3-01.
- * `StatusPill` (`~/shared/pill`) keeps working and now renders THIS — one
- * object, one stylesheet, two names during the migration.
+ * `StatusPill` (`~/shared/pill`) renders THIS, so the two names are one object.
+ *
+ * ── UNTITLED-19 — there is no second badge any more ──────────────────────────
+ *
+ * This component used to draw itself: `.dh-badge` plus `[data-tone]`, about a
+ * hundred and forty lines of container/on-container pairs in `ui.css`. Beside it
+ * the product also had `UntitledStatusBadge`, which draws Untitled's genuine
+ * `base/badges`. Two generic badges, two paints, two APIs, thirty-nine consumer
+ * files between them — the largest remaining place where an engineer could
+ * reasonably pick either one and be right.
+ *
+ * The stated reason for keeping them apart was that "Untitled's badge is a
+ * stadium and DalyHub's argument is that a status annotating a 36px row must not
+ * be as tall as the row". That reason was WRONG, and checking it is what
+ * unblocked this: upstream's `type` has three values, and only `pill-color` is a
+ * stadium. `color` and `modern` are `rounded-md` at `py-0.5 px-1.5 text-xs` in
+ * `sm` — which is the small, non-stadium chip this file's header has always
+ * argued for. `TaskRow` had in fact been shipping `badgeModern` in production
+ * the whole time.
+ *
+ * So the API below is unchanged and the paint underneath it is Untitled's:
+ *
+ *   variant="soft"     → type="color"   a tinted container, rounded rectangle
+ *   variant="outline"  → type="modern"  a hairline with no fill
+ *
+ * `dh-badge` is GONE from the markup rather than kept as a hook. The rules it
+ * named are deleted, but `pill.css` and `ui.css` are unlayered, so a class that
+ * ever regains a rule would paint straight over the Untitled badge — and an
+ * empty class name is an invitation to put a rule back. `StatusPill` still emits
+ * `.dh-pill`, which several journeys assert the ABSENCE of, and that class keeps
+ * no rules for the same reason.
  *
  * ── What a badge is for, and what it is not ──────────────────────────────────
  *
@@ -17,39 +46,28 @@
  * "restrained surfaces" in the DS-02 direction is a reaction to. If the value
  * is free text, or if every row has a different one, it is not a badge.
  *
- * ── Shape ────────────────────────────────────────────────────────────────────
- *
- * Small, `--dh-radius-sm`, `meta` type, and NOT a stadium. A fully-rounded chip
- * at `label-large` inside a 36px row is nearly as tall as the row it annotates;
- * the concept direction draws these at roughly two-thirds that. D13's stadium
- * is reserved for a control, and a badge is not one.
- *
  * ── Colour is never the signal ───────────────────────────────────────────────
  *
- * A badge always says its state in words (AGENTS.md §15), and every tone is a
- * generated container / on-container pair the contrast suite holds at 4.5:1 in
- * both appearances — so a badge cannot exist in a state where its own label is
- * unreadable on it.
+ * A badge always says its state in words (AGENTS.md §15). Upstream's colour
+ * pairs carry the contrast guarantee now, and the product's own axe suite — 105
+ * tests over rendered pages, in both appearances — is what holds them to it,
+ * which is a stronger check than the token-level one it replaces because it
+ * measures what the browser actually painted.
+ *
+ * ── The `icon` prop is gone ──────────────────────────────────────────────────
+ *
+ * It had zero call sites: `StatusPill` forwarded it and no `StatusPill` in the
+ * product passed one. Upstream ships `BadgeWithIcon` for the day something
+ * needs it, which is a better answer than a slot nothing filled.
  */
 
 import type { ReactNode } from "react";
 
-/**
- * The tones. `neutral` is the default and the absence state — a value that is
- * present but unremarkable. The rest are the semantic roles, and they are the
- * ONLY thing they mean: `danger` is a failure state, not "red", and an Area's
- * identity accent is a different ramp entirely (D21).
- */
-export type BadgeTone =
-  "neutral" | "accent" | "success" | "warning" | "danger" | "info";
+import { UntitledStatusBadge } from "~/shared/pill/UntitledStatusBadge";
 
-/**
- * `soft` (the default) is a tinted container. `outline` is a hairline with no
- * fill, for a run of several badges where the tints would read as a stripe.
- * There is no `solid`: a filled, saturated badge competes with the one primary
- * action on the surface, which is the thing the accent is spent on.
- */
-export type BadgeVariant = "soft" | "outline";
+import type { BadgeTone, BadgeVariant } from "./badge-tone";
+
+export type { BadgeTone, BadgeVariant } from "./badge-tone";
 
 export interface BadgeProps {
   /** The value, in words. Required — a badge never means something by colour. */
@@ -62,8 +80,6 @@ export interface BadgeProps {
    * second cue than the tint. Decorative: the label still says it.
    */
   readonly dot?: boolean;
-  /** A leading glyph. Decorative. */
-  readonly icon?: ReactNode;
   readonly className?: string;
   readonly "data-testid"?: string;
 }
@@ -72,26 +88,20 @@ export function Badge({
   children,
   tone = "neutral",
   variant = "soft",
-  dot,
-  icon,
+  dot = false,
   className,
-  ...rest
+  "data-testid": testId,
 }: BadgeProps) {
   return (
-    <span
-      className={["dh-badge", `dh-badge--${variant}`, className]
-        .filter(Boolean)
-        .join(" ")}
-      data-tone={tone}
-      {...rest}
+    <UntitledStatusBadge
+      tone={tone}
+      dot={dot}
+      size="sm"
+      type={variant === "outline" ? "modern" : "color"}
+      className={className}
+      data-testid={testId}
     >
-      {dot ? <span className="dh-badge__dot" aria-hidden="true" /> : null}
-      {icon ? (
-        <span className="dh-badge__icon" aria-hidden="true">
-          {icon}
-        </span>
-      ) : null}
       {children}
-    </span>
+    </UntitledStatusBadge>
   );
 }

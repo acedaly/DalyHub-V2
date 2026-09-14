@@ -152,46 +152,80 @@ describe("DS-02 the button family is not a stadium (D33)", () => {
 });
 
 /**
- * UNTITLED-13 — the outline badge must actually outrank the tone it wears.
+ * UNTITLED-19 — the badge's paint belongs to Untitled, and must stay there.
  *
- * `variant="outline"` was documented as "a hairline with no fill" and was not
- * one: `.dh-badge--outline` is a single class, (0,1,0), and every tone rule it
- * has to beat is a class plus an attribute, (0,2,0). So `background:
- * transparent` lost on every badge, and the variant meant "a soft badge whose
- * text is the role colour" — which is also a contrast risk, because a
- * full-strength role colour was landing on a subtle container the contrast
- * suite only ever checked against its own `on-` pair.
+ * ── What this replaced, and why the concern survived the implementation ──────
  *
- * MEASURED before the fix: `variant="outline"` `tone="info"` computed to
- * `rgb(231, 222, 255)` in light and `rgb(75, 27, 195)` in dark — the container
- * in both.
+ * UNTITLED-13 pinned a cascade defect: `variant="outline"` was documented as "a
+ * hairline with no fill" and was not one, because `.dh-badge--outline` is a
+ * single class (0,1,0) and every tone rule it had to beat was a class plus an
+ * attribute (0,2,0). MEASURED at the time: `outline` + `info` computed to
+ * `rgb(231, 222, 255)` in light and `rgb(75, 27, 195)` in dark — the tinted
+ * container in both.
  *
- * A cascade defect is invisible to a component test (the class is on the
- * element either way) and to a snapshot (the markup is unchanged), so it is
- * asserted where it lives: in the stylesheet's own selectors.
+ * Those selectors are gone: the badge renders Untitled's `base/badges`, where
+ * `outline` is the `modern` type and the absence of a fill is the type's own
+ * definition rather than a declaration that has to out-rank another one. The
+ * component assertion moved to `primitives.test.tsx`, which can ask what is
+ * actually rendered.
+ *
+ * The CASCADE concern did not go away with it, and this is now the guard for
+ * it. `ui.css` and `pill.css` are UNLAYERED, so a single `.dh-badge` or
+ * `.dh-pill` paint rule reintroduced into either would land on the Untitled
+ * badge and beat every one of its utilities regardless of specificity — the
+ * exact failure mode CLAUDE.md's second rule describes, and one that is
+ * invisible to a component test (the markup is unchanged) and to a snapshot.
+ * So it is asserted where it would happen: in the stylesheets.
  */
-describe("UNTITLED-13 the outline badge is an outline", () => {
-  it("qualifies its fill reset so it outranks every tone rule", () => {
-    // `[data-tone]` is what lifts it to (0,2,0). A bare `.dh-badge--outline`
-    // block declaring `background` would be the defect back again.
-    expect(UI_CSS).toContain(".dh-badge--outline[data-tone] {");
-    const bare = UI_CSS.match(/\.dh-badge--outline\s*\{[^}]*background[^}]*\}/);
-    expect(bare).toBeNull();
+describe("UNTITLED-19 the badge's paint is Untitled's", () => {
+  const PILL_CSS = readFileSync(join(STYLES, "pill.css"), "utf8");
+
+  /** Declarations that would repaint a badge if they came back. */
+  const PAINT =
+    /(background|border-radius|border-color|border-width|box-shadow|padding|min-block-size|font-size|font-weight|color)\s*:/;
+
+  /** Every rule in a stylesheet whose selector names one of the badge classes. */
+  function badgeRules(css: string): string[] {
+    const rules: string[] = [];
+    const pattern = /([^{}]*)\{([^{}]*)\}/g;
+    let match: RegExpExecArray | null;
+    while ((match = pattern.exec(css)) !== null) {
+      const selector = (match[1] ?? "").split("*/").pop() ?? "";
+      if (!/\.dh-(badge|pill)\b/.test(selector)) continue;
+      rules.push(`${selector.trim()} { ${(match[2] ?? "").trim()} }`);
+    }
+    return rules;
+  }
+
+  it("leaves no badge paint in ui.css", () => {
+    const painted = badgeRules(UI_CSS).filter((rule) => PAINT.test(rule));
+    expect(
+      painted,
+      "an unlayered .dh-badge/.dh-pill rule would repaint the Untitled badge",
+    ).toEqual([]);
   });
 
-  it("gives every tone in the badge's vocabulary its own outline colour", () => {
-    // With the fill genuinely gone, a tone with no colour arm has nothing left
-    // to tell it apart — which is how `neutral` and `info` went missing while
-    // the container was still doing the work.
-    for (const tone of [
-      "neutral",
-      "accent",
-      "info",
-      "success",
-      "warning",
-      "danger",
-    ]) {
-      expect(UI_CSS).toContain(`.dh-badge--outline[data-tone="${tone}"] {`);
-    }
+  it("leaves no badge paint in pill.css", () => {
+    const painted = badgeRules(PILL_CSS).filter((rule) => PAINT.test(rule));
+    expect(
+      painted,
+      "an unlayered .dh-badge/.dh-pill rule would repaint the Untitled badge",
+    ).toEqual([]);
+  });
+
+  it("no longer emits the .dh-badge class at all", () => {
+    /*
+     * `.dh-pill` survives as an inert hook — several journeys assert the
+     * ABSENCE of it to prove a surface carries no status chip, so it has to
+     * keep being emitted. `.dh-badge` has no such consumer and is gone, which
+     * is what makes "no rules named it" a stable state rather than a race
+     * against the next person who needs a badge tweak.
+     */
+    const badgeComponent = readFileSync(
+      join(STYLES, "..", "shared", "ui", "Badge.tsx"),
+      "utf8",
+    );
+    expect(badgeComponent).not.toContain('"dh-badge"');
+    expect(badgeComponent).not.toContain("dh-badge--");
   });
 });

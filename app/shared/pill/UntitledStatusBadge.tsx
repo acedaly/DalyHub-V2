@@ -28,7 +28,7 @@ import {
 } from "~/shared/ui/untitled/base/badges/badges";
 import type { BadgeColors } from "~/shared/ui/untitled/base/badges/badge-types";
 
-import type { BadgeTone } from "~/shared/ui/Badge";
+import type { BadgeTone } from "~/shared/ui/badge-tone";
 
 /**
  * The tone → Untitled colour table.
@@ -57,9 +57,17 @@ export interface UntitledStatusBadgeProps {
   readonly dot?: boolean;
   readonly size?: "sm" | "md" | "lg";
   /**
-   * `pill-color` is Untitled's default rounded tint. `modern` is the hairline
-   * chip, for a run of several badges where a stripe of tints would read as
-   * decoration rather than as state.
+   * `color` is a tinted container on a rounded RECTANGLE, and it is the default
+   * because DalyHub decided that twice with a measurement behind it: a status
+   * annotating a 36px row must not be as tall as the row, and at the product's
+   * control height a fully-rounded chip is a lozenge. (`ui.css`'s badge block
+   * and `~/shared/ui/Badge` both said so; upstream's own default is
+   * `pill-color`, and taking it was how the stadium arrived here — by
+   * inheritance rather than by a decision.)
+   *
+   * `modern` is the hairline chip, for a run of several badges where a stripe of
+   * tints would read as decoration rather than as state. `pill-color` is
+   * upstream's stadium, still available for a surface that genuinely wants one.
    */
   readonly type?: "pill-color" | "color" | "modern";
   readonly className?: string;
@@ -71,11 +79,35 @@ export function UntitledStatusBadge({
   tone = "neutral",
   dot = false,
   size = "sm",
-  type = "pill-color",
+  type = "color",
   className,
   "data-testid": testId,
 }: UntitledStatusBadgeProps) {
-  const color = TONE_COLOR[tone];
+  /*
+   * UNTITLED-19 — `modern` is a NEUTRAL chip, and upstream means it literally.
+   *
+   * Two tables back the three types, and they disagree about `modern` in a way
+   * that matters:
+   *
+   *   `Badge`         → `withPillTypes.modern.styles` defines **only** `gray`
+   *   `BadgeWithDot`  → `withBadgeTypes.modern.styles` defines every colour,
+   *                     each with an EMPTY `root` and a coloured `addon`
+   *
+   * So the container is neutral in both cases — `bg-primary text-secondary
+   * ring-primary` comes from the type's `common` — and colour only ever reaches
+   * the DOT. Passing a non-gray colour to a dotless `modern` badge does not
+   * produce a coloured one; it reads `styles[color].root` off an object that has
+   * no such key and throws. Nothing in the product hit it because every existing
+   * `type="modern"` call site happened to pass `tone="neutral"`, which is a
+   * latent crash rather than a safe design.
+   *
+   * `soft`/`outline` mapping onto this is not a compromise: DalyHub's `outline`
+   * is documented as "a hairline with no fill, for a run of several badges where
+   * the tints would read as a stripe", which is the same sentence upstream's
+   * `modern` exists to satisfy. The tone still travels as `data-tone`, and the
+   * label still says the state in words (AGENTS.md §15).
+   */
+  const color = type === "modern" && !dot ? "gray" : TONE_COLOR[tone];
   /*
    * `className` goes on the BADGE, not on the wrapper.
    *
@@ -86,17 +118,40 @@ export function UntitledStatusBadge({
    * the screen shows. Untitled's `Badge` takes `className`, so the class lands
    * on the drawn object where a caller means it to be.
    */
+  /*
+   * UNTITLED-19 — the forced-colours fallback, carried by the badge itself.
+   *
+   * Upstream draws the badge's boundary with `ring-1 ring-inset`, which Tailwind
+   * emits as a `box-shadow` — and forced-colours mode discards box shadows along
+   * with the authored tint. Without this the container vanishes entirely and the
+   * label is left floating in the surrounding text.
+   *
+   * `pill.css` used to do this by naming `.dh-pill` in a forced-colours block.
+   * That stopped working the moment the drawn object became Untitled's, because
+   * the rule set `border-color` on an element with no border WIDTH. A real
+   * border, declared where the component is, replaces it.
+   */
+  const forcedColors =
+    "forced-colors:border forced-colors:border-solid forced-colors:border-[CanvasText]";
+  const badgeClassName =
+    className === undefined ? forcedColors : `${forcedColors} ${className}`;
+
   const badge = dot ? (
     <UntitledBadgeWithDot
       type={type}
       size={size}
       color={color}
-      className={className}
+      className={badgeClassName}
     >
       {children}
     </UntitledBadgeWithDot>
   ) : (
-    <UntitledBadge type={type} size={size} color={color} className={className}>
+    <UntitledBadge
+      type={type}
+      size={size}
+      color={color}
+      className={badgeClassName}
+    >
       {children}
     </UntitledBadge>
   );

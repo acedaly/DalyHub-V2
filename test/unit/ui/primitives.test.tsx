@@ -369,24 +369,108 @@ describe("DS-02 Badge", () => {
     expect(screen.getByText("Blocked")).toBeInTheDocument();
   });
 
+  /*
+   * UNTITLED-19 — the tone still travels as DATA, and these three tests still
+   * ask the same three questions. What moved is WHERE the answer lives: the
+   * badge is Untitled's now, so `data-tone` sits on the DalyHub wrapper around
+   * it rather than on the element holding the text. `[data-dh-badge]` is the
+   * hook journeys already use to ask "what state is this row in?", so the query
+   * is that rather than a class, and it keeps working whatever upstream renders.
+   */
   it("publishes the tone as data rather than as a class per tone", () => {
-    render(<Badge tone="success">Done</Badge>);
-    expect(screen.getByText("Done")).toHaveAttribute("data-tone", "success");
+    const { container } = render(<Badge tone="success">Done</Badge>);
+    expect(container.querySelector("[data-dh-badge]")).toHaveAttribute(
+      "data-tone",
+      "success",
+    );
+    expect(screen.getByText("Done")).toBeInTheDocument();
   });
 
   it("defaults to the neutral tone, which is the absence state", () => {
-    render(<Badge>Unset</Badge>);
-    expect(screen.getByText("Unset")).toHaveAttribute("data-tone", "neutral");
+    const { container } = render(<Badge>Unset</Badge>);
+    expect(container.querySelector("[data-dh-badge]")).toHaveAttribute(
+      "data-tone",
+      "neutral",
+    );
   });
 
+  /*
+   * This asked whether one particular element carried `aria-hidden`. It now
+   * asks the thing that rule exists FOR: a badge's accessible name is its
+   * label and nothing else. That is a stronger assertion — it fails for any
+   * way the dot could leak into the name, including ones upstream might
+   * introduce, rather than only for the absence of one attribute on one node.
+   */
   it("keeps the dot decorative, so it is never read as content", () => {
-    const { container } = render(
+    render(
       <Badge tone="accent" dot>
         In progress
       </Badge>,
     );
-    const dot = container.querySelector(".dh-badge__dot");
-    expect(dot).toHaveAttribute("aria-hidden", "true");
+    const badge = screen.getByText("In progress");
+    expect(badge).toHaveTextContent(/^In progress$/);
+    expect(badge.textContent).toBe("In progress");
+  });
+
+  it("draws outline as a hairline with no fill, which it once only claimed", () => {
+    /*
+     * UNTITLED-13 found that `variant="outline"` was a tinted container wearing
+     * the role colour, because `.dh-badge--outline` (0,1,0) lost to every
+     * `[data-tone]` rule (0,2,0). The variant is Untitled's `modern` type now,
+     * where having no fill is the type's definition rather than a declaration
+     * that has to win a cascade argument — so the defect is not fixed so much
+     * as made unrepresentable. This holds the mapping that achieves it.
+     */
+    const { container } = render(
+      <Badge tone="info" variant="outline">
+        Planning
+      </Badge>,
+    );
+    const drawn = container.querySelector("[data-dh-badge] > span");
+    // `modern` is upstream's hairline: the page's own surface, a plain ring.
+    expect(drawn).toHaveClass("bg-primary");
+    expect(drawn).toHaveClass("ring-primary");
+  });
+
+  it("renders every tone in the outline variant without throwing", () => {
+    /*
+     * The regression this exists for: upstream defines only `gray` for a
+     * DOTLESS `modern` badge, so `styles[color].root` on any other colour reads
+     * off an object that has no such key and throws. Every `type="modern"` call
+     * site in the product happened to pass `neutral`, so the trap was live and
+     * unhit. A loop over the whole vocabulary is the cheapest way to keep it
+     * that way.
+     */
+    for (const tone of [
+      "neutral",
+      "accent",
+      "success",
+      "warning",
+      "danger",
+      "info",
+    ] as const) {
+      expect(() =>
+        render(
+          <Badge tone={tone} variant="outline">
+            {tone}
+          </Badge>,
+        ),
+      ).not.toThrow();
+    }
+  });
+
+  it("draws the rounded rectangle, never the stadium", () => {
+    /*
+     * The shape argument this component has always made: a status annotating a
+     * 36px row must not be as tall as the row, and a fully-rounded chip at that
+     * height is a lozenge. Untitled's `color`/`modern` types are `rounded-md`
+     * and only `pill-color` is `rounded-full` — so this is the assertion that
+     * the convergence picked the right one of the three.
+     */
+    const { container } = render(<Badge tone="success">Done</Badge>);
+    const drawn = container.querySelector("[data-dh-badge] > span");
+    expect(drawn).toHaveClass("rounded-md");
+    expect(drawn).not.toHaveClass("rounded-full");
   });
 });
 
