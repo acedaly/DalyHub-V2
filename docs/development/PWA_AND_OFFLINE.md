@@ -1033,18 +1033,44 @@ service-worker ceiling on 2026-08-19. Each is argued in `PRODUCT_DEBT.md` —
 [DEBT-151](../product/PRODUCT_DEBT.md) and
 [DEBT-172](../product/PRODUCT_DEBT.md) — rather than adjusted quietly.
 
+**The precache ceilings moved a third time on 2026-09-14, and 417 kB came out
+before they did.** The Untitled UI migration left the shell breaching the
+1.45 MB ceiling by 41%, and the breach was measured asset by asset rather than
+absorbed. Three sub-components of the vendored Untitled `EmptyState` each named
+a DISPATCHER over a whole artwork set — file-type icons, background patterns,
+illustrations — and naming a dispatcher references every member of its set, so
+none of it could be tree-shaken. `/offline` renders an EmptyState, so all three
+sets sat in the shell precache: every install downloaded ~150 file-type glyphs,
+four background patterns (one a single 140 kB SVG) and four illustrations before
+it could boot offline, and the product draws none of them. They are gone,
+recorded as patches in `scripts/vendor-untitled.mjs` so a re-vendor cannot bring
+them back:
+
+| | before | after | change |
+|---|---:|---:|---:|
+| Precache (uncompressed) | 2,021,193 B | 1,604,544 B | −416,649 (−20.6%) |
+| Precache (over the wire) | 405,008 B | 349,095 B | −55,913 (−13.8%) |
+
+What remains is the shell, and the shell changed on purpose: UNTITLED-01…19 make
+React Aria Components and Untitled's Tailwind v4 layer the foundation the root
+route boots on rather than something a feature route pulls in on demand. The
+ceilings are now the measured value plus ~9%, a tighter ratchet than the ~1.8x
+the original carried. The largest single entry is still the application
+stylesheet at 815 kB (96 kB over the wire), 51% of the precache and fully
+minified; splitting it per route remains DEBT-151.
+
 | Metric | Measured | Budget |
 |---|---|---|
 | Service-worker **logic** (`vite-plugins/sw-template.js`) | 22,925 B | 25,000 B |
-| Precache **manifest** (substituted URL literals) | 1,004 B | 2,000 B |
-| Service-worker script as served (`/sw.js`) | 23,985 B | logic + manifest + 4,000 B |
-| Precached assets | 32 | 40 |
-| Precache size (uncompressed) | 1,383,217 B | 1.45 MB |
-| Precache size (over the wire, gzip) | 293,924 B | 320,000 B |
+| Precache **manifest** (substituted URL literals) | 974 B | 2,000 B |
+| Service-worker script as served (`/sw.js`) | 23,952 B | logic + manifest + 4,000 B |
+| Precached assets | 31 | 40 |
+| Precache size (uncompressed) | 1,604,544 B | 1.75 MB |
+| Precache size (over the wire, gzip) | 349,095 B | 380,000 B |
 | Snapshot payload | 12,108 B (40 tasks, 8 references) | 2 MB |
-| Snapshot build (end to end) | 116 ms | 5 s |
-| Origin storage after priming | 107,340 B | 20 MB |
-| Origin storage after 3 syncs | 107,340 B → 107,340 B → 107,340 B (flat) | no growth |
+| Snapshot build (end to end) | 143 ms | 5 s |
+| Origin storage after priming | 129,633 B | 20 MB |
+| Origin storage after 3 syncs | 129,633 B → 129,633 B → 129,633 B (flat) | no growth |
 | Self-hosted fonts (transferred) | 23,160 B across 1 file (M3-01: Roboto Flex replaces the Inter + Source Serif pair's 63,492 B) | ≤ 70,000 B per family, ≤ 120,000 B combined (derived) |
 | Added runtime dependencies | **none** | — |
 | Effect on the online bundle | The offline provider and status surface are in the shell chunk; the offline page and its view are a separate route chunk. | — |

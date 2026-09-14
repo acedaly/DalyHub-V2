@@ -71,34 +71,62 @@ const PRECACHE_MANIFEST_MAX_BYTES = 2_000;
 const SUBSTITUTION_SLACK_BYTES = 4_000;
 
 /*
- * Measured 2026-08-17 (HARDEN-05): 1,321 kB across 30 assets uncompressed, and
- * 284 kB over the wire. It was 674 kB / ~180 kB when this budget was written
- * for V2.0.1, and it is over the 1,200 kB ceiling on `main` @ f994aa0.
+ * Measured 2026-09-14 (the CI green pass): 1,604 kB across 31 assets
+ * uncompressed, and 349 kB over the wire.
  *
- * This is a REAL breach and it is re-baselined rather than repaired, which is a
- * decision worth being explicit about. The growth is not a leak: 731 kB of the
- * 1,321 is the application stylesheet, and roughly 200 kB of THAT is the
- * generated multi-scheme colour layer in `tokens.css` — every colour scheme in
- * both appearances, shipped so a scheme change is instant. Reducing it means
- * either splitting the stylesheet per route or not shipping the schemes an
- * owner has not chosen; both are performance-architecture decisions with design
- * consequences, and neither belongs in a suite-triage pass. It is recorded as
- * DEBT-151 with these figures.
+ * ── Why this number moved, and what was done before moving it ────────────────
+ * The previous pair — 1,450,000 / 320,000 — was set on 2026-08-17 (HARDEN-05)
+ * from a measured 1,321 kB / 284 kB, with the ~10% headroom this file's opening
+ * paragraph describes. It then failed on `main` for every run from #282 onward,
+ * at 2,046 kB against 1,450 kB: a 41% breach, which is far too big to nudge a
+ * threshold past and is not what re-baselining is for.
  *
- * What this pass does instead of quietly loosening the ratchet is TIGHTEN it in
- * the dimension that matters. The uncompressed ceiling moves to the measured
- * value plus ~10%, which is a real ratchet rather than the ~1.8x headroom the
- * original carried — and a second ceiling is added on the COMPRESSED bytes,
- * which is what actually crosses a metered connection and is the thing the
- * paragraph at the top of this file says the budgets are about. The suite could
- * not see that number at all before.
+ * So the breach was measured asset by asset first, and 417 kB of it turned out
+ * not to be architecture at all. Three sub-components of the vendored Untitled
+ * `EmptyState` each named a DISPATCHER over a whole artwork set — file-type
+ * icons, background patterns, illustrations — and naming a dispatcher
+ * references every member of its set, so none of it can be tree-shaken.
+ * `/offline` renders an EmptyState, which put all three sets inside the OFFLINE
+ * SHELL PRECACHE: every DalyHub install downloaded ~150 file-type glyphs, four
+ * background patterns (one of them a single 140 kB SVG) and four illustrations
+ * before it could boot offline, and the product draws NONE of them — it passed
+ * `pattern="none"` and routes its own illustrations around upstream's slot.
+ * They are gone, recorded as patches in `scripts/vendor-untitled.mjs` so a
+ * re-vendor cannot quietly bring them back:
+ *
+ *   precache   2,021,193 B → 1,604,544 B   (−416,649, −20.6%)
+ *   transfer     405,008 B →   349,095 B   (−55,913,  −13.8%)
+ *
+ * ── Why the remainder is genuinely bigger than August's shell ────────────────
+ * What is left is the shell, and the shell changed on purpose. UNTITLED-01…19
+ * moved the whole product onto Untitled UI React Pro, which makes React Aria
+ * Components and Untitled's Tailwind v4 layer the FOUNDATION the root route
+ * boots on rather than something a feature route pulls in on demand. That is
+ * ~195 kB of React Aria and Router runtime plus a stylesheet that grew from
+ * 731 kB to 815 kB — deliberate architecture, recorded as complete in
+ * `CLAUDE.md`, and not something a budget should be asked to reverse.
+ *
+ * The single largest entry is still the application stylesheet at 815 kB (96 kB
+ * over the wire), 51% of the precache. It is fully minified; the size is that
+ * `app.css` composes ~87 stylesheets in ONE cascade-ordered file, and the order
+ * is load-bearing because DalyHub's module CSS is unlayered. Splitting it per
+ * route is a performance-architecture decision with design consequences and
+ * stays DEBT-151, exactly as HARDEN-05 left it.
+ *
+ * ── Why the new ceilings still protect the product ───────────────────────────
+ * Both keep a real ratchet rather than the ~1.8x the original budget carried:
+ * ~9% over the measured value, which absorbs ordinary stylesheet growth and
+ * still fails on the next dispatcher. For scale, the smallest thing removed
+ * above was 76 kB and the largest 429 kB; the headroom below is 145 kB, so any
+ * one of them coming back turns this red again. The transfer ceiling is the one
+ * that describes a metered connection, and it is the tighter of the two.
  */
-const PRECACHE_MAX_BYTES = 1_450_000;
+const PRECACHE_MAX_BYTES = 1_750_000;
 
-/** Measured: 284 kB over the wire (gzip -9, the transfer encoding a phone gets). */
-const PRECACHE_MAX_TRANSFER_BYTES = 320_000;
+/** Measured: 349 kB over the wire (gzip -9, the transfer encoding a phone gets). */
+const PRECACHE_MAX_TRANSFER_BYTES = 380_000;
 
-/** Measured: 23. React Router marks every route an entry; this is the shell. */
+/** Measured: 31. React Router marks every route an entry; this is the shell. */
 const PRECACHE_MAX_ASSETS = 40;
 
 /** Measured: 8.5 kB for the seeded workspace (23 tasks, 3 notes, 4 diary, 1 meeting). */

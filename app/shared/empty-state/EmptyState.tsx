@@ -119,7 +119,7 @@ export function EmptyState({
       data-untitled-source="application/empty-state"
     >
       {illustration || icon ? (
-        <UntitledEmptyState.Header pattern="none">
+        <UntitledEmptyState.Header>
           {illustration ? (
             /*
              * An ILLUSTRATION is already a picture and brings its own size and
