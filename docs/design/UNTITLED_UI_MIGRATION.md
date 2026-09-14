@@ -1756,6 +1756,16 @@ none was failing a test.
    wrong for its one button.
 8. **The CSV picker was the browser's own widget**, beside migrated Untitled
    fields.
+9. **Views was the only collection whose row was not its own tap target.**
+   MEASURED at 390px: a 79px row offering a 20px strip, with the record's
+   metadata line as dead space beside it. A probe of four other collections
+   (People, Assets, Goals, Areas) found every one of them already giving its row
+   link a `content: ""` / `inset: 0` overlay; Views had `content: none`.
+   Hit-tested after the fix: the row's top, middle and bottom all resolve to the
+   link. This is the §37 EntityLink question, answered by measurement — the
+   shared component is fine, and one consumer was not.
+10. **A Habit's record told an owner who had done everything that they had not.**
+    See below: this is the report three passes could not reproduce.
 
 And one this branch CAUSED and the re-pointed E2E suite caught immediately:
 `SettingsRow` was translated to `break-words` where the rule it replaced said
@@ -1777,6 +1787,48 @@ And one this branch CAUSED and the re-pointed E2E suite caught immediately:
   `.dh-*` selector in an `e2e/` locator, matched against what the markup emits,
   with comments stripped — found **fifteen** dead selectors, six of them
   load-bearing and silently skipping their assertions.
+
+### The Habit report, reproduced at last
+
+Carried forward twice as "could not reproduce from the existing guards". It
+reproduces — in the WORDS, which is why three passes reading the arithmetic
+never found it.
+
+The three domain guards UNTITLED-17 documented are all correct and all
+untouched: `evaluateHabitConsistency` clamps its upper bound to the owner's
+today, `activeOn` refuses every day before a Habit's first schedule version, and
+a `weekly_count` week contributes nothing unless it has elapsed. So does the
+fourth thing UNTITLED-17 named as "arguably correct": `evaluateHabitWeek` counts
+the whole week including days still to come, which is a settled decision with its
+own argued test — *"it does NOT describe Thursday as incomplete; it says the week
+holds seven days."*
+
+The defect is that the Habit RECORD printed that number under the four-week
+window's sentence. Both figures said **"Expected check-ins completed"**. That is
+true of the four-week window, whose denominator is clamped to today. It is not
+true of THIS WEEK. So a daily Habit checked in on Monday, Tuesday and Wednesday
+read, on the Wednesday:
+
+> **This week** · 3 of 7 · *Expected check-ins completed*
+
+An owner who had done every single thing asked of them, told they had completed
+three of seven expected check-ins — four of which were in the future. That is
+the manufactured verdict ADR-102 and AGENTS.md §2 forbid, and it is exactly the
+report's words.
+
+The fix is in the record and nowhere else. The week figure now says what the
+shared `habitWeekLabel` has always said — it describes the WEEK ("of what this
+week asks for") rather than an expectation already incurred — and "Expected
+check-ins completed" moves to the window where it is true. That also removed a
+duplicate: the four-week figure's supporting line was `habitConsistencyLabel`'s
+whole string, so "9 of 12" was printed twice on one line.
+
+`habits.spec.ts` had MEASURED the offending string and recorded it in a comment,
+having satisfied itself that "0 of 3" was defensible and never asked about the
+words beside it. Its assertion is re-pointed, and the regression guard now runs
+on every day of the week rather than only on a Monday: on this surface nothing
+may claim a check-in has already been expected of an owner who has had no
+elapsed window.
 
 ### Named maintenance debt
 
@@ -1819,14 +1871,8 @@ Each item is a file, a count or a blocked dependency. None is a module.
 7. **The Diary week strip's focus order**, and the inert legacy class names with
    the `.dh-btn` hook and the `.dh-input` / `.dh-control` layout bridges.
 8. **A bounded `people.getByIds`**, carried forward from UNTITLED-13.
-9. **A Habit's expected check-ins before a full week has passed.** Read again,
-   not copied forward: the three guards UNTITLED-17 documented
-   (`evaluateHabitConsistency`'s clamp to the owner's today, `activeOn`'s refusal
-   of days before a Habit's first schedule version, and `weekly_count`'s refusal
-   to pro-rate an unelapsed week) are all still in place and still argued in
-   comments. **No reproduction was attempted this pass and no code was changed**;
-   the brief ranked it last and the standing instruction is that a fix needs a
-   reproduction before it needs code.
+9. ~~A Habit's expected check-ins before a full week has passed.~~
+   **REPRODUCED AND FIXED — see "The Habit report" below.**
 10. **`assisted-ai.spec.ts`'s one contended journey.** Times out at 30s when the
     AI specs run together and passes in isolation, because it drives
     `/finance/transactions?uncategorised=1` — every uncategorised row in the

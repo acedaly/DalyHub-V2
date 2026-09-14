@@ -150,7 +150,22 @@
   overflow: hidden;
 }
 
+/*
+ * UNTITLED-18 — the ROW is the target, which it was not.
+ *
+ * MEASURED at 390px: the row is 64–80px tall and its link was 20px of it, with
+ * no overlay — so a phone offered a 20px strip to tap inside a 79px row, with
+ * the record's own metadata line as dead space beside it.
+ *
+ * Every other collection in the product already solves this the same way, and a
+ * probe confirmed it on four of them: People, Assets, Goals and Areas all give
+ * their row link a `content: ""` / `position: absolute` / `inset: 0` `::after`,
+ * so the whole row is one target while the metadata stays a described sibling
+ * rather than joining the link's accessible NAME. Views was the only one
+ * without it. The `position: relative` here is what that overlay needs.
+ */
 .dh-views__row {
+  position: relative;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -158,6 +173,25 @@
   min-width: 0;
   min-block-size: var(--app-list-row-height-two-line);
   padding: var(--app-space-2) var(--app-space-4);
+}
+
+/* The overlay. Behind nothing — the row has no other control — so it simply
+ * makes the link's hit area the row's box. */
+.dh-views__row .dh-views__row-link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+/* The focus ring belongs to the ROW once the link covers it; drawn on the row so
+ * a keyboard user sees the whole target, not a 20px strip inside it. */
+.dh-views__row:has(.dh-views__row-link:focus-visible) {
+  outline: var(--app-border-width-thick) solid var(--dh-color-accent);
+  outline-offset: calc(-1 * var(--app-border-width-thick));
+}
+
+.dh-views__row .dh-views__row-link:focus-visible {
+  outline: none;
 }
 
 .dh-views__list > .dh-views__row + .dh-views__row {
