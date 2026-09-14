@@ -290,9 +290,19 @@ a few real buttons that fill the composer and hand back the caret, drawn from a
 closed list the product can actually resolve; never a grid of everything AI
 might do.
 
-An answer is announced by **moving focus to its heading**, not by an `aria-live`
-region wrapped around it: a live container around a result that arrives whole is
-re-read every time any part of it changes — opening a facts disclosure, say.
+An answer is announced by a **live region holding one short sentence**, per
+AGENTS.md §15. What it is never announced by is an `aria-live` container wrapped
+around the RESULT: a live container around a thing that arrives whole is re-read
+every time any part of it changes — opening a facts disclosure, say — so the
+region carries the sentence and the result stays an ordinary labelled landmark.
+
+Focus moves to the answer as well, but only for the reader still waiting on it:
+focus inside the composer, or nowhere in particular. Somebody who asked and then
+went to read something else while the provider thought about it has a place in
+the document, and taking them out of it is an interruption rather than an
+announcement. Give the region a test id — an AI page carries several polite live
+regions (the shell's offline status, the notification centre, the running
+sentence), and "the status region" resolves to all of them.
 
 Anything AI proposes reaches the owner's data through one path only: suggestion
 → review → explicit press → mutation. Nothing starts selected, no control

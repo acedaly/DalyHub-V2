@@ -1614,13 +1614,34 @@ An automated review of the first push raised three, and all three were real.
 None is a matter of taste, which is why each changed code rather than earning a
 reply:
 
-1. **A grounded answer announced itself to nobody.** The AI surface announces an
+1. **A grounded answer announced itself to nobody.** The AI surface announced an
    answer by moving focus to it, and the grounded branch — the one that fires
    against a CONFIGURED provider — renders a labelled region with no heading, so
    the ref had nowhere to attach and the effect was a no-op. It was already
    written down in a comment, which is not the same as being acceptable.
    `AiGroundedAnswer` takes an optional focus target now, and the branch nobody
    could test is the one that got a test.
+
+   **A second round said the fix was the wrong mechanism, and it was right.**
+   AGENTS.md §15 is not ambiguous — "async results … are announced to assistive
+   tech via live regions" — and the surface had substituted focus for one on all
+   three branches, this pass's included. What the original comment actually
+   argued against is wrapping the RESULT in a live region: a thing that arrives
+   whole is read once and then re-read every time any part of it changes, such
+   as the facts disclosure opening. A short one-shot sentence in a region of its
+   own has none of that problem. So the answer is announced by a live region,
+   and focus moves as well — but only for the reader still waiting on it, focus
+   inside the composer or nowhere in particular. Somebody who asked a question
+   and went to read something else while the provider thought about it has a
+   place in the document, and taking them out of it is an interruption rather
+   than an announcement. Both halves are pinned by journeys, the second by
+   holding the answer open at the network boundary so "moved on" is reached
+   deterministically rather than raced.
+
+   The region carries a test id, which is not decoration: `/ai` already draws
+   FOUR polite live regions — the shell's offline status, the notification
+   centre's, `AiProgress`'s running sentence and this one — so a journey asking
+   for "the status region" gets four and dies on a strict-mode violation.
 2. **"Share" was the wrong name for the column.** The bars are scaled against
    the LARGEST ROW, which is right for a ranking — a bounded report's rows do
    not add up to its total — but a column headed "Share" states that a $500 row
