@@ -26,6 +26,7 @@ import { EmptyState } from "~/shared/empty-state";
 import { localStateCopy } from "./local-state";
 import { useOffline } from "./OfflineProvider";
 import { sanitiseOfflineDataset, type OfflineDataset } from "./offline-store";
+import { Input } from "~/shared/ui";
 
 /** Format an ISO instant as an owner-readable local date and time. */
 function formatInstant(iso: string | null): string {
@@ -194,7 +195,8 @@ export function OfflineSnapshotView({
 
       <div className="dh-offline-snapshot__search">
         <label htmlFor="dh-offline-search">Search this snapshot</label>
-        <input
+        {/* UNTITLED-18 — the shared `Input`. See `OfflineCaptureForm`. */}
+        <Input
           id="dh-offline-search"
           type="search"
           value={query}

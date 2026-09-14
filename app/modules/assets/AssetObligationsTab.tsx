@@ -37,7 +37,7 @@ import {
   useObligationActions,
 } from "~/shared/obligations";
 import { OBLIGATION_BANDS, obligationBandLabel } from "~/kernel/obligations";
-import { buttonClassName } from "~/shared/ui";
+import { Select, buttonClassName } from "~/shared/ui";
 
 interface AssetObligationsTabProps {
   readonly obligations: readonly SerializedObligation[];
@@ -144,7 +144,11 @@ export function AssetObligationsTab({
       <div className="dh-asset-obligations__bar">
         <label className="dh-asset-obligations__filter">
           <span>Category</span>
-          <select
+          {/* UNTITLED-18 — the shared `Select`. It was a bare `<select>`
+              relying on the zero-specificity control FLOOR in `base.css`, which
+              is a safety net for a control nobody migrated rather than a
+              migration. */}
+          <Select
             value={category}
             onChange={(event) => setCategory(event.target.value)}
           >
@@ -153,7 +157,7 @@ export function AssetObligationsTab({
                 {option.label}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         {/* When the empty state is already teaching "Add obligation", the bar
             must not offer a second identical control right above it. */}

@@ -645,32 +645,31 @@ test.describe("M3-INT — the shared switch", () => {
         .getByTestId("toggle-compact")
         .locator(".dh-switch__thumb")
         .evaluate((element) => element.getBoundingClientRect().x);
-    const checkOpacity = async () =>
-      page
-        .getByTestId("toggle-compact")
-        .locator(".dh-switch__check")
-        .evaluate((element) =>
-          Number.parseFloat(getComputedStyle(element).opacity),
-        );
-
     const offX = await thumbX();
-    expect(await checkOpacity()).toBeLessThan(0.5);
 
     await target.click();
     await expect(toggle).toBeChecked();
     /*
-     * Position AND glyph, not just a colour.
+     * POSITION, not colour.
      *
-     * Both are POLLED, because both are animated. The thumb slides on a token
-     * transition, so `toBeChecked()` resolves the moment the input's state
-     * flips — a frame or more before the thumb has gone anywhere. A single
-     * sample there reads the OFF position and fails with `Expected: > 1173,
-     * Received: 1173`, which is what a contended CI runner produced. The
-     * opacity assertion below already polled for exactly this reason; the
-     * position one was the half that did not.
+     * UNTITLED-18 — this also read the opacity of a check glyph inside the
+     * selected thumb. That glyph was Material Design 3's, and it went with the
+     * rest of the M3 anatomy when the switch took Untitled's `base/toggle`
+     * track and thumb. The travel is what remains, and it is sufficient: it is
+     * a real geometric difference that survives forced colours, greyscale and
+     * every colour-vision deficiency, which is the whole of what this test is
+     * for.
+     *
+     * POLLED, because the thumb slides on a transition: `toBeChecked()`
+     * resolves the moment the input's state flips, a frame or more before the
+     * thumb has gone anywhere. A single sample there reads the OFF position and
+     * fails with `Expected: > 1173, Received: 1173`, which is what a contended
+     * CI runner produced.
+     *
+     * MEASURED on the rebuilt control: 2px → 22px, a 20px travel on a 44px
+     * track.
      */
     await expect.poll(thumbX, { timeout: 2_000 }).toBeGreaterThan(offX);
-    await expect.poll(checkOpacity, { timeout: 2_000 }).toBeGreaterThan(0.5);
   });
 
   test("is axe-clean in both appearances", async ({ page }) => {
