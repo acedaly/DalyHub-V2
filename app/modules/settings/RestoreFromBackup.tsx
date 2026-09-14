@@ -38,7 +38,7 @@ import {
   type RestorePreviewView,
   type RestoreRejectionView,
 } from "./restore-flow";
-import { buttonClassName } from "~/shared/ui";
+import { FilePicker, buttonClassName } from "~/shared/ui";
 
 /** Read the filename the server chose, exactly as the export controls do. */
 function filenameFromDisposition(
@@ -338,27 +338,25 @@ export function RestoreFromBackup() {
         statusTone={statusTone}
         statusLive
         control={
-          <div className="dh-restore__control">
-            <label
-              className={buttonClassName({ variant: "secondary" })}
-              htmlFor={inputId}
-            >
-              Choose backup…
-            </label>
-            <input
-              ref={inputRef}
-              id={inputId}
-              type="file"
-              accept=".zip,application/zip"
-              className="dh-restore__file-input"
-              data-testid="restore-file"
-              disabled={busy}
-              onChange={(event) => {
-                const file = event.currentTarget.files?.[0];
-                if (file !== undefined) void inspect(file);
-              }}
-            />
-          </div>
+          /*
+           * UNTITLED-18 — the shared `FilePicker`. This composition WAS the
+           * pattern; it is a component now, because Finance's CSV import is the
+           * product's only other file input outside the shared attachment
+           * picker and it was drawing the browser's own.
+           */
+          <FilePicker
+            inputRef={inputRef}
+            id={inputId}
+            accept=".zip,application/zip"
+            data-testid="restore-file"
+            disabled={busy}
+            onChange={(event) => {
+              const file = event.currentTarget.files?.[0];
+              if (file !== undefined) void inspect(file);
+            }}
+          >
+            Choose backup…
+          </FilePicker>
         }
       />
 
@@ -424,11 +422,12 @@ export function RestoreFromBackup() {
           control={
             <button
               type="button"
-              className={
-                state.preview.destructive
-                  ? "dh-settings-danger-button"
-                  : "dh-btn dh-btn--primary"
-              }
+              // Genuinely destructive on the replace path — this is the one
+              // control in Settings that overwrites a populated workspace — and
+              // the ordinary primary action when the workspace is empty.
+              className={buttonClassName({
+                variant: state.preview.destructive ? "danger" : "primary",
+              })}
               data-testid="restore-apply"
               disabled={!canRestore(state)}
               onClick={(event) => {

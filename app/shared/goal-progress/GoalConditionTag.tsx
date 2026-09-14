@@ -24,7 +24,7 @@ import {
   GOAL_CONDITION_SET_ASIDE_LABEL,
   type GoalCondition,
 } from "~/kernel/goals";
-import { StatusPill } from "~/shared/pill";
+import { UntitledStatusBadge } from "~/shared/pill";
 
 export function GoalConditionTag({
   condition,
@@ -38,7 +38,9 @@ export function GoalConditionTag({
   if (condition !== "set_aside") return null;
   return (
     <span className={className} data-testid={testId}>
-      <StatusPill tone="neutral">{GOAL_CONDITION_SET_ASIDE_LABEL}</StatusPill>
+      <UntitledStatusBadge tone="neutral">
+        {GOAL_CONDITION_SET_ASIDE_LABEL}
+      </UntitledStatusBadge>
     </span>
   );
 }

@@ -121,7 +121,9 @@ export function FinanceTransactions(props: FinanceTransactionsData) {
   if (failed) {
     return (
       <div className="dh-finance-transactions px-[var(--dh-shell-gutter)] py-[var(--dh-space-6)]">
-        <h1>Transactions</h1>
+        <h1 className="text-display-xs font-semibold text-primary">
+          Transactions
+        </h1>
         <p role="status">
           Your transactions could not be read just now. Nothing has been
           changed.

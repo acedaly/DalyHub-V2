@@ -165,6 +165,28 @@ better.
 Historical anchor. Preserve entity identity/progress semantics; migrate the
 generic card/list mechanics to Untitled.
 
+**UNTITLED-18 deleted the generic half of the family.** `DashboardCard`,
+`MetricTile`, `MetricRow`, `StatCard`, `ExpressiveSummary`, `SupportingSurface`,
+`CardMetaFact` and this directory's own `Timeline`/`TimelineItem` had no product
+consumer between them; the design gallery that drew them was the only caller
+left, and four had no caller at all. They were the generic-UI library DalyHub
+built before it had one.
+
+What to reach for instead:
+
+| You want | Use |
+| --- | --- |
+| A titled panel with a header action | A section with a `SectionHeading`, or `TableCard` when it holds a table |
+| A row of figures | A section with a heading. A figure that counts something the same page renders in full a few hundred pixels lower is a caption, not a measure |
+| A bounded surface on the canvas | `~/shared/ui`'s `Card` |
+| A record in a collection | `~/shared/card`'s `Card`, `EntityCard` or `RecordRow` — the PRODUCT families, which are not affected |
+| Something at a time, on a spine | The activity feed's `Timeline` (`~/shared/activity-feed`) |
+
+And the rule that let them survive four migration passes, now written on the
+design route itself: **a fixture may only draw what the product draws.** When
+the last product consumer of a component goes, its fixture goes in the same
+change — otherwise the fixture becomes the consumer.
+
 ## Progress
 
 There is ONE linear progress indicator in the product and it is Untitled's
@@ -326,6 +348,22 @@ advanced settings.
 Historical anchor. The product grouping remains; the visual implementation is
 Untitled settings patterns.
 
+**UNTITLED-18 settled the shape, and it is a SECTION, not a card.** All
+forty-two Untitled Application-UI settings templates compose the same way: a
+`section-header` (title + supporting text) over a divider, then form rows, then
+the next section. None is a stack of cards. `SettingsGroup` follows that, which
+is also what removed the frame-inside-frame a record's Settings tab carried —
+a group card inside a settings card inside a record card.
+
+**A destructive treatment is a budget.** `SettingsGroup tone="danger"` and
+`DangerousAction severity="destructive"` are for actions that CANNOT BE UNDONE.
+An action that is reversible — archive, restore, disconnect, revoke, reset a
+preference — is an ordinary group with `severity="reversible"`: still confirmed,
+never red. Untitled makes the same distinction itself, shipping separate
+`destructive-*` and `warning-*` confirmation modals. An owner who meets the red
+treatment on the action they take every week learns that red means "this needs a
+click" rather than "this is final", and has nothing left for the delete.
+
 ## Accessibility
 
 DalyHub targets WCAG 2.2 AA. Preserve keyboard completion, accessible names,
@@ -404,7 +442,14 @@ patterns and keep destructive actions labelled and separated.
 
 ## Shared summary cards ds 13
 
-Summary cards show a small number of meaningful facts. Do not duplicate the same
+**Historical. The component is deleted (UNTITLED-18).** UNTITLED-13 replaced its
+one adopter — the Person workspace's band of counting tiles — with
+`personSharedRecords`, and nothing else ever adopted it.
+
+The RULE it carried is still the product's and now lives on the function that
+replaced it: a small number of meaningful facts, and a kind with no records is
+OMITTED rather than shown as zero, because an empty relationship should read as
+an invitation and not as a list of what is missing. Do not duplicate the same
 fact in a header, card and row unless each placement supports a distinct
 decision.
 

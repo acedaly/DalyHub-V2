@@ -32,6 +32,7 @@ import type {
 } from "./types";
 import type { FilterValueControls } from "./value-controls";
 import { findField } from "./validate";
+import { Input, Select } from "~/shared/ui";
 
 export interface FilterBarProps {
   readonly fields: FilterFieldRegistry;
@@ -249,7 +250,10 @@ export function FilterBar({
             <div className="dh-filter-views">
               <label className="dh-filter-views__select">
                 <span className="dh-visually-hidden">Saved view</span>
-                <select
+                {/* UNTITLED-18 — the shared `Select`. `filters.css` used to
+                    draw this control's height, padding, type, surface, border
+                    and corner; it now caps the width and nothing else. */}
+                <Select
                   value={savedViews.activeViewId ?? ""}
                   onChange={(event) =>
                     savedViews.onSelect?.(
@@ -263,7 +267,7 @@ export function FilterBar({
                       {view.name}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
 
               {activeView && viewModified ? (
@@ -295,9 +299,18 @@ export function FilterBar({
                       }
                     }}
                   >
-                    <label className="dh-filter-views__save-field">
+                    {/* EXPLICITLY associated. The label wrapped the control,
+                        which the browser honours; a linter reading JSX cannot
+                        see through a component boundary to know that, and
+                        `htmlFor` states the relationship rather than relying on
+                        nesting. */}
+                    <label
+                      className="dh-filter-views__save-field"
+                      htmlFor={`${editorLabelId}-save-name`}
+                    >
                       <span className="dh-visually-hidden">New view name</span>
-                      <input
+                      <Input
+                        id={`${editorLabelId}-save-name`}
                         ref={saveNameRef}
                         type="text"
                         placeholder="View name"

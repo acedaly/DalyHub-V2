@@ -1,23 +1,48 @@
 # Untitled UI migration guide
 
-> DalyHub is progressively rebuilding its presentation layer around Untitled UI
-> React Pro, Untitled Application UI patterns, Tailwind CSS v4 and React Aria.
-> Backend, database, migrations, Cloudflare infrastructure, API contracts and
-> business logic remain out of scope for this frontend reset.
+> DalyHub's presentation layer is built from Untitled UI React Pro, Untitled
+> Application UI patterns, Tailwind CSS v4 and React Aria. Backend, database,
+> migrations, Cloudflare infrastructure, API contracts and business logic remain
+> out of scope for this frontend reset.
+
+## Status: the broad migration is COMPLETE
+
+Every module in the phase list below has had its dedicated pass, and UNTITLED-18
+closed the last of them (Settings) together with the residual debt three earlier
+passes had carried forward. **There is no next module.**
+
+What that means for a future change:
+
+- **There is no "migration phase" to join.** A new surface is built on Untitled
+  from the start; an existing one is changed in place. Nothing is waiting for a
+  broad rewrite, and proposing another one is the wrong shape of answer to
+  anything on the debt list below.
+- **The generic UI layer is Untitled's.** The inventory — every generic concept,
+  its current source, and whether it is Untitled-backed — is in
+  [`UNTITLED_UI_IMPLEMENTATION.md`](UNTITLED_UI_IMPLEMENTATION.md#the-generic-ui-inventory-at-the-end-of-this-pass).
+  Read it before building a control; the answer is almost always "that already
+  exists and it is Untitled's".
+- **What is left is MAINTENANCE**, named and bounded in
+  [Named maintenance debt](#named-maintenance-debt). Each item is a specific
+  file, a specific count, or a specific blocked dependency — not a module.
 
 ## Current frontend debt
 
+Kept as a statement of what is still TRUE, not as a work queue; the queue is
+[below](#named-maintenance-debt).
+
 - Legacy CSS still carries `--dh-*`, `--app-*` and `--md-*` compatibility
-  vocabulary.
-- Some shared primitives predate Untitled adoption and should be replaced by
-  Untitled source when their consumers migrate.
-- Some feature components mix product decisions, presentation state and mutation
-  wiring in one file, making visual migration riskier than it needs to be.
-- Historical design documents and screenshots described Material, MD3, DHDS and
-  bespoke DalyHub patterns; those are superseded by
-  [`UNTITLED_UI_IMPLEMENTATION.md`](UNTITLED_UI_IMPLEMENTATION.md).
-- Untitled-derived shell, Today and Tasks work already exists, but the remaining
-  modules still need consumer-by-consumer migration.
+  vocabulary. This is deliberate: they are real, generated, tested design tokens,
+  and the boundary between them and Untitled's is enforced by
+  `scripts/dhds-token-audit.mjs`.
+- Module stylesheets are UNLAYERED, so any rule in one outranks every Untitled
+  utility regardless of specificity. That is what makes the migration safe
+  surface by surface (see `app/styles/untitled/untitled.css`), and it is also the
+  mechanism by which a leftover rule can silently repaint a migrated control —
+  UNTITLED-18 found and measured six of those. When a surface migrates, its
+  stylesheet's paint must go with it.
+- A small number of shared primitives predate Untitled adoption and are named
+  individually below rather than described in general.
 
 ## Reusable backend and domain logic
 
@@ -86,7 +111,12 @@ The historical design files were classified before removal:
 | Offline/PWA | Offline support keeps a minimised, owner-scoped capture/task model with honest limitations and recovery paths. | Mobile install/offline states should be clear and calm. | Old mobile visual frames and reference screenshots. |
 | Product Experience | DalyHub remains a calm personal operating system with stable navigation, direct manipulation, progressive disclosure and no dead ends. | One shell, one row grammar, contextual overlays, record/drawer patterns and accessible mobile behaviour. | Material/MD3/DHDS token architecture, old theme experiments and visual north-star screenshots. |
 
-## Migration phases
+## Migration phases — the record of how it was done
+
+All eighteen are complete. Kept because the ORDER is the reusable lesson: the
+foundation and the shell first, then the surfaces the owner uses daily, then the
+ones they configure, then the removal of what was displaced. A future broad
+change to the presentation layer should follow the same shape.
 
 Preferred order:
 
@@ -1700,3 +1730,345 @@ reply:
    comments in this module argue for.
 7. **Eight E2E specs still scope to `.dh-topbar`**, a class the shell no longer
    renders. Carried forward from UNTITLED-16 unchanged.
+
+## UNTITLED-18 — Settings, shared forms, Finance admin, and the retirement of the old generic UI
+
+The provenance record — every MCP search, what it returned, what was adopted and
+rejected, and the whole generic-UI inventory — is in
+[`UNTITLED_UI_IMPLEMENTATION.md`](UNTITLED_UI_IMPLEMENTATION.md#untitled-18-completion-record--settings-shared-forms-finance-admin-and-the-dead-frontend).
+This records what MOVED, what was MEASURED, and what is left.
+
+### What moved
+
+| Surface | Untitled source | Before → after | Kept deliberately |
+| --- | --- | --- | --- |
+| Settings group | `section-headers/section-label` via the `section-heading` override | A CARD, which on a record's Settings tab meant a group card inside a settings card inside a record card — three borders contributing one piece of hierarchy between them | The structure DS-14 wanted. A reader can still see where one group ends and the next begins; it is a rule and a heading rather than a frame |
+| Settings row | `base/input`'s `Label` + `HintText` roles, and a Tailwind CONTAINER query | A hand-written two-column row with its own four status tones and its own container query, plus a duplicate phone arm in a media query | Both accessible-naming patterns, and the row-owned name that stops a bare control being labelled twice |
+| Settings rail | `command-menus/command-menu-item` (stacked) + `nav-item`'s selected treatment | ~250 lines: a grouped rail, a two-line row, an `::after` target overlay, a hover, a focus ring, a selected surface and a phone arm for each | The summary as the link's accessible DESCRIPTION rather than part of its name — now with one element instead of a link plus a described sibling under a pseudo-element |
+| Switch | `base/toggle`'s `ToggleBase` `size="md"` | Material Design 3's anatomy: a 52×32 track, a thumb growing 16→24px, a check glyph, 203 lines of `switch.css` | The native `<input type="checkbox">` with `role="switch"`, the 44px LABEL target, uncontrolled form participation, and a forced-colours arm upstream has none of |
+| Confirmed actions | Untitled's own destructive/warning modal PAIR, as the argument | One weight, and it was "destructive" — so an Area's Archive, whose copy reads "you can restore it at any time", was painted identically to Delete permanently | The confirmation itself on both. What differs is what it is FOR |
+| Finance import preview | `application/table` + `table-head` | A hand-written `<table>` with its own cell padding, hairline, alignment, nowrap and scroller — the largest left in the product | The per-row outcome on the row, the amount/date alignment, the "import it anyway?" checkbox, the caption |
+| Finance budgets | `application/table` + `table-head` | Twelve full-width bordered cards, each holding a name, a number, one button and a sentence | The variance SENTENCE with the figures that produced it. No bar, no percentage, no score — FIN-02's decision, not revisited |
+| Finance categories | `application/table` + `table-head` | A four-column bordered grid row per category | "Money out" as a WORD in a column. Two kinds is not a status, and a coloured pill per row would be badge soup (§21) |
+| File picker | — | `RestoreFromBackup` had the accessible label-around-hidden-input pattern in `settings.css`; Finance's CSV import drew the browser's own widget beside migrated Untitled fields | Both now share `~/shared/ui/FilePicker`: the control the browser DRAWS is replaced, the control it PROVIDES is not |
+| Status badge | `base/badges` via `UntitledStatusBadge` | Backups and the Goal condition tag drew the legacy `dh-badge`; `StatusPill` now has **zero** product consumers | The tone vocabulary, which is DalyHub's meter language |
+
+### What was deleted
+
+Nine components, verified by reference count against `app/` rather than taken
+from this document — which had undercounted by five.
+
+- `DashboardCard`, `MetricTile`, `MetricRow`, `StatCard` — named by UNTITLED-17
+  as gallery-only. Confirmed.
+- `ExpressiveSummary`, `SupportingSurface` — **no consumer at all.** They
+  referenced only each other.
+- `CardMetaFact` — no consumer but its own barrel entry.
+- `~/shared/card`'s `Timeline` / `TimelineItem` — gallery only. (The `Timeline`
+  forty files import is the activity feed's; there were two of that name.)
+- `SummaryCards`, its producer `personRelationshipCards`, and the tone helper
+  that fed it — UNTITLED-13 removed their one adopter and left them behind.
+
+**The design gallery went with them, and the rule is now written on the route:**
+*a fixture may only draw what the product draws.* `/design/card-family` was the
+only caller of five of the nine, which is how they survived four passes — a
+fixture that outlives its component becomes the consumer, and the deletion never
+happens.
+
+### Stylesheets cut
+
+Measured `wc -l` against `origin/main`. **46,488 → 41,940 lines across 87
+stylesheets**, and the three that GREW are the point: each is a surface that
+genuinely had nothing where it needed something.
+
+- `card-family.css` — **2,643 → 1,356.** The whole of `DashboardCard`,
+  `MetricTile`, `StatCard`, `ExpressiveSummary`, `SupportingSurface`,
+  `CardMetaFact` and `TimelineItem`, removed by matching each rule's selector
+  against the classes surviving markup actually emits.
+- `settings.css` — **1,161 → 532.** The surface root, the group card, the row,
+  the rail, the danger button, and 110 lines of `dh-settings-switch` /
+  `dh-settings-select` that NO markup had emitted since their consumers moved.
+- `switch.css` — **203 → deleted.**
+- `summary-cards.css` — **94 → deleted.**
+- `collection-layout.css`, `filters.css`, `offline.css`, `references.css` — small
+  cuts, each one a rule that was repainting a migrated control (below).
+- `help.css` **249 → 276**, `views.css` **205 → 214**, `finance.css` **451 → 462**,
+  `ai.css` **811 → 818** — all four GREW, and all four grew because this pass gave
+  a surface a page frame, a heading rung or a label role it did not have.
+
+### Defects surfaced, and what they were
+
+Eight, and **every one was found by looking at or measuring the rendered page** —
+none was failing a test.
+
+1. **Unlayered module CSS was silently repainting already-migrated controls.**
+   Six rules in `ai.css`, `filters.css`, `offline.css` (×2) and `references.css`
+   re-derived a control's height, padding, border, radius, surface and type.
+   MEASURED in Chromium on one identical control, inside and outside
+   `.dh-ai-review__field`: **38px tall with an 8px corner and a ring outside the
+   rule; 45px with a 10px corner and a 1px border inside it.** The migration had
+   happened and could not be seen. This is the recurring defect of the whole
+   programme and is why "when a surface migrates, its stylesheet's paint goes
+   with it" is now stated at the top of this file.
+2. **The Settings rail did not fit the screen.** MEASURED: twelve two-line rows
+   at 240px wide make it **1278px tall in a 950px viewport**, at 1024 and 1440
+   alike. A persistent navigation column that must be scrolled to reach its last
+   four destinations is not persistent. The summary is `md:sr-only` now — still
+   the accessible description at every width, visible on the phone where the list
+   IS the screen — and the rail is 610px.
+3. **A reversible action was painted as permanent destruction**, on two record
+   types, while its own RESTORE — no more and no less reversible — drew a calm
+   secondary button from thirty-five lines of hand-rolled dialog wiring.
+4. **Four Finance admin screens had no page frame.** MEASURED at 1440: heading,
+   form and preview table all began at the sidebar's edge and ran to the
+   viewport's, while `/finance` itself is inset like every other route.
+5. **Nine headings had no type role at all**, so "Import a statement", "Budgets"
+   and "Categories" rendered at body size — Tailwind's preflight resets a bare
+   heading to inherit. The same defect UNTITLED-17 found on the guided Review.
+6. **Help's topic heading and its own first sentence were the same size**, at
+   16px/500 against 16px/400 — so a page of thirty topics had nothing but a
+   half-step of weight to say where one answer ended. A systematic sweep for the
+   defect class (every visible heading whose computed size is ≤ body size and
+   whose weight is < 600, across 28 routes) also found Help's contents groups at
+   12.5px above 13px links, and Views' group heading at 14px/500 above
+   thirty-two 14px/400 rows.
+7. **Every Finance form's submit was a full-width slab** from the sidebar to the
+   viewport edge — a flex column's `stretch` default, right for its fields and
+   wrong for its one button.
+8. **The CSV picker was the browser's own widget**, beside migrated Untitled
+   fields.
+9. **Views was the only collection whose row was not its own tap target.**
+   MEASURED at 390px: a 79px row offering a 20px strip, with the record's
+   metadata line as dead space beside it. A probe of four other collections
+   (People, Assets, Goals, Areas) found every one of them already giving its row
+   link a `content: ""` / `inset: 0` overlay; Views had `content: none`.
+   Hit-tested after the fix: the row's top, middle and bottom all resolve to the
+   link. This is the §37 EntityLink question, answered by measurement — the
+   shared component is fine, and one consumer was not.
+10. **A Habit's record told an owner who had done everything that they had not.**
+    See below: this is the report three passes could not reproduce.
+
+And one this branch CAUSED and the re-pointed E2E suite caught immediately:
+`SettingsRow` was translated to `break-words` where the rule it replaced said
+`overflow-wrap: anywhere`. Only `anywhere` reduces min-content width. MEASURED at
+320px on Privacy & data, whose copy names a long path: a **331px minimum inside a
+288px column**, and the document scrolled sideways.
+
+### Verified rather than assumed
+
+- **Horizontal overflow: zero.** 33 routes × 9 widths (320 → 1920), with loaded
+  fixtures. Not one document scrolled sideways.
+- **Touch targets and accessibility: 151 of 151 pass** (`touch-targets.spec.ts`
+  and `accessibility.spec.ts`). A crude independent sweep flagged 84 controls
+  under 44px; every one was a false positive the repo's own guards already know
+  about — a visually-hidden input whose LABEL is the target, a whole-row link
+  overlay, or an inline link inside prose, which §37 exempts by name.
+- **The `.dh-topbar` debt was already closed.** Every remaining mention is prose
+  explaining why a locator moved. The audit it was really asking for — every
+  `.dh-*` selector in an `e2e/` locator, matched against what the markup emits,
+  with comments stripped — found **fifteen** dead selectors, six of them
+  load-bearing and silently skipping their assertions.
+
+### The Habit report, reproduced at last
+
+Carried forward twice as "could not reproduce from the existing guards". It
+reproduces — in the WORDS, which is why three passes reading the arithmetic
+never found it.
+
+The three domain guards UNTITLED-17 documented are all correct and all
+untouched: `evaluateHabitConsistency` clamps its upper bound to the owner's
+today, `activeOn` refuses every day before a Habit's first schedule version, and
+a `weekly_count` week contributes nothing unless it has elapsed. So does the
+fourth thing UNTITLED-17 named as "arguably correct": `evaluateHabitWeek` counts
+the whole week including days still to come, which is a settled decision with its
+own argued test — *"it does NOT describe Thursday as incomplete; it says the week
+holds seven days."*
+
+The defect is that the Habit RECORD printed that number under the four-week
+window's sentence. Both figures said **"Expected check-ins completed"**. That is
+true of the four-week window, whose denominator is clamped to today. It is not
+true of THIS WEEK. So a daily Habit checked in on Monday, Tuesday and Wednesday
+read, on the Wednesday:
+
+> **This week** · 3 of 7 · *Expected check-ins completed*
+
+An owner who had done every single thing asked of them, told they had completed
+three of seven expected check-ins — four of which were in the future. That is
+the manufactured verdict ADR-102 and AGENTS.md §2 forbid, and it is exactly the
+report's words.
+
+The fix is in the record and nowhere else. The week figure now says what the
+shared `habitWeekLabel` has always said — it describes the WEEK ("of what this
+week asks for") rather than an expectation already incurred — and "Expected
+check-ins completed" moves to the window where it is true. That also removed a
+duplicate: the four-week figure's supporting line was `habitConsistencyLabel`'s
+whole string, so "9 of 12" was printed twice on one line.
+
+`habits.spec.ts` had MEASURED the offending string and recorded it in a comment,
+having satisfied itself that "0 of 3" was defensible and never asked about the
+words beside it. Its assertion is re-pointed, and the regression guard now runs
+on every day of the week rather than only on a Monday: on this surface nothing
+may claim a check-in has already been expected of an owner who has had no
+elapsed window.
+
+## UNTITLED-19 — the completion audit, and the end of the migration narrative
+
+A deliberate search for a COMPETING generic UI system, rather than another
+module pass. The question it had to answer: could an engineer building a control
+tomorrow reasonably pick between two generic systems and be right either way? If
+yes, convergence was not finished, whatever the module list said.
+
+It could, in one place, and that place is now closed.
+
+### The second badge
+
+`~/shared/ui/Badge` drew itself — `.dh-badge` plus `[data-tone]`, ~140 lines of
+container/on-container pairs in `ui.css` — while `UntitledStatusBadge` drew
+Untitled's `base/badges`. Two paints, two APIs, **thirty-nine consumer files**
+between them (12 call sites on the DalyHub one, 24 on the Untitled one, plus
+`StatusPill`, which fed the first).
+
+The blocker on record was that "Untitled's badge is a stadium and DalyHub's
+argument is that a status annotating a 36px row must not be as tall as the row".
+**That was false and checking it is the whole reason this closed.** Upstream's
+`type` has three values and only `pill-color` is a stadium; `color` and `modern`
+are `rounded-md` at `py-0.5 px-1.5 text-xs`, which is exactly the chip DS-02
+argued for. `TaskRow` had been shipping `badgeModern` in production the entire
+time the blocker stood.
+
+`Badge` keeps its API and renders Untitled underneath — `soft` → `color`,
+`outline` → `modern`. Three defects surfaced while doing it, each caught by a
+test rather than by reading:
+
+- upstream defines **only `gray`** for a dotless `modern` badge, so
+  `styles[color].root` threw for every other colour. Live and unhit, because
+  every existing `type="modern"` call site happened to pass `tone="neutral"`;
+- `pill.css`'s forced-colours rule set `border-color` on an element with no
+  border WIDTH once the drawn object became Untitled's — a declaration that
+  looked like it did something for as long as nobody checked;
+- `StatusPill` forwarded an `icon` prop no call site in the product ever passed.
+
+The twenty-four `UntitledStatusBadge` call sites had inherited upstream's
+`pill-color` default, so until the last step of this change the product had two
+badge shapes — a stadium and a rounded rectangle — while two DalyHub files
+argued in writing against the stadium. **The stadium arrived by default, never
+by a decision.** The default is `color` now.
+
+MEASURED across eight modules afterwards: 56 visible badges, one radius, one
+height — 6px and 22px.
+
+### The legacy button
+
+`.dh-btn:not(.dh-button)` was ~256 lines in `ui.css` plus six entries in
+`base.css`'s state-layer host list, and its own comment set the condition for its
+removal: "the legacy block comes out when the last `.dh-btn` literal does".
+There was one left — Today's Review door — and the comment beside it pointed at a
+`today.css` rule for label wrapping **that does not exist in any stylesheet**.
+It had been deleted at some point; the class was inert and the wrapping was
+really the legacy button never setting `white-space`.
+
+`.dh-btn` is still emitted by every `Button`, because thirteen module stylesheets
+carry layout rules that name it and `base.css` excludes it from the prose link
+underline. It carries no paint anywhere.
+
+### What the audit found and did NOT change
+
+`plan.css` was hand-drawing an accent badge (`.dh-plan__day-now`, the planner's
+"Today" marker) with the badge's own recipe spelled out again. It is a `Badge`
+now.
+
+Measured across all eighteen product surfaces at 1280px: **no browser-default
+control, no card-inside-card**, and the stadium radii that remain are avatars,
+filter toggles and stat chips — controls, which is what D13 reserved the stadium
+for.
+
+### `assisted-ai.spec.ts` was never contended — and the fix for it was reverted
+
+The entry below said it "drives the uncategorised queue — every uncategorised row
+in the shared local database, so its cost is a function of what ran before it".
+Three measurements say otherwise:
+
+- the queue is **cursor-paginated at 50 rows**, so it never renders the workspace;
+- it **loads in 1.9s**, the fastest of five pages probed (`/tasks` takes 3.2s);
+- `wrangler d1 execute --local` costs **3.1 seconds of process startup** before
+  it reads a byte, and the contended test makes eight fixture reads.
+
+Roughly twenty-five seconds of a thirty-second budget was wrangler booting. That
+is why it passed alone and failed under load, and why three passes looking in
+the product found nothing — **it was never in the product.**
+
+#### The fix was attempted, and reverted, and the reversal is the useful part
+
+`d1Query` was changed to read the SQLite file directly with `node:sqlite`: 8ms
+instead of 3,100ms for the same query, `readOnly` so it could not write. Measured
+locally, the contended journey went 33.6s → 18.8s and its sibling 29.0s → 16.2s.
+Sixteen of sixteen assisted-AI tests passed, twice.
+
+**CI then failed a test that had never failed**, and the message is the whole
+argument:
+
+```
+Error: no obligation created        (assisted-ai.spec.ts:475)
+```
+
+The obligation HAD been created, through the real form, moments before. The dev
+server holds the database in WAL mode, and a `readOnly` connection cannot
+maintain the WAL index (`-shm`) it needs in order to see frames another process
+has committed — so the read returned a stale snapshot, silently.
+
+That is disqualifying rather than merely annoying, and not because of this one
+red test: **a reader that can miss committed rows can make an assertion PASS
+that should fail.** Every `toHaveLength(0)` after a delete, and every "replays
+without a second" that counts one row where two exist, becomes a false green.
+Fifteen spec files use this helper to check invariants the interface cannot
+show. Slow and correct beats fast and occasionally blind.
+
+So `d1Query` is back on wrangler and the item is **root-caused but not fixed**.
+The measurement is the durable finding; the wrong theory it replaced (contention
+over the Finance queue) is gone for good, and the safe way to spend the 3.1s is
+named rather than guessed at: issue FEWER statements per invocation.
+`spendingCategory()` and `secondSpendingCategory()` currently run the identical
+query in two processes to take row 0 and row 1 of one result.
+
+### The frontend architecture, stated once
+
+**DalyHub's broad Untitled UI migration is complete.** Untitled UI React Pro is
+the default implementation source for generic application UI. Future frontend
+work should be treated as product evolution and targeted maintenance rather than
+as continuation of the design-system migration.
+
+The audit supports that claim on its own terms: there is no generic concept for
+which two systems compete, no module awaiting a rewrite, and the remaining items
+below are each a named file or a named count.
+
+The next major initiative is not a design-system one. See
+[`DALYHUB_MOBILE_FOUNDATION.md`](../architecture/DALYHUB_MOBILE_FOUNDATION.md).
+
+### Named maintenance debt
+
+**This list replaces every earlier one.** Each item was re-checked against the
+repository as it stands; items that had been carried forward for passes and were
+no longer true are recorded as closed rather than copied again. None of these
+blocks the completion claim above — each is normal product maintenance, and the
+"Blocks completion?" column says so explicitly rather than leaving it implied.
+
+| # | Item | Where | Why it remains | User impact | Next action | Priority | Blocks completion? |
+| :-- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 1 | Nine bare native controls carry their own field paint | `filters.css` (`__input` ×4, `__select` ×2), `inline-edit.css`, `settings.css` (`.dh-confirm__input`), `diary.css`, `task-checklist.css`, `icon-picker.css`, `markdown-editor.css` | They predate `inputClassName()`, the exported bridge built for controls that cannot BE the `Input` component. Each is a real field with a real border/radius/background in module CSS. | A field that is a few pixels off the shared one, and a legacy focus ring in place of Untitled's | Replace `className="dh-x__input"` with `inputClassName({ className: "dh-x__input" })`; delete the paint decls, keep the layout ones | Medium | No — one Input system exists; these are call sites that predate its bridge |
+| 2 | `~/shared/ui/Card` (`.dh-surface`) paints from DalyHub tokens | `ui.css`, 12 rules, 38 consumers | It is a generic bounded box, and Untitled ships no generic Card — its cards are specific application components (`TableCard`, section headers). | None | Decide whether the box is still needed at all now settings groups are sections, or convert its three variants to Untitled/Tailwind utilities | Low | No |
+| 3 | `ConfirmationDialog` is DalyHub's own (`.dh-confirm*`, 14 rules) | `settings.css`, `~/shared/ui/ConfirmationDialog.tsx`, 11 consumers | It is specialised machinery, not a generic dialog: focus isolation, body-scroll lock, inert background, and a typed-phrase confirmation. `application/modals` is vendored but supplies the shell, not the behaviour. | None | Consider composing the Untitled modal shell under DalyHub's behaviour; its typed input is item 1's | Low | No — category 3, deliberately custom |
+| 4 | `TagChip` and `PanelHeading` are DalyHub's own | `ui.css` (3 rules each), 3 consumers each | Untitled ships `base/tags` and `application/section-headers`; neither was reached for. Small enough that nobody had to. | None | Swap to the upstream pair when either is next touched | Low | No |
+| 5 | `md-state-layer` — 34 usages across 23 files | `base.css` + 23 components | Not "one forgotten control": a working, tested, single-implementation hover/focus/pressed model with two dozen live consumers. Retiring it means migrating those consumers to Untitled's own hover treatments. `.dh-btn` left its host list in UNTITLED-19; seven hosts remain live. | None | One pass, component by component | Medium | No |
+| 6 | `application/progress-steps` for the guided Review's step rail | `~/shared/ui/untitled` (absent) | Still `access: "pro"` and not retrievable without an interactive login. **Public** component source IS retrievable through the CLI (proved by fetching `file-upload-base`), so this is a Pro gate specifically. | None | Retrieve when Pro CLI access exists; the current implementation is retained and documented, never faked | Low | No — blocked on access, not on design |
+| 7 | `application/file-upload`'s drop zone | `~/shared/attachments` | Public and retrievable; a genuine upstream answer to ~370 lines DalyHub wrote itself. Out of scope when attachments were last touched. | None | Adopt when attachments are next worked on | Low | No |
+| 8 | A Project inside a Goal record carries no health | `~/shared/goal-progress` | Product gap, never a migration one | A Goal's Projects read as less informative than the Projects collection | Decide whether Goal-nested Projects should show health at all | Low | No |
+| 9 | The Diary week strip's focus order | `app/modules/diary` | Carried forward unexamined across three passes | Keyboard order in one strip | Measure it, then fix or close it | Low | No |
+| 10 | A bounded `people.getByIds` | `app/platform/people` | Carried forward from UNTITLED-13 | None | Add the bounded read | Low | No |
+| 11 | `assisted-ai.spec.ts`'s heaviest journey sits ~1s under its 30s budget | `e2e/d1.ts`, `e2e/assisted-ai.spec.ts` | **Root-caused, not fixed.** Each `d1Query` spawns wrangler at **3.1s of startup before it reads a byte**, and that test makes eight. Reading the SQLite file directly is 8ms but returns stale WAL snapshots — it failed CI with `no obligation created` for a record the form had just written, and a reader that misses committed rows can turn a real failure into a false green. Reverted. | None — it is a test-harness cost | Issue fewer statements per invocation. `spendingCategory()` and `secondSpendingCategory()` run the identical query in two processes to take row 0 and row 1 of one result | Medium | No |
+
+#### Closed by this audit, recorded rather than deleted
+
+- ~~**Two badges.**~~ Closed above. The blocker on record ("Untitled's badge is a
+  stadium") was false.
+- ~~**The inert `.dh-btn` legacy button.**~~ Removed with its last call site.
+- ~~**A Habit's expected check-ins before a full week has passed.**~~ Reproduced
+  and fixed in UNTITLED-18 — in the words, not the arithmetic.

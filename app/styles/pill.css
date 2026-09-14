@@ -106,8 +106,15 @@
  * pill tint and the Area dot. Both fall back to a bordered shape so the pill
  * still reads as a pill and the dot still exists. */
 @media (forced-colors: active) {
-  .dh-badge,
-  .dh-pill,
+  /*
+   * UNTITLED-19 — `.dh-badge` and `.dh-pill` left this list when the badge
+   * became Untitled's. `.dh-badge` is not emitted at all now, and `.dh-pill` is
+   * an inert locator hook on an Untitled badge that has no authored border for
+   * `border-color` to tint — so the declaration would have done nothing while
+   * looking like it did something. The badge carries its own forced-colours
+   * fallback as a utility instead (`UntitledStatusBadge`), which is where the
+   * shape it needs to keep actually lives.
+   */
   .dh-area-pill {
     border-color: CanvasText;
   }

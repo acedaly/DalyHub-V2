@@ -1,375 +1,35 @@
 /**
- * DS-10b Settings layout — styles.
+ * Settings — the rules the COMPONENTS cannot own.
  *
- * ONE calm settings surface for every scope. It reads ONLY DS-01 tokens (no raw
- * colours, shadows, spacing, radii or z-index). It adapts to its CONTAINER, not the
- * viewport (container queries), so the same layout is correct in a 320px Drawer and
- * a full route. Label/description and control sit side-by-side when there is room
- * and stack cleanly when narrow, with no horizontal overflow and no clipped text.
- * Motion is disabled under prefers-reduced-motion.
- */
-
-/* ---------------------------------------------------------------- surface root */
-
-.dh-settings {
-  container-type: inline-size;
-  display: block;
-  width: 100%;
-  max-width: var(--app-width-content);
-}
-
-.dh-settings__header {
-  margin-bottom: var(--app-space-6);
-}
-
-.dh-settings__title {
-  margin: 0;
-  font-size: var(--dh-text-section-title-size);
-  font-weight: 500;
-  line-height: 1.35;
-  color: var(--dh-color-text);
-}
-
-.dh-settings__description {
-  margin: var(--app-space-2) 0 0;
-  font-size: var(--dh-text-meta-size);
-  line-height: 1.5;
-  color: var(--dh-color-text-muted);
-}
-
-.dh-settings__groups {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-4);
-}
-
-/* ---------------------------------------------------------------- group */
-
-/*
- * DS-14 — a settings group is a CARD, not a run of rows under a rule.
+ * UNTITLED-18 cut this file from 1161 lines to what is here. Everything that was
+ * paint for a generic control is gone, because a generic control is Untitled's
+ * now and not this stylesheet's:
  *
- * Settings was the clearest case in the product of "uncontained sections that
- * visually merge into the page": six groups of rows separated only by a
- * horizontal rule and 32px of air, so the page had no structure the eye could
- * hold and every row floated at the same depth as the page title. Each group
- * becomes one in-flow card — the same card the collections and records use —
- * with its heading inside it, so a settings page reads as a stack of grouped
- * things rather than a long document.
+ *   - `.dh-settings*` (the surface root, its heading and its group rhythm) →
+ *     `SettingsLayout`, on Untitled's page-header type roles;
+ *   - `.dh-settings-group*` (a card, its header, its danger tint and its row
+ *     separators) → `SettingsGroup`, on Untitled's `section-header` grammar —
+ *     which is also what removed the frame-inside-frame a record's Settings tab
+ *     drew (see that component's header);
+ *   - `.dh-settings-row*` (the two-column row, its type roles and its four
+ *     status tones) → `SettingsRow`, on Untitled's `Label`/`HintText` pairing
+ *     and a Tailwind CONTAINER query rather than a hand-written one;
+ *   - `.dh-settings-page__nav*` (≈250 lines: a grouped rail, a two-line row, a
+ *     `::after` target overlay, a hover, a focus ring, a selected surface and a
+ *     phone arm for each of them) → `SettingsNav`, on Untitled's stacked
+ *     destination-row grammar;
+ *   - `.dh-settings-danger-button` → the shared `Button`, whose `danger` family
+ *     is Untitled's `primary-destructive`;
+ *   - `.dh-settings-switch` and `.dh-settings-select` — 110 lines drawing a
+ *     hand-built checkbox-as-switch and a repainted select, with NO markup
+ *     emitting either class. Dead since the M3-INT switch and the DS-02 select
+ *     took their consumers; deleted rather than carried forward a fourth time.
  *
- * The rows inside keep their own hairlines, which now separate rows WITHIN a
- * card rather than doing the containing on their own.
+ * What remains is genuinely this file's: the page GRID (a header spanning a rail
+ * and a content column), the phone's two-SCREEN swap, the confirmation dialog's
+ * overlay geometry, and four small blocks that lay out module-specific content
+ * — a restore preview, a security history, a calendar's control row.
  */
-/*
- * A Settings group is the same card a collection and a record use — which is
- * what UIX-06 said when it took the hairline OFF, on D1's grounds. DS-05
- * revisited D1 for the whole product and landed the other way, so the statement
- * is unchanged and the paint follows the new answer: one hairline, one 12px
- * corner, no shadow, on every card in DalyHub.
- */
-.dh-settings-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--dh-space-3);
-  padding: var(--dh-space-4);
-  background: var(--dh-color-surface);
-  border: var(--dh-border-width) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-}
-
-.dh-settings-group__header {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-1);
-  padding-bottom: var(--app-space-2);
-}
-
-.dh-settings-group__title {
-  display: flex;
-  align-items: center;
-  gap: var(--app-space-2);
-  margin: 0;
-  font-size: var(--dh-text-lead-size);
-  font-weight: 500;
-  line-height: 1.35;
-  color: var(--dh-color-text);
-}
-
-.dh-settings-group__title-icon {
-  flex: none;
-  color: var(--dh-color-danger);
-}
-
-.dh-settings-group__description {
-  margin: 0;
-  font-size: var(--dh-text-meta-size);
-  line-height: 1.5;
-  color: var(--dh-color-text-muted);
-}
-
-.dh-settings-group__rows {
-  display: flex;
-  flex-direction: column;
-}
-
-/* Rows within a group are separated by hairlines, calm and consistent. The
-   within-card separator token, now that the group is a card. */
-.dh-settings-group__rows > .dh-settings-row + .dh-settings-row {
-  border-top: var(--app-border-width-thin) solid var(--dh-color-border);
-}
-
-/* The dangerous region: visually separated by a bordered, tinted card — the
-   differentiation is carried by the border, the heading text AND the icon, never
-   colour alone. */
-.dh-settings-group--danger {
-  gap: 0;
-  padding: var(--app-space-4) var(--app-space-5) var(--app-space-2);
-  border: var(--app-border-width-thin) solid var(--dh-color-danger);
-  border-radius: var(--dh-radius-lg);
-  background: var(--dh-color-danger-subtle);
-}
-
-.dh-settings-group--danger .dh-settings-group__header {
-  border-bottom-color: var(--dh-color-danger);
-  margin-bottom: var(--app-space-2);
-}
-
-.dh-settings-group--danger .dh-settings-group__title {
-  color: var(--dh-color-text-on-danger-subtle);
-}
-
-.dh-settings-group--danger .dh-settings-group__description {
-  color: var(--dh-color-text-on-danger-subtle);
-}
-
-.dh-settings-group--danger
-  .dh-settings-group__rows
-  > .dh-settings-row
-  + .dh-settings-row {
-  border-top-color: var(--dh-color-danger);
-}
-
-/* ---------------------------------------------------------------- row */
-
-.dh-settings-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--app-space-3) var(--app-space-5);
-  padding: var(--app-space-4) 0;
-}
-
-.dh-settings-row--align-start {
-  align-items: flex-start;
-}
-
-.dh-settings-row__text {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-1);
-  min-width: 0;
-  /* Grow but allow wrapping; a floor keeps the control from being crushed. */
-  flex: 1 1 16rem;
-}
-
-.dh-settings-row__label {
-  font-size: var(--dh-text-meta-size);
-  font-weight: 500;
-  line-height: 1.35;
-  color: var(--dh-color-text);
-  /* Long labels wrap; never clip. */
-  overflow-wrap: anywhere;
-}
-
-.dh-settings-row__description {
-  font-size: var(--dh-text-meta-size);
-  line-height: 1.5;
-  color: var(--dh-color-text-muted);
-  overflow-wrap: anywhere;
-}
-
-.dh-settings-row__control {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-1);
-  min-width: 0;
-  /* The control area may shrink but keeps a usable minimum before stacking. */
-  flex: 0 1 auto;
-  align-items: flex-start;
-}
-
-.dh-settings-row--control-only .dh-settings-row__control {
-  flex: 1 1 100%;
-  width: 100%;
-}
-
-.dh-settings-row__status {
-  font-size: var(--dh-text-label-size);
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-}
-
-.dh-settings-row__status--neutral {
-  color: var(--dh-color-text-muted);
-}
-.dh-settings-row__status--success {
-  color: var(--dh-color-text-on-success-subtle);
-}
-.dh-settings-row__status--warning {
-  color: var(--dh-color-text-on-warning-subtle);
-}
-.dh-settings-row__status--danger {
-  color: var(--dh-color-text-on-danger-subtle);
-}
-
-/* Narrow containers (e.g. a Drawer or a 320px phone) stack the row cleanly so the
-   control drops below the text and spans the width. */
-@container (max-width: 32rem) {
-  .dh-settings-row {
-    flex-direction: column;
-    align-items: stretch;
-    gap: var(--app-space-2);
-  }
-  .dh-settings-row__control {
-    width: 100%;
-    align-items: stretch;
-  }
-}
-
-/* ---------------------------------------------------------------- shared control skins */
-
-/* A native checkbox presented as a switch, for an immediate toggle in a row. */
-.dh-settings-switch {
-  appearance: none;
-  -webkit-appearance: none;
-  flex: none;
-  position: relative;
-  width: 2.75rem;
-  min-width: 2.75rem;
-  height: var(--app-touch-target-min);
-  margin: 0;
-  padding: 0;
-  border-radius: var(--dh-radius-pill);
-  background: transparent;
-  cursor: pointer;
-}
-
-/* The visible track sits inside the 44px hit area. */
-.dh-settings-switch::before {
-  content: "";
-  position: absolute;
-  inset: 50% 0 auto 0;
-  transform: translateY(-50%);
-  height: 1.5rem;
-  border-radius: var(--dh-radius-pill);
-  background: var(--dh-color-border-strong);
-  transition: background var(--dh-motion-fast) var(--dh-ease-standard);
-}
-
-.dh-settings-switch::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 0.15rem;
-  transform: translateY(-50%);
-  width: 1.2rem;
-  height: 1.2rem;
-  border-radius: var(--dh-radius-pill);
-  background: var(--dh-color-text-on-accent);
-  box-shadow: var(--dh-elevation-raised);
-  transition: left var(--dh-motion-fast) var(--dh-ease-standard);
-}
-
-.dh-settings-switch:checked::before {
-  background: var(--dh-color-accent);
-}
-
-.dh-settings-switch:checked::after {
-  left: 1.4rem;
-}
-
-.dh-settings-switch:focus-visible {
-  outline: none;
-  box-shadow:
-    0 0 0 2px var(--dh-color-surface),
-    0 0 0 4px var(--dh-color-accent);
-}
-
-.dh-settings-switch:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-/*
- * An immediate select in a Settings row.
- *
- * UIX-06 — the CONTROL rung, like every other control in the product. This drew
- * a 36px box on 12px corners while the shared baseline is 45px on
- * `--app-shape-control`, so a Settings select and a Settings button in the same
- * row were two different objects. Its surface, border and chevron now come from
- * `base.css`; only the row-local width cap stays.
- */
-.dh-settings-select {
-  max-width: 100%;
-  font-size: var(--dh-text-body-size);
-  /* `background-color`: the shorthand would clear the baseline's chevron. */
-  background-color: var(--dh-color-surface);
-}
-
-.dh-settings-select:focus-visible {
-  outline: none;
-  border-color: var(--dh-color-accent);
-  box-shadow:
-    0 0 0 2px var(--dh-color-surface),
-    0 0 0 4px var(--dh-color-accent);
-}
-
-.dh-settings-select:disabled {
-  cursor: not-allowed;
-  color: color-mix(in srgb, var(--dh-color-text) 38%, transparent);
-  background: color-mix(in srgb, var(--dh-color-text) 12%, transparent);
-  border-color: color-mix(in srgb, var(--dh-color-text) 12%, transparent);
-}
-
-/* The destructive button on a dangerous-action row. */
-.dh-settings-danger-button {
-  /* UIX-06 — the product's control height and touch floor, like `.dh-btn`. */
-  min-height: var(--app-control-height-lg);
-  padding: 0 var(--app-space-4);
-  font-family: inherit;
-  font-size: var(--dh-text-meta-size);
-  font-weight: 500;
-  color: var(--dh-color-text-on-danger-subtle);
-  background: var(--dh-color-surface);
-  border: var(--app-border-width-thin) solid var(--dh-color-danger);
-  border-radius: var(--dh-radius-md);
-  cursor: pointer;
-  transition: background var(--dh-motion-fast) var(--dh-ease-standard);
-}
-
-.dh-settings-danger-button:hover:not(:disabled) {
-  background: var(--dh-color-danger-subtle);
-}
-
-.dh-settings-danger-button:focus-visible {
-  outline: none;
-  box-shadow:
-    0 0 0 2px var(--dh-color-surface),
-    0 0 0 4px var(--dh-color-accent);
-}
-
-.dh-settings-danger-button:disabled {
-  cursor: not-allowed;
-  color: color-mix(in srgb, var(--dh-color-text) 38%, transparent);
-  border-color: color-mix(in srgb, var(--dh-color-text) 12%, transparent);
-}
-
-@media (hover: none), (pointer: coarse) {
-  .dh-settings-select,
-  .dh-settings-danger-button {
-    min-height: var(--app-touch-target-min);
-  }
-}
 
 /* ---------------------------------------------------------------- confirmation dialog */
 
@@ -531,11 +191,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  /* The dialog's own entrance is the shared grammar, whose reduced-motion
-   * contract lives at the foot of `motion.css`. */
-  .dh-settings-switch::before,
-  .dh-settings-switch::after {
-    transition: none;
+  .dh-confirm {
+    animation: none;
   }
 }
 
@@ -577,172 +234,14 @@
   gap: var(--app-space-2);
 }
 
+/*
+ * The rail's PLACEMENT. Its rows are `SettingsNav` and carry no rules here.
+ */
 .dh-settings-page__nav {
   grid-area: nav;
   position: sticky;
   top: var(--app-space-6);
   align-self: start;
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-5);
-}
-
-/*
- * UIX-05 — three groups, because eight equally-weighted links in one column is a
- * menu with no shape. The label is a real heading and names the list beneath it,
- * so the grouping is structural rather than a visual gap.
- */
-.dh-settings-page__nav-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-1);
-  min-inline-size: 0;
-}
-
-/*
- * REFINE §55 — the group heading, in the one language this pass settled on.
- *
- * "HOW DALYHUB WORKS" in letter-spaced small caps was louder than the section
- * names under it and was the last M3 band label on a screen the brief calls one
- * of the product's strongest. Tasks, Today, Meetings and Notes all read sentence
- * case at the row size now; Settings joins them. It stays MUTED, because unlike
- * those it is labelling a group of destinations rather than a bucket of records
- * — the names beneath it are the thing being scanned.
- */
-.dh-settings-page__nav-group-label {
-  margin: 0 0 var(--app-space-1);
-  padding-inline: var(--app-space-3);
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-  font-weight: 600;
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--dh-color-text-muted);
-}
-
-.dh-settings-page__nav-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-px);
-}
-
-/* The item, not the link, is the row: the link's ::after covers it, so the whole
- * two-line phone row is one target while the summary stays a described sibling
- * rather than part of the link's accessible name. */
-.dh-settings-page__nav-item {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  min-inline-size: 0;
-  border-radius: var(--dh-radius-md);
-}
-
-/*
- * FINAL-UI — the section is a TITLE over a line, at every width.
- *
- * Concept 1's Settings is the screen the brief singles out (§53), and it is a
- * list of two-line rows: "Account / Profile, plan, billing", "Preferences /
- * Appearance, behaviour". DalyHub already carries exactly that sentence for
- * every section — it wrote them for the phone list and hid them on the desktop
- * rail — so the concept's screen was one `clip-path` away.
- *
- * The label steps up to the row type role with it: a two-line row whose first
- * line is `body-small` reads as two pieces of supporting text rather than as a
- * title and its explanation.
- */
-.dh-settings-page__nav-link {
-  display: flex;
-  align-items: center;
-  min-height: var(--app-control-height-md);
-  padding: var(--app-space-2) var(--app-space-3) 0;
-  border-radius: var(--dh-radius-md) var(--dh-radius-md) 0 0;
-  color: var(--dh-color-text);
-  text-decoration: none;
-  font-size: var(--dh-text-row-size);
-  line-height: var(--dh-text-row-line-height);
-  font-weight: 500;
-}
-
-.dh-settings-page__nav-link::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-}
-
-/*
- * The summary is carried in the DOM at every width because it is the link's
- * accessible DESCRIPTION — a section called "General" says nothing on its own —
- * and FINAL-UI made it VISIBLE at every width too, for the same reason it exists
- * at all. It stays a described sibling rather than part of the link's name (see
- * the note in `routes/index.tsx`), and the link's `::after` still covers the
- * whole two-line row, so the target is unchanged.
- */
-.dh-settings-page__nav-summary {
-  margin: 0;
-  padding: 0 var(--app-space-3) var(--app-space-2);
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-}
-
-/* The phone-only way back to the section list. */
-.dh-settings-page__back {
-  display: none;
-  margin: 0;
-}
-
-/*
- * FINAL-UI — hover and selection paint the ROW, not the link.
- *
- * The row is now two elements (the link and its summary) and the link is only
- * its first line, so a background on the link alone tinted the title and left
- * the sentence under it on the bare page — half a highlighted row.
- *
- * HOVER is the shared state layer, opted into by putting `md-state-layer` on
- * the item in the markup (`routes/index.tsx`) rather than by a fill written
- * here — which is the whole point of `state-layer.test.ts` refusing a
- * hand-rolled one, and it also gains the pressed state the old rule never had.
- * The link's own `::after` still covers the item, so the whole two-line row is
- * one target and hovering the summary hovers the row.
- *
- * SELECTION is not a state layer — it is a durable surface — so it stays a real
- * background, moved up to the row it describes.
- */
-.dh-settings-page__nav-link:hover {
-  color: var(--dh-color-text);
-}
-
-.dh-settings-page__nav-link:focus-visible {
-  outline: none;
-  box-shadow:
-    0 0 0 2px var(--dh-color-surface),
-    0 0 0 4px var(--dh-color-accent);
-}
-
-/*
- * THEME-02 — the settings section list is navigation, so it uses the shared
- * selected-navigation tokens rather than the generic accent tint. Selection is
- * still carried by more than colour: the link is a real `aria-current` target and
- * keeps its stronger weight.
- *
- * DS-08 — and the shared selected-navigation token is `--dh-color-surface-selected`,
- * which is what the rail and every menu already paint. `secondary-container` is
- * the raw M3 role underneath it and is a full-strength slab; a column of these
- * beside the appearance rows was most of why Settings read as a different
- * product. The weight and `aria-current` are untouched.
- */
-.dh-settings-page__nav-item:has(.dh-settings-page__nav-link--active) {
-  background: var(--dh-color-surface-selected);
-}
-
-.dh-settings-page__nav-link--active {
-  color: var(--dh-color-text);
-  font-weight: 600;
 }
 
 .dh-settings-page__content {
@@ -753,48 +252,26 @@
   min-width: 0;
 }
 
-/*
- * UIX-06 — the page-title rung, not a rung of its own.
- *
- * Settings drew its title with a hand-written size, weight and line height while
- * every other page title in the product came from one place. Two page titles six
- * points apart is the "inconsistent font sizes" §10 opens with, and it made
- * Settings read as a sub-page of something rather than as a destination.
- *
- * FINAL-UI — and it now reads the ROLE rather than a rung. UIX-06 matched the
- * value `.dh-pane-header__title` happened to have (`headline-medium`, 28px) by
- * copying it; when FINAL-UI took the page-title role to `title-large` emphasized
- * the copy did not follow, and MEASURED at 1440 Settings was 28px/400 while every
- * other page was 22px/600 — the largest and the lightest title in the product, on
- * the same screen position. Naming the role is what stops that recurring.
- */
-.dh-settings-page__title {
+/* The phone-only way back to the section list. */
+.dh-settings-page__back {
+  display: none;
   margin: 0;
-  font-size: var(--dh-text-page-title-size);
-  line-height: var(--dh-text-page-title-line-height);
-  font-weight: var(--dh-text-page-title-weight);
-  color: var(--dh-color-text);
 }
 
-/* The shared subtitle rung (`body-medium`), matching `.dh-pane-header__subtitle`. */
-.dh-settings-page__description {
-  max-width: 44rem;
-  margin: 0;
-  font-size: var(--dh-text-body-size);
-  line-height: var(--dh-text-body-line-height);
-  letter-spacing: var(--dh-text-body-tracking);
-  color: var(--dh-color-text-muted);
-}
-
+/* A select that posts on change, sized to the row rather than to its longest
+ * option — so "Australia/Melbourne" and "UTC" present the same target. */
 .dh-settings-page__inline-form {
   display: flex;
   min-width: min(100%, 14rem);
 }
 
-.dh-settings-page__inline-form .dh-settings-select {
+.dh-settings-page__inline-form select {
   width: 100%;
 }
 
+/* A setting whose value is READ rather than chosen: a version string, a
+ * workspace identity, "By operator command". Aligned to the control height
+ * beside it so a row of values and a row of controls share one baseline. */
 .dh-settings-page__text-value {
   min-height: var(--app-control-height-md);
   display: inline-flex;
@@ -818,6 +295,12 @@
  * server-resolved from `?section=`, so the phone lands on the correct screen on
  * the first byte, Back returns to the list because each section is a real URL,
  * and the desktop composition above is completely unaffected.
+ *
+ * UNTITLED-18 — the ROWS' phone arm is gone with the rest of their paint. A
+ * `SettingsNav` row is the same two-line Untitled row at every width, and it
+ * already clears the touch floor by geometry (a 40px minimum plus two lines of
+ * text), so the block that re-drew it as a bordered list on a card is not
+ * replaced by anything. What is left here is the SWAP, which is the page's.
  */
 @media (max-width: 48rem) {
   .dh-settings-page {
@@ -827,86 +310,13 @@
       "nav"
       "content";
     gap: var(--app-space-5);
-    padding: var(--app-space-4);
+    /* Clear the phone bottom navigation. */
+    padding: var(--app-space-4) var(--app-space-4)
+      calc(var(--app-space-6) + var(--app-bottomnav-height, 0px));
   }
 
   .dh-settings-page__nav {
     position: static;
-    gap: var(--app-space-5);
-  }
-
-  /* The list rows share one surface with hairlines between, so the eye reads a
-   * stable column of labels — the same contract every row list in the product
-   * has. */
-  .dh-settings-page__nav-list {
-    gap: 0;
-    background: var(--dh-color-surface);
-    border-radius: var(--app-shape-card);
-    box-shadow: var(--app-elevation-resting);
-    overflow: hidden;
-  }
-
-  .dh-settings-page__nav-list > li + li {
-    border-block-start: var(--app-border-width-thin) solid
-      var(--dh-color-border);
-  }
-
-  .dh-settings-page__nav-item {
-    padding: var(--app-space-3) var(--app-card-padding-compact);
-    gap: var(--app-space-px);
-    min-block-size: var(--app-touch-target-min);
-  }
-
-  .dh-settings-page__nav-link {
-    min-height: 0;
-    padding: 0;
-    border-radius: 0;
-    color: var(--dh-color-text);
-    font-size: var(--dh-text-body-size);
-  }
-
-  /* The desktop rail insets the summary to sit under its own padded title; the
-   * phone row is already padded by the ITEM, so the inset here would indent the
-   * sentence 12px past the name it belongs to. MEASURED at 390 after FINAL-UI
-   * made the summary visible at both widths. */
-  .dh-settings-page__nav-summary {
-    padding: 0;
-  }
-
-  /* The whole row lights up on press, not just the label's own box. */
-  .dh-settings-page__nav-item:has(.dh-settings-page__nav-link:focus-visible) {
-    outline: var(--app-border-width-thick) solid var(--dh-color-accent);
-    outline-offset: calc(-1 * var(--app-border-width-thick));
-  }
-
-  .dh-settings-page__nav-link:focus-visible {
-    outline: none;
-    box-shadow: none;
-  }
-
-  /* The list is a list of destinations, not a set of tabs: nothing in it is
-   * "current" while the list itself is what is on screen. FINAL-UI moved the
-   * selected paint to the row, so this clears it there. */
-  .dh-settings-page__nav-item:has(.dh-settings-page__nav-link--active) {
-    background: transparent;
-  }
-
-  .dh-settings-page__nav-link--active {
-    color: var(--dh-color-text);
-  }
-
-  /*
-   * The phone summary keeps its own type. FINAL-UI made the summary visible at
-   * every width (see the base rule), so all this block still owns is the
-   * WRAPPING: a phone row is two or three lines of sentence, a desktop rail row
-   * is one, and `text-wrap: pretty` is what stops the last of them being a
-   * single orphan word.
-   */
-  .dh-settings-page__nav-summary {
-    font-size: var(--dh-text-meta-size);
-    line-height: var(--dh-text-meta-line-height);
-    font-weight: 400;
-    text-wrap: pretty;
   }
 
   /* Without a chosen section the phone shows only the list; with one, only the
@@ -923,57 +333,18 @@
     display: flex;
     align-self: flex-start;
   }
-}
 
-/* -------------------------------------------------------------------------- */
-/* MOBILE-01 — phone Settings                                                  */
-/*                                                                             */
-/* Settings is low-frequency on a phone but must stay COMPLETE. The section     */
-/* navigation already collapses to a scrolling row and the page to one column   */
-/* (above); what remains is the ROW itself, which was a two-column              */
-/* label-then-control layout that squeezes both at 320px.                       */
-/* -------------------------------------------------------------------------- */
-
-@media (max-width: 48rem) {
-  /* A setting row stacks: the label and its description get the full width,
-   * then the control below at a comfortable size. Nothing is hidden — the
-   * description is what makes a preference understandable. */
-  .dh-settings-row {
-    flex-direction: column;
-    align-items: stretch;
-    gap: var(--app-space-2);
-  }
-
-  .dh-settings-row__control {
-    inline-size: 100%;
-  }
-
-  /* Selects and search pickers fill the row and meet the touch target, so a
-   * preference is never a 2mm-tall control at the edge of the screen. */
+  /*
+   * A control in a stacked row fills it and meets the touch floor, so a
+   * preference is never a 2mm-tall control at the edge of the screen. The
+   * STACKING itself is the row's own container query and is not repeated here.
+   */
   .dh-settings-row__control select,
   .dh-settings-row__control .dh-input,
   .dh-settings-row__control .dh-combobox,
   .dh-settings-row__control .dh-btn {
     inline-size: 100%;
     min-block-size: var(--app-touch-target-min);
-  }
-
-  /* A switch stays its natural size and aligns to the start of the stacked row
-   * rather than stretching into an odd wide toggle. */
-  .dh-settings-row__control:has(.dh-settings-switch) {
-    inline-size: auto;
-    align-self: flex-start;
-  }
-
-  /* The destructive region keeps its clear separation on a phone: the border and
-   * the heading do the work, so it is never just "the last row". */
-  .dh-settings-group--danger {
-    padding-inline: var(--app-space-4);
-  }
-
-  /* Clear the phone bottom navigation. */
-  .dh-settings-page {
-    padding-bottom: calc(var(--app-space-6) + var(--app-bottomnav-height, 0px));
   }
 }
 

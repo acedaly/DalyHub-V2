@@ -102,9 +102,12 @@
 @import "./styles/filters.css";
 @import "./styles/activity-feed.css";
 @import "./styles/forms.css";
-/* M3-INT — the shared M3 switch. After forms.css because `BooleanField`'s
- * switch variant renders it, and because a switch is a form control. */
-@import "./styles/switch.css";
+/* UNTITLED-18 — `switch.css` is GONE. The switch was the last Material CONTROL
+ * in the product: a 52×32 M3 track with a growing thumb and a check glyph, in
+ * 203 lines. `~/shared/forms/Switch` now wears Untitled's `base/toggle` track
+ * and thumb, reached from the real input's `:checked` through Tailwind's peer
+ * variants, so the control keeps its native semantics and carries no stylesheet
+ * at all. */
 @import "./styles/today.css";
 /* CAL-01 — the unified Schedule (agenda rows, the day rail, Next 7 Days, the
  * event detail). After today.css because a schedule row COMPOSES `.dh-day-row`
@@ -142,7 +145,6 @@
 @import "./styles/health.css";
 @import "./styles/alignment.css";
 @import "./styles/relationships.css";
-@import "./styles/summary-cards.css";
 @import "./styles/progress.css";
 /* GOAL-02 — the shared TrendLine / ComparisonBars primitives. After
    progress.css because both are read as progress visualisations. */

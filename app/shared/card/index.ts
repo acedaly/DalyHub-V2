@@ -56,43 +56,28 @@ export type {
 } from "./types";
 
 /**
- * The rest of the card FAMILY (see `app/styles/card-family.css`). `Card` above is
- * the record card; these are the four presentations it cannot be, and they exist
- * so a module never forks one again.
+ * UNTITLED-18 — the rest of the "card FAMILY" is GONE, and it had been unused
+ * for a while.
+ *
+ * Eight exports left here together: `DashboardCard`, `MetricTile`, `MetricRow`,
+ * `StatCard`, `ExpressiveSummary`, `SupportingSurface`, `CardMetaFact` and this
+ * directory's own `Timeline`/`TimelineItem`. Not one had a consumer in
+ * `app/modules` or `app/routes` outside the design gallery that existed to draw
+ * them, and four had no consumer at all — `ExpressiveSummary` and
+ * `SupportingSurface` referenced only each other.
+ *
+ * They were the generic-UI library DalyHub built before it had one. Untitled is
+ * that library now: a titled panel with a header action is a `TableCard` or a
+ * section, a row of figures is a section with a heading, and a bounded surface
+ * is `~/shared/ui`'s `Card`. Keeping a second, unused set of answers to those
+ * questions is how a future agent finds the wrong one first.
+ *
+ * `Timeline` is the ACTIVITY FEED's (`~/shared/activity-feed`), which is the one
+ * forty files import; this directory had a second component of the same name
+ * that only the gallery drew.
+ *
+ * What is exported below is what the PRODUCT draws.
  */
-export { DashboardCard, type DashboardCardProps } from "./DashboardCard";
-/** M3X — hierarchy Level 1: the one DOMINANT expressive surface on a page. */
-export {
-  ExpressiveSummary,
-  MAX_SUMMARY_STATS,
-  type ExpressiveSummaryProps,
-  type SummaryRing,
-  type SummaryStat,
-} from "./ExpressiveSummary";
-/**
- * The STAT CARD row — a page's figures, on the canvas, as quiet cards. The
- * restrained alternative to a tinted hero (DALYHUB_DESIGN_SYSTEM.md).
- */
-export {
-  StatCard,
-  StatCardItem,
-  StatCardRow,
-  type StatCardProps,
-  type StatCardTone,
-} from "./StatCard";
-/** M3X-02 — hierarchy Level 2: the supporting expressive surfaces beneath it. */
-export {
-  SupportingSurface,
-  type SupportingSurfaceProps,
-  type SupportingSurfaceTone,
-} from "./SupportingSurface";
-export {
-  MetricTile,
-  MetricRow,
-  MetricRowItem,
-  type MetricTileProps,
-  type MetricTileTone,
-} from "./MetricTile";
 export { RecordRow, RecordRowList, type RecordRowProps } from "./RecordRow";
 export { EntityCard, EntityCardGrid, type EntityCardProps } from "./EntityCard";
 /**
@@ -188,10 +173,3 @@ export {
   type ReviewCardProps,
   type ReviewCardTone,
 } from "./ReviewCard";
-export { CardMetaFact, type CardMetaFactProps } from "./CardMetaFact";
-export {
-  Timeline,
-  TimelineItem,
-  type TimelineItemProps,
-  type TimelineTone,
-} from "./TimelineItem";

@@ -27,7 +27,7 @@ import { UntitledStatusBadge } from "~/shared/pill";
 
 import type { SerializedAssetEvent } from "./asset-history-view";
 import type { AssetHistoryPage, AssetHistoryResult } from "./routes/history";
-import { buttonClassName } from "~/shared/ui";
+import { Select, buttonClassName } from "~/shared/ui";
 
 /** The fast-capture actions, in the order an owner reaches for them (§13). */
 export type QuickEventAction =
@@ -218,7 +218,11 @@ export function AssetHistoryTab({
       <div className="dh-record-toolbar">
         <label className="dh-asset-history__filter">
           <span>Show</span>
-          <select
+          {/* UNTITLED-18 — the shared `Select`. It was a bare `<select>`
+              relying on the zero-specificity control FLOOR in `base.css`, which
+              is a safety net for a control nobody migrated rather than a
+              migration. */}
+          <Select
             value={category}
             onChange={(event) => onFilterChange(event.target.value)}
           >
@@ -227,7 +231,7 @@ export function AssetHistoryTab({
                 {option.label}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
 
         {readOnly ? null : (

@@ -117,7 +117,9 @@ export function NewTransactionForm({
          * The sign, as a choice with words. A minus sign the owner has to
          * remember to type is a silent error waiting to happen in a month total.
          */}
-        <legend>Direction</legend>
+        <legend className="text-sm font-semibold text-secondary">
+          Direction
+        </legend>
         <Button
           type="button"
           variant={direction === "out" ? "primary" : "secondary"}

@@ -149,16 +149,11 @@
   font-size: var(--dh-text-meta-size);
 }
 
+/* UNTITLED-18 — the CAP only; the box is the shared `Select`'s (see the note in
+ * `ai.css`). The touch floor came with it: `Select` carries the product's
+ * control height, which IS the 44px floor on a coarse pointer. */
 .dh-note-references__filter select {
-  min-block-size: var(--app-touch-target-min);
   max-inline-size: 100%;
-  padding: var(--app-space-1) var(--app-space-2);
-  border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
-  border-radius: var(--dh-radius-control);
-  background: var(--dh-color-surface);
-  color: var(--dh-color-text);
-  font: inherit;
-  font-size: var(--dh-text-meta-size);
 }
 
 /* -------------------------------------------------------------------------- */

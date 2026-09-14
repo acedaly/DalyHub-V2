@@ -27,6 +27,12 @@ export * from "./model";
 export { SettingsLayout, type SettingsLayoutProps } from "./SettingsLayout";
 export { SettingsGroup, type SettingsGroupProps } from "./SettingsGroup";
 export {
+  SettingsNav,
+  type SettingsNavProps,
+  type SettingsNavGroup,
+  type SettingsNavItem,
+} from "./SettingsNav";
+export {
   SettingsRow,
   type SettingsRowProps,
   type SettingsControlIds,
@@ -59,7 +65,11 @@ export {
   type ConfirmationDialogProps,
   type TypedConfirmationConfig,
 } from "~/shared/ui/ConfirmationDialog";
-export { DangerousAction, type DangerousActionProps } from "./DangerousAction";
+export {
+  DangerousAction,
+  type DangerousActionProps,
+  type DangerousActionSeverity,
+} from "./DangerousAction";
 
 // Immediate-setting hook.
 export {

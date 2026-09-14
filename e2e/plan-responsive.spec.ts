@@ -272,7 +272,14 @@ test("states the week and the day in WORDS, never by colour alone", async ({
    * task row whose date reads "Today". The claim being asserted is that the
    * planner names the current day in words on exactly one day of the week.
    */
-  const nowBadges = page.locator(".dh-plan__day-now");
+  /*
+   * UNTITLED-19 — the marker is the shared `Badge` now, so the locator is the
+   * badge inside a day HEAD rather than `.dh-plan__day-now`, which `plan.css`
+   * had been hand-drawing as an accent badge and no longer emits. Scoped to
+   * `.dh-plan__day-head` so it stays a question about the day heading rather
+   * than about every badge the planner might ever draw.
+   */
+  const nowBadges = page.locator(".dh-plan__day-head [data-dh-badge]");
   await expect(nowBadges).toHaveCount(1);
   await expect(nowBadges).toHaveText("Today");
   await expect(

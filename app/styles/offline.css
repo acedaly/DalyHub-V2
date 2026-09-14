@@ -206,21 +206,9 @@
   gap: var(--app-space-2);
 }
 
+/* UNTITLED-18 — the box is the shared `Input`'s (see the note in `ai.css`). */
 .dh-offline-snapshot__search input {
-  min-height: var(--app-touch-target-min);
-  padding: 0 var(--app-space-3);
-  border: 1px solid var(--dh-color-border-strong);
-  border-radius: var(--dh-radius-control);
-  background: var(--dh-color-surface-raised);
-  color: var(--dh-color-text);
-  font: inherit;
-}
-
-.dh-offline-snapshot__search input:focus-visible {
-  outline: none;
-  box-shadow:
-    0 0 0 2px var(--dh-color-surface),
-    0 0 0 4px var(--dh-color-accent);
+  width: 100%;
 }
 
 .dh-offline-snapshot__footnote {
@@ -367,21 +355,9 @@
   gap: var(--app-space-2);
 }
 
+/* UNTITLED-18 — the box is the shared `Input`'s (see the note in `ai.css`). */
 .dh-offline-capture__field input {
-  min-height: var(--app-touch-target-min);
-  padding: 0 var(--app-space-3);
-  border: 1px solid var(--dh-color-border-strong);
-  border-radius: var(--dh-radius-control);
-  background: var(--dh-color-surface);
-  color: var(--dh-color-text);
-  font: inherit;
-}
-
-.dh-offline-capture__field input:focus-visible {
-  outline: none;
-  box-shadow:
-    0 0 0 2px var(--dh-color-surface),
-    0 0 0 4px var(--dh-color-accent);
+  width: 100%;
 }
 
 .dh-offline-capture__error,

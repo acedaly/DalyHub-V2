@@ -132,15 +132,28 @@ test.describe("the Today screen on a phone", () => {
     ).toBeVisible();
     await expectNoHorizontalOverflow(page);
 
-    // UIX-01 — the day's supporting regions follow the Focus column in DOM
-    // order, "Needs attention" first: the same reading order the wide layout
-    // has, unwrapped. The two-column rail became three sibling regions, so the
-    // panels are read off the body rather than off a `__rail` wrapper.
+    /*
+     * UIX-01 — the day's supporting regions follow the Focus column in DOM
+     * order, "Needs attention" before "Continue working": the same reading order
+     * the wide layout has, unwrapped.
+     *
+     * UNTITLED-18 — read off the PAGE rather than off `.dh-today__rank--support`.
+     * That wrapper is no longer rendered and the two panels now sit in different
+     * columns, so the scoped locator found nothing and the `if` silently skipped
+     * the whole assertion — a test that passed while asserting nothing, on the
+     * one screen this file exists to pin.
+     */
     const headings = await page
-      .locator(".dh-today__rank--support .dh-today__panel-title")
+      .locator(".dh-today__panel-title")
       .allInnerTexts();
-    if (headings.length > 1) {
-      expect(headings[0]).toBe("Needs attention");
+    const attention = headings.indexOf("Needs attention");
+    const carryOn = headings.indexOf("Continue working");
+    expect(
+      attention,
+      "the attention panel is on the phone screen",
+    ).toBeGreaterThanOrEqual(0);
+    if (carryOn >= 0) {
+      expect(attention).toBeLessThan(carryOn);
     }
   });
 

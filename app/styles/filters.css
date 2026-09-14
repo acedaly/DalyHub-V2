@@ -301,14 +301,9 @@
   min-width: 0;
 }
 
+/* UNTITLED-18 — the CAP only; the box is the shared `Select`'s (see the note in
+ * `ai.css`, which measured what this kind of rule was doing to it). */
 .dh-filter-views__select select {
-  min-height: var(--app-control-height-md);
-  padding: 0 var(--app-space-2);
-  font-size: var(--dh-text-meta-size);
-  color: var(--dh-color-text);
-  background: var(--dh-color-surface-raised);
-  border: var(--app-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-control);
   max-width: 12rem;
 }
 
@@ -331,12 +326,8 @@
   gap: var(--app-space-1);
 }
 
+/* UNTITLED-18 — the CAP only; the box is the shared `Input`'s. */
 .dh-filter-views__save input {
-  min-height: var(--app-control-height-md);
-  padding: 0 var(--app-space-2);
-  font-size: var(--dh-text-meta-size);
-  border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
-  border-radius: var(--dh-radius-control);
   max-width: 10rem;
 }
 

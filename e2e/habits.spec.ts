@@ -426,15 +426,39 @@ test.describe("HABITS-01 — the record", () => {
      *
      * Both sides are asserted rather than one being skipped, so the day this
      * runs on decides which claim is checked and neither goes unchecked.
+     *
+     * ── UNTITLED-18 — the NUMBER was defensible and the WORDS were not ───────
+     *
+     * The paragraph above accepted "0 of 3" and never questioned what was
+     * printed beside it. "Expected check-ins completed" says those three
+     * check-ins have ALREADY been asked for; on a Monday none of them has, and
+     * on a Wednesday a daily Habit checked in every day since Monday read
+     * "3 of 7 · Expected check-ins completed" — an owner who had done
+     * everything asked of them, told they had completed three of seven
+     * expectations. That is the manufactured verdict ADR-102 and AGENTS.md §2
+     * forbid, and it is the defect behind the "expected check-ins before a full
+     * week has passed" report three passes could not reproduce: the arithmetic
+     * was never wrong, so nobody looked at the sentence.
+     *
+     * The week figure now says what `habitWeekLabel` has always said — it
+     * describes the WEEK ("of what this week asks for"), not an expectation
+     * already incurred. "Expected check-ins" belongs to the four-week window,
+     * which `evaluateHabitConsistency` clamps to the owner's today, so every
+     * item in its denominator genuinely has been asked for.
      */
     const ownerWeekday = new Date(`${ownerToday()}T12:00:00Z`).getUTCDay();
     const createdOnWeekStart = ownerWeekday === 1; // the fixture week starts Monday
     if (createdOnWeekStart) {
-      await expect(summary).toContainText(/expected check-ins/i);
       await expect(summary).toContainText("0 of 3");
-    } else {
-      await expect(summary).not.toContainText(/expected check-ins/i);
+      await expect(summary).toContainText(/of what this week asks for/i);
     }
+
+    /*
+     * On EVERY day, and this is the regression guard: a Habit made today has no
+     * elapsed four-week window, so nothing on this surface may claim a check-in
+     * has already been expected of the owner.
+     */
+    await expect(summary).not.toContainText(/expected check-ins completed/i);
 
     // No verdict language anywhere — this is the calm contract, checked on the
     // one surface most tempted to grow it.

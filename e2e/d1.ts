@@ -49,10 +49,16 @@ export function sqlLiteral(value: string): string {
  * still fails, and loudly, but the message names contention rather than the
  * missing statement. If a teardown fails here, check the ORDER of the statements
  * before assuming the database was busy.
+ *
+ * `database is locked` is SQLite's own wording for the same condition wrangler
+ * reports as the symbolic `SQLITE_BUSY`. Both are matched: the symbol is what
+ * the CLI prints, the sentence is what the engine says, and a matcher that knows
+ * only one of them is a retry loop that sometimes does not fire.
  */
 function isTransientD1Error(output: string): boolean {
   return (
     output.includes("SQLITE_BUSY") ||
+    output.includes("database is locked") ||
     output.includes("FOREIGN KEY constraint failed")
   );
 }
@@ -153,6 +159,37 @@ export function d1ExecuteFile(path: string): void {
  * `--json` is what makes this parseable; without it wrangler prints a table
  * whose formatting is not a contract. A caller whose SQL is not a pure read must
  * use `d1Execute` instead.
+ *
+ * ── This spawns wrangler, and that is now a DELIBERATE choice ────────────────
+ *
+ * It costs **3.1 seconds of process startup before it reads a byte** (MEASURED,
+ * 14 September 2026), which is a real and large cost: `assisted-ai.spec.ts`'s
+ * heaviest journey makes eight fixture reads, so roughly twenty-five seconds of
+ * its thirty-second budget is wrangler booting. That is the actual cause of the
+ * timeout three passes attributed to contention over the Finance queue — the
+ * queue is cursor-paginated at 50 rows and loads in 1.9s, faster than `/tasks`.
+ *
+ * Reading the SQLite file directly with `node:sqlite` costs **8ms** for the same
+ * query, and this helper did exactly that until CI proved it unsafe:
+ *
+ *     Error: no obligation created        (assisted-ai.spec.ts:475)
+ *
+ * The obligation HAD been created, through the real form, moments earlier. The
+ * dev server holds the database in WAL mode, and a `readOnly` connection cannot
+ * maintain the WAL index (`-shm`) it needs in order to see frames another
+ * process has committed — so the read silently returned a stale snapshot.
+ *
+ * The reason that is disqualifying rather than merely annoying: **a reader that
+ * can miss committed rows can make an assertion PASS that should fail.** Every
+ * `toHaveLength(0)` after a delete, and every "replays without a second" that
+ * counts one row where two exist, becomes a false green. Fifteen spec files use
+ * this helper to check invariants the interface cannot show. Slow and correct
+ * beats fast and occasionally blind.
+ *
+ * The safe way to spend the 3.1s remains open and is not this: issue FEWER
+ * statements per invocation. `spendingCategory()` and `secondSpendingCategory()`
+ * in `assisted-ai.spec.ts` run the identical query twice, in two processes, to
+ * take row 0 and row 1 of the same result.
  */
 export function d1Query<T = Record<string, unknown>>(
   command: string,

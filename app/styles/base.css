@@ -209,7 +209,6 @@ body {
  */
 :is(
   .md-state-layer,
-  .dh-btn:not(.dh-button),
   .record-action,
   .dh-card__action,
   .dh-overflow-menu__trigger,
@@ -222,7 +221,6 @@ body {
 
 :is(
   .md-state-layer,
-  .dh-btn:not(.dh-button),
   .record-action,
   .dh-card__action,
   .dh-overflow-menu__trigger,
@@ -262,7 +260,6 @@ body {
 
 :is(
     .md-state-layer,
-    .dh-btn:not(.dh-button),
     .record-action,
     .dh-card__action,
     .dh-overflow-menu__trigger,
@@ -284,7 +281,6 @@ body {
  */
 :is(
     .md-state-layer,
-    .dh-btn:not(.dh-button),
     .record-action,
     .dh-card__action,
     .dh-overflow-menu__trigger,
@@ -300,7 +296,6 @@ body {
  * copied `:hover` rule rarely grows an `:active` sibling. */
 :is(
     .md-state-layer,
-    .dh-btn:not(.dh-button),
     .record-action,
     .dh-card__action,
     .dh-overflow-menu__trigger,
@@ -316,7 +311,6 @@ body {
  * whatever the pointer does. */
 :is(
     .md-state-layer,
-    .dh-btn:not(.dh-button),
     .record-action,
     .dh-card__action,
     .dh-overflow-menu__trigger,

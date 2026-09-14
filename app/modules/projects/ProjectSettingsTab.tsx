@@ -39,10 +39,9 @@
  * rendered (not merely disabled).
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
-  ConfirmationDialog,
   DangerousAction,
   SettingsGroup,
   SettingsLayout,
@@ -59,7 +58,6 @@ import type { ProjectHealth } from "~/shared/project-health";
 import { RecordDetails, type RecordMetaItem } from "~/shared/record-layout";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 import { SelectField } from "~/shared/forms";
-import { useFeedback } from "~/shared/feedback";
 import {
   PROJECT_WORKFLOW_STATUSES,
   projectWorkflowStatusLabel,
@@ -73,7 +71,6 @@ import {
 } from "./project-view";
 import { useParentOptionsSearch } from "./use-parent-options-search";
 import type { SelectOption } from "~/shared/forms/types";
-import { buttonClassName } from "~/shared/ui";
 
 export interface ProjectSettingsTabProps {
   readonly overview: SerializedProjectOverview;
@@ -248,9 +245,9 @@ function ArchiveGroup({
     <SettingsGroup
       title="Archive"
       description="Move this project out of your normal views. It can be restored at any time."
-      tone="danger"
     >
       <DangerousAction
+        severity="reversible"
         label="Archive this project"
         description="The project and its tasks become read-only until restored."
         actionLabel="Archive project…"
@@ -293,54 +290,37 @@ function ArchiveGroup({
   );
 }
 
+/**
+ * UNTITLED-18 — Restore is a `DangerousAction severity="reversible"`, and
+ * Archive now is too. They were an asymmetric pair: Archive drew a red button
+ * inside a red warning region while Restore — no more and no less reversible —
+ * drew a calm secondary button from thirty-five lines of hand-rolled dialog
+ * wiring. The duplication existed only because the shared component had one
+ * weight and that weight was destructive.
+ */
 function RestoreGroup({
   onRestore,
 }: {
   readonly onRestore: () => Promise<void>;
 }) {
-  const feedback = useFeedback();
-  const [open, setOpen] = useState(false);
-  const [opener, setOpener] = useState<HTMLElement | null>(null);
-
-  const confirm = useCallback(async () => {
-    await onRestore();
-    feedback.notifySuccess("Project restored");
-  }, [onRestore, feedback]);
-
   return (
-    <>
-      <SettingsRow
-        label="Restore this project"
-        description="Bring it back into your normal Projects views. Its workflow status is preserved."
-        control={
-          <button
-            type="button"
-            className={buttonClassName({ variant: "secondary" })}
-            onClick={(event) => {
-              setOpener(event.currentTarget);
-              setOpen(true);
-            }}
-          >
-            Restore project…
-          </button>
-        }
-      />
-      <ConfirmationDialog
-        open={open}
-        onClose={() => setOpen(false)}
-        onConfirm={confirm}
-        title="Restore this project?"
-        confirmLabel="Restore project"
-        busyLabel="Restoring…"
-        tone="default"
-        opener={opener}
-      >
+    <DangerousAction
+      severity="reversible"
+      label="Restore this project"
+      description="Bring it back into your normal Projects views. Its workflow status is preserved."
+      actionLabel="Restore project…"
+      confirmTitle="Restore this project?"
+      confirmBody={
         <p>
           This brings it back into your normal Projects views. Its workflow
           status is preserved; its tasks and links are unaffected.
         </p>
-      </ConfirmationDialog>
-    </>
+      }
+      confirmLabel="Restore project"
+      busyLabel="Restoring…"
+      successMessage="Project restored"
+      onConfirm={onRestore}
+    />
   );
 }
 

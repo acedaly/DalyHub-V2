@@ -385,6 +385,34 @@ function HabitSummaryTab({
          * note on "Kept since" below.
          */}
         <dl className="m-0 grid grid-cols-2 divide-x divide-y divide-secondary border-t border-secondary sm:grid-cols-3 sm:divide-y-0">
+          {/*
+           * UNTITLED-18 — the two figures' supporting lines were the wrong way
+           * round, and one of them manufactured guilt.
+           *
+           * Both said "Expected check-ins completed". That is TRUE of the
+           * four-week window, which `evaluateHabitConsistency` clamps to the
+           * owner's today — so everything in its denominator has genuinely been
+           * asked for. It is NOT true of THIS WEEK, whose denominator is the
+           * whole week including days that have not happened yet.
+           *
+           * So a daily Habit checked in on Monday, Tuesday and Wednesday read
+           * "3 of 7 · Expected check-ins completed" on a Wednesday — an owner
+           * who had done every single thing asked of them, told they had
+           * completed three of seven expected check-ins. Four of those seven
+           * were in the future. That is exactly the manufactured verdict
+           * ADR-102 and AGENTS.md §2 forbid, and it is the defect behind the
+           * "expected check-ins before a full week has passed" report that
+           * three passes could not reproduce — because the reproduction is in
+           * the WORDS, not in the arithmetic.
+           *
+           * The kernel is unchanged and deliberately so. `evaluateHabitWeek`
+           * counting the whole week is a settled decision with its own argued
+           * test ("it does NOT describe Thursday as incomplete; it says the
+           * week holds seven days"), and the shared `habitWeekLabel` has always
+           * said "3 of 7 this week" rather than "expected". This is the record
+           * catching up with the vocabulary the rest of the module already
+           * uses.
+           */}
           <RecordFigure
             label="This week"
             value={
@@ -395,7 +423,7 @@ function HabitSummaryTab({
             supporting={
               habit.week.expected === 0
                 ? "Nothing expected this week"
-                : "Expected check-ins completed"
+                : "Of what this week asks for"
             }
           />
           <RecordFigure
@@ -406,8 +434,15 @@ function HabitSummaryTab({
                 : `${habit.consistency.completed} of ${habit.consistency.expected}`
             }
             supporting={
-              habit.consistency.label ??
-              "Nothing expected in the last four weeks"
+              /*
+               * The window's own words, MINUS the figure the value beside it
+               * already states. `habitConsistencyLabel` returns "9 of 12
+               * expected check-ins", so using it whole printed "9 of 12" twice
+               * on one line — the same duplication UNTITLED-17 found on Insight.
+               */
+              habit.consistency.expected === 0
+                ? "Nothing expected in the last four weeks"
+                : "Expected check-ins completed"
             }
           />
           {/*

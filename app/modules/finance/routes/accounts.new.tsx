@@ -47,7 +47,9 @@ export default function NewFinanceAccountRoute({
           <EntityIcon type="finance_account" />
         </span>
         <div>
-          <h1>New account</h1>
+          <h1 className="text-display-xs font-semibold text-primary">
+            New account
+          </h1>
           <p>
             An account is where a statement goes and what a balance belongs to.
             Your first one also seeds twelve categories you can rename or throw

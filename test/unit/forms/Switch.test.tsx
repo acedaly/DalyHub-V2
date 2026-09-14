@@ -113,14 +113,22 @@ describe("Switch — operation", () => {
 });
 
 describe("Switch — state is never colour alone", () => {
-  it("moves the thumb and shows a check when selected", () => {
+  it("draws a thumb whose position the browser can measure", () => {
     const { container } = render(<Controlled initial />);
-    // The check glyph exists in the DOM in both states (it fades rather than
-    // mounting, so the thumb never jumps) and the CHECKED state is what the
-    // stylesheet keys off — asserted here as structure, and visually in
-    // `e2e/interaction-consistency.spec.ts`.
+    /*
+     * UNTITLED-18 — the M3 check glyph inside the thumb is gone with the rest
+     * of that anatomy; the state is the thumb's POSITION, which is the cue
+     * Untitled's own toggle relies on and the one forced colours cannot take
+     * away.
+     *
+     * jsdom computes no Tailwind, so the travel itself is not assertable here
+     * and asserting the class that produces it would only pin a spelling. What
+     * this holds is the half jsdom CAN see: the graphic is present and the
+     * control reports its state. The travel is MEASURED in a real browser, in
+     * `e2e/interaction-consistency.spec.ts` — "states its value without relying
+     * on colour" — which is where a geometric claim belongs.
+     */
     expect(container.querySelector(".dh-switch__thumb")).toBeTruthy();
-    expect(container.querySelector(".dh-switch__check")).toBeTruthy();
     expect((screen.getByRole("switch") as HTMLInputElement).checked).toBe(true);
   });
 });

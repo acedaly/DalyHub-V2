@@ -33,6 +33,47 @@ ramp for deep plum navigation and restrained primary/selected/focus accents,
 while keeping page canvases and overlays neutral in both appearances. Do not
 derive the theme from screenshots or create a parallel DalyHub palette.
 
+## The migration is finished. Four rules follow from that.
+
+**DalyHub's broad Untitled UI migration is complete.** Untitled UI React Pro is
+the default implementation source for generic application UI. Treat future
+frontend work as product evolution and targeted maintenance — not as a
+continuation of the design-system migration.
+
+Every module has had its Untitled pass (UNTITLED-01 … 18), and UNTITLED-19
+audited for a competing generic system and closed the one it found (two
+badges). There is no phase to join and no module waiting for a rewrite; what is
+left is named, bounded maintenance — ten rows, each a specific file or count —
+in
+[`UNTITLED_UI_MIGRATION.md`](docs/design/UNTITLED_UI_MIGRATION.md#named-maintenance-debt).
+
+If you are about to propose "one more migration phase", the answer is no. A
+mature product has debt; migration debt and normal maintenance are different
+things, and the register says which each item is.
+
+The next major initiative is not a design-system one — see
+[`DALYHUB_MOBILE_FOUNDATION.md`](docs/architecture/DALYHUB_MOBILE_FOUNDATION.md).
+
+1. **Before building a generic control, read the inventory**
+   ([`UNTITLED_UI_IMPLEMENTATION.md`](docs/design/UNTITLED_UI_IMPLEMENTATION.md#the-generic-ui-inventory-at-the-end-of-this-pass)).
+   Every generic concept is listed with its current source. The answer is almost
+   always "that exists and it is Untitled's". Adding a second one is a
+   design-system defect, not a shortcut.
+2. **When a surface migrates, its stylesheet's PAINT goes with it.** Module CSS
+   is unlayered, so any rule in it outranks every Untitled utility regardless of
+   specificity. A leftover rule does not look broken — it silently repaints a
+   migrated control, and the only way to find it is to measure the rendered
+   element. Fix the wrong owner; never out-specify it and never reach for
+   `!important`.
+3. **A fixture may only draw what the product draws.** When the last product
+   consumer of a component goes, its `/design/*` entry goes in the same change.
+   Nine components survived four passes because a gallery kept drawing them.
+4. **Deleted systems stay deleted.** `DashboardCard`, `MetricTile`, `StatCard`,
+   `MetricRow`, `ExpressiveSummary`, `SupportingSurface`, `CardMetaFact`,
+   `SummaryCards`, `~/shared/card`'s `Timeline`, `switch.css`'s M3 switch and the
+   `dh-settings-*` control skins are gone on purpose. If you need what one of
+   them did, the replacement is in the inventory.
+
 ---
 
 <!-- @embed:start file="public-components/CLAUDE.md" -->

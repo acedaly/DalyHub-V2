@@ -1845,3 +1845,196 @@ The repository searches behind that table, run after the pass:
 
 No screenshot, historical visual audit or legacy Material/MD3/DHDS stylesheet is
 an implementation reference for any surface in this pass.
+
+## UNTITLED-18 completion record — Settings, shared forms, Finance admin and the dead frontend
+
+The migration-side record — what moved, what was measured, what was cut — is in
+[`UNTITLED_UI_MIGRATION.md`](UNTITLED_UI_MIGRATION.md#untitled-18--settings-shared-forms-finance-admin-and-the-retirement-of-the-old-generic-ui).
+This file records **provenance**: what was searched for, what came back, what was
+adopted, what was rejected, and the state of the generic-UI layer at the end.
+
+### Pro research, and what it actually returned
+
+Searched through the authenticated Untitled MCP connector. `has_pro_access: true`
+on every call.
+
+| Search | Returned | Used |
+| --- | --- | --- |
+| `get_page_templates(category: "settings")` | 42 Pro settings templates (`settings-01/01` … `settings-01/42`) with their section breakdowns and component lists | **Yes — as the grammar.** Every one of the 42 composes the same way: a `section-header` (title + supporting text) over a divider, then form rows, then the next section. NONE is a stack of cards. That is the finding that changed `SettingsGroup` from a card to a section, which is also what removed the frame-inside-frame a record's Settings tab had carried since DS-14 |
+| `settings page section with form fields, labels, dividers and save actions` | `notification-settings-checkbox-menu`, `user-settings-modal`, `profile-settings-modal`, `appearance-settings-modal`, `form-01/02-modal` | No. All are OVERLAY compositions (modal/slideout). DalyHub's Settings is a route with twelve sections; a modal's internals are not its page grammar |
+| `vertical settings navigation sidebar tabs for switching between settings sections` | `sidebar-sections-subheadings`, `sidebar-slim`, `sidebar-dual-tier`, `sidebar-section-dividers` (all as the templates' APP sidebar, not a secondary rail) | Indirectly. It establishes that Untitled has no dedicated *secondary* settings rail: its templates either use a horizontal tab bar (`settings-01/01`, `/18`) or put the sections in the app sidebar. Twelve sections in three groups fits neither, and DalyHub's own rule already rules out a horizontally-scrolling rail of twelve labels |
+| `destructive action danger zone delete account confirmation with warning` | **`destructive-horizontal-modal`, `destructive-stacked-left-aligned-modal`, `warning-horizontal-modal`, `warning-stacked-left-aligned-modal`** | **Yes — as the argument.** The library ships TWO weights of confirmation and names them separately. That is the source system making exactly the distinction `DangerousAction` was missing, and it is why `severity` exists rather than being a DalyHub invention |
+| `toggle switch for a preference row, and a form row with label beside its control` | `base/toggle` (public), `base/form`, `base/input` | **Yes.** `base/toggle`'s `ToggleBase` `size="md"` arm is the switch's track and thumb now |
+| `data table with rows to review before import, validation errors per row` | `application/table` (public) and modals | **Yes.** `application/table` is the import preview, the budgets screen and the categories screen |
+| `get_component("progress-steps")` | `access: "pro"`, `file_count: 6`, CLI command only | **No — see below** |
+| `get_component("file-upload")` → `file-upload-base` | **`access: "public"`**, 8 files | **No, but newly RETRIEVABLE — see below** |
+
+### The Pro-source question, answered precisely this time
+
+UNTITLED-16 and UNTITLED-17 both recorded that `application/progress-steps`
+"cannot be retrieved here" without establishing *what* could. This pass tested it:
+
+- `npx untitledui@latest add progress-steps --yes` → **refused**:
+  `🔒 The progress-steps component requires PRO access.` Login is an interactive
+  OAuth flow that a non-interactive session cannot complete.
+- `npx untitledui@latest add file-upload-base --yes` → **succeeded**, writing
+  genuine upstream source for `FileUploadDropZone`, `FileListItemProgressBar`,
+  `FileListItemProgressFill` plus their dependencies.
+
+So the rule for this environment is now known and is narrower than "no Pro
+source": **public component source IS retrievable through the CLI; only
+`access: "pro"` components are gated.** The MCP connector reports Pro metadata,
+descriptions, screenshots and composition for everything — which is what made the
+settings-grammar finding above possible — but returns no Pro source.
+
+The guided Review's step rail therefore stays as it is, unchanged and documented,
+for the third pass running. It is correct and keyboard-complete; it is a repaint
+waiting on access, and nothing here was recreated from a screenshot (§65).
+
+### What was adopted, surface by surface
+
+| Surface | Untitled source | How it is reached |
+| --- | --- | --- |
+| Settings group | `application/section-headers/section-label` via the `section-heading` override | Rendered directly. The override gained a `descriptionId` so a labelled region can point `aria-describedby` at its own supporting text |
+| Settings row | `base/input`'s `Label` + `HintText` type roles | Composed. `wrap-anywhere`, not `break-words` — only `overflow-wrap: anywhere` reduces min-content width, and the difference was a 320px document overflow |
+| Settings rail | `application/command-menus/base-components/command-menu-item` (stacked), with `app-navigation/base-components/nav-item`'s selected treatment | Composed on a React Router `Link`, for the two reasons `RailNavItem` documents: upstream's item is a `ListBoxItem` (not a link) and upstream's nav item has no `prefetch` |
+| Switch | `base/toggle`'s `ToggleBase` `size="md"` | Composed over a real `<input type="checkbox">`, reached through Tailwind `peer-*` variants. Three DalyHub additions survive and are stated on the component: the 44px target, uncontrolled form use, and a forced-colours arm upstream has no opinion about |
+| Confirmation weight | `application/modals`' destructive/warning pair | Adopted as the ARGUMENT for `DangerousAction`'s `severity`, not as source (DalyHub's dialog is its own, with a typed-confirmation gate and DS-03 focus machinery) |
+| Finance import preview | `application/table` + the `table-head` override | Rendered directly |
+| Finance budgets, categories | `application/table` + the `table-head` override | Rendered directly |
+| File picker | — | DalyHub's own, and deliberately: `file-upload-base` is a DROP ZONE with per-file progress, and both callers here need a BUTTON for a file read once and never stored |
+
+### Rejected, and why
+
+- **`settings-01/*` as a page template.** The grammar was taken; the page was
+  not. Every template's content is a profile form — avatar, name, bio, timezone —
+  and DalyHub's Settings holds twelve sections of application behaviour, consent
+  and infrastructure health. Copying the template would have imported a shape
+  with nowhere for eleven of the twelve to go.
+- **A horizontal tab rail** (`settings-01/01`, `/18`). Twelve destinations do not
+  fit one, and DalyHub's own rule — "an action the user has to swipe to find is
+  not a quick action" — already rejected it for this surface in UIX-05.
+- **Untitled's `Toggle` component** (as opposed to its track). It is a React Aria
+  `Switch` that owns state in React; Settings' navigation rows post a real form
+  with `defaultChecked` and no React state at all.
+- **`file-upload-base`** for the two file inputs this pass touched. It is the
+  right upstream answer for an ATTACHMENT surface and the wrong one for "choose a
+  CSV that is parsed, hashed and discarded inside the request". Named as a real
+  opportunity for the attachment picker in the migration record.
+
+### The generic-UI inventory, at the end of this pass
+
+| Generic UI concept | Current source | Untitled equivalent | State |
+| --- | --- | --- | --- |
+| Button, ButtonLink | `~/shared/ui/Button` → `base/buttons/button`'s exported `styles` | same | **Untitled** |
+| IconButton | `~/shared/ui/IconButton` → `base/buttons/button-utility` | same | **Untitled** |
+| Input, Textarea | `~/shared/ui/Input` → `base/input` | same | **Untitled** |
+| Select | `~/shared/ui/Select` → `inputClassName()`, i.e. `base/input`'s box on a native `<select>` | `base/select` | **Untitled box, native control** — deliberate (D31: the platform picker, type-ahead, no-JS submit) |
+| Combobox | `base/select/combobox` | same | **Untitled** |
+| Checkbox | `~/shared/ui/Checkbox` → `base/checkbox` | same | **Untitled** |
+| Switch | `~/shared/forms/Switch` → `base/toggle`'s `ToggleBase` | `base/toggle` | **Untitled** (this pass) |
+| Radio group | `base/radio-buttons` | same | **Untitled** |
+| File picker | `~/shared/ui/FilePicker` | `application/file-upload` (drop zone) | **DalyHub**, justified above |
+| Table | `application/table` + `table-head`, `table-card-header` overrides | same | **Untitled** |
+| Dialog / Modal | `~/shared/ui/ConfirmationDialog`, `application/modals/modal` | `application/modals` | **Mixed** — the modal is Untitled's; the confirmation dialog is DalyHub's, for the typed-confirmation gate and the DS-03 focus/inert machinery |
+| Drawer, Sheet, Inspector | DalyHub | `application/slideout-menus` (used for the mobile nav) | **DalyHub**, for the stacking, scroll-lock and phone-sheet behaviours DS-03 owns |
+| Popover, Menu | DalyHub (`~/shared/anchored`, `~/shared/overflow-menu`) | `base/dropdown` | **DalyHub**, for collision handling and roving focus |
+| Tooltip | `base/tooltip` | same | **Untitled** |
+| Tabs (in-page) | `application/tabs` | same | **Untitled** |
+| Tabs (navigation) | `overrides/link-tab-rail` | `application/tabs`, as anchors | **Untitled paint, correct semantics** |
+| Badge | `~/shared/ui/Badge` and `~/shared/pill/UntitledStatusBadge`, both → `base/badges`. One implementation, two names | `base/badges` | **Untitled** (UNTITLED-19) — `soft` → `color`, `outline` → `modern`; measured at one radius and one height across the product |
+| Avatar | `base/avatar` | same | **Untitled** |
+| Pagination | `application/pagination` | same | **Untitled** |
+| Date picker, Calendar | `application/date-picker` | same | **Untitled** |
+| Progress | `overrides/labelled-progress-bar` over `base/progress-indicators` | same | **Untitled** |
+| Empty state | `application/empty-state` | same | **Untitled** |
+| Charts | `application/charts-base` (Recharts) | same | **Untitled** |
+| Command menu | `application/command-menus` | same | **Untitled** |
+| Settings groups/rows/rail | `~/shared/settings` over `section-headers`, `base/input` roles, `command-menu-item` | — | **Untitled** (this pass) |
+| Card (bounded surface) | `~/shared/ui/Card` → DalyHub tokens | `application/table`'s `TableCard`, or a section | **DalyHub**, and the remaining question is whether the product still needs a generic box now that groups are sections |
+
+## UNTITLED-19 — the completion audit
+
+### The "no second design system" test, answered one question at a time
+
+The test is not "is most of it Untitled". It is: **could an engineer building
+this tomorrow reasonably pick between two generic systems and be right either
+way?** Each answer below is the import a person would actually write.
+
+| If I need a… | I get it from | Second option? |
+| :--- | :--- | :--- |
+| Button | `~/shared/ui`'s `Button` / `buttonClassName()` → `base/buttons` | None. The legacy `.dh-btn` block was deleted in this pass |
+| Select | `~/shared/ui`'s `Select` → `inputClassName()`, i.e. `base/input`'s box on a native `<select>` | None. `base/select/combobox` when it must search |
+| Table | `application/table` + the `table-head` / `table-card-header` overrides | None |
+| Badge | `~/shared/ui`'s `Badge` → `base/badges` | None, as of this pass |
+| Dialog | `~/shared/ui`'s `ConfirmationDialog` for a confirmation; `application/modals` for a plain modal | Deliberate: the confirmation one owns focus isolation, scroll lock, inert background and a typed-phrase gate |
+| Drawer | `~/shared/drawer` → `application/slideout-menus` | None |
+| Menu | `~/shared/overflow-menu` / `~/shared/anchored` | DalyHub's, for collision handling and roving focus — `base/dropdown` supplies the paint |
+| Date picker | `application/date-picker` | None |
+| Progress bar | `~/shared/progress` → `overrides/labelled-progress-bar` over `base/progress-indicators` | None |
+| Chart | `~/shared/charts` → `application/charts` (Recharts) | None |
+| Avatar | `base/avatar` | None |
+| Settings section | `~/shared/settings` | None |
+| Icon | `@untitledui/icons`, by semantic name | None |
+
+Two rows answer "DalyHub" and both are deliberate — specialised behaviour
+Untitled does not supply, not a competing appearance. Neither offers a second
+way to draw a generic control.
+
+### CSS ownership after this branch
+
+| Measure | Value |
+| :--- | :--- |
+| Stylesheet files | 90 (was 92) |
+| Total lines | **43,989** (was 46,488) — −2,499 |
+| Generated, not hand-written | `tokens.css` (8,453) and `untitled/theme.css` |
+| Largest hand-written | `task-list.css` 2,051 · `plan.css` 1,448 · `tasks.css` 1,432 · `card-family.css` 1,356 · `card.css` 1,281 |
+| Deleted outright | `summary-cards.css`, `switch.css` |
+
+**Files that still provide generic component paint**, exhaustively — this is the
+whole list, not a sample:
+
+| File | What | Consumers |
+| :--- | :--- | :--- |
+| `ui.css` | `.dh-surface` (the generic box, 12 rules), `.dh-tagchip` (3), `.dh-panel-heading` (3) | 38 / 3 / 3 |
+| `settings.css` | `.dh-confirm*` (14 rules) | 11 |
+| `base.css` | the `md-state-layer` implementation and the coarse-pointer control floor | 34 usages / product-wide |
+| `filters.css`, `inline-edit.css`, `diary.css`, `task-checklist.css`, `icon-picker.css`, `markdown-editor.css`, `settings.css` | nine bare native fields with their own border/radius/background | 1–4 each |
+
+Everything else in `app/styles` is layout and product composition: where things
+sit, how a collection stacks, what a record header contains, how a planner week
+lays out. That is the architecture the target describes, with the four rows
+above named as the distance still to go — each of which is item 1–5 of the debt
+register.
+
+**One structural fact has not changed and should not be forgotten**: module
+stylesheets are UNLAYERED, so any rule in one outranks every Untitled utility
+regardless of specificity. That is what makes surface-by-surface migration safe,
+and it is also why a leftover rule silently repaints a migrated control rather
+than looking broken. The fix is always to remove the wrong owner, never to
+out-specify it.
+
+### Everything left, classified
+
+No item is left unclassified.
+
+| Category | Examples | Count |
+| :--- | :--- | :--- |
+| 1 — Genuine product-specific UI, KEEP | Task row and checklist, the planner week, record layout, entity identity and the Area accent ramp, drag/reorder, goal progress, the Diary week strip, habit grids, the Finance queue | most of `app/modules`, most of `app/shared` |
+| 2 — Thin DalyHub adapter over Untitled, KEEP | `Button`, `Input`, `Select`, `Checkbox`, `Switch`, `Badge`, `IconButton`, `FilePicker`, `~/shared/settings`, `~/shared/progress`, the five `overrides/` | ~20 components |
+| 3 — Specialised machinery Untitled does not supply, KEEP | `ConfirmationDialog` (typed-phrase gate, focus isolation), Drawer/Sheet/Inspector stacking, `~/shared/anchored` collision handling, the CodeMirror writing surface, chart adapters, the offline queue's UI | ~10 systems |
+| 4 — Historical documentation, KEEP and marked | Phases 1–7 and UNTITLED-11…18 in the migration guide; superseded ADRs | — |
+| 5 — Small maintenance debt, NAMED and scheduled | The ten rows of the debt register | 10 |
+| 6 — Obsolete legacy frontend, DELETED | `.dh-btn:not(.dh-button)` (256 lines), `.dh-badge`/`.dh-pill` paint (152), `.dh-plan__day-now`, `summary-cards.css`, `switch.css`, the dead card family, nine gallery components | this pass and UNTITLED-18 |
+| 7 — Unknown | **none** | 0 |
+
+### Documentation consulted
+
+Untitled UI React: component catalogue (`list_components`, `search_components`),
+Application UI page templates (`get_page_templates` for `settings`), component
+metadata and installation contract (`get_component`), and the CLI's own access
+behaviour (`npx untitledui add`, both outcomes above). Vendored source already in
+this repository was read directly for `base/toggle`, `application/table`,
+`application/command-menus/base-components/command-menu-item`,
+`application/app-navigation/base-components/nav-item`,
+`application/section-headers/section-label` and `base/badges`.

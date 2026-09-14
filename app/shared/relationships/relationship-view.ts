@@ -23,7 +23,6 @@ import type {
   RelationshipTone,
 } from "~/kernel/relationships";
 import type { CardTone } from "~/shared/card";
-import type { SummaryCardTone } from "~/shared/summary-cards";
 
 /**
  * Map a relationship tone to a Card/Record tone. The string values are identical
@@ -32,13 +31,6 @@ import type { SummaryCardTone } from "~/shared/summary-cards";
  * and type-checked.
  */
 export function relationshipToneToCardTone(tone: RelationshipTone): CardTone {
-  return tone;
-}
-
-/** The same identity, for the DS-13 summary-card tone vocabulary. */
-export function relationshipToneToSummaryTone(
-  tone: RelationshipTone,
-): SummaryCardTone {
   return tone;
 }
 

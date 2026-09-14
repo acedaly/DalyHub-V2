@@ -26,6 +26,8 @@ import { useId, useState } from "react";
 import { useRevalidator } from "react-router";
 
 import { Button, Input, Select } from "~/shared/ui";
+import { Table, TableCard } from "~/shared/ui/untitled/application/table/table";
+import { LabelledTableHead } from "~/shared/ui/untitled/overrides/table-head";
 
 import type { FinanceCategoriesData } from "./finance-view";
 
@@ -72,7 +74,9 @@ export function FinanceCategories({
   if (failed) {
     return (
       <div className="dh-finance-categories">
-        <h1>Categories</h1>
+        <h1 className="text-display-xs font-semibold text-primary">
+          Categories
+        </h1>
         <p role="status">Your categories could not be read just now.</p>
       </div>
     );
@@ -81,54 +85,89 @@ export function FinanceCategories({
   const live = categories.filter((category) => !category.archived);
   const archived = categories.filter((category) => category.archived);
 
-  const row = (category: (typeof categories)[number]) => (
-    <li key={category.id} className="dh-finance-category-row">
-      <span className="dh-finance-category-row__name">{category.name}</span>
-      <span className="dh-finance-category-row__kind">
-        {category.kind === "spending" ? "Money out" : "Money in"}
-      </span>
-      <span
-        className="dh-finance-category-row__count"
-        data-testid={`category-count-${category.id}`}
-      >
-        {category.transactionCount}{" "}
-        {category.transactionCount === 1 ? "transaction" : "transactions"}
-      </span>
-      <Button
-        variant="subtle"
-        size="sm"
-        disabled={pending === category.id}
-        onClick={() =>
-          void post(category.id, {
-            intent: "archive",
-            categoryId: category.id,
-            archived: !category.archived,
-          })
-        }
-        data-testid={`category-archive-${category.id}`}
-      >
-        {category.archived ? "Restore" : "Archive"}
-      </Button>
-      <Button
-        variant="subtle"
-        size="sm"
-        disabled={pending === category.id}
-        onClick={() =>
-          void post(category.id, {
-            intent: "delete",
-            categoryId: category.id,
-          })
-        }
-        data-testid={`category-delete-${category.id}`}
-      >
-        Delete
-      </Button>
-    </li>
+  /*
+   * UNTITLED-18 — Untitled's `application/table`, replacing a bordered grid row
+   * per category.
+   *
+   * `dh-finance-category-row` was a four-column grid with its own border,
+   * corner, surface and phone arm, and a list of them was a list of frames
+   * around single lines. The columns were already a table's — name, kind,
+   * count, actions — so the markup says so now, and the kind and the count read
+   * down their own columns instead of being two muted runs inside a card.
+   *
+   * Deliberately NOT badge soup (§21): "Money out" is a WORD in a column, not a
+   * coloured pill repeated down the page. There are exactly two kinds and the
+   * distinction is not a status.
+   */
+  const rows = (list: typeof categories) => (
+    <Table.Body>
+      {list.map((category) => (
+        <Table.Row key={category.id} id={category.id} size="sm">
+          <Table.Cell className="px-4 py-3 text-sm wrap-anywhere text-primary max-sm:px-3">
+            {category.name}
+          </Table.Cell>
+          <Table.Cell className="px-4 py-3 text-sm whitespace-nowrap text-tertiary max-sm:px-3">
+            {category.kind === "spending" ? "Money out" : "Money in"}
+          </Table.Cell>
+          <Table.Cell
+            className="px-4 py-3 text-sm whitespace-nowrap text-tertiary tabular-nums max-sm:px-3"
+            data-testid={`category-count-${category.id}`}
+          >
+            {category.transactionCount}{" "}
+            {category.transactionCount === 1 ? "transaction" : "transactions"}
+          </Table.Cell>
+          <Table.Cell className="px-4 py-3 max-sm:px-3">
+            <span className="flex flex-wrap justify-end gap-1">
+              <Button
+                variant="subtle"
+                size="sm"
+                className="max-md:min-h-[var(--app-touch-target-min)] max-md:min-w-[var(--app-touch-target-min)]"
+                disabled={pending === category.id}
+                onClick={() =>
+                  void post(category.id, {
+                    intent: "archive",
+                    categoryId: category.id,
+                    archived: !category.archived,
+                  })
+                }
+                data-testid={`category-archive-${category.id}`}
+              >
+                {category.archived ? "Restore" : "Archive"}
+              </Button>
+              <Button
+                variant="subtle"
+                size="sm"
+                className="max-md:min-h-[var(--app-touch-target-min)] max-md:min-w-[var(--app-touch-target-min)]"
+                disabled={pending === category.id}
+                onClick={() =>
+                  void post(category.id, {
+                    intent: "delete",
+                    categoryId: category.id,
+                  })
+                }
+                data-testid={`category-delete-${category.id}`}
+              >
+                Delete
+              </Button>
+            </span>
+          </Table.Cell>
+        </Table.Row>
+      ))}
+    </Table.Body>
+  );
+
+  const head = (
+    <Table.Header className="bg-secondary [&_th]:px-4 max-sm:[&_th]:px-3">
+      <LabelledTableHead id="name" label="Category" isRowHeader />
+      <LabelledTableHead id="kind" label="Kind" />
+      <LabelledTableHead id="count" label="Transactions" />
+      <LabelledTableHead id="actions" label="Actions" labelHidden />
+    </Table.Header>
   );
 
   return (
     <div className="dh-finance-categories" data-testid="finance-categories">
-      <h1>Categories</h1>
+      <h1 className="text-display-xs font-semibold text-primary">Categories</h1>
       <p>
         Categories are how DalyHub answers &ldquo;where is my money
         going?&rdquo;. Rename them, add your own, archive the ones you stop
@@ -141,14 +180,37 @@ export function FinanceCategories({
         </p>
       )}
 
-      <ul className="dh-finance-category-list" data-testid="category-list">
-        {live.map(row)}
-      </ul>
+      <TableCard.Root
+        size="sm"
+        className="overflow-hidden"
+        data-untitled-source="application/table:table-card"
+      >
+        <Table
+          aria-label="Your categories"
+          size="sm"
+          className="bg-primary"
+          data-testid="category-list"
+        >
+          {head}
+          {rows(live)}
+        </Table>
+      </TableCard.Root>
 
       {archived.length === 0 ? null : (
         <details>
-          <summary>Archived ({archived.length})</summary>
-          <ul className="dh-finance-category-list">{archived.map(row)}</ul>
+          <summary className="cursor-pointer py-2 text-sm font-medium text-secondary">
+            Archived ({archived.length})
+          </summary>
+          <TableCard.Root size="sm" className="mt-2 overflow-hidden">
+            <Table
+              aria-label="Archived categories"
+              size="sm"
+              className="bg-primary"
+            >
+              {head}
+              {rows(archived)}
+            </Table>
+          </TableCard.Root>
         </details>
       )}
 

@@ -7,12 +7,23 @@
  * a `<section>` region: an optional surface heading + description, and consistent
  * vertical rhythm between its `SettingsGroup` children.
  *
- * It adapts to its CONTAINER, not the viewport (via the stylesheet's container
- * query), so the SAME layout works whether it is 320px wide inside a Drawer or
- * full-width in a route. It reads only DS-01 tokens.
+ * It adapts to its CONTAINER, not the viewport, so the SAME layout works whether
+ * it is 320px wide inside a Drawer or full-width in a route. `@container` is what
+ * its rows read to decide whether to sit side-by-side or stack.
+ *
+ * ── UNTITLED-18 — Untitled's type roles, and no surface of its own ──────────
+ *
+ * The heading is `text-lg font-semibold text-primary` and the supporting line is
+ * `text-sm text-tertiary` — Untitled's page/section header pairing, the one every
+ * other migrated DalyHub surface already wears. The layout draws no background,
+ * border or radius at all: its groups are sections now (see `SettingsGroup`), so
+ * the only thing a frame here could add is a second boundary around a record
+ * panel that already has one.
  */
 
 import { useEffect, useId, useRef, type ReactNode } from "react";
+
+import { cx } from "~/shared/ui/untitled/utils/cx";
 
 export interface SettingsLayoutProps {
   /**
@@ -119,21 +130,27 @@ export function SettingsLayout({
       // focus target for the safety net above, mirroring how the app shell's
       // `#main-content` region is focusable without being tabbable.
       tabIndex={-1}
-      className={className ? `dh-settings ${className}` : "dh-settings"}
+      className={cx(
+        "dh-settings @container block w-full max-w-(--app-width-content)",
+        className,
+      )}
       aria-labelledby={title ? headingId : undefined}
       aria-label={title ? undefined : ariaLabel}
     >
       {title ? (
-        <header className="dh-settings__header">
-          <Heading id={headingId} className="dh-settings__title">
+        <header className="mb-6 flex min-w-0 flex-col gap-1">
+          <Heading
+            id={headingId}
+            className="text-lg font-semibold text-primary"
+          >
             {title}
           </Heading>
           {description ? (
-            <p className="dh-settings__description">{description}</p>
+            <p className="text-sm text-tertiary">{description}</p>
           ) : null}
         </header>
       ) : null}
-      <div className="dh-settings__groups">{children}</div>
+      <div className="flex min-w-0 flex-col gap-8">{children}</div>
     </section>
   );
 }

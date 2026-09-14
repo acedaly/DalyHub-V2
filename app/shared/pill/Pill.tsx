@@ -54,11 +54,6 @@ export interface StatusPillProps {
   readonly children: ReactNode;
   /** Defaults to `neutral`, the absence state. */
   readonly tone?: PillTone;
-  /**
-   * Rendered before the label, for a pill that also carries a glyph. The icon is
-   * decorative — the label is what is read.
-   */
-  readonly icon?: ReactNode;
   readonly className?: string;
 }
 
@@ -78,13 +73,11 @@ export interface StatusPillProps {
 export function StatusPill({
   children,
   tone = "neutral",
-  icon,
   className,
 }: StatusPillProps) {
   return (
     <Badge
       tone={tone}
-      icon={icon}
       className={className ? `dh-pill ${className}` : "dh-pill"}
     >
       {children}

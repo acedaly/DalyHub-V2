@@ -261,9 +261,18 @@ test.describe("V2.12 — categorising", () => {
     await picker.getByRole("button").first().click();
 
     await gotoFixture(page, "/finance/categories");
+    /*
+     * UNTITLED-19 — a `row`, not a `listitem`.
+     *
+     * The categories screen was a hand-written list and is an Untitled `Table`
+     * now, so its rows carry `role="row"`. This locator asked for a `listitem`,
+     * matched nothing, and spent the whole 30s budget waiting for one. The
+     * question it asks is unchanged: find the row for the category the picker
+     * just used, and press its delete control.
+     */
     const row = page
       .getByTestId("category-list")
-      .getByRole("listitem")
+      .getByRole("row")
       .filter({ hasText: chosen })
       .first();
     await row.getByRole("button", { name: /delete/i }).click();
@@ -312,10 +321,8 @@ test.describe("V2.12 — budgets", () => {
 
     await gotoFixture(page, "/finance/budgets?month=2026-09");
     const budgets = page.getByTestId("budget-list");
-    const row = budgets
-      .getByRole("listitem")
-      .filter({ hasText: chosen })
-      .first();
+    // UNTITLED-19 — a `row`, for the same reason as the categories screen above.
+    const row = budgets.getByRole("row").filter({ hasText: chosen }).first();
     await row.getByRole("textbox").fill("100.00");
     await row.getByRole("button", { name: /save/i }).click();
 

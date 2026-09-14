@@ -25,7 +25,7 @@
  * deletion eligibility atomically, so this UI is advisory, never the gate.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 
 import type { AreaDependencySummary } from "~/kernel/areas";
@@ -37,19 +37,16 @@ import {
 import { EntityIdentityPicker } from "~/shared/entity";
 import { RecordDetails, recordTimestampItems } from "~/shared/record-layout";
 import {
-  ConfirmationDialog,
   DangerousAction,
   SettingsGroup,
   SettingsLayout,
   SettingsRow,
 } from "~/shared/settings";
-import { useFeedback } from "~/shared/feedback";
 
 import {
   areaDependencyBlockers,
   type SerializedAreaOverview,
 } from "./area-view";
-import { buttonClassName } from "~/shared/ui";
 
 export interface AreaSettingsTabProps {
   readonly overview: SerializedAreaOverview;
@@ -153,9 +150,9 @@ function ArchiveGroup({
     <SettingsGroup
       title="Archive"
       description="Move this Area out of your active Areas. Everything inside it is kept, and you can restore it at any time."
-      tone="danger"
     >
       <DangerousAction
+        severity="reversible"
         label="Archive this Area"
         description="It leaves your active Areas and creation pickers, but stays readable and fully intact."
         actionLabel="Archive area…"
@@ -187,56 +184,42 @@ function ArchiveGroup({
   );
 }
 
+/**
+ * UNTITLED-18 — Restore is a `DangerousAction severity="reversible"`.
+ *
+ * It was thirty-five lines that opened a `ConfirmationDialog` from a
+ * `SettingsRow` with a secondary button — which is the whole of what
+ * `DangerousAction` does, and exactly what its reversible severity now paints.
+ * The duplication existed only because the shared component had one weight and
+ * that weight was red, so a calm action had to be built by hand.
+ */
 function RestoreGroup({
   onRestore,
 }: {
   readonly onRestore: () => Promise<void>;
 }) {
-  const feedback = useFeedback();
-  const [open, setOpen] = useState(false);
-  const [opener, setOpener] = useState<HTMLElement | null>(null);
-
-  const confirm = useCallback(async () => {
-    await onRestore();
-    feedback.notifySuccess("Area restored");
-  }, [onRestore, feedback]);
-
   return (
     <SettingsGroup
       title="Archived"
       description="This Area is archived and hidden from your active Areas. Restore it to bring it back."
     >
-      <SettingsRow
+      <DangerousAction
+        severity="reversible"
         label="Restore this Area"
         description="Bring it back into your active Areas and creation pickers. Nothing inside it changed."
-        control={
-          <button
-            type="button"
-            className={buttonClassName({ variant: "secondary" })}
-            onClick={(event) => {
-              setOpener(event.currentTarget);
-              setOpen(true);
-            }}
-          >
-            Restore area…
-          </button>
+        actionLabel="Restore area…"
+        confirmTitle="Restore this Area?"
+        confirmBody={
+          <p>
+            This brings it back into your active Areas and creation pickers. Its
+            Goals, Projects, Tasks and links are unaffected.
+          </p>
         }
-      />
-      <ConfirmationDialog
-        open={open}
-        onClose={() => setOpen(false)}
-        onConfirm={confirm}
-        title="Restore this Area?"
         confirmLabel="Restore area"
         busyLabel="Restoring…"
-        tone="default"
-        opener={opener}
-      >
-        <p>
-          This brings it back into your active Areas and creation pickers. Its
-          Goals, Projects, Tasks and links are unaffected.
-        </p>
-      </ConfirmationDialog>
+        successMessage="Area restored"
+        onConfirm={onRestore}
+      />
     </SettingsGroup>
   );
 }

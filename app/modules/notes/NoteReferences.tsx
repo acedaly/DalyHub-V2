@@ -29,6 +29,7 @@ import {
   type RecordReference,
   type ReferencePage,
 } from "~/shared/references";
+import { Select } from "~/shared/ui";
 
 /**
  * The module-agnostic "related to" link type the shared REL-01 picker creates
@@ -131,14 +132,20 @@ export function NoteBacklinksTab({ noteId, page }: NoteBacklinksTabProps) {
         prose is not a link.
       </p>
 
-      {/* A native <select>, matching the NOTES-03 filter bar's deliberate
-          choice: a real on-screen picker on a phone, keyboard-complete for
-          free, and no custom widget semantics to get wrong. Only offered when
-          there is genuinely more than one module to choose between. */}
+      {/* The shared `Select`, which IS a native `<select>` repainted — matching
+          the NOTES-03 filter bar's deliberate choice: a real on-screen picker on
+          a phone, keyboard-complete for free, and no custom widget semantics to
+          get wrong. Only offered when there is genuinely more than one module to
+          choose between.
+
+          UNTITLED-18 — it was a BARE select, and `references.css` drew its own
+          height, padding, border, corner, surface and type for it. That rule was
+          unlayered, so it would have overruled the shared control's box the
+          moment this reached for it. Both halves are fixed together. */}
       {families.length > 1 ? (
         <div className="dh-note-references__filter">
           <label htmlFor="note-backlinks-module">Module</label>
-          <select
+          <Select
             id="note-backlinks-module"
             value={activeFamily}
             onChange={(event) => setFamily(event.target.value)}
@@ -149,7 +156,7 @@ export function NoteBacklinksTab({ noteId, page }: NoteBacklinksTabProps) {
                 {option.label} ({option.count})
               </option>
             ))}
-          </select>
+          </Select>
         </div>
       ) : null}
 

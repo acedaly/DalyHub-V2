@@ -18,6 +18,7 @@ import { useId, useState } from "react";
 import type { OfflineCapturePayload } from "~/kernel/offline";
 
 import { useOffline } from "./OfflineProvider";
+import { Input } from "~/shared/ui";
 
 const CAPTURE_CHOICES = [
   {
@@ -132,7 +133,10 @@ export function OfflineCaptureForm({
 
           <div className="dh-offline-capture__field">
             <label htmlFor={`${titleId}-input`}>Title</label>
-            <input
+            {/* UNTITLED-18 — the shared `Input`. `offline.css` drew this
+                control's height, padding, border, corner, surface and colour;
+                it now sets its width and nothing else. */}
+            <Input
               id={`${titleId}-input`}
               type="text"
               value={title}

@@ -426,16 +426,23 @@
   letter-spacing: 0.02em;
 }
 
+/*
+ * UNTITLED-18 — WIDTH only. The box was this rule's, and it should never have
+ * been.
+ *
+ * Every control inside these fields already carries `inputClassName()` or is the
+ * shared `Select`/`Textarea` — i.e. they were migrated. This stylesheet is
+ * UNLAYERED, and unlayered CSS beats layered CSS unconditionally, so the six
+ * paint declarations here silently overruled Untitled's on every one of them.
+ * MEASURED in Chromium on the identical control: 38px tall with an 8px corner
+ * and a ring outside this rule, 45px with a 10px corner and a 1px border inside
+ * it. The migration had happened and could not be seen.
+ *
+ * Filling the field is genuinely this layout's business, so that stays.
+ */
 .dh-ai-review__field :is(input, select, textarea) {
   width: 100%;
   min-width: 0;
-  min-height: var(--app-touch-target-min);
-  padding: var(--app-space-2) var(--app-space-3);
-  font: inherit;
-  color: var(--dh-color-text);
-  background: var(--dh-color-surface);
-  border: var(--app-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-control);
 }
 
 /* AI-02 — a proposed Note's body. Editable in place, and tall enough to read a

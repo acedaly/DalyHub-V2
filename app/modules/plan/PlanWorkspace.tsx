@@ -79,7 +79,7 @@ import {
   planningEntryMinutes,
 } from "~/kernel/planning";
 import { DrawerProvider, useDrawer, withDrawerPushed } from "~/shared/drawer";
-import { Button, buttonClassName } from "~/shared/ui";
+import { Badge, Button, buttonClassName } from "~/shared/ui";
 import { TaskGroup, TaskList } from "~/shared/task-record/TaskList";
 import { TaskRow, type TaskRowProps } from "~/shared/task-record/TaskRow";
 import { TaskTitleEditor } from "~/shared/task-record/TaskTitleEditor";
@@ -912,8 +912,16 @@ function PlanDaySection({
               : `, ${commitmentWords} of commitments`}
           </span>
         </h2>
-        {/* "Today" is a WORD, never a colour, and it is only ever the real today. */}
-        {day.isToday ? <span className="dh-plan__day-now">Today</span> : null}
+        {/*
+         * "Today" is a WORD, never a colour, and it is only ever the real today.
+         *
+         * UNTITLED-19 — it is also a BADGE, and `plan.css` had been drawing one
+         * by hand: `--dh-radius-pill`, `--dh-color-accent-subtle` and its
+         * `on-` pair at the `meta` rung, which is the accent badge's recipe
+         * spelled out again in a module stylesheet. A closed-set label in a
+         * tinted container IS the badge, so it uses the badge.
+         */}
+        {day.isToday ? <Badge tone="accent">Today</Badge> : null}
       </header>
 
       {/*
