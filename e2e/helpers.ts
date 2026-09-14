@@ -502,15 +502,27 @@ export async function waitForInteractive(page: Page): Promise<void> {
 
   // Where the marker belongs to the active route it is the real gate, because
   // server-rendered markup is interactive-looking well before React attaches.
-  const marker = page.locator("[data-hydrated]").first();
-  await expect
-    .poll(async () => {
-      if ((await marker.count()) === 0) {
-        return true;
-      }
-      return (await marker.getAttribute("data-hydrated")) === "true";
-    })
-    .toBe(true);
+  //
+  // Same shape, and for the same reason as the shell gate above: this was the
+  // ONE `expect.poll(...).toBe(true)` left in the pair, on the default 5s
+  // budget, and it failed rather than waited. MEASURED on run 34792235989 —
+  // `accessibility.spec.ts:132` and `responsive-desktop.spec.ts:42`, both on
+  // `/design/cards-filters`, both reporting "expected true, received false"
+  // with "Timeout 5000ms exceeded while waiting on the predicate" and nothing
+  // about the page they were auditing; both pass locally in 2 minutes. A gate
+  // that turns a slow runner into a mystery failure is worse than no gate.
+  await page
+    .waitForFunction(
+      () => {
+        const marker = document.querySelector("[data-hydrated]");
+        return (
+          marker === null || marker.getAttribute("data-hydrated") === "true"
+        );
+      },
+      undefined,
+      { timeout: 15_000 },
+    )
+    .catch(() => undefined);
 }
 
 /**

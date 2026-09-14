@@ -526,13 +526,18 @@ test.describe("APPEARANCE-01 — choosing an appearance", () => {
       .locator("[data-testid='bottom-nav']")
       .getByRole("button", { name: "More" })
       .click();
-    // In the phone sheet the account trigger shows the owner's NAME rather than
-    // the compact top-bar "Account" label, so it is located by its component
-    // class — the one thing both placements share. The desktop bar's own trigger
-    // is in the DOM too (it is `display: none` at this width), so the visible one
-    // is selected explicitly rather than by index.
+    // The account trigger is located by its ACCESSIBLE NAME, which every
+    // placement now shares: `UserMenu` labels the button "Account — <name>"
+    // whether it sits on the rail, in the collapsed rail or in this sheet, and
+    // the visible name inside it differs between them. It used to be addressed
+    // by `.dh-user-menu__trigger`, a class UNTITLED-02 deleted along with the
+    // ~120 lines of `shell.css` that painted it — so the selector matched
+    // nothing and the click waited out the whole test budget. A name the
+    // component states deliberately is a better hook than a class it happened
+    // to carry. The rail's own trigger is in the DOM too (hidden at this
+    // width), so the visible one is selected explicitly rather than by index.
     await page
-      .locator(".dh-user-menu__trigger")
+      .getByRole("button", { name: /^Account — / })
       .filter({ visible: true })
       .click();
 
