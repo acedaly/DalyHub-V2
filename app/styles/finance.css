@@ -31,12 +31,11 @@
  * list are gone from it: the first two are Untitled divided lists and the last
  * two are the genuine `application/table`, so their bounding, their rows, their
  * hover and their numeric alignment are the component's rather than this file's.
- * These two are the surfaces UNTITLED-16 did not reach — the budgets screen and
- * the import history inside an account record.
+ * UNTITLED-18 — the budget list and the category list left too, for the same
+ * reason: both are `application/table` now. What is left is the import history
+ * inside an account record, which is a short run of lines rather than a table.
  */
-.dh-finance-import-list,
-.dh-finance-budget-list,
-.dh-finance-category-list {
+.dh-finance-import-list {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -197,13 +196,47 @@
 
 /* -- Budgets -------------------------------------------------------------- */
 
+/*
+ * UNTITLED-18 — the four Finance ADMIN screens get the page frame every other
+ * route in the product has.
+ *
+ * MEASURED at 1440: they rendered straight into the shell's main region with
+ * no gutter at all, so the heading, the form and the preview table all began at
+ * the sidebar's edge and ran to the viewport's — while `/finance` itself, one
+ * click away, is inset by `--app-page-padding` like Today, Tasks and every
+ * collection. Two screens in one module disagreeing about where the page starts
+ * is the "no route shifts the page origin" rule (§7), and it is what made these
+ * read as a different, earlier generation of the application.
+ *
+ * Same declaration `ai.css` uses, for the same reason.
+ */
 .dh-finance-budgets,
 .dh-finance-categories,
 .dh-finance-import,
 .dh-finance-new-account {
   display: flex;
   flex-direction: column;
+  /* `start`, so a control sizes to its content instead of being stretched by
+   * the column. Without it every submit button on these screens was a
+   * full-width slab from the sidebar to the viewport edge. */
+  align-items: start;
   gap: var(--app-space-4);
+  width: 100%;
+  max-width: calc(var(--app-width-wide) + 2 * var(--app-page-padding));
+  margin: 0 auto;
+  padding: var(--app-space-6) var(--app-page-padding) var(--app-space-16);
+}
+
+/*
+ * The children that genuinely span the column. `align-items: start` above is
+ * right for a BUTTON and wrong for a form, a list or a table, so the things
+ * that are full-width say so rather than the column stretching everything.
+ */
+.dh-finance-budgets > *:not(button),
+.dh-finance-categories > *:not(button),
+.dh-finance-import > *:not(button),
+.dh-finance-new-account > *:not(button) {
+  width: 100%;
 }
 
 .dh-finance-budgets__header,
@@ -213,17 +246,6 @@
   align-items: baseline;
   justify-content: space-between;
   gap: var(--app-space-3);
-}
-
-.dh-finance-budget-row {
-  display: grid;
-  grid-template-columns: 1fr minmax(6rem, 8rem) auto;
-  align-items: center;
-  gap: var(--app-space-2);
-  padding: var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-lg);
-  background: var(--dh-color-surface);
 }
 
 .dh-finance-budget-row__variance,
@@ -246,24 +268,6 @@
 }
 
 /* -- Categories ----------------------------------------------------------- */
-
-.dh-finance-category-row {
-  display: grid;
-  grid-template-columns: 1fr auto auto auto;
-  align-items: center;
-  gap: var(--app-space-2);
-  padding: var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-lg);
-  background: var(--dh-color-surface);
-}
-
-.dh-finance-category-row__kind,
-.dh-finance-category-row__count {
-  font-size: var(--dh-text-meta-size);
-  color: var(--dh-color-text-muted);
-  white-space: nowrap;
-}
 
 /* -- Import --------------------------------------------------------------- */
 
@@ -290,23 +294,11 @@
  * table worse on both. It SCROLLS inside its own container instead, so the page
  * body never scrolls sideways.
  */
-.dh-finance-import__table {
-  display: block;
-  overflow-x: auto;
-  border-collapse: collapse;
-  width: 100%;
-  font-variant-numeric: var(--dh-font-numeric);
-}
-
-.dh-finance-import__table th,
-.dh-finance-import__table td {
-  padding: var(--app-space-2);
-  border-block-end: var(--app-border-width-thin) solid var(--dh-color-divider);
-  text-align: start;
-  white-space: nowrap;
-}
-
 /*
+ * UNTITLED-18 — the table's BOX, its cells, its hairline and its scroller are
+ * Untitled's `application/table` now; what is left here is the one thing that
+ * table has no concept of, which is what an imported ROW is going to do.
+ *
  * A row's OUTCOME is a word in the cell ("new", "already there", "unreadable").
  * These only quiet the rows that will not be written, so the ones that will are
  * what the eye lands on.
@@ -342,9 +334,34 @@
   min-width: 0;
 }
 
+/*
+ * UNTITLED-18 — a LABEL, at Untitled's label role.
+ *
+ * It was meta-sized and muted, which is the HINT role — so on the import
+ * screen every field's name read as smaller and quieter than the help text
+ * beneath its control, and the form had no visible structure at all. Untitled's
+ * `base/input`'s `Label` is `text-sm font-medium text-secondary`, which is what
+ * every migrated field in the product already wears.
+ */
+.dh-finance-form label,
 .dh-finance-form__label {
   font-size: var(--dh-text-meta-size);
-  color: var(--dh-color-text-muted);
+  font-weight: 500;
+  color: var(--dh-color-text);
+}
+
+/*
+ * A form's own submit does not stretch to the page.
+ *
+ * `.dh-finance-form` is a flex COLUMN, whose default `align-items: stretch` is
+ * right for its fields and wrong for its one button — so "See what will happen"
+ * and "Import N transactions" drew as full-width slabs from the sidebar to the
+ * viewport edge, which no other primary action in the product does.
+ */
+.dh-finance-form > button,
+.dh-finance-import__preview > button,
+.dh-finance-import__result > button {
+  align-self: start;
 }
 
 .dh-finance-form__hint {
@@ -368,29 +385,23 @@
    * `sm` is correct at the widths it was chosen for; what is narrow is this
    * viewport, not that control.
    */
-  .dh-finance-category-row button,
-  .dh-finance-budget-row button,
   .dh-finance-settle button {
     min-block-size: var(--app-touch-target-min);
     min-inline-size: var(--app-touch-target-min);
   }
-
-  /*
-   * UNTITLED-16 — the transaction row and the account row are gone from both
-   * rules above and below.
-   *
-   * They are Untitled table rows now, and both things this block did for them
-   * are the component's: the phone arrangement is the row's own
-   * `max-md:grid` recomposition, and the floor its controls take is stated on
-   * the controls (`max-md:min-h-[var(--app-touch-target-min)]`) rather than
-   * reached for through a descendant selector. What is left here is the three
-   * surfaces UNTITLED-16 did not rebuild.
-   */
-  .dh-finance-budget-row,
-  .dh-finance-category-row {
-    grid-template-columns: 1fr;
-  }
 }
+
+/*
+ * UNTITLED-18 — the budget row and the category row are gone from this block
+ * too, and it now holds one surface rather than five.
+ *
+ * Both are Untitled tables now, exactly as UNTITLED-16's note above predicted
+ * for the transaction and account rows: the phone arrangement is the table
+ * row's own recomposition, and the touch floor its controls take is stated ON
+ * those controls (`max-md:min-h-[var(--app-touch-target-min)]`) rather than
+ * reached for through a descendant selector from a stylesheet. `dh-finance-settle`
+ * is the last surface here that is neither a table nor a divided list.
+ */
 
 /* -- Settling a commitment ------------------------------------------------ */
 

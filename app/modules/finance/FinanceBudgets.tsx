@@ -33,12 +33,22 @@ import { useRevalidator } from "react-router";
 import { budgetSentence, budgetState } from "~/kernel/finance";
 import { money } from "~/shared/finance";
 import { Button, Input } from "~/shared/ui";
+import { Table, TableCard } from "~/shared/ui/untitled/application/table/table";
+import { LabelledTableHead } from "~/shared/ui/untitled/overrides/table-head";
 
 import type { FinanceBudgetsData } from "./finance-view";
 import { MonthNav } from "./MonthNav";
 
 export function FinanceBudgets(props: FinanceBudgetsData) {
-  const { categories, lines, budgets, month, defaultCurrency, failed } = props;
+  const {
+    categories,
+    lines,
+    budgets,
+    month,
+    monthLabel,
+    defaultCurrency,
+    failed,
+  } = props;
   const revalidator = useRevalidator();
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -74,7 +84,7 @@ export function FinanceBudgets(props: FinanceBudgetsData) {
   if (failed) {
     return (
       <div className="dh-finance-budgets">
-        <h1>Budgets</h1>
+        <h1 className="text-display-xs font-semibold text-primary">Budgets</h1>
         <p role="status">Budgets could not be read just now.</p>
       </div>
     );
@@ -99,7 +109,7 @@ export function FinanceBudgets(props: FinanceBudgetsData) {
   return (
     <div className="dh-finance-budgets" data-testid="finance-budgets">
       <header className="dh-finance-budgets__header">
-        <h1>Budgets</h1>
+        <h1 className="text-display-xs font-semibold text-primary">Budgets</h1>
         <MonthNav {...props} basePath="/finance/budgets" />
       </header>
 
@@ -115,122 +125,175 @@ export function FinanceBudgets(props: FinanceBudgetsData) {
           for.
         </p>
       ) : (
-        <ul className="dh-finance-budget-list" data-testid="budget-list">
-          {categories.map((category) => {
-            const spend = spendFor(category.id);
-            const line = spend.find((entry) => entry.budgetedMinor !== null);
-            const saved = budgetFor(category.id);
-            const inputId = `${fieldPrefix}-${category.id}`;
-            /*
-             * The field reads the SAVED budget, never the spend line. A budget
-             * on a category with nothing spent against it produces no line, so
-             * reading the line drew an empty field over a real budget — and
-             * pressing Save with that apparent value cleared it.
-             */
-            const value =
-              draft[category.id] ??
-              (saved === null ? "" : (saved.amountMinor / 100).toFixed(2));
+        /*
+          UNTITLED-18 — Untitled's `application/table`, replacing twelve
+          full-width bordered cards.
 
-            return (
-              <li key={category.id} className="dh-finance-budget-row">
-                <label
-                  htmlFor={inputId}
-                  className="dh-finance-budget-row__name"
-                >
-                  {category.name}
-                </label>
+          Every category was a `dh-finance-budget-row`: its own grid, its own
+          border, its own corner and its own phone arm, holding a name, a
+          number, one button and a sentence. Twelve of them stacked is twelve
+          frames around one list, and the eye cannot compare a column of budgets
+          that is not drawn as a column. A table is what the data is.
 
-                <Input
-                  id={inputId}
-                  inputMode="decimal"
-                  placeholder="No budget"
-                  value={value}
-                  disabled={pending === category.id}
-                  onChange={(event) =>
-                    setDraft((previous) => ({
-                      ...previous,
-                      [category.id]: event.target.value,
-                    }))
-                  }
-                  data-testid={`budget-input-${category.id}`}
-                />
+          The product semantics are untouched, and they are the reason this is
+          NOT the obvious "add a progress bar" table:
 
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  disabled={pending === category.id}
-                  onClick={() =>
-                    void post(category.id, {
-                      intent: "set",
-                      categoryId: category.id,
-                      amount: (draft[category.id] ?? value).trim(),
-                      currencyCode: defaultCurrency,
-                    })
-                  }
-                  data-testid={`budget-save-${category.id}`}
-                >
-                  Save
-                </Button>
+            · variance stays a SENTENCE with the figures that produced it
+              ($393.00 of $380.00 · $13.00 over). No percentage, no bar that
+              turns red, no score. That is FIN-02's decision and this pass does
+              not revisit it;
+            · `data-budget-state` stays on the cell that carries the sentence;
+            · spend in a currency the budget is not in is still named in full,
+              because DalyHub never converts;
+            · Save is still explicit and still per row — this screen writes a
+              stored budget, and save-on-blur would be a different contract.
+        */
+        <TableCard.Root
+          size="sm"
+          className="overflow-hidden"
+          data-untitled-source="application/table:table-card"
+        >
+          <Table
+            aria-label={`Budgets for ${monthLabel}`}
+            size="sm"
+            className="bg-primary"
+            data-testid="budget-list"
+          >
+            <Table.Header className="bg-secondary [&_th]:px-4 max-sm:[&_th]:px-3">
+              <LabelledTableHead id="category" label="Category" isRowHeader />
+              <LabelledTableHead id="this-month" label="This month" />
+              <LabelledTableHead id="budget" label="Budget" />
+              <LabelledTableHead id="save" label="Save budget" labelHidden />
+            </Table.Header>
+            <Table.Body>
+              {categories.map((category) => {
+                const spend = spendFor(category.id);
+                const line = spend.find(
+                  (entry) => entry.budgetedMinor !== null,
+                );
+                const saved = budgetFor(category.id);
+                const inputId = `${fieldPrefix}-${category.id}`;
+                /*
+                 * The field reads the SAVED budget, never the spend line. A
+                 * budget on a category with nothing spent against it produces
+                 * no line, so reading the line drew an empty field over a real
+                 * budget — and pressing Save with that apparent value cleared
+                 * it.
+                 */
+                const value =
+                  draft[category.id] ??
+                  (saved === null ? "" : (saved.amountMinor / 100).toFixed(2));
+                const otherCurrency = spend.filter(
+                  (entry) => entry.currencyCode !== defaultCurrency,
+                );
 
-                {/*
-                 * The variance sentence, or the plain spend when no budget is
-                 * set. Never a bar, never a percentage, and the figures that
-                 * produced the sentence are always in it.
-                 */}
-                <span
-                  className="dh-finance-budget-row__variance"
-                  data-budget-state={line?.budgetState ?? undefined}
-                  data-testid={`budget-variance-${category.id}`}
-                >
-                  {line?.budgetSentence ??
-                    (spend.length === 0
-                      ? saved === null
-                        ? "Nothing spent this month"
-                        : /*
-                           * A saved budget with NOTHING spent against it yet
-                           * still states itself, through the same kernel
-                           * sentence every other row uses — so "$0.00 of
-                           * $600.00 · $600.00 remaining" is one wording rather
-                           * than a second one invented here.
-                           */
-                          budgetSentence({
+                return (
+                  <Table.Row key={category.id} id={category.id} size="sm">
+                    <Table.Cell className="px-4 py-3 text-sm break-words text-primary max-sm:px-3">
+                      <label htmlFor={inputId}>{category.name}</label>
+                    </Table.Cell>
+                    <Table.Cell className="px-4 py-3 text-sm max-sm:px-3">
+                      {/*
+                       * The variance sentence, or the plain spend when no
+                       * budget is set. Never a bar, never a percentage, and the
+                       * figures that produced the sentence are always in it.
+                       */}
+                      <span
+                        className="dh-finance-budget-row__variance"
+                        data-budget-state={line?.budgetState ?? undefined}
+                        data-testid={`budget-variance-${category.id}`}
+                      >
+                        {line?.budgetSentence ??
+                          (spend.length === 0
+                            ? saved === null
+                              ? "Nothing spent this month"
+                              : /*
+                                 * A saved budget with NOTHING spent against it
+                                 * yet still states itself, through the same
+                                 * kernel sentence every other row uses — so
+                                 * "$0.00 of $600.00 · $600.00 remaining" is one
+                                 * wording rather than a second one invented
+                                 * here.
+                                 */
+                                budgetSentence({
+                                  categoryId: category.id,
+                                  categoryName: category.name,
+                                  currencyCode: saved.currencyCode,
+                                  budgetedMinor: saved.amountMinor,
+                                  spentMinor: 0,
+                                  remainingMinor: saved.amountMinor,
+                                  state: budgetState(saved.amountMinor, 0),
+                                  excluded: [],
+                                })
+                            : spend
+                                .map((entry) =>
+                                  money(
+                                    entry.magnitudeMinor,
+                                    entry.currencyCode,
+                                  ),
+                                )
+                                .join(" · ") + " spent")}
+                      </span>
+                      {/*
+                       * Spend in a currency the budget is NOT in. Named rather
+                       * than folded in or dropped, because DalyHub never
+                       * converts.
+                       */}
+                      {otherCurrency.length > 0 ? (
+                        <span className="dh-finance-budget-row__excluded mt-1 block text-xs text-tertiary">
+                          Also{" "}
+                          {otherCurrency
+                            .map((entry) =>
+                              money(entry.magnitudeMinor, entry.currencyCode),
+                            )
+                            .join(", ")}
+                          , not compared — DalyHub never converts between
+                          currencies.
+                        </span>
+                      ) : null}
+                    </Table.Cell>
+                    <Table.Cell className="px-4 py-3 max-sm:px-3">
+                      <Input
+                        id={inputId}
+                        inputMode="decimal"
+                        placeholder="No budget"
+                        className="max-w-32"
+                        value={value}
+                        disabled={pending === category.id}
+                        onChange={(event) =>
+                          setDraft((previous) => ({
+                            ...previous,
+                            [category.id]: event.target.value,
+                          }))
+                        }
+                        data-testid={`budget-input-${category.id}`}
+                      />
+                    </Table.Cell>
+                    <Table.Cell className="px-4 py-3 text-right max-sm:px-3">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="max-md:min-h-[var(--app-touch-target-min)] max-md:min-w-[var(--app-touch-target-min)]"
+                        disabled={pending === category.id}
+                        onClick={() =>
+                          void post(category.id, {
+                            intent: "set",
                             categoryId: category.id,
-                            categoryName: category.name,
-                            currencyCode: saved.currencyCode,
-                            budgetedMinor: saved.amountMinor,
-                            spentMinor: 0,
-                            remainingMinor: saved.amountMinor,
-                            state: budgetState(saved.amountMinor, 0),
-                            excluded: [],
+                            amount: (draft[category.id] ?? value).trim(),
+                            currencyCode: defaultCurrency,
                           })
-                      : spend
-                          .map((entry) =>
-                            money(entry.magnitudeMinor, entry.currencyCode),
-                          )
-                          .join(" · ") + " spent")}
-                </span>
-
-                {/*
-                 * Spend in a currency the budget is NOT in. Named rather than
-                 * folded in or dropped, because DalyHub never converts.
-                 */}
-                {spend.filter((entry) => entry.currencyCode !== defaultCurrency)
-                  .length > 0 ? (
-                  <span className="dh-finance-budget-row__excluded">
-                    Also{" "}
-                    {spend
-                      .filter((entry) => entry.currencyCode !== defaultCurrency)
-                      .map((entry) =>
-                        money(entry.magnitudeMinor, entry.currencyCode),
-                      )
-                      .join(", ")}
-                    , not compared — DalyHub never converts between currencies.
-                  </span>
-                ) : null}
-              </li>
-            );
-          })}
-        </ul>
+                        }
+                        data-testid={`budget-save-${category.id}`}
+                      >
+                        Save
+                      </Button>
+                    </Table.Cell>
+                  </Table.Row>
+                );
+              })}
+            </Table.Body>
+          </Table>
+        </TableCard.Root>
       )}
 
       <Button

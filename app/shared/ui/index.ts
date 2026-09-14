@@ -86,6 +86,13 @@ export {
   type TextareaProps,
 } from "./Input";
 export { Select, type SelectProps } from "./Select";
+/**
+ * The file picker. A `<label>` around a visually-hidden native input, so the
+ * control the browser draws is replaced without the control the browser
+ * PROVIDES being replaced. See the component for why a button that clicks a
+ * hidden input is the worse answer.
+ */
+export { FilePicker, type FilePickerProps } from "./FilePicker";
 export { Checkbox, type CheckboxProps } from "./Checkbox";
 /**
  * The switch, from its existing home. One switch since M3-INT, and a switch is

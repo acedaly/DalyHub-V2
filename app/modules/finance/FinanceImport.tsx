@@ -44,7 +44,9 @@ import {
   money,
   type SerializedImportRow,
 } from "~/shared/finance";
-import { Button, Checkbox, Input, Select } from "~/shared/ui";
+import { Button, Checkbox, FilePicker, Input, Select } from "~/shared/ui";
+import { Table, TableCard } from "~/shared/ui/untitled/application/table/table";
+import { LabelledTableHead } from "~/shared/ui/untitled/overrides/table-head";
 
 import type { FinanceImportData } from "./finance-view";
 
@@ -257,7 +259,9 @@ export function FinanceImport(props: FinanceImportData) {
   if (failed) {
     return (
       <div className="dh-finance-import">
-        <h1>Import a statement</h1>
+        <h1 className="text-display-xs font-semibold text-primary">
+          Import a statement
+        </h1>
         <p role="status">Finance could not be read just now.</p>
       </div>
     );
@@ -266,7 +270,9 @@ export function FinanceImport(props: FinanceImportData) {
   if (accounts.length === 0) {
     return (
       <div className="dh-finance-import">
-        <h1>Import a statement</h1>
+        <h1 className="text-display-xs font-semibold text-primary">
+          Import a statement
+        </h1>
         <p>
           A statement is imported INTO an account, so make one first.{" "}
           <a href="/finance/accounts/new">Add an account</a>.
@@ -277,7 +283,9 @@ export function FinanceImport(props: FinanceImportData) {
 
   return (
     <div className="dh-finance-import" data-testid="finance-import">
-      <h1>Import a statement</h1>
+      <h1 className="text-display-xs font-semibold text-primary">
+        Import a statement
+      </h1>
       <p>
         Export a CSV from your bank, tell DalyHub which column is which, and see
         exactly what will happen before anything is added. Importing the same
@@ -345,12 +353,12 @@ export function FinanceImport(props: FinanceImportData) {
            * reason: a CSV is READ ONCE and never stored as a file. It is not an
            * attachment surface and does not become one.
            */}
-          <input
-            ref={fileRef}
+          <FilePicker
+            inputRef={fileRef}
             id={`${ids}-file`}
-            type="file"
             accept=".csv,text/csv"
             disabled={busy}
+            selectedName={fileName === "" ? null : fileName}
             onChange={(event) => {
               // The effect keyed on `inputSignature` clears the preview and the
               // overrides; this only records WHICH file, so it can see the
@@ -362,7 +370,9 @@ export function FinanceImport(props: FinanceImportData) {
               setIncludeSuspected(new Set());
             }}
             data-testid="import-file"
-          />
+          >
+            Choose CSV…
+          </FilePicker>
           <p className="dh-finance-form__hint">
             Up to {Math.round(CSV_MAX_BYTES / (1024 * 1024))} MB. The file is
             read once and never stored — only a fingerprint of it is kept, so
@@ -371,7 +381,9 @@ export function FinanceImport(props: FinanceImportData) {
         </div>
 
         <fieldset className="dh-finance-form__group">
-          <legend>Which column is which</legend>
+          <legend className="text-sm font-semibold text-secondary">
+            Which column is which
+          </legend>
 
           <div className="dh-finance-form__field">
             <label htmlFor={`${ids}-header`}>Header rows to skip</label>
@@ -584,7 +596,9 @@ export function FinanceImport(props: FinanceImportData) {
           className="dh-finance-import__preview"
           data-testid="import-preview"
         >
-          <h2>What will happen</h2>
+          <h2 className="text-lg font-semibold text-primary">
+            What will happen
+          </h2>
 
           {preview.alreadyApplied ? (
             <p role="status" data-testid="import-already-applied">
@@ -652,62 +666,105 @@ export function FinanceImport(props: FinanceImportData) {
             </p>
           )}
 
-          <table className="dh-finance-import__table">
-            <caption className="dh-visually-hidden">
-              The first {PREVIEW_ROW_LIMIT} rows of this file, and what will
-              happen to each
-            </caption>
-            <thead>
-              <tr>
-                <th scope="col">Date</th>
-                <th scope="col">Description</th>
-                <th scope="col">Amount</th>
-                <th scope="col">What happens</th>
-              </tr>
-            </thead>
-            <tbody>
-              {preview.rows.slice(0, PREVIEW_ROW_LIMIT).map((row) => (
-                <tr
-                  key={row.index}
-                  data-outcome={row.outcome}
-                  data-suspected={row.suspected ? "true" : undefined}
-                  data-testid={`import-row-${row.index}`}
-                >
-                  <td>
-                    {row.occurredOn === null
-                      ? "—"
-                      : financeDate(row.occurredOn)}
-                  </td>
-                  <td>{row.payeeDisplay ?? row.sourceDescription}</td>
-                  <td>
-                    {row.amountMinor === null
-                      ? "—"
-                      : money(row.amountMinor, preview.currencyCode)}
-                  </td>
-                  <td>
-                    {row.problem === null
-                      ? IMPORT_OUTCOME_LABELS[row.outcome]
-                      : `Line ${row.line}: ${IMPORT_ROW_PROBLEM_MESSAGES[row.problem]}`}
-                    {row.suspected ? (
-                      <Checkbox
-                        checked={includeSuspected.has(row.index)}
-                        onChange={(event) =>
-                          setIncludeSuspected((previous) => {
-                            const next = new Set(previous);
-                            if (event.target.checked) next.add(row.index);
-                            else next.delete(row.index);
-                            return next;
-                          })
-                        }
-                        label="Looks like one you already have. Import it anyway?"
-                        data-testid={`import-include-${row.index}`}
-                      />
-                    ) : null}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {/*
+            UNTITLED-18 — Untitled's `application/table`, replacing the last
+            hand-written table in Finance.
+
+            It drew its own `<table class="dh-finance-import__table">` with its
+            own cell padding, hairline, alignment, nowrap and horizontal
+            scroller — the same four things every other collection in the
+            product had already stopped drawing. UNTITLED-16 named it and left
+            it; this is it.
+
+            What the table has to keep, and does:
+
+              · the four columns and their headings, addressed as real
+                `columnheader`s through `LabelledTableHead` (Untitled's own head
+                puts its label in a `role="group"`, which a column cannot take
+                its name from — see that override);
+              · the OUTCOME distinction, which stays on the row as
+                `data-outcome` / `data-suspected` and is read by
+                `finance.css`'s two remaining rules AND stated as a word in the
+                last cell. Never colour alone;
+              · the amount and date ALIGNMENT, and their tabular figures, so a
+                column of money can be compared down its own edge;
+              · the per-row "import it anyway?" checkbox, still the shared
+                `Checkbox` and still addressed by its own test id;
+              · the caption, which says what the table is showing and that it is
+                the first N rows of the file.
+          */}
+          <TableCard.Root
+            size="sm"
+            className="overflow-hidden"
+            data-untitled-source="application/table:table-card"
+          >
+            <Table
+              aria-label={`The first ${PREVIEW_ROW_LIMIT} rows of this file, and what will happen to each`}
+              size="sm"
+              className="dh-finance-import__table bg-primary"
+            >
+              <Table.Header className="bg-secondary [&_th]:px-4 max-sm:[&_th]:px-3">
+                <LabelledTableHead id="date" label="Date" isRowHeader />
+                <LabelledTableHead id="description" label="Description" />
+                <LabelledTableHead
+                  id="amount"
+                  label="Amount"
+                  className="text-right [&>span]:justify-end"
+                />
+                <LabelledTableHead id="outcome" label="What happens" />
+              </Table.Header>
+              <Table.Body>
+                {preview.rows.slice(0, PREVIEW_ROW_LIMIT).map((row) => (
+                  <Table.Row
+                    key={row.index}
+                    id={String(row.index)}
+                    size="sm"
+                    data-outcome={row.outcome}
+                    data-suspected={row.suspected ? "true" : undefined}
+                    data-testid={`import-row-${row.index}`}
+                  >
+                    <Table.Cell className="px-4 py-3 text-sm whitespace-nowrap tabular-nums max-sm:px-3">
+                      {row.occurredOn === null
+                        ? "—"
+                        : financeDate(row.occurredOn)}
+                    </Table.Cell>
+                    <Table.Cell className="px-4 py-3 text-sm break-words max-sm:px-3">
+                      {row.payeeDisplay ?? row.sourceDescription}
+                    </Table.Cell>
+                    <Table.Cell className="px-4 py-3 text-right text-sm whitespace-nowrap tabular-nums max-sm:px-3">
+                      {row.amountMinor === null
+                        ? "—"
+                        : money(row.amountMinor, preview.currencyCode)}
+                    </Table.Cell>
+                    <Table.Cell className="px-4 py-3 text-sm max-sm:px-3">
+                      <span className="flex min-w-0 flex-col gap-2">
+                        <span>
+                          {row.problem === null
+                            ? IMPORT_OUTCOME_LABELS[row.outcome]
+                            : `Line ${row.line}: ${IMPORT_ROW_PROBLEM_MESSAGES[row.problem]}`}
+                        </span>
+                        {row.suspected ? (
+                          <Checkbox
+                            checked={includeSuspected.has(row.index)}
+                            onChange={(event) =>
+                              setIncludeSuspected((previous) => {
+                                const next = new Set(previous);
+                                if (event.target.checked) next.add(row.index);
+                                else next.delete(row.index);
+                                return next;
+                              })
+                            }
+                            label="Looks like one you already have. Import it anyway?"
+                            data-testid={`import-include-${row.index}`}
+                          />
+                        ) : null}
+                      </span>
+                    </Table.Cell>
+                  </Table.Row>
+                ))}
+              </Table.Body>
+            </Table>
+          </TableCard.Root>
 
           {preview.rows.length > PREVIEW_ROW_LIMIT ? (
             <p>
@@ -734,7 +791,7 @@ export function FinanceImport(props: FinanceImportData) {
           className="dh-finance-import__result"
           data-testid="import-result"
         >
-          <h2>Imported</h2>
+          <h2 className="text-lg font-semibold text-primary">Imported</h2>
           <p role="status">
             {applied.alreadyApplied
               ? "You had already imported this exact file into this account, so nothing was added."
@@ -760,7 +817,7 @@ export function FinanceImport(props: FinanceImportData) {
 
       {imports.length === 0 ? null : (
         <section>
-          <h2>Recent imports</h2>
+          <h2 className="text-lg font-semibold text-primary">Recent imports</h2>
           <ul className="dh-finance-import-list">
             {imports.map((entry) => (
               <li key={entry.id}>

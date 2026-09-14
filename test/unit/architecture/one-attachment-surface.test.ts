@@ -97,24 +97,34 @@ describe("no module builds an attachment component of its own", () => {
      * names anything: a control that opens the OS picker either IS the shared
      * picker or is a second one.
      *
-     * Two stated exceptions, and NEITHER is an attachment surface:
+     * UNTITLED-18 — this list got SHORTER, and the two entries that left are
+     * the point.
      *
-     *   - `RestoreFromBackup.tsx` takes a backup ARCHIVE, read once by the
-     *     restore pipeline and never stored as a file.
-     *   - `FinanceImport.tsx` (V2.12) takes a bank CSV, which is parsed, hashed
-     *     and discarded inside the request. Nothing reaches R2 and nothing but
-     *     the ledger row — file name, byte count, SHA-256, counts — reaches D1.
-     *     A statement the owner wants to KEEP is an attachment on the account,
-     *     through the shared picker, which is a different control on the same
-     *     screen.
+     * It named two module files as exceptions, on the argument that neither is
+     * an attachment surface: `RestoreFromBackup` takes a backup ARCHIVE, read
+     * once by the restore pipeline and never stored as a file, and
+     * `FinanceImport` takes a bank CSV, which is parsed, hashed and discarded
+     * inside the request — nothing reaches R2, and nothing but the ledger row
+     * (file name, byte count, SHA-256, counts) reaches D1. That argument still
+     * holds; neither is an attachment.
      *
-     * Both are named here so that adding a third is a deliberate edit to this
-     * list rather than a file input nobody noticed.
+     * What was NOT true is that they each needed their own control. Both built
+     * a `<label>` around a visually-hidden input, one of them in
+     * `settings.css`, and the other simply rendered the browser's own widget
+     * and looked like it. They are both `~/shared/ui/FilePicker` now, so
+     * neither file contains a file input at all and neither needs an exception.
+     *
+     * Two entries remain and both are SHARED primitives rather than module
+     * surfaces: the attachment picker, which owns everything that is stored,
+     * and the generic file control, which owns everything that is read once.
+     * Adding a third is still a deliberate edit to this list rather than a file
+     * input nobody noticed — and it is now a claim that the product needs a
+     * THIRD way to open the OS picker, which is a much harder thing to argue
+     * than "my screen is not an attachment surface".
      */
     const allowed = new Set([
       path.join("app", "shared", "attachments", "AttachmentPicker.tsx"),
-      path.join("app", "modules", "settings", "RestoreFromBackup.tsx"),
-      path.join("app", "modules", "finance", "FinanceImport.tsx"),
+      path.join("app", "shared", "ui", "FilePicker.tsx"),
     ]);
     const offenders = APP_FILES.filter(
       (file) =>
