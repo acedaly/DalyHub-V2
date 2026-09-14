@@ -307,18 +307,35 @@ test.describe("SETTINGS-01A — application settings", () => {
     await expect(page).toHaveURL(/section=about/);
   });
 
-  test("is accessible and responsive from 320px through wide desktop", async ({
-    page,
-  }) => {
-    for (const width of [320, 375, 390, 768, 1440, 2560]) {
+  /*
+   * UNTITLED-19 — this was ONE test doing three jobs, and it had grown into the
+   * timeout.
+   *
+   * It swept six widths, then ran axe, then drove the phone's two-screen
+   * navigation, then checked a seventh width on a different section: **nine
+   * full page loads and an axe pass against a single 30s budget.** MEASURED at
+   * 27.1s locally and 32.5s on CI, where it failed — a test that was not
+   * asserting anything wrong, just asserting too much at once to fit.
+   *
+   * Every assertion below is the one that was there. What changed is that each
+   * job has its own budget, which is also how `projects.spec.ts` writes the
+   * same width sweep. Nothing was skipped, no timeout was raised, and the
+   * failure messages now name the width that broke rather than the whole test.
+   */
+  for (const width of [320, 375, 390, 768, 1440, 2560]) {
+    test(`fits ${width}px with no horizontal overflow`, async ({ page }) => {
       await page.setViewportSize({ width, height: width >= 768 ? 900 : 820 });
       await gotoFixture(page, "/settings?section=date-time");
       await expectNoHorizontalOverflow(page);
-    }
+    });
+  }
 
+  test("is axe-clean", async ({ page }) => {
     await gotoFixture(page, "/settings");
     await expectNoAxeViolations(page);
+  });
 
+  test("is two screens on a phone, with a real way back", async ({ page }) => {
     /*
      * The phone is TWO SCREENS, and this used to assert it was one.
      *
@@ -346,7 +363,18 @@ test.describe("SETTINGS-01A — application settings", () => {
     // destination — General included — is one tap away again.
     await expect(page).toHaveURL(/\/settings(\?.*)?$/);
     await expect(page.getByRole("link", { name: "General" })).toBeVisible();
+  });
 
+  test("fits 320px on Privacy & data, whose copy names a file path", async ({
+    page,
+  }) => {
+    /*
+     * Its own test rather than a tail on the sweep above, because it is a
+     * different question: this section's copy names
+     * `docs/development/WORKSPACE_DELETION.md`, an unbreakable 44-character
+     * token, and 320px is where a text block's MIN-CONTENT width decides
+     * whether the document scrolls sideways.
+     */
     await page.setViewportSize({ width: 320, height: 720 });
     await gotoFixture(page, "/settings?section=privacy-data");
     await expectNoHorizontalOverflow(page);
