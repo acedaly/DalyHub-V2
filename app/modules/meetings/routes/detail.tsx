@@ -1428,6 +1428,52 @@ const MEETING_DETAILS_LABELS: Record<string, string> = {
   meetingUrl: "Meeting link",
 };
 
+/**
+ * The rail's two quiet disclosures share ONE focus contract.
+ *
+ * Both replace their opener with the thing they reveal, so the element that had
+ * focus stops existing at the moment of the press. Nothing then puts focus
+ * anywhere deliberate, the browser drops it on `<body>`, and the next Tab
+ * restarts at the top of the document — the exact failure
+ * `use-inline-edit.ts` was written to prevent for every inline field in the
+ * product, and the reason it keeps a `triggerRef` and restores on the render
+ * AFTER the field closes.
+ *
+ * This is that contract for a disclosure rather than a field: opening moves
+ * focus to the first control of what was revealed, and closing — by Cancel or
+ * by a save that succeeds — returns it to the opener, which does not exist
+ * until the render after `open` flips.
+ *
+ * `armed` is what keeps this honest. Only a transition a PERSON caused moves
+ * focus; a first render, a loader revalidation or a parent re-render must never
+ * steal it from wherever they are.
+ */
+function useDisclosureFocus(open: boolean) {
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const regionRef = useRef<HTMLDivElement | null>(null);
+  const armed = useRef(false);
+
+  useEffect(() => {
+    if (!armed.current) return;
+    armed.current = false;
+    if (open) {
+      const first = regionRef.current?.querySelector<HTMLElement>(
+        'input:not([type="hidden"]), select, textarea, button, [href], [tabindex]:not([tabindex="-1"])',
+      );
+      (first ?? regionRef.current)?.focus();
+      return;
+    }
+    triggerRef.current?.focus();
+  }, [open]);
+
+  /** Call in the handler that flips `open`, so the next render moves focus. */
+  const arm = useCallback(() => {
+    armed.current = true;
+  }, []);
+
+  return { triggerRef, regionRef, arm };
+}
+
 function MeetingDetailsEditor({
   meeting,
   onSave,
@@ -1436,6 +1482,7 @@ function MeetingDetailsEditor({
   readonly onSave: (data: Record<string, string>) => Promise<boolean>;
 }) {
   const [open, setOpen] = useState(false);
+  const { triggerRef, regionRef, arm } = useDisclosureFocus(open);
   const form = useForm<MeetingDetailsValues>({
     initialValues: {
       startsAtLocal:
@@ -1473,6 +1520,9 @@ function MeetingDetailsEditor({
         meetingUrl: values.meetingUrl,
       });
       if (ok) {
+        // The editor is about to be replaced by its opener; focus goes back to
+        // it rather than to the document.
+        arm();
         setOpen(false);
         return { status: "success" };
       }
@@ -1486,15 +1536,38 @@ function MeetingDetailsEditor({
     (value, index, values) => values.indexOf(value) === index,
   );
 
+  /*
+   * UNTITLED-14 — a real button, not `<details>/<summary>`.
+   *
+   * `.dh-progressive-section` has no stylesheet anywhere in the product, so a
+   * `<summary>` here rendered the browser's own ▶ marker in the middle of an
+   * Untitled rail card — visible in the 1440 and 1024 review shots. A summary's
+   * role also varies across engines, which makes its accessible name something
+   * neither a test nor a screen reader can rely on. The attendee adder beside it
+   * is a button for exactly these reasons; this matches it, so the rail's two
+   * quiet acts are the same control.
+   */
+  if (!open) {
+    return (
+      <button
+        ref={triggerRef}
+        type="button"
+        className="dh-meeting-details-opener self-start text-sm font-medium text-brand-secondary outline-focus-ring [@media(hover:none)]:min-h-[var(--app-touch-target-min)] hover:text-brand-secondary_hover focus-visible:outline-2 focus-visible:outline-offset-2"
+        onClick={() => {
+          arm();
+          setOpen(true);
+        }}
+      >
+        Edit details
+      </button>
+    );
+  }
+
   return (
-    <details
-      className="dh-progressive-section"
-      open={open}
-      onToggle={(event) =>
-        setOpen((event.currentTarget as HTMLDetailsElement).open)
-      }
+    <div
+      ref={regionRef}
+      className="dh-meeting-details-editor flex min-w-0 flex-col gap-3"
     >
-      <summary>Edit details</summary>
       <Form
         aria-label="Edit meeting details"
         busy={form.isSubmitting}
@@ -1540,7 +1613,10 @@ function MeetingDetailsEditor({
             type="button"
             variant="secondary"
             disabled={form.isSubmitting}
-            onClick={() => setOpen(false)}
+            onClick={() => {
+              arm();
+              setOpen(false);
+            }}
           >
             Cancel
           </FormButton>
@@ -1553,7 +1629,7 @@ function MeetingDetailsEditor({
           </FormButton>
         </FormActions>
       </Form>
-    </details>
+    </div>
   );
 }
 
@@ -1743,9 +1819,15 @@ function MeetingAttendees({
  * The attendee picker's disclosure — open where the section IS the editor.
  *
  * A real `<button>` rather than `<details>/<summary>`, for the same reason the
- * rail's "Edit details" is one: a summary's role varies across engines, so its
+ * rail's "Edit details" is: a summary's role varies across engines, so its
  * accessible name is not something a test or a screen reader can rely on, and
  * this control is the one way a person adds somebody to a meeting.
+ *
+ * It takes the same focus contract too (`useDisclosureFocus`), and for the same
+ * reason: the press that reveals the picker also removes the pressed button, so
+ * without it a keyboard user's focus lands on `<body>` and the next Tab starts
+ * at the top of the page rather than in the picker they just opened. There is
+ * no way back from here — the picker stays — so only the opening half applies.
  */
 function AttendeeAdder({
   open,
@@ -1755,12 +1837,23 @@ function AttendeeAdder({
   readonly children: ReactNode;
 }) {
   const [revealed, setRevealed] = useState(false);
-  if (open || revealed) return <>{children}</>;
+  const shown = open || revealed;
+  const { triggerRef, regionRef, arm } = useDisclosureFocus(shown);
+  if (shown)
+    return (
+      <div ref={regionRef} className="flex min-w-0 flex-col">
+        {children}
+      </div>
+    );
   return (
     <button
+      ref={triggerRef}
       type="button"
       className="dh-meeting-attendee-adder self-start text-sm font-medium text-brand-secondary outline-focus-ring [@media(hover:none)]:min-h-[var(--app-touch-target-min)] hover:text-brand-secondary_hover focus-visible:outline-2 focus-visible:outline-offset-2"
-      onClick={() => setRevealed(true)}
+      onClick={() => {
+        arm();
+        setRevealed(true);
+      }}
     >
       Add attendees
     </button>

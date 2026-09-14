@@ -1,14 +1,35 @@
-// Vendored from Untitled UI React (untitledui.com/react), MIT.
-// Source: `src/components/base/avatar/avatar-profile-photo.tsx`, retrieved via
-// Untitled's public component API (`POST https://www.untitledui.com/react/api/components`,
-// component `avatar`) on 2026-09-13 — the same route `charts-base` came through,
-// and for the same reason: this environment has no licensed Untitled checkout
-// and the CLI cannot complete its localhost OAuth callback here.
-// Source licence: MIT for the open-source component source; Untitled UI React Pro materials remain subject to the purchased Pro license.
+// Adapted from Untitled UI React (https://www.untitledui.com/react)
+// @ sha256:9267f71474e337b1faf908cad857a59d6993f733352e0dda0fe275d69eb61be5
+// (4,437 bytes; declared runtime `tailwind-merge@^3.6.0`,
+// `@untitledui/icons@^0.0.22`, `react-aria-components@^1.20.0`), MIT,
+// retrieved 2026-09-13.
+// Changes: `"use client"` removed (DalyHub has no React Server Components, and
+// the directive is inert noise here); the two `@/…` import specifiers rewritten
+// to DalyHub's `~/shared/ui/untitled/…` alias, which is what
+// `scripts/vendor-untitled.mjs` does to every vendored file. Nothing else —
+// no markup, class, prop or behaviour differs from upstream.
+//
+// ── Why a content hash rather than a commit ─────────────────────────────────
+//
+// Untitled publishes no public git history for the component source and its
+// API returns no revision field, so there is no commit to cite. The SHA-256 of
+// the retrieved bytes is the pin that is actually available and it is the
+// stronger one for an audit: re-POST
+// `{"components":["avatar"]}` to `https://www.untitledui.com/react/api/components`,
+// hash `files[].code` for `components/base/avatar/avatar-profile-photo.tsx`,
+// and either it matches this file's origin exactly or upstream has moved. The
+// declared dependency versions above are upstream's own version statement for
+// this component.
+//
+// Source path: `src/components/base/avatar/avatar-profile-photo.tsx`.
+// Retrieved through the PUBLIC component API rather than a licensed checkout,
+// which this environment does not have: the CLI cannot complete its localhost
+// OAuth callback here. The API serves this component openly, not as PRO.
+// Source licence: MIT for the open-source component source; Untitled UI React
+// Pro materials remain subject to the purchased Pro license.
 // Listed in `API_SOURCED` in `scripts/vendor-untitled.mjs`, so the checkout walk
-// neither regenerates nor deletes it. Only the import specifiers differ from
-// upstream; move it into `MANIFEST` the first time that script runs against a
-// real licensed checkout.
+// neither regenerates nor deletes it; move it into `MANIFEST` the first time
+// that script runs against a real licensed checkout.
 import { useState } from "react";
 import { User01 } from "@untitledui/icons";
 import { cx } from "~/shared/ui/untitled/utils/cx";

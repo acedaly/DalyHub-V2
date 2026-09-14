@@ -448,6 +448,53 @@ test("an item of the same kind can still be added after removing a non-last one"
   ]);
 });
 
+/**
+ * UNTITLED-14 — the rail's disclosures never drop focus on the floor.
+ *
+ * "Edit details" and "Add attendees" both REPLACE their opener with what they
+ * reveal, so the element that had focus stops existing at the moment of the
+ * press. Nothing puts it anywhere deliberate, the browser drops it on `<body>`,
+ * and the next Tab restarts at the top of the document — the failure
+ * `use-inline-edit.ts` keeps a `triggerRef` to prevent for every inline field in
+ * the product. Raised by review on #290, and true: the `<details>` these
+ * replaced kept its `<summary>` mounted, so the defect arrived with the button.
+ *
+ * Driven the way a keyboard user meets it: press, and assert where focus IS.
+ */
+test("the rail's disclosures keep focus when they open and when they close", async ({
+  page,
+}) => {
+  const title = uniqueMeetingTitle("rail-focus");
+  await createMeeting(page, title);
+  await page.getByRole("tab", { name: "Meeting" }).click();
+
+  // Opening moves focus INTO what was revealed, not to the document.
+  const opener = page.getByRole("button", { name: "Edit details" });
+  await opener.click();
+  const editor = page.getByRole("form", { name: "Edit meeting details" });
+  await expect(editor).toBeVisible();
+  await expect(
+    editor.locator(":focus"),
+    "focus is inside the revealed editor",
+  ).toHaveCount(1);
+
+  // Cancelling returns it to the opener, which only exists again on the next
+  // render — the whole reason the restore is deferred rather than immediate.
+  await editor.getByRole("button", { name: "Cancel" }).click();
+  await expect(editor).toHaveCount(0);
+  await expect(opener).toBeFocused();
+
+  // The adder beside it takes the same contract. It has no way back — the
+  // picker stays — so only the opening half is asserted.
+  const adder = page.getByRole("button", { name: "Add attendees" });
+  await adder.click();
+  await expect(adder).toHaveCount(0);
+  await expect(
+    page.locator("body:focus"),
+    "focus did not fall back to the document",
+  ).toHaveCount(0);
+});
+
 for (const scheme of ["light", "dark"] as const) {
   test(`follow-up surface passes axe (${scheme})`, async ({ page }) => {
     await page.emulateMedia({ colorScheme: scheme });

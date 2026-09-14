@@ -788,7 +788,22 @@
 
   .dh-tags__chip-remove,
   .dh-select__chip-remove,
-  .dh-combobox__clear {
+  /*
+   * UNTITLED-14 — the combobox Clear is selected through its FIELD here, and
+   * that is not decoration.
+   *
+   * DHDS-09 had to write `.dh-combobox__field > .dh-combobox__clear` above to
+   * out-specify an unlayered `md-state-layer` rule, and in doing so it also
+   * out-specified this one: a bare `.dh-combobox__clear` is one class, the
+   * descendant form is two, and a media query adds nothing to specificity. So
+   * the touch floor silently lost and every Select in the product kept a 28px
+   * Clear on a phone — measured at 28x28 on the Meeting workspace's Timezone
+   * and Mode fields at 393px, 430px and 320px.
+   *
+   * Matching the shape of the rule it has to beat is what makes this a fix
+   * rather than a coincidence.
+   */
+  .dh-combobox__field > .dh-combobox__clear {
     inline-size: var(--app-touch-target-min);
     block-size: var(--app-touch-target-min);
   }
