@@ -203,7 +203,21 @@ function SettingsNavRow({
         to={item.href}
         preventScrollReset
         prefetch="intent"
-        aria-current={item.current ? "page" : undefined}
+        /*
+         * The SAME condition as the selected tint above, and it has to be:
+         * `aria-current` is one value in one document, but the tint is drawn
+         * per width. On a phone at a bare `/settings` this list IS the screen,
+         * so "Account & security is the current page" is a claim about a place
+         * the owner has not gone — announced to exactly the people who cannot
+         * see that the list, not a section, is in front of them.
+         *
+         * That leaves the desktop rail unmarked until a section is named, which
+         * is the lesser error by some distance: an absent current marker is an
+         * omission, a wrong one is a lie about where you are. The desktop's
+         * default pane is a rendering convenience; the URL genuinely does not
+         * name a section yet.
+         */
+        aria-current={item.current && sectionChosen ? "page" : undefined}
         aria-labelledby={labelId}
         aria-describedby={summaryId}
         className={cx(ROW, selected)}
