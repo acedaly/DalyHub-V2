@@ -35,10 +35,24 @@ derive the theme from screenshots or create a parallel DalyHub palette.
 
 ## The migration is finished. Four rules follow from that.
 
-Every module has had its Untitled pass (UNTITLED-01 … 18). There is no phase to
-join and no module waiting for a rewrite; what is left is named, bounded
-maintenance in
+**DalyHub's broad Untitled UI migration is complete.** Untitled UI React Pro is
+the default implementation source for generic application UI. Treat future
+frontend work as product evolution and targeted maintenance — not as a
+continuation of the design-system migration.
+
+Every module has had its Untitled pass (UNTITLED-01 … 18), and UNTITLED-19
+audited for a competing generic system and closed the one it found (two
+badges). There is no phase to join and no module waiting for a rewrite; what is
+left is named, bounded maintenance — ten rows, each a specific file or count —
+in
 [`UNTITLED_UI_MIGRATION.md`](docs/design/UNTITLED_UI_MIGRATION.md#named-maintenance-debt).
+
+If you are about to propose "one more migration phase", the answer is no. A
+mature product has debt; migration debt and normal maintenance are different
+things, and the register says which each item is.
+
+The next major initiative is not a design-system one — see
+[`DALYHUB_MOBILE_FOUNDATION.md`](docs/architecture/DALYHUB_MOBILE_FOUNDATION.md).
 
 1. **Before building a generic control, read the inventory**
    ([`UNTITLED_UI_IMPLEMENTATION.md`](docs/design/UNTITLED_UI_IMPLEMENTATION.md#the-generic-ui-inventory-at-the-end-of-this-pass)).

@@ -1942,7 +1942,7 @@ waiting on access, and nothing here was recreated from a screenshot (§65).
 | Tooltip | `base/tooltip` | same | **Untitled** |
 | Tabs (in-page) | `application/tabs` | same | **Untitled** |
 | Tabs (navigation) | `overrides/link-tab-rail` | `application/tabs`, as anchors | **Untitled paint, correct semantics** |
-| Badge | **TWO** — `~/shared/pill/UntitledStatusBadge` → `base/badges` (18 files) and `~/shared/ui/Badge` → `dh-badge` token paint (11 call sites in 7 files) | `base/badges` | **Mixed — the largest remaining duplication.** Named in the migration record |
+| Badge | `~/shared/ui/Badge` and `~/shared/pill/UntitledStatusBadge`, both → `base/badges`. One implementation, two names | `base/badges` | **Untitled** (UNTITLED-19) — `soft` → `color`, `outline` → `modern`; measured at one radius and one height across the product |
 | Avatar | `base/avatar` | same | **Untitled** |
 | Pagination | `application/pagination` | same | **Untitled** |
 | Date picker, Calendar | `application/date-picker` | same | **Untitled** |
@@ -1952,6 +1952,81 @@ waiting on access, and nothing here was recreated from a screenshot (§65).
 | Command menu | `application/command-menus` | same | **Untitled** |
 | Settings groups/rows/rail | `~/shared/settings` over `section-headers`, `base/input` roles, `command-menu-item` | — | **Untitled** (this pass) |
 | Card (bounded surface) | `~/shared/ui/Card` → DalyHub tokens | `application/table`'s `TableCard`, or a section | **DalyHub**, and the remaining question is whether the product still needs a generic box now that groups are sections |
+
+## UNTITLED-19 — the completion audit
+
+### The "no second design system" test, answered one question at a time
+
+The test is not "is most of it Untitled". It is: **could an engineer building
+this tomorrow reasonably pick between two generic systems and be right either
+way?** Each answer below is the import a person would actually write.
+
+| If I need a… | I get it from | Second option? |
+| :--- | :--- | :--- |
+| Button | `~/shared/ui`'s `Button` / `buttonClassName()` → `base/buttons` | None. The legacy `.dh-btn` block was deleted in this pass |
+| Select | `~/shared/ui`'s `Select` → `inputClassName()`, i.e. `base/input`'s box on a native `<select>` | None. `base/select/combobox` when it must search |
+| Table | `application/table` + the `table-head` / `table-card-header` overrides | None |
+| Badge | `~/shared/ui`'s `Badge` → `base/badges` | None, as of this pass |
+| Dialog | `~/shared/ui`'s `ConfirmationDialog` for a confirmation; `application/modals` for a plain modal | Deliberate: the confirmation one owns focus isolation, scroll lock, inert background and a typed-phrase gate |
+| Drawer | `~/shared/drawer` → `application/slideout-menus` | None |
+| Menu | `~/shared/overflow-menu` / `~/shared/anchored` | DalyHub's, for collision handling and roving focus — `base/dropdown` supplies the paint |
+| Date picker | `application/date-picker` | None |
+| Progress bar | `~/shared/progress` → `overrides/labelled-progress-bar` over `base/progress-indicators` | None |
+| Chart | `~/shared/charts` → `application/charts` (Recharts) | None |
+| Avatar | `base/avatar` | None |
+| Settings section | `~/shared/settings` | None |
+| Icon | `@untitledui/icons`, by semantic name | None |
+
+Two rows answer "DalyHub" and both are deliberate — specialised behaviour
+Untitled does not supply, not a competing appearance. Neither offers a second
+way to draw a generic control.
+
+### CSS ownership after this branch
+
+| Measure | Value |
+| :--- | :--- |
+| Stylesheet files | 90 (was 92) |
+| Total lines | **43,989** (was 46,488) — −2,499 |
+| Generated, not hand-written | `tokens.css` (8,453) and `untitled/theme.css` |
+| Largest hand-written | `task-list.css` 2,051 · `plan.css` 1,448 · `tasks.css` 1,432 · `card-family.css` 1,356 · `card.css` 1,281 |
+| Deleted outright | `summary-cards.css`, `switch.css` |
+
+**Files that still provide generic component paint**, exhaustively — this is the
+whole list, not a sample:
+
+| File | What | Consumers |
+| :--- | :--- | :--- |
+| `ui.css` | `.dh-surface` (the generic box, 12 rules), `.dh-tagchip` (3), `.dh-panel-heading` (3) | 38 / 3 / 3 |
+| `settings.css` | `.dh-confirm*` (14 rules) | 11 |
+| `base.css` | the `md-state-layer` implementation and the coarse-pointer control floor | 34 usages / product-wide |
+| `filters.css`, `inline-edit.css`, `diary.css`, `task-checklist.css`, `icon-picker.css`, `markdown-editor.css`, `settings.css` | nine bare native fields with their own border/radius/background | 1–4 each |
+
+Everything else in `app/styles` is layout and product composition: where things
+sit, how a collection stacks, what a record header contains, how a planner week
+lays out. That is the architecture the target describes, with the four rows
+above named as the distance still to go — each of which is item 1–5 of the debt
+register.
+
+**One structural fact has not changed and should not be forgotten**: module
+stylesheets are UNLAYERED, so any rule in one outranks every Untitled utility
+regardless of specificity. That is what makes surface-by-surface migration safe,
+and it is also why a leftover rule silently repaints a migrated control rather
+than looking broken. The fix is always to remove the wrong owner, never to
+out-specify it.
+
+### Everything left, classified
+
+No item is left unclassified.
+
+| Category | Examples | Count |
+| :--- | :--- | :--- |
+| 1 — Genuine product-specific UI, KEEP | Task row and checklist, the planner week, record layout, entity identity and the Area accent ramp, drag/reorder, goal progress, the Diary week strip, habit grids, the Finance queue | most of `app/modules`, most of `app/shared` |
+| 2 — Thin DalyHub adapter over Untitled, KEEP | `Button`, `Input`, `Select`, `Checkbox`, `Switch`, `Badge`, `IconButton`, `FilePicker`, `~/shared/settings`, `~/shared/progress`, the five `overrides/` | ~20 components |
+| 3 — Specialised machinery Untitled does not supply, KEEP | `ConfirmationDialog` (typed-phrase gate, focus isolation), Drawer/Sheet/Inspector stacking, `~/shared/anchored` collision handling, the CodeMirror writing surface, chart adapters, the offline queue's UI | ~10 systems |
+| 4 — Historical documentation, KEEP and marked | Phases 1–7 and UNTITLED-11…18 in the migration guide; superseded ADRs | — |
+| 5 — Small maintenance debt, NAMED and scheduled | The ten rows of the debt register | 10 |
+| 6 — Obsolete legacy frontend, DELETED | `.dh-btn:not(.dh-button)` (256 lines), `.dh-badge`/`.dh-pill` paint (152), `.dh-plan__day-now`, `summary-cards.css`, `switch.css`, the dead card family, nine gallery components | this pass and UNTITLED-18 |
+| 7 — Unknown | **none** | 0 |
 
 ### Documentation consulted
 

@@ -1830,51 +1830,137 @@ on every day of the week rather than only on a Monday: on this surface nothing
 may claim a check-in has already been expected of an owner who has had no
 elapsed window.
 
+## UNTITLED-19 — the completion audit, and the end of the migration narrative
+
+A deliberate search for a COMPETING generic UI system, rather than another
+module pass. The question it had to answer: could an engineer building a control
+tomorrow reasonably pick between two generic systems and be right either way? If
+yes, convergence was not finished, whatever the module list said.
+
+It could, in one place, and that place is now closed.
+
+### The second badge
+
+`~/shared/ui/Badge` drew itself — `.dh-badge` plus `[data-tone]`, ~140 lines of
+container/on-container pairs in `ui.css` — while `UntitledStatusBadge` drew
+Untitled's `base/badges`. Two paints, two APIs, **thirty-nine consumer files**
+between them (12 call sites on the DalyHub one, 24 on the Untitled one, plus
+`StatusPill`, which fed the first).
+
+The blocker on record was that "Untitled's badge is a stadium and DalyHub's
+argument is that a status annotating a 36px row must not be as tall as the row".
+**That was false and checking it is the whole reason this closed.** Upstream's
+`type` has three values and only `pill-color` is a stadium; `color` and `modern`
+are `rounded-md` at `py-0.5 px-1.5 text-xs`, which is exactly the chip DS-02
+argued for. `TaskRow` had been shipping `badgeModern` in production the entire
+time the blocker stood.
+
+`Badge` keeps its API and renders Untitled underneath — `soft` → `color`,
+`outline` → `modern`. Three defects surfaced while doing it, each caught by a
+test rather than by reading:
+
+- upstream defines **only `gray`** for a dotless `modern` badge, so
+  `styles[color].root` threw for every other colour. Live and unhit, because
+  every existing `type="modern"` call site happened to pass `tone="neutral"`;
+- `pill.css`'s forced-colours rule set `border-color` on an element with no
+  border WIDTH once the drawn object became Untitled's — a declaration that
+  looked like it did something for as long as nobody checked;
+- `StatusPill` forwarded an `icon` prop no call site in the product ever passed.
+
+The twenty-four `UntitledStatusBadge` call sites had inherited upstream's
+`pill-color` default, so until the last step of this change the product had two
+badge shapes — a stadium and a rounded rectangle — while two DalyHub files
+argued in writing against the stadium. **The stadium arrived by default, never
+by a decision.** The default is `color` now.
+
+MEASURED across eight modules afterwards: 56 visible badges, one radius, one
+height — 6px and 22px.
+
+### The legacy button
+
+`.dh-btn:not(.dh-button)` was ~256 lines in `ui.css` plus six entries in
+`base.css`'s state-layer host list, and its own comment set the condition for its
+removal: "the legacy block comes out when the last `.dh-btn` literal does".
+There was one left — Today's Review door — and the comment beside it pointed at a
+`today.css` rule for label wrapping **that does not exist in any stylesheet**.
+It had been deleted at some point; the class was inert and the wrapping was
+really the legacy button never setting `white-space`.
+
+`.dh-btn` is still emitted by every `Button`, because thirteen module stylesheets
+carry layout rules that name it and `base.css` excludes it from the prose link
+underline. It carries no paint anywhere.
+
+### What the audit found and did NOT change
+
+`plan.css` was hand-drawing an accent badge (`.dh-plan__day-now`, the planner's
+"Today" marker) with the badge's own recipe spelled out again. It is a `Badge`
+now.
+
+Measured across all eighteen product surfaces at 1280px: **no browser-default
+control, no card-inside-card**, and the stadium radii that remain are avatars,
+filter toggles and stat chips — controls, which is what D13 reserved the stadium
+for.
+
+### `assisted-ai.spec.ts` was never contended
+
+The entry below said it "drives the uncategorised queue — every uncategorised row
+in the shared local database, so its cost is a function of what ran before it".
+Three measurements say otherwise:
+
+- the queue is **cursor-paginated at 50 rows**, so it never renders the workspace;
+- it **loads in 1.9s**, the fastest of five pages probed (`/tasks` takes 3.2s);
+- `wrangler d1 execute --local` costs **3.1 seconds of process startup** before
+  it reads a byte, and the contended test makes eight fixture reads.
+
+Roughly twenty-five seconds of a thirty-second budget was wrangler booting. That
+is why it passed alone and failed under load, and why three passes looking in
+the product found nothing — it was never in the product. `d1Query` reads the
+SQLite file directly now (**8ms**, `readOnly`, writes deliberately left on
+wrangler): the contended journey went 33.6s → 18.8s and its sibling 29.0s →
+16.2s, from about a second of headroom to eleven.
+
+### The frontend architecture, stated once
+
+**DalyHub's broad Untitled UI migration is complete.** Untitled UI React Pro is
+the default implementation source for generic application UI. Future frontend
+work should be treated as product evolution and targeted maintenance rather than
+as continuation of the design-system migration.
+
+The audit supports that claim on its own terms: there is no generic concept for
+which two systems compete, no module awaiting a rewrite, and the remaining items
+below are each a named file or a named count.
+
+The next major initiative is not a design-system one. See
+[`DALYHUB_MOBILE_FOUNDATION.md`](../architecture/DALYHUB_MOBILE_FOUNDATION.md).
+
 ### Named maintenance debt
 
-Each item is a file, a count or a blocked dependency. None is a module.
+**This list replaces every earlier one.** Each item was re-checked against the
+repository as it stands; items that had been carried forward for passes and were
+no longer true are recorded as closed rather than copied again. None of these
+blocks the completion claim above — each is normal product maintenance, and the
+"Blocks completion?" column says so explicitly rather than leaving it implied.
 
-1. **Two badges.** `~/shared/pill/UntitledStatusBadge` (genuine `base/badges`) is
-   used by 18 files; `~/shared/ui/Badge` (`dh-badge` token paint) by **11 call
-   sites in 7 files** — `ReviewGuide`, `ReviewInsightsPanel`, `ReportsHome`,
-   `DiaryDetailsPanel`, `DiaryTypeFilter`, `PersonSummary`,
-   `StayInTouchIndicator`. Both read the same tone vocabulary. This is the
-   largest remaining generic-UI duplication. The tension to resolve first:
-   `Badge`'s own header argues deliberately against a stadium shape in a 36px
-   row, and Untitled's badge is a stadium — so this is a design decision to make
-   once, not a mechanical swap. `StatusPill` itself now has zero consumers and
-   can go with whatever is decided.
-2. **`md-state-layer` has 34 usages across 23 files** — `Drawer`, `Sheet`,
-   `Inspector`, `NotificationCenter`, `RecordRow`, `FilterChip`,
-   `EntityIdentityPicker`, `SelectField`, `TagsField`, `AppearanceSelector` and
-   the rest. This is NOT "one forgotten control", which is the condition under
-   which a product-wide Material interaction system should simply be deleted; it
-   is a working, tested, single-implementation hover/focus/pressed model with
-   two dozen live consumers. Retiring it means migrating those consumers to
-   Untitled's own hover treatments, one component at a time, and it wants its own
-   pass. All eight hosts in `base.css`'s selector list are live.
-3. **`application/progress-steps` for the guided Review's step rail.** Still
-   `access: "pro"` and still not retrievable without an interactive login. What
-   IS now established: **public** component source is retrievable through the CLI
-   (proved by fetching `file-upload-base`), so this is specifically a Pro gate
-   rather than a general one.
-4. **`application/file-upload`'s drop zone for the attachment picker.** Public,
-   retrievable, and a genuine upstream answer to a surface DalyHub built itself
-   (`AttachmentPicker` + `AttachmentList` + `AttachmentRow`, ~370 lines). Not
-   taken here because attachments were out of scope and have their own
-   architectural guard.
-5. **`~/shared/ui/Card`.** Now that a settings group is a section rather than a
-   card, the question is whether the product still needs a generic bounded box at
-   all, or whether every remaining caller wants `TableCard` or a section.
-6. **Goals** — a Project inside a Goal record still carries no HEALTH. Carried
-   forward unchanged.
-7. **The Diary week strip's focus order**, and the inert legacy class names with
-   the `.dh-btn` hook and the `.dh-input` / `.dh-control` layout bridges.
-8. **A bounded `people.getByIds`**, carried forward from UNTITLED-13.
-9. ~~A Habit's expected check-ins before a full week has passed.~~
-   **REPRODUCED AND FIXED — see "The Habit report" below.**
-10. **`assisted-ai.spec.ts`'s one contended journey.** Times out at 30s when the
-    AI specs run together and passes in isolation, because it drives
-    `/finance/transactions?uncategorised=1` — every uncategorised row in the
-    shared local database, so its cost is a function of what ran before it.
-    Fixture scope, not a regression. Not addressed this pass.
+| # | Item | Where | Why it remains | User impact | Next action | Priority | Blocks completion? |
+| :-- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 1 | Nine bare native controls carry their own field paint | `filters.css` (`__input` ×4, `__select` ×2), `inline-edit.css`, `settings.css` (`.dh-confirm__input`), `diary.css`, `task-checklist.css`, `icon-picker.css`, `markdown-editor.css` | They predate `inputClassName()`, the exported bridge built for controls that cannot BE the `Input` component. Each is a real field with a real border/radius/background in module CSS. | A field that is a few pixels off the shared one, and a legacy focus ring in place of Untitled's | Replace `className="dh-x__input"` with `inputClassName({ className: "dh-x__input" })`; delete the paint decls, keep the layout ones | Medium | No — one Input system exists; these are call sites that predate its bridge |
+| 2 | `~/shared/ui/Card` (`.dh-surface`) paints from DalyHub tokens | `ui.css`, 12 rules, 38 consumers | It is a generic bounded box, and Untitled ships no generic Card — its cards are specific application components (`TableCard`, section headers). | None | Decide whether the box is still needed at all now settings groups are sections, or convert its three variants to Untitled/Tailwind utilities | Low | No |
+| 3 | `ConfirmationDialog` is DalyHub's own (`.dh-confirm*`, 14 rules) | `settings.css`, `~/shared/ui/ConfirmationDialog.tsx`, 11 consumers | It is specialised machinery, not a generic dialog: focus isolation, body-scroll lock, inert background, and a typed-phrase confirmation. `application/modals` is vendored but supplies the shell, not the behaviour. | None | Consider composing the Untitled modal shell under DalyHub's behaviour; its typed input is item 1's | Low | No — category 3, deliberately custom |
+| 4 | `TagChip` and `PanelHeading` are DalyHub's own | `ui.css` (3 rules each), 3 consumers each | Untitled ships `base/tags` and `application/section-headers`; neither was reached for. Small enough that nobody had to. | None | Swap to the upstream pair when either is next touched | Low | No |
+| 5 | `md-state-layer` — 34 usages across 23 files | `base.css` + 23 components | Not "one forgotten control": a working, tested, single-implementation hover/focus/pressed model with two dozen live consumers. Retiring it means migrating those consumers to Untitled's own hover treatments. `.dh-btn` left its host list in UNTITLED-19; seven hosts remain live. | None | One pass, component by component | Medium | No |
+| 6 | `application/progress-steps` for the guided Review's step rail | `~/shared/ui/untitled` (absent) | Still `access: "pro"` and not retrievable without an interactive login. **Public** component source IS retrievable through the CLI (proved by fetching `file-upload-base`), so this is a Pro gate specifically. | None | Retrieve when Pro CLI access exists; the current implementation is retained and documented, never faked | Low | No — blocked on access, not on design |
+| 7 | `application/file-upload`'s drop zone | `~/shared/attachments` | Public and retrievable; a genuine upstream answer to ~370 lines DalyHub wrote itself. Out of scope when attachments were last touched. | None | Adopt when attachments are next worked on | Low | No |
+| 8 | A Project inside a Goal record carries no health | `~/shared/goal-progress` | Product gap, never a migration one | A Goal's Projects read as less informative than the Projects collection | Decide whether Goal-nested Projects should show health at all | Low | No |
+| 9 | The Diary week strip's focus order | `app/modules/diary` | Carried forward unexamined across three passes | Keyboard order in one strip | Measure it, then fix or close it | Low | No |
+| 10 | A bounded `people.getByIds` | `app/platform/people` | Carried forward from UNTITLED-13 | None | Add the bounded read | Low | No |
+
+#### Closed by this audit, recorded rather than deleted
+
+- ~~**Two badges.**~~ Closed above. The blocker on record ("Untitled's badge is a
+  stadium") was false.
+- ~~**`assisted-ai.spec.ts`'s contended journey.**~~ Root-caused to fixture
+  subprocess cost, not contention. The diagnosis that stood for three passes was
+  wrong about the queue in three separate measurable ways.
+- ~~**The inert `.dh-btn` legacy button.**~~ Removed with its last call site.
+- ~~**A Habit's expected check-ins before a full week has passed.**~~ Reproduced
+  and fixed in UNTITLED-18 — in the words, not the arithmetic.
