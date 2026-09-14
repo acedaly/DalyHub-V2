@@ -71,7 +71,7 @@ const PRECACHE_MANIFEST_MAX_BYTES = 2_000;
 const SUBSTITUTION_SLACK_BYTES = 4_000;
 
 /*
- * Measured 2026-09-14 (the CI green pass): 1,604 kB across 31 assets
+ * Measured 2026-09-14 (the CI green pass): 1,605 kB across 31 assets
  * uncompressed, and 349 kB over the wire.
  *
  * ── Why this number moved, and what was done before moving it ────────────────
@@ -94,8 +94,8 @@ const SUBSTITUTION_SLACK_BYTES = 4_000;
  * They are gone, recorded as patches in `scripts/vendor-untitled.mjs` so a
  * re-vendor cannot quietly bring them back:
  *
- *   precache   2,021,193 B → 1,604,544 B   (−416,649, −20.6%)
- *   transfer     405,008 B →   349,095 B   (−55,913,  −13.8%)
+ *   precache   2,021,193 B → 1,604,768 B   (−416,425, −20.6%)
+ *   transfer     405,008 B →   349,133 B   (−55,875,  −13.8%)
  *
  * ── Why the remainder is genuinely bigger than August's shell ────────────────
  * What is left is the shell, and the shell changed on purpose. UNTITLED-01…19
@@ -128,6 +128,27 @@ const PRECACHE_MAX_TRANSFER_BYTES = 380_000;
 
 /** Measured: 31. React Router marks every route an entry; this is the shell. */
 const PRECACHE_MAX_ASSETS = 40;
+
+/**
+ * And a FLOOR under the same count, because a budget that cannot see the thing
+ * it is measuring is not a budget.
+ *
+ * Every ceiling in this file is a `toBeLessThan`, and zero satisfies all of
+ * them. FOUND by tripping over it: a `vite preview` left running across a
+ * rebuild serves an empty `/sw.js`, the URL match finds nothing, and this test
+ * reported "precache 0 assets, 0 B (0 B over the wire)" and PASSED — a green
+ * check over a shell that would not boot offline at all. The per-asset
+ * `response.ok()` guard below cannot catch it either, because a loop over an
+ * empty list runs no assertions.
+ *
+ * 20 is the floor rather than the measured 31, because this is a smoke test for
+ * "the manifest is real", not a second ratchet — `PRECACHE_MAX_ASSETS` is the
+ * ratchet. A shell that genuinely dropped a third of its chunks would still be
+ * worth failing on, and the two kind checks beneath it say what "real" means:
+ * the application stylesheet and the web manifest are both things the shell
+ * cannot boot without, and neither can be absent for an innocent reason.
+ */
+const PRECACHE_MIN_ASSETS = 20;
 
 /** Measured: 8.5 kB for the seeded workspace (23 tasks, 3 notes, 4 diary, 1 meeting). */
 const SNAPSHOT_MAX_BYTES = 2_000_000;
@@ -162,6 +183,10 @@ test("the service worker and its precache stay within budget", async ({
   request,
 }) => {
   const worker = await request.get(`${PROD_BASE}/sw.js`);
+  expect(
+    worker.ok(),
+    "/sw.js must be served before anything about its size means anything",
+  ).toBe(true);
   const source = await worker.text();
   const workerBytes = Buffer.byteLength(source, "utf8");
 
@@ -193,6 +218,22 @@ test("the service worker and its precache stay within budget", async ({
     .map((match) => match[1])
     .filter((url, index, all) => all.indexOf(url) === index);
   expect(urls.length).toBeLessThanOrEqual(PRECACHE_MAX_ASSETS);
+  expect(
+    urls.length,
+    `the precache carries ${urls.length} assets, which is not a shell — the ` +
+      "worker is empty or its manifest was never substituted, and every " +
+      "ceiling below would pass on it",
+  ).toBeGreaterThanOrEqual(PRECACHE_MIN_ASSETS);
+  expect(
+    urls.some((url) => url.endsWith(".css")),
+    "the application stylesheet must be precached; without it a cached route " +
+      "renders unstyled offline",
+  ).toBe(true);
+  expect(
+    urls.includes("/manifest.webmanifest"),
+    "the web manifest must be precached; it is what makes the installed app " +
+      "an app",
+  ).toBe(true);
 
   /*
    * DEBT-172 — the manifest's BYTES, beside its length. A route with a very

@@ -1048,8 +1048,8 @@ them back:
 
 | | before | after | change |
 |---|---:|---:|---:|
-| Precache (uncompressed) | 2,021,193 B | 1,604,544 B | −416,649 (−20.6%) |
-| Precache (over the wire) | 405,008 B | 349,095 B | −55,913 (−13.8%) |
+| Precache (uncompressed) | 2,021,193 B | 1,604,768 B | −416,425 (−20.6%) |
+| Precache (over the wire) | 405,008 B | 349,133 B | −55,875 (−13.8%) |
 
 What remains is the shell, and the shell changed on purpose: UNTITLED-01…19 make
 React Aria Components and Untitled's Tailwind v4 layer the foundation the root
@@ -1065,8 +1065,8 @@ minified; splitting it per route remains DEBT-151.
 | Precache **manifest** (substituted URL literals) | 974 B | 2,000 B |
 | Service-worker script as served (`/sw.js`) | 23,952 B | logic + manifest + 4,000 B |
 | Precached assets | 31 | 40 |
-| Precache size (uncompressed) | 1,604,544 B | 1.75 MB |
-| Precache size (over the wire, gzip) | 349,095 B | 380,000 B |
+| Precache size (uncompressed) | 1,604,768 B | 1.75 MB |
+| Precache size (over the wire, gzip) | 349,133 B | 380,000 B |
 | Snapshot payload | 12,108 B (40 tasks, 8 references) | 2 MB |
 | Snapshot build (end to end) | 143 ms | 5 s |
 | Origin storage after priming | 129,633 B | 20 MB |
