@@ -1960,7 +1960,7 @@ control, no card-inside-card**, and the stadium radii that remain are avatars,
 filter toggles and stat chips — controls, which is what D13 reserved the stadium
 for.
 
-### `assisted-ai.spec.ts` was never contended
+### `assisted-ai.spec.ts` was never contended — and the fix for it was reverted
 
 The entry below said it "drives the uncategorised queue — every uncategorised row
 in the shared local database, so its cost is a function of what ran before it".
@@ -1973,10 +1973,40 @@ Three measurements say otherwise:
 
 Roughly twenty-five seconds of a thirty-second budget was wrangler booting. That
 is why it passed alone and failed under load, and why three passes looking in
-the product found nothing — it was never in the product. `d1Query` reads the
-SQLite file directly now (**8ms**, `readOnly`, writes deliberately left on
-wrangler): the contended journey went 33.6s → 18.8s and its sibling 29.0s →
-16.2s, from about a second of headroom to eleven.
+the product found nothing — **it was never in the product.**
+
+#### The fix was attempted, and reverted, and the reversal is the useful part
+
+`d1Query` was changed to read the SQLite file directly with `node:sqlite`: 8ms
+instead of 3,100ms for the same query, `readOnly` so it could not write. Measured
+locally, the contended journey went 33.6s → 18.8s and its sibling 29.0s → 16.2s.
+Sixteen of sixteen assisted-AI tests passed, twice.
+
+**CI then failed a test that had never failed**, and the message is the whole
+argument:
+
+```
+Error: no obligation created        (assisted-ai.spec.ts:475)
+```
+
+The obligation HAD been created, through the real form, moments before. The dev
+server holds the database in WAL mode, and a `readOnly` connection cannot
+maintain the WAL index (`-shm`) it needs in order to see frames another process
+has committed — so the read returned a stale snapshot, silently.
+
+That is disqualifying rather than merely annoying, and not because of this one
+red test: **a reader that can miss committed rows can make an assertion PASS
+that should fail.** Every `toHaveLength(0)` after a delete, and every "replays
+without a second" that counts one row where two exist, becomes a false green.
+Fifteen spec files use this helper to check invariants the interface cannot
+show. Slow and correct beats fast and occasionally blind.
+
+So `d1Query` is back on wrangler and the item is **root-caused but not fixed**.
+The measurement is the durable finding; the wrong theory it replaced (contention
+over the Finance queue) is gone for good, and the safe way to spend the 3.1s is
+named rather than guessed at: issue FEWER statements per invocation.
+`spendingCategory()` and `secondSpendingCategory()` currently run the identical
+query in two processes to take row 0 and row 1 of one result.
 
 ### The frontend architecture, stated once
 
@@ -2012,14 +2042,12 @@ blocks the completion claim above — each is normal product maintenance, and th
 | 8 | A Project inside a Goal record carries no health | `~/shared/goal-progress` | Product gap, never a migration one | A Goal's Projects read as less informative than the Projects collection | Decide whether Goal-nested Projects should show health at all | Low | No |
 | 9 | The Diary week strip's focus order | `app/modules/diary` | Carried forward unexamined across three passes | Keyboard order in one strip | Measure it, then fix or close it | Low | No |
 | 10 | A bounded `people.getByIds` | `app/platform/people` | Carried forward from UNTITLED-13 | None | Add the bounded read | Low | No |
+| 11 | `assisted-ai.spec.ts`'s heaviest journey sits ~1s under its 30s budget | `e2e/d1.ts`, `e2e/assisted-ai.spec.ts` | **Root-caused, not fixed.** Each `d1Query` spawns wrangler at **3.1s of startup before it reads a byte**, and that test makes eight. Reading the SQLite file directly is 8ms but returns stale WAL snapshots — it failed CI with `no obligation created` for a record the form had just written, and a reader that misses committed rows can turn a real failure into a false green. Reverted. | None — it is a test-harness cost | Issue fewer statements per invocation. `spendingCategory()` and `secondSpendingCategory()` run the identical query in two processes to take row 0 and row 1 of one result | Medium | No |
 
 #### Closed by this audit, recorded rather than deleted
 
 - ~~**Two badges.**~~ Closed above. The blocker on record ("Untitled's badge is a
   stadium") was false.
-- ~~**`assisted-ai.spec.ts`'s contended journey.**~~ Root-caused to fixture
-  subprocess cost, not contention. The diagnosis that stood for three passes was
-  wrong about the queue in three separate measurable ways.
 - ~~**The inert `.dh-btn` legacy button.**~~ Removed with its last call site.
 - ~~**A Habit's expected check-ins before a full week has passed.**~~ Reproduced
   and fixed in UNTITLED-18 — in the words, not the arithmetic.
