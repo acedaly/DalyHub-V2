@@ -32,6 +32,7 @@ import type {
   ReviewInsights,
 } from "~/kernel/review-insights";
 import { PeriodTotals } from "~/shared/charts";
+import { Badge, type BadgeTone } from "~/shared/ui";
 
 export interface ReviewInsightsPanelProps {
   readonly insights: ReviewInsights;
@@ -75,6 +76,37 @@ function InsightLinks({ links }: { readonly links: readonly InsightLink[] }) {
   );
 }
 
+/**
+ * UNTITLED-17 — the insight state, as the product's ONE badge.
+ *
+ * `.dh-insights__pill` drew its own container: a radius, a hairline, a height,
+ * a type rung, three tone fills and a hand-drawn dot — for a status chip. The
+ * shared `Badge` is Untitled's, has the dot form built in, and is what every
+ * other status in DalyHub is already drawn with. The `neutral` arm is the
+ * DEFAULT rather than a fourth tone: an insight with no state to report is not
+ * a coloured thing.
+ */
+const INSIGHT_BADGE_TONE: Readonly<Record<string, BadgeTone>> = {
+  neutral: "neutral",
+  success: "success",
+  info: "info",
+  warning: "warning",
+};
+
+function InsightBadge({
+  tone,
+  children,
+}: {
+  readonly tone: string;
+  readonly children: React.ReactNode;
+}) {
+  return (
+    <Badge tone={INSIGHT_BADGE_TONE[tone] ?? "neutral"} dot>
+      {children}
+    </Badge>
+  );
+}
+
 function InsightRow({ insight }: { readonly insight: Insight }) {
   return (
     <li className="dh-insights__item" data-tone={insight.tone}>
@@ -90,10 +122,7 @@ function GoalRow({ goal }: { readonly goal: GoalContributionInsight }) {
     <li className="dh-insights__item" data-tone={goal.tone}>
       <p className="dh-insights__claim">
         <Link to={`/goals/${goal.goalId}`}>{goal.title}</Link>{" "}
-        <span className="dh-insights__pill" data-tone={goal.tone}>
-          <span className="dh-insights__dot" aria-hidden="true" />
-          {goal.label}
-        </span>
+        <InsightBadge tone={goal.tone}>{goal.label}</InsightBadge>
       </p>
       <p className="dh-insights__reason">{goal.reason}</p>
     </li>
@@ -109,10 +138,7 @@ function ProjectChangeRow({
     <li className="dh-insights__item" data-tone={change.tone}>
       <p className="dh-insights__claim">
         <Link to={`/projects/${change.projectId}`}>{change.title}</Link>{" "}
-        <span className="dh-insights__pill" data-tone={change.tone}>
-          <span className="dh-insights__dot" aria-hidden="true" />
-          {change.label}
-        </span>
+        <InsightBadge tone={change.tone}>{change.label}</InsightBadge>
       </p>
       <p className="dh-insights__reason">{change.reason}</p>
     </li>

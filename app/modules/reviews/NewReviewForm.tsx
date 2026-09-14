@@ -143,7 +143,20 @@ export function NewReviewForm({
               <button
                 key={reviewType}
                 type="button"
-                className="dh-review-type-option"
+                /*
+                 * UNTITLED-17 — the shared button's paint, not a bespoke pill.
+                 *
+                 * `.dh-review-type-option` drew its own height, border, radius,
+                 * surface and selected fill for a control that is a button in
+                 * every respect except who painted it. The RADIO semantics are
+                 * kept, deliberately: this is one choice from a closed set
+                 * inside a `radiogroup`, which is more honest than a run of
+                 * toggles, and `aria-checked` is what says which is chosen.
+                 */
+                className={buttonClassName({
+                  variant: reviewType === type ? "primary" : "secondary",
+                  className: "dh-review-type-option",
+                })}
                 data-selected={reviewType === type ? "true" : "false"}
                 role="radio"
                 aria-checked={reviewType === type}

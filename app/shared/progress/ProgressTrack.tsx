@@ -49,8 +49,19 @@ import { type MeterStatus } from "./meter-status";
 export interface ProgressTrackProps {
   /** The bar's accessible name (e.g. "Kitchen renovation progress"). */
   readonly label: string;
-  /** Completion percentage, 0–100. */
+  /** Completion percentage, 0–100. Always what the bar DRAWS. */
   readonly percent: number;
+  /**
+   * What the bar REPORTS, when that is not a percentage — a POSITION in a
+   * bounded sequence ("Step 4 of 7"). See `LabelledProgressBar`'s own note: it
+   * restores the `min`/`max` upstream `ProgressBarBase` has and this layer had
+   * dropped. With a range, `valueText` is the whole announced sentence.
+   */
+  readonly range?: {
+    readonly min: number;
+    readonly max: number;
+    readonly now: number;
+  };
   /**
    * The authoritative statement of the same value in words, as it appears
    * elsewhere in the surrounding row ("3 of 6 tasks"). Announced, not drawn.
@@ -96,6 +107,7 @@ export function normaliseProgressPercent(percent: number): number {
 export function ProgressTrack({
   label,
   percent,
+  range,
   valueText,
   complete,
   status,
@@ -110,6 +122,7 @@ export function ProgressTrack({
       id={id}
       label={label}
       value={value}
+      range={range}
       valueText={valueText}
       // Completion outranks the derived status: a Goal that has reached its
       // target is not "on track", it is done, and the bar is allowed to say so.
