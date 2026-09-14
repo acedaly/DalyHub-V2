@@ -127,6 +127,12 @@ export default function AskDalyHubRoute({ loaderData }: Route.ComponentProps) {
   const setAnswerRef = useCallback((node: HTMLElement | null) => {
     answerRef.current = node;
   }, []);
+  /*
+   * The composer, so the announcement can tell "still waiting for this" from
+   * "moved on" — see the settle effect.
+   */
+  const formRef = useRef<HTMLFormElement | null>(null);
+  const [announcement, setAnnouncement] = useState("");
 
   const unavailable: AiSurfaceState | null = !availability.enabled
     ? { kind: "disabled" }
@@ -177,24 +183,42 @@ export default function AskDalyHubRoute({ loaderData }: Route.ComponentProps) {
   const settled = state.kind === "result" || state.kind === "deterministic";
 
   /*
-   * AGENTS.md §15 — the answer is ANNOUNCED by moving focus to its heading, not
-   * by a live region wrapped around it.
+   * AGENTS.md §15 — "async results … are announced to assistive tech via live
+   * regions". The rule is the rule, and the answer is announced through one.
    *
-   * A `aria-live` container around a result that arrives in one piece would be
-   * read once and would then re-read every time any part of it changed —
-   * opening the facts disclosure, for instance. Moving focus says "here is the
-   * answer" exactly once, puts the keyboard where the reader wants it, and
-   * leaves the region an ordinary landmark they can come back to.
+   * What is NOT wrapped in a live region is the result itself. A container
+   * around a thing that arrives whole is read once and then re-read every time
+   * any part of it changes — opening the facts disclosure, for instance. So the
+   * live region holds a short, one-shot sentence, and the result stays an
+   * ordinary labelled landmark the reader moves to when they choose.
    *
-   * All THREE settled branches are announced, the grounded one included. It
-   * draws a labelled region with no heading in it, so the ref goes on the
-   * region itself and `AiGroundedAnswer` makes that focusable — an answer that
-   * only fires against a configured provider is exactly the one a reader would
-   * never be told about, and "no test exercises it" is a reason to be careful
-   * rather than a reason to leave it silent.
+   * Focus moves there as well, but ONLY for the reader who is still waiting on
+   * it — focus inside the composer, or nowhere in particular. Somebody who
+   * asked a question and then went to read something else while the provider
+   * thought about it has their own place in the document, and yanking them out
+   * of it is not an announcement, it is an interruption. They get the sentence
+   * and keep their place; the person still sitting on the Ask button gets the
+   * sentence and lands on the answer.
+   *
+   * All THREE settled branches are covered, the grounded one included. It draws
+   * a labelled region with no heading in it, so the ref goes on the region
+   * itself and `AiGroundedAnswer` makes that focusable — an answer that only
+   * fires against a configured provider is exactly the one a reader would never
+   * be told about, and "no test exercises it" is a reason to be careful rather
+   * than a reason to leave it silent.
    */
   useEffect(() => {
-    if (settled) answerRef.current?.focus();
+    if (!settled) {
+      setAnnouncement("");
+      return;
+    }
+    setAnnouncement("Answer ready.");
+    const active = document.activeElement;
+    const stillWaiting =
+      active === null ||
+      active === document.body ||
+      (formRef.current?.contains(active) ?? false);
+    if (stillWaiting) answerRef.current?.focus();
   }, [settled, nonce]);
 
   /**
@@ -239,7 +263,7 @@ export default function AskDalyHubRoute({ loaderData }: Route.ComponentProps) {
         <>
           {unavailable !== null ? <AiUnavailable state={unavailable} /> : null}
 
-          <form className="dh-ask__form" onSubmit={ask}>
+          <form className="dh-ask__form" ref={formRef} onSubmit={ask}>
             <label className="dh-ask__label" htmlFor={fieldId}>
               Your question
             </label>
@@ -293,6 +317,22 @@ export default function AskDalyHubRoute({ loaderData }: Route.ComponentProps) {
               </p>
             </div>
           </form>
+
+          {/*
+           * The announcement itself: present from first render so the text
+           * CHANGING is what the reader hears, and short enough that it says
+           * one thing. It carries no figure and no verdict — those are in the
+           * answer, which is a landmark away.
+           *
+           * The test id is not decoration. This page carries FOUR polite live
+           * regions — the shell's offline status, the notification centre's,
+           * `AiProgress`'s running sentence and this one — so a journey asking
+           * for "the status region" gets four and dies on a strict-mode
+           * violation rather than on anything to do with the answer.
+           */}
+          <p className="sr-only" role="status" data-testid="ask-announcement">
+            {announcement}
+          </p>
 
           {/*
            * A FEW starting points, as real buttons.

@@ -293,8 +293,60 @@ test.describe("AI-01 — AI is off by default and says so", () => {
     await field.press("ControlOrMeta+Enter");
     const answer = page.getByRole("region", { name: "Answer" });
     await expect(answer.getByText("Based on DalyHub records")).toBeVisible();
-    // The answer announces itself by taking focus, not by a live region.
+    /*
+     * Announced through a live region, per AGENTS.md §15 — a short sentence of
+     * its own rather than the result wrapped in one, which would re-read every
+     * time the facts disclosure opened.
+     */
+    await expect(page.getByTestId("ask-announcement")).toHaveText(
+      "Answer ready.",
+    );
+    // And the reader who was still waiting on it lands on the answer.
     await expect(answer.getByRole("heading", { name: "Answer" })).toBeFocused();
+  });
+
+  test("a reader who moved on keeps their place, and is still told", async ({
+    page,
+  }) => {
+    /*
+     * The other half of the announcement, and the reason it is not focus
+     * alone: somebody who asks a question and then goes to read something else
+     * while the provider thinks about it has a place in the document, and
+     * pulling them out of it is an interruption rather than an announcement.
+     *
+     * The answer is held open at the network boundary so the "moved on" state
+     * is reached DETERMINISTICALLY rather than raced against a fast reply.
+     */
+    /*
+     * `!` because TypeScript cannot see that a Promise executor runs
+     * synchronously: without it `release` narrows to `null` at every use.
+     */
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route("**/ai/assist", async (route) => {
+      await held;
+      await route.continue();
+    });
+
+    await gotoFixture(page, "/ai");
+    const field = page.getByLabel("Your question");
+    await field.fill("How many tasks are overdue?");
+    await field.press("ControlOrMeta+Enter");
+
+    // Away from the composer entirely, while the request is still in flight.
+    const elsewhere = page.getByRole("link", { name: "Reports" }).first();
+    await elsewhere.focus();
+    await expect(elsewhere).toBeFocused();
+
+    release();
+
+    await expect(page.getByTestId("ask-announcement")).toHaveText(
+      "Answer ready.",
+    );
+    // Told, and left exactly where they were.
+    await expect(elsewhere).toBeFocused();
   });
 
   test("a Meeting gains an AI tab without disturbing the rest of it", async ({
