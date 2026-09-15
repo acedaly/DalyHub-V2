@@ -38,6 +38,15 @@ import {
 const DESKTOP_BELL = "topbar-notifications";
 const PHONE_BELL = "mobilebar-notifications";
 
+/**
+ * The route every control in this section saves through
+ * (`NotificationsSection.tsx`'s `save()`), matched the way
+ * `appearance.spec.ts` matches its own: pathname only, with the `.data` suffix
+ * React Router may append, so a query string cannot make the match miss.
+ */
+const NOTIFICATIONS_ACTION_PATH =
+  /^\/settings\/notifications\/update(\.data)?$/;
+
 /** The workspace id is server CONFIGURATION, never a request value. */
 const WORKSPACE_ID = "local-dev-workspace";
 const SETTINGS = "/settings?section=notifications";
@@ -232,9 +241,29 @@ test.describe("NOTIFY-01 Settings → Notifications", () => {
       page.getByText(/Currently using .+ — from your profile/),
     ).toBeVisible();
 
+    /*
+     * The blur STARTS the save — `save()` calls `fetcher.submit`, which posts
+     * asynchronously — so reloading on the next line is a race with it. Lose
+     * the race and the reload reads the stored default back, which is what
+     * `07:00` against an expected `06:30` means: not that persistence is
+     * broken, but that the test never waited for the write it is asserting.
+     * CI run 35030520227 (p05) lost it; three local runs in a row won it.
+     *
+     * Awaiting the POST orders the reload behind the write AND asserts that
+     * blurring saves at all, which the reload on its own never did — so this
+     * checks more than it did before, not less.
+     */
+    const written = page.waitForResponse(
+      (response) =>
+        NOTIFICATIONS_ACTION_PATH.test(new URL(response.url()).pathname) &&
+        response.request().method() === "POST",
+    );
+
     const sendTime = page.getByTestId("notification-send-time");
     await sendTime.fill("06:30");
     await sendTime.blur();
+    await written;
+
     await page.reload();
     await expect(page.getByTestId("notification-send-time")).toHaveValue(
       "06:30",

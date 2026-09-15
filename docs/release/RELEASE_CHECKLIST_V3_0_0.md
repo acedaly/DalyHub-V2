@@ -744,6 +744,17 @@ Carried forward deliberately, each with a named next action in
    real defect and is §2.6a — it is counted here only because that partition ran
    16.7 min, so its budget was over too.)
 
+   A **sixth** failure, of a different class, appeared on the release record's
+   own PR: `notifications.spec.ts:214` read `07:00` where it expected `06:30`,
+   on p05, which finished inside its budget. Not a timeout — the test blurred a
+   field whose `onBlur` STARTS an asynchronous save and then reloaded the page
+   on the next line, so it was racing the write it was asserting. It is fixed
+   in the same change as this note, by awaiting the POST, which also asserts
+   that blurring saves at all; the falsifier (a path regex that cannot match)
+   fails at the 30s timeout. It is listed here because it belongs to the same
+   argument: **five budget overruns and one unawaited write all decided the
+   gate's colour by timing rather than by the product.**
+
    Nothing is wrong with the product. What is wrong is that the margin is thin
    enough for runner variance to decide the result, and a release gate whose
    colour depends on runner speed is not a gate. `tasks-v22-daily-driver.spec.ts:335`
