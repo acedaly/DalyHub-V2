@@ -23,24 +23,28 @@
  * scrollable, and axe reported a SERIOUS `scrollable-region-focusable`
  * violation — `reviews-guided.spec.ts` Journey 6, red on `main`.
  *
- * So the exception is now only what it has to be. These six rules contest a
- * property CodeMirror's own sheet sets on the same element, established by
- * reading its 71 injected rules rather than by guessing:
- *
- *     .cm-content    margin, padding, min-height, outline, display, box-sizing
- *     .cm-scroller   font-family, line-height, height, overflow-x, display
- *     .cm-focused    outline
- *
- * CodeMirror sets NOTHING on `.cm-editor`, which is why the density caps stayed
- * in `markdown-editor.css` where product surfaces can still override them.
+ * So the exception is only what it has to be: a rule belongs here when
+ * CodeMirror's own sheet declares the same property on the same element, and
+ * nowhere else. `.cm-editor` is the instructive case — CodeMirror writes its
+ * root rule as `.ͼ1`, naming no `cm-` class at all, so a reader comparing
+ * selectors concludes it styles `.cm-editor` not at all and a reader comparing
+ * ELEMENTS finds `box-sizing`, `display` and `flex-direction`. Neither set
+ * reaches the density caps, which is why those stayed in `markdown-editor.css`
+ * where product surfaces can still override them.
  *
  * -- The rule for changing this file ----------------------------------------
  *
- * Nothing goes in here that CodeMirror does not itself declare. Everything else
- * belongs in `markdown-editor.css`, in `dh-product`, where the rest of the
- * product can compose with it. `e2e/css-cascade-ownership.spec.ts` derives the
- * permitted unlayered set from THIS file, so widening the exception is a
- * deliberate edit here and an accidental one anywhere else fails the gate.
+ * Nothing goes in here that CodeMirror does not itself declare, with one
+ * deliberate exception noted at the rule itself: the Note-body font size, which
+ * is the other half of a leading that has to be unlayered and would let a
+ * product override move the type without the line-height.
+ *
+ * Everything else belongs in `markdown-editor.css`, in `dh-product`, where the
+ * rest of the product can compose with it. `e2e/css-cascade-ownership.spec.ts`
+ * polices this in both directions: it derives the permitted unlayered set from
+ * THIS file, so an accidental unlayered rule anywhere else fails the gate, and
+ * it reads CodeMirror's injected sheet out of a live editor to fail if a rule
+ * left in `markdown-editor.css` contests one of these defaults.
  *
  * The real fix is to move these into CodeMirror's own `EditorView.theme()`,
  * where they would share the StyleModule and precedence of the defaults they
@@ -67,6 +71,11 @@
   background: var(--dh-color-accent-subtle);
 }
 
+/* The one rule here that CodeMirror does not contest, and it stays anyway: it
+ * is the type half of the Note-body reading pair whose leading (below, on
+ * `.cm-scroller`) has to be unlayered. Split across the two files, a product
+ * stylesheet could resize the type in `dh-product` and leave the line-height
+ * behind it, which is the mismatched-leading bug rather than a tidier file. */
 .dh-note-body .dh-md-editor__cm .cm-content {
   font-family: var(--md-ref-typeface-plain);
   font-size: var(--dh-text-lead-size);
@@ -74,4 +83,31 @@
 
 .dh-note-body .dh-md-editor__cm .cm-scroller {
   line-height: var(--dh-text-lead-line-height);
+}
+
+/* ------------------------------------------------------------------------- *
+ * Added after Codex review on #298 — and the reason they were missed is worth
+ * more than the rules themselves.
+ *
+ * The first extraction matched `.cm-(content|scroller|focused)`, a list written
+ * by hand from a probe that PRINTED ONLY ITS FIRST 60 property pairs. CodeMirror
+ * injects 320. `.cm-cursor`'s `border-left-color` and `.cm-placeholder`'s
+ * `color` were below the cut, so they stayed in the layered file and CodeMirror's
+ * defaults won: an insertion cursor and an empty-state placeholder in the
+ * library's colours rather than DalyHub's tokens.
+ *
+ * The contested set is DERIVED now, by `css-cascade-ownership.spec.ts`: it
+ * hands both stylesheets to the browser's own parser, matches each rule against
+ * the live editor's elements, and fails if anything left in
+ * `markdown-editor.css` declares a property CodeMirror declares on the same
+ * element. Two hand-written lists were wrong; there is no third.
+ * ------------------------------------------------------------------------- */
+
+.dh-md-editor__cm .cm-cursor,
+.dh-md-editor__cm .cm-dropCursor {
+  border-left-color: var(--dh-color-text);
+}
+
+.dh-md-editor__cm .cm-placeholder {
+  color: var(--dh-color-text-muted);
 }

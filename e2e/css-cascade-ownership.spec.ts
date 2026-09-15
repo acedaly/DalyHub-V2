@@ -12,7 +12,7 @@ import { expect, test } from "@playwright/test";
  * first version of this exception un-layered the whole editor stylesheet, which
  * then outranked the five product surfaces that legitimately override it and
  * cost an axe violation on the guided Review. Pointing the allowlist at the
- * six-rule file is what keeps the exception the size it has to be — widen that
+ * small file is what keeps the exception the size it has to be — widen that
  * file and this test widens with it, deliberately; put a rule anywhere else
  * unlayered and it fails.
  */
@@ -20,6 +20,28 @@ const editorStylesheet = readFileSync(
   join(process.cwd(), "app/styles/markdown-editor-codemirror.css"),
   "utf8",
 );
+
+/*
+ * Its layered counterpart — the editor stylesheet that STAYED in `dh-product`.
+ * Read for the same reason: the question "is this file still free of rules that
+ * CodeMirror contests?" is answered against the file, not against a list of
+ * rules written down beside it.
+ */
+const layeredEditorStylesheet = readFileSync(
+  join(process.cwd(), "app/styles/markdown-editor.css"),
+  "utf8",
+);
+
+/*
+ * `style-mod` — the injector CodeMirror builds its themes on — namespaces every
+ * rule it emits with a generated class whose name is a single Greek letter,
+ * `ͼ1`, `ͼ2` and so on. It is the one marker that identifies the injected sheet
+ * without depending on where a bundler happens to put it: in `vite dev` the
+ * application's own CSS is served as an inline `<style>` too, so "the sheet
+ * with no href" is not CodeMirror's, and "the sheet with `.cm-` selectors" now
+ * includes DalyHub's own exception file.
+ */
+const STYLE_MOD_MARKER = "ͼ";
 
 /**
  * V3-CSS-01 — the CASCADE OWNERSHIP canary.
@@ -338,5 +360,260 @@ test.describe("V3-CSS-01 — cascade ownership", () => {
         "`padding: 4px 0` is winning, which means `markdown-editor.css` has " +
         "been put into a cascade layer again",
     ).toBeGreaterThan(0);
+  });
+
+  /**
+   * The OTHER half of "bounded": nothing left in the layered editor stylesheet
+   * needs to be out of a layer.
+   *
+   * ── Why this test exists, which is the only interesting thing about it ─────
+   *
+   * The first cut of this exception un-layered the whole editor stylesheet. The
+   * second narrowed it by matching `.cm-(content|scroller|focused)` — a list I
+   * wrote out by hand from a probe that PRINTED ONLY ITS FIRST 60 property
+   * pairs. CodeMirror injects 320. `.cm-cursor`'s `border-left-color` and
+   * `.cm-placeholder`'s `color` were below the cut, stayed in the layered file,
+   * and lost: an insertion caret and an empty-state placeholder in the library's
+   * colours rather than DalyHub's tokens. Codex caught it on review, which is
+   * one round later than a test should have.
+   *
+   * Three hand-written lists have now been wrong in this one corner of the
+   * codebase — the allowed namespaces, the CodeMirror classes, and the first
+   * draft of the layer assignments. So this one is not written by hand. It reads
+   * the injected sheet out of the live document and asks the only question that
+   * matters:
+   *
+   *     does any rule still in `markdown-editor.css` declare a property that
+   *     CodeMirror declares on the same element?
+   *
+   * If one does, it is losing — layered normal declarations lose to unlayered
+   * ones unconditionally — and the fix is to move that rule into
+   * `markdown-editor-codemirror.css`, never to out-specify it.
+   *
+   * ── The three things that make the comparison honest ───────────────────────
+   *
+   * 1. Both sides are parsed by the BROWSER. The DalyHub file is handed to a
+   *    constructed `CSSStyleSheet`, which expands every shorthand into its
+   *    longhands — `background` into nine, `outline` into three — including
+   *    shorthands whose values are `var()`. A regex over the file text would
+   *    have to know the shorthand table; this knows nothing and is still right.
+   * 2. Sides are matched by ELEMENT, not by class name. CodeMirror's root rule
+   *    is written `.ͼ1`, which names no `cm-` class at all and yet is the very
+   *    element `.cm-editor` addresses. Running both selectors against the live
+   *    editor makes that a non-question.
+   * 3. Logical and physical properties are reconciled by MEASUREMENT. A rule
+   *    setting `max-block-size` contests one setting `max-height`; one setting
+   *    `min-block-size` does not contest one setting `height`, though the second
+   *    changes the first's computed value. Rather than encode that, the test
+   *    sets a sentinel on one property and reads the other, in both directions,
+   *    and calls them the same property only if both directions agree.
+   *
+   * ── What it cannot see ─────────────────────────────────────────────────────
+   *
+   * A rule whose element is not in the DOM on this route — `.cm-placeholder`
+   * exists only in an empty editor, `.cm-focused` only in a focused one — falls
+   * back to comparing class names against the same derived map. And CodeMirror's
+   * `!important` declarations are excluded from both tiers on purpose: those
+   * beat a DalyHub rule whether it is layered or not, so moving one out of a
+   * layer would fix nothing and the report would be a lie.
+   */
+  test("no rule left in the layered editor stylesheet contests CodeMirror", async ({
+    page,
+  }) => {
+    await page.goto("/notes/n-search-e2e");
+    await page.locator(".dh-md-editor__cm .cm-content").waitFor();
+
+    const analysis = await page.evaluate(
+      ({ layered, exception, marker }) => {
+        type Rule = {
+          selector: string;
+          /** Longhands, `!important` excluded — see the doc comment. */
+          properties: string[];
+          elements: Element[];
+        };
+
+        /* A pseudo-element's declarations contest the originating element's, so
+         * `.cm-line ::selection` is matched as `.cm-line`. `querySelectorAll`
+         * would simply throw on the pseudo-element form. */
+        const matchable = (selector: string) =>
+          selector
+            .replace(/::[a-zA-Z-]+(\([^)]*\))?/g, "")
+            .replace(/[\s>+~]+$/, "")
+            .trim();
+
+        const elementsFor = (selector: string) => {
+          const query = matchable(selector);
+          if (!query) return [];
+          try {
+            return Array.from(document.querySelectorAll(query));
+          } catch {
+            return [];
+          }
+        };
+
+        const collect = (rules: CSSRuleList | CSSRule[], into: Rule[]) => {
+          for (const rule of Array.from(rules)) {
+            const style = (rule as CSSStyleRule).selectorText;
+            /* Grouping rules (`@media`, `@supports`) hold the rules that
+             * matter; membership of one changes nothing about the contest,
+             * which is decided by layer order and not by viewport. */
+            if (!style && (rule as CSSGroupingRule).cssRules) {
+              collect((rule as CSSGroupingRule).cssRules, into);
+              continue;
+            }
+            if (!style) continue;
+            const declaration = (rule as CSSStyleRule).style;
+            const properties = Array.from(declaration).filter(
+              (p) => declaration.getPropertyPriority(p) !== "important",
+            );
+            into.push({
+              selector: style,
+              properties,
+              elements: elementsFor(style),
+            });
+          }
+          return into;
+        };
+
+        /* CodeMirror's injected sheet, identified by `style-mod`'s namespace
+         * class rather than by which `<style>` element it happens to be. */
+        const codemirror: Rule[] = [];
+        for (const sheet of Array.from(document.styleSheets)) {
+          try {
+            for (const rule of Array.from(sheet.cssRules)) {
+              const selector = (rule as CSSStyleRule).selectorText;
+              if (!selector || !selector.includes(marker)) continue;
+              collect([rule], codemirror);
+            }
+          } catch {
+            /* Cross-origin; not ours to police. */
+          }
+        }
+
+        /* The fallback map, derived the same way: a CodeMirror rule's properties
+         * belong to every class its selector names AND every class the elements
+         * it matches actually carry — which is what resolves `.ͼ1` to
+         * `cm-editor` without anybody writing that down. */
+        const propertiesByClass = new Map<string, Set<string>>();
+        for (const rule of codemirror) {
+          const names = new Set(
+            [...rule.selector.matchAll(/\.([A-Za-z_][\w-]*)/g)].map(
+              (m) => m[1],
+            ),
+          );
+          for (const el of rule.elements)
+            for (const name of el.classList) names.add(name);
+          for (const name of names) {
+            const set = propertiesByClass.get(name) ?? new Set<string>();
+            for (const p of rule.properties) set.add(p);
+            propertiesByClass.set(name, set);
+          }
+        }
+
+        /* Are two property names the same physical property? Asked of the
+         * engine, in both directions, rather than answered from a table. */
+        const sentinelProbe = document.createElement("div");
+        document.body.append(sentinelProbe);
+        const sentinel = (p: string) =>
+          /color$/.test(p) ? "rgb(1, 2, 3)" : "37px";
+        const setThenRead = (set: string, read: string) => {
+          sentinelProbe.style.cssText =
+            "writing-mode: horizontal-tb; direction: ltr;";
+          sentinelProbe.style.setProperty(set, sentinel(set));
+          return getComputedStyle(sentinelProbe).getPropertyValue(read);
+        };
+        const answered = new Map<string, boolean>();
+        const samePhysicalProperty = (a: string, b: string) => {
+          if (a === b) return true;
+          const key = a < b ? `${a}|${b}` : `${b}|${a}`;
+          if (!answered.has(key))
+            answered.set(
+              key,
+              setThenRead(a, b) === sentinel(a) &&
+                setThenRead(b, a) === sentinel(b),
+            );
+          return answered.get(key)!;
+        };
+
+        const contestsIn = (cssText: string) => {
+          const parsed = new CSSStyleSheet();
+          parsed.replaceSync(cssText);
+          const found: { selector: string; properties: string[] }[] = [];
+
+          for (const rule of collect(parsed.cssRules, [])) {
+            if (!rule.properties.length) continue;
+            const hits = new Set<string>();
+
+            /* Tier 1 — the same live element. */
+            for (const cm of codemirror) {
+              if (!cm.elements.some((el) => rule.elements.includes(el)))
+                continue;
+              for (const ours of rule.properties)
+                for (const theirs of cm.properties)
+                  if (samePhysicalProperty(ours, theirs)) hits.add(ours);
+            }
+
+            /* Tier 2 — only where tier 1 could see nothing, because the element
+             * this rule addresses is not on the page in this state. */
+            if (!hits.size) {
+              const classes = [
+                ...rule.selector.matchAll(/\.([A-Za-z_][\w-]*)/g),
+              ].map((m) => m[1]);
+              for (const name of classes) {
+                const theirs = propertiesByClass.get(name);
+                if (!theirs) continue;
+                for (const ours of rule.properties)
+                  for (const other of theirs)
+                    if (samePhysicalProperty(ours, other))
+                      hits.add(`${name}:${ours}`);
+              }
+            }
+
+            if (hits.size)
+              found.push({ selector: rule.selector, properties: [...hits] });
+          }
+          return found;
+        };
+
+        const result = {
+          codeMirrorRuleCount: codemirror.length,
+          inLayeredStylesheet: contestsIn(layered),
+          inExceptionStylesheet: contestsIn(exception),
+        };
+        sentinelProbe.remove();
+        return result;
+      },
+      {
+        layered: layeredEditorStylesheet,
+        exception: editorStylesheet,
+        marker: STYLE_MOD_MARKER,
+      },
+    );
+
+    /* Two guards, because a derivation that silently sees nothing would pass
+     * this test for ever. The editor has to be mounted, and the detector has to
+     * be demonstrably capable of firing — which the exception file, whose whole
+     * reason for existing is that its rules ARE contested, proves for free. */
+    expect(
+      analysis.codeMirrorRuleCount,
+      "CodeMirror injected no rules — the editor did not mount, so this test " +
+        "measured nothing",
+    ).toBeGreaterThan(0);
+    expect(
+      analysis.inExceptionStylesheet.length,
+      "the detector found no contest even in the stylesheet that exists " +
+        "BECAUSE its rules are contested — it is no longer measuring anything",
+    ).toBeGreaterThan(0);
+
+    /* The contract. */
+    expect(
+      analysis.inLayeredStylesheet,
+      "these rules sit in `markdown-editor.css`, inside the `dh-product` " +
+        "layer, and declare a property CodeMirror declares on the same " +
+        "element — so CodeMirror's unlayered default wins and the DalyHub " +
+        "rule does nothing. Move each one into " +
+        "`app/styles/markdown-editor-codemirror.css`; do not out-specify it " +
+        "and do not reach for `!important`",
+    ).toEqual([]);
   });
 });

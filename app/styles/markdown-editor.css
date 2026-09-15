@@ -297,21 +297,28 @@
 }
 
 /* ------------------------------------------------------------------------- *
- * V3-CSS-01 — six rules MOVED OUT of this file, to
+ * V3-CSS-01 — eight rules MOVED OUT of this file, to
  * `markdown-editor-codemirror.css`.
  *
- * They are the only declarations here that contest CodeMirror's OWN injected
- * defaults (`.cm-content`'s padding and margins, `.cm-scroller`'s font and
- * line-height, `.cm-focused`'s outline, and the selection layer). CodeMirror
- * injects those at runtime, unlayered, so the rules that beat them cannot live
- * in a cascade layer — and that file is unlayered for exactly that reason and
- * holds nothing else.
+ * They are the declarations here that contested CodeMirror's OWN injected
+ * defaults: `.cm-content`'s padding and caret, `.cm-scroller`'s font and
+ * line-height, `.cm-focused`'s outline, the selection layer, `.cm-cursor`'s
+ * colour and `.cm-placeholder`'s. CodeMirror injects its sheet at runtime,
+ * unlayered, so a rule that has to beat one of those defaults cannot live in a
+ * cascade layer — and that file is unlayered for exactly that reason.
+ *
+ * WHICH rules those are is not a judgement call and is no longer written down
+ * anywhere: `e2e/css-cascade-ownership.spec.ts` reads CodeMirror's injected
+ * sheet out of a live editor and fails if any rule STILL IN THIS FILE declares
+ * a property CodeMirror declares on the same element. The first two attempts at
+ * the list were made by hand and both were wrong — the second missed the
+ * caret and the placeholder, which shipped in the library's colours.
  *
  * Everything still in THIS file is layered in `dh-product` like any other
  * module stylesheet, which is what lets `notes.css`, `diary.css`,
  * `meetings.css`, `reviews.css` and `review-guide.css` keep overriding the
- * editor's composition normally. CodeMirror sets nothing on `.cm-editor`, so
- * the density caps below never needed the exception.
+ * editor's composition normally. CodeMirror declares nothing that reaches the
+ * density caps below, so they never needed the exception.
  * ------------------------------------------------------------------------- */
 
 /*
@@ -334,15 +341,6 @@
  * first character up with the toolbar's first icon; the block padding gives the
  * document air at the top of the page rather than starting it against the rule.
  */
-
-.dh-md-editor__cm .cm-cursor,
-.dh-md-editor__cm .cm-dropCursor {
-  border-left-color: var(--dh-color-text);
-}
-
-.dh-md-editor__cm .cm-placeholder {
-  color: var(--dh-color-text-muted);
-}
 
 /* --- Live-preview construct styling (applied to source ranges) ------------ */
 
