@@ -10,7 +10,7 @@
 > **`main` @ `652f389`
 > must not be tagged or deployed.** §1.3 has the measurement. Nothing is
 > stranded: the `v3.0.0` tag was deliberately never created, so the release
-> commit simply moves to whatever `main` is after #300 lands.
+> commit simply moves to whatever `main` is after #303 lands.
 >
 > **The release gate was MET at `4a2140f`, and the release commit was `652f389`.** The cut
 > was attempted on 2026-09-15 against `4f49c169` and stopped at §0 condition 3:
@@ -683,7 +683,7 @@ deliberately."*
 | :-- | :--- |
 | Blocking fix | [#298](https://github.com/acedaly/DalyHub-V2/pull/298) — merged, `main` @ `4a2140f` |
 | Release metadata branch | `release/v3.0.0`, merged up to `4a2140f` |
-| Release commit (`main` after the release PR) | `652f389516938bf813d46b56cc4b3b4c7b29ad53` — **superseded**: §1.3 holds it, and the release commit moves to `main` after #300 |
+| Release commit (`main` after the release PR) | `652f389516938bf813d46b56cc4b3b4c7b29ad53` — **superseded**: §1.3 holds it, and the release commit moves to `main` after [#303](https://github.com/acedaly/DalyHub-V2/pull/303) |
 | Blocking defect found after the release merge | ⛔ §1.3 — the caret is invisible in dark mode (1.12:1). Fixed by [#303](https://github.com/acedaly/DalyHub-V2/pull/303), not yet landed |
 | Annotated tag `v3.0.0` | ⏳ — must be created on the exact release commit, and never moved |
 | GitHub Release | ⏳ |
