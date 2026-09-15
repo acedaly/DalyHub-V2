@@ -24,10 +24,10 @@ _Nothing yet._
 _Written, not yet cut. The attempt on 2026-09-15 stopped at its own gate: CI run
 [`34955877627`](https://github.com/acedaly/DalyHub-V2/actions/runs/34955877627)
 on `main` @ `4f49c169` was red, and one failure was a real accessibility
-regression the cascade change had introduced
-([#299](https://github.com/acedaly/DalyHub-V2/pull/299)). Deploying this release
-will also apply migrations `0050`–`0055` — the Finance, Life Admin, Attachments
-and Ask DalyHub tables — so read
+regression the cascade change had introduced — fixed by
+[#298](https://github.com/acedaly/DalyHub-V2/pull/298) before anything shipped.
+Deploying this release will also apply migrations `0050`–`0055` — the Finance,
+Life Admin, Attachments and Ask DalyHub tables — so read
 [`RELEASE_CHECKLIST_V3_0_0.md` §1.1](docs/release/RELEASE_CHECKLIST_V3_0_0.md)
 before the deployment, not after it._
 

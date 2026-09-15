@@ -2,12 +2,13 @@
 
 **Version `3.0.0` · Release name "V3" · PREPARED 2026-09-15 · CUT ATTEMPTED AND HELD 2026-09-15 · NOT RELEASED**
 
-> **The release is STOPPED at §0 condition 3.** The first CI run of `main` after
-> #297 was RED, and one of its three failures is a real WCAG 2.2 AA regression
-> that V3-CSS-01 introduced. It is being fixed in
-> [#299](https://github.com/acedaly/DalyHub-V2/pull/299); no tag has been
-> created and nothing has been deployed. §2.6 has the failures and their root
-> causes.
+> **The cut was attempted on 2026-09-15 and stopped at §0 condition 3.** The
+> first CI run of `main` after #297 was RED, and one of its three failures was a
+> real WCAG 2.2 AA regression that V3-CSS-01 had introduced. It was fixed by
+> [#298](https://github.com/acedaly/DalyHub-V2/pull/298), which is on `main` as
+> `4a2140f`, and **the release commit is now `4a2140f` rather than `4f49c169`**.
+> No tag has been created and nothing has been deployed. §2.6 has both runs, the
+> failures and their root causes.
 
 > The evidence behind every V3.0.0 claim, and the exact sequence for deploying
 > it. Nothing is marked ✅ without a reference to a measurement. Where something
@@ -32,7 +33,7 @@ below are the ones the preparing change could not satisfy from a branch.
 | :-- | :--- | :--- |
 | 1 | The frontend foundation work (V3-CSS-01, the cascade layer architecture) is **merged to `main`** | ✅ merged in [#297](https://github.com/acedaly/DalyHub-V2/pull/297), `main` @ `4f49c169` |
 | 2 | The E2E gate restructure (V3-E2E-01, the PR/nightly tiers) is **merged to `main`** | ✅ merged in the same change; verified below |
-| 3 | **`main` is green** after both — full CI, including every E2E partition | ⛔ **NOT MET.** CI run [`34955877627`](https://github.com/acedaly/DalyHub-V2/actions/runs/34955877627) at `4f49c169` concluded `failure`: E2E p07 and p11 red, CI Gate red. §2.6 |
+| 3 | **`main` is green** after both — full CI, including every E2E partition | ⏳ **not yet.** The run at `4f49c169` concluded `failure` (§2.6a). The fix is merged and CI run [`34962659072`](https://github.com/acedaly/DalyHub-V2/actions/runs/34962659072) at `4a2140f` is the one that answers this; §2.6b carries its result |
 
 **The fourth, non-blocking condition is NOT met.** The nightly suite
 (`.github/workflows/nightly.yml`) has still never run — see §2.5. It is
@@ -188,10 +189,12 @@ after the change**, which is the order a regression test has to be written in.
 ✅ **222 tests passed** across the new and changed E2E specs, measured locally
 during the preparing change.
 
-⛔ **CI ran this commit and it is RED.** §0 condition 3 is answered by run
-[`34955877627`](https://github.com/acedaly/DalyHub-V2/actions/runs/34955877627),
-and the answer is no. The per-job evidence and the root cause of every failure
-are in §2.6. Nothing is tagged and nothing is deployed.
+⛔ **The first CI run of the release commit was RED**, and it found a real
+defect — run
+[`34955877627`](https://github.com/acedaly/DalyHub-V2/actions/runs/34955877627)
+at `4f49c169`. The per-job evidence and the root cause of every failure are in
+§2.6a; the fix is `4a2140f` and §2.6b is the run that decides the gate. Nothing
+is tagged and nothing is deployed.
 
 ### 2.4 What the E2E restructure did to the gate
 
@@ -257,7 +260,7 @@ All three jobs — `accessibility-matrix`, `responsive-desktop`, `responsive-pho
 visual/accessibility/responsive defect is a reason to hold the deployment, and a
 stale assertion is a narrowly-scoped fix and a re-run.
 
-### 2.6 `main` CI at the release commit
+### 2.6a `main` CI at `4f49c169` — RED, and it caught a real defect
 
 ⛔ Run [`34955877627`](https://github.com/acedaly/DalyHub-V2/actions/runs/34955877627),
 event `push`, `main` @ `4f49c169ffaba0f6429cbe59d64f654011c136ab`, attempt 1 —
@@ -312,12 +315,36 @@ computed-style diff covered 66,681 elements over 32 routes and missed all six,
 because none of those routes mounted an editor with enough content to scroll —
 a limit of that measurement worth recording next to its result.
 
-Fixed in [#299](https://github.com/acedaly/DalyHub-V2/pull/299): the editor
-keeps its defaults and exposes three custom properties, the surfaces configure
-those, and the value resolves by inheritance instead of by a cascade contest the
-product can no longer win. All seven probed values are back to their `77f8b55`
-readings, and `css-cascade-ownership.spec.ts` gains the assertion that would
-have caught this — proven to fail without the change.
+**Fixed by [#298](https://github.com/acedaly/DalyHub-V2/pull/298)**, `main` @
+`4a2140f`, and fixed at the root: `markdown-editor.css` goes back into
+`dh-product`, and only the **six rules that actually contest a property
+CodeMirror declares on the same element** are extracted into a new 77-line
+`markdown-editor-codemirror.css`, which is now the one unlayered file. That
+restores ordinary specificity for every product override at once rather than
+repairing the three that happened to be broken, and it shrinks what
+`css-cascade-ownership.spec.ts` derives its allowlist from.
+
+✅ **Verified with the same probe that found the regression.** All seven values
+are back to their `77f8b55` readings on `4a2140f` — the "before" column above,
+exactly. `reviews-guided.spec.ts` Journey 6 passes, as do
+`css-cascade-ownership.spec.ts` and `editor-geometry.spec.ts` (13 tests).
+
+A parallel fix on `release/v3.0.0`'s own branch
+([#299](https://github.com/acedaly/DalyHub-V2/pull/299)) reached the same seven
+values through custom properties on the still-unlayered file; it was **closed
+unmerged** because #298's exception is smaller and structural. The one thing it
+carried that #298 does not is a test asserting the product outcome directly —
+five of the six values still have no test of their own, which is why only the
+sixth was ever noticed. Raised there as a follow-up rather than widened into
+this release.
+
+### 2.6b `main` CI at `4a2140f` — the run the gate depends on
+
+⏳ Run [`34962659072`](https://github.com/acedaly/DalyHub-V2/actions/runs/34962659072),
+event `push`, `main` @ `4a2140f08861b1be1a5712f38de77e4f39d07b3a`. **This is the
+run §0 condition 3 turns on**, and the release does not proceed until it is
+green: every required E2E partition, no cancelled job, no unexecuted partition.
+p07 and p11 are the two to read first.
 
 **2 and 3. Timeout margin on a slow runner, not product defects.**
 
@@ -336,7 +363,11 @@ is the first re-test.
 
 ### 2.7 Local release gates, at the release commit
 
-Run in the release session against `4f49c169`, after `pnpm install --frozen-lockfile`:
+Run in the release session against `4f49c169`, after `pnpm install --frozen-lockfile`.
+`4a2140f` changes four stylesheets, one new stylesheet, one spec and three
+documents, and touches no version constant, no migration and no application
+code — so every row below still reads the same at the release commit, and the
+`main` CI run in §2.6b re-runs all of them anyway:
 
 | Gate | Result |
 | :-- | :--- |
@@ -463,7 +494,7 @@ did not hold, and none was faked.
 
 | # | Action | Why it is here |
 | :-- | :--- | :--- |
-| 0 | **Review and merge [#299](https://github.com/acedaly/DalyHub-V2/pull/299), then confirm the resulting `main` CI run is green** | §0 condition 3 and §2.6 — this is the release blocker, and nothing below it matters until `main` is green |
+| 0 | **Confirm CI run [`34962659072`](https://github.com/acedaly/DalyHub-V2/actions/runs/34962659072) (`main` @ `4a2140f`) is green** | §0 condition 3 and §2.6b — the blocker is fixed and merged; this run is what proves it, and nothing below matters until it is green |
 | 1 | `gh workflow run nightly.yml --ref main`, then confirm all three jobs green | §2.5 — `workflow_dispatch` returned `403` to the session |
 | 2 | `pnpm run db:production:list` — **record the output** | §1.1 — production's ledger is the only authority on which of `0048`–`0055` are pending |
 | 3 | Establish and verify an encrypted backup ([§6 steps 1–2](RELEASE_CHECKLIST_V2_4_0.md)) | §1.1 — this release applies migrations, so this is a precondition |
@@ -479,13 +510,14 @@ did not hold, and none was faked.
 
 | | |
 | :-- | :--- |
-| Blocking fix | [#299](https://github.com/acedaly/DalyHub-V2/pull/299) — open, not merged |
-| Release metadata branch | `release/v3.0.0` — not opened as a PR while `main` is red |
+| Blocking fix | [#298](https://github.com/acedaly/DalyHub-V2/pull/298) — merged, `main` @ `4a2140f` |
+| Release metadata branch | `release/v3.0.0`, merged up to `4a2140f` |
 | Release commit (`main` after the release PR) | ⏳ |
 | Annotated tag `v3.0.0` | ⏳ — must be created on the exact release commit, and never moved |
 | GitHub Release | ⏳ |
 | Pre-deploy backup identifier | ⏳ |
 | Migrations applied | ⏳ — expect at least `0050`–`0055`; §1.1 |
+| Blocking defect found while cutting | ✅ `scrollable-region-focusable` on the guided Review's editor — found by CI, root-caused, fixed by #298 before anything shipped |
 | Deployment timestamp | ⏳ |
 | `/health` reports | ⏳ — must read `3.0.0` |
 | Nightly suite run | ⏳ — §2.5 |

@@ -6,9 +6,10 @@
 >
 > **This release is written but not cut.** The attempt on 2026-09-15 stopped at
 > its own gate: the first CI run of `main` after the frontend work merged was
-> red, and one of its failures is a genuine accessibility regression that the
-> cascade change introduced. It is being fixed in
-> [#299](https://github.com/acedaly/DalyHub-V2/pull/299), and nothing has been
+> red, and one of its failures was a genuine accessibility regression that the
+> cascade change had introduced. It was fixed by
+> [#298](https://github.com/acedaly/DalyHub-V2/pull/298) before anything
+> shipped; the release now waits on that commit's own CI run. Nothing has been
 > tagged or deployed.
 >
 > Everything below is what `3.0.0` will say once it goes out. The evidence, the
@@ -162,10 +163,10 @@ Stated rather than omitted.
   scrolling inside a scrolling page instead of growing, which is a WCAG 2.2 AA
   failure and was caught by the test suite; the Note and Meeting writing
   surfaces quietly went back to a narrower column and a taller minimum. Found
-  while cutting this release and fixed in
-  [#299](https://github.com/acedaly/DalyHub-V2/pull/299) before it shipped —
-  listed here because a release note that only says what went right is not a
-  record.
+  while cutting this release, by the test suite rather than by a person using
+  it, and fixed in [#298](https://github.com/acedaly/DalyHub-V2/pull/298) before
+  it shipped — listed here because a release note that only says what went right
+  is not a record.
 - **The exhaustive nightly E2E suite has not run against this commit.** The
   accessibility and responsive matrices moved to a nightly workflow in this same
   release, and it has never been dispatched — the session that prepared this
