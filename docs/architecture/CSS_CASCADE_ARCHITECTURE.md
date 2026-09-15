@@ -14,7 +14,7 @@ outranks layered CSS unconditionally and regardless of specificity — which mea
 one unlayered file quietly outranks the entire design system.
 
 **There is exactly one exception, and it is forced rather than chosen:
-`markdown-editor-codemirror.css` — six rules.** See [The one exception](#the-one-exception) below. It is
+`markdown-editor-codemirror.css` — eight rules, 867 built bytes.** See [The one exception](#the-one-exception) below. It is
 not a loophole — `e2e/css-cascade-ownership.spec.ts` derives the permitted set
 from that file's own contents and fails on any other unlayered rule.
 
@@ -55,14 +55,28 @@ source import order:
 | Production root CSS, raw | 814,944 B | 814,968 B |
 | Production root CSS, gzip | 98,232 B | 99,449 B |
 | `app.css` imports | 78 | 78 |
-| **Unlayered bytes** | **600,640 (73.7%)** | **4,150 (0.51%)** |
-| **Unlayered style rules** (CSSOM, live page) | **2,932 of 4,602 (63.7%)** | **0 of 4,602** |
+| Bytes outside every `@layer` | 600,645 | 7,186 |
+| **Unlayered STYLE RULES** (built sheet) | **592,485 B, 3,186 rules (72.70%)** | **867 B, 9 rules (0.11%)** |
+| **Unlayered style rules** (CSSOM, live page) | **2,932 of 4,602 (63.7%)** | **8 of 4,602 (0.17%)** |
 | `!important` declarations | 15 | 15 |
 
-The 4,150 remaining bytes are `markdown-editor-codemirror.css` (six rules — the
-one forced exception, below), 84 Tailwind `@property` declarations and four
-`@keyframes`. Neither `@property` nor `@keyframes` is a cascade participant, and
-neither can be layered.
+Both byte figures come from one script over the two built artefacts
+(`main` @ `77f8b55` and this branch), so the columns are comparable: it walks the
+sheet, subtracts every `@layer` block, and then separates the cascade
+participants from the things that cannot be layered at all.
+
+Those non-participants are the difference between the two byte rows. Of the
+7,186 bytes still outside a layer after, 6,319 are 84 Tailwind `@property`
+declarations and four `@keyframes` — neither is a cascade participant and
+neither can be layered. What is left, the only DalyHub CSS in the document that
+can outrank a layer, is **867 bytes and nine rules**: `markdown-editor-codemirror.css`,
+the one forced exception below. (Eight rules in source; the minifier splits the
+`::selection` group, which is why the live CSSOM counts eight.)
+
+An earlier revision of this table reported 4,150 unlayered bytes and zero
+unlayered rules. Both were wrong — the first conflated the `@property` blocks
+with the style rules, the second counted a page whose sheet had not been read
+past the last `@layer`. The figures above are reproducible from a build.
 
 The emitted cascade, read off the built artefact:
 
@@ -89,7 +103,7 @@ the probe above, and a CSSOM walk asserting no rule sits outside a layer.
 
 ## The one exception
 
-`markdown-editor-codemirror.css` — **six rules** — is imported **without** a
+`markdown-editor-codemirror.css` — **eight rules** — is imported **without** a
 `layer()` keyword, and that is a consequence of how the cascade works rather than
 a preference.
 
@@ -123,19 +137,40 @@ cancelling the compact density cap, the guided Review's editor got its `50vh`
 ceiling back, `.cm-scroller` became scrollable, and axe reported a **serious**
 `scrollable-region-focusable` violation. E2E partition p07, red.
 
-**So the exception is now only what it has to be.** Six rules, contesting a
-property CodeMirror's own sheet sets on the same element — established by reading
-its 71 injected rules rather than by guessing:
+**The second version was too narrow, and review caught it.** It matched
+`.cm-(content|scroller|focused)` — a list written out by hand from a probe that
+printed only its first 60 of CodeMirror's 320 selector/property pairs.
+`.cm-cursor`'s `border-left-color` and `.cm-placeholder`'s `color` fell below the
+cut, stayed layered, and lost: the insertion caret and the empty-state
+placeholder rendered in the library's colours rather than DalyHub's tokens.
+Codex raised it on PR #298.
 
-| CodeMirror sets | on |
-| :-- | :-- |
-| `margin`, `padding`, `min-height`, `outline`, `display`, `box-sizing` | `.cm-content` |
-| `font-family`, `line-height`, `height`, `overflow-x`, `display` | `.cm-scroller` |
-| `outline` | `.cm-focused` |
+**So the exception is what it has to be, and nobody decides that by reading.**
+The set is derived, by
+[`e2e/css-cascade-ownership.spec.ts`](../../e2e/css-cascade-ownership.spec.ts),
+on every PR run:
 
-CodeMirror sets **nothing** on `.cm-editor`, which is why the density caps stayed
+1. Both editor stylesheets are handed to the browser's own parser, which expands
+   every shorthand into longhands — `background` into nine, `outline` into three
+   — including shorthands whose values are `var()`.
+2. Each rule is matched against the **elements** of a live editor rather than by
+   class name. CodeMirror writes its root rule as `.ͼ1`, which names no `cm-`
+   class at all and is nonetheless the element `.cm-editor` addresses; comparing
+   selectors gets that wrong and comparing elements cannot.
+3. Logical and physical property names are reconciled by measurement: a sentinel
+   is set on one and read from the other, in both directions, so
+   `max-block-size` contests `max-height` and `min-block-size` does not contest
+   `height`.
+
+Anything left in `markdown-editor.css` that contests a CodeMirror declaration
+fails the gate and names itself. CodeMirror's `!important` declarations are
+excluded, because those beat a DalyHub rule whether it is layered or not and
+moving one would fix nothing.
+
+Nothing CodeMirror declares reaches the density caps, which is why those stayed
 in `markdown-editor.css` — in `dh-product`, where product surfaces can still
-override them normally.
+override them normally. Three hand-written lists have been wrong in this one
+corner of the codebase; there is no fourth.
 
 **The real fix, deliberately not taken here:** move the 49 `.cm-*` rules into
 CodeMirror's own `EditorView.theme()`, where they would participate in the same
@@ -148,7 +183,9 @@ maintenance debt item 16.
 If you integrate a library that injects its own CSS at runtime, **your overrides
 for it cannot live in a layer either**. Put them in their own file, keep it to
 the declarations the library itself sets, and say so at the import: what injects,
-and which of its declarations you are contesting.
+and which of its declarations you are contesting. Derive that set from the
+injected sheet rather than writing it down — two of the three lists written down
+here by hand were wrong, and both shipped.
 
 The mistake to avoid is the one made here first: do not un-layer the whole
 stylesheet that happens to contain those overrides. Everything else in it is
