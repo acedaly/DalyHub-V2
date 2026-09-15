@@ -1,6 +1,15 @@
 # DalyHub V3.0.0 — Release Notes
 
-**Version `3.0.0` · Release name "V3" · Release candidate 2026-09-15 · `main` @ `4a2140f`**
+**Version `3.0.0` · Release name "V3" · Release candidate 2026-09-15 · HELD on a defect**
+
+> ⛔ **Do not deploy this yet.** After the release was cut, a defect was found
+> that the test gate could not see: in the **dark appearance the text cursor is
+> invisible** in every writing surface — Notes, Diary, the Meeting workspace, the
+> guided Review. It is the same cascade cause as the one below, one property
+> across, and it is fixed by
+> [#300](https://github.com/acedaly/DalyHub-V2/pull/300).
+> [`RELEASE_CHECKLIST_V3_0_0.md` §1.3](RELEASE_CHECKLIST_V3_0_0.md) has the
+> measurement. No tag was created, so nothing has to be undone.
 
 > Written for the person using DalyHub.
 >
