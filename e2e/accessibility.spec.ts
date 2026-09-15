@@ -1,134 +1,45 @@
 /**
- * DS-11 — automated accessibility regression tests (WCAG 2.2 AA).
+ * DS-11 / V3-E2E-01 — the accessibility gate that runs on EVERY pull request.
  *
- * This is the CI a11y gate the roadmap asks for: an axe-core scan of every shared
- * surface, so a genuine accessibility regression fails the build. The scans run
- * against the dev-only `/design/*` fixtures — each rendering a shared component
- * INSIDE the real PX-02 shell — plus the real product routes, in light AND dark, and
- * with interactive overlays (Drawer, Search, Command Palette, Inspector, dangerous
- * confirmation) OPENED so their modal semantics, focus scoping and live regions are
- * audited, not just the resting page.
+ * Two things, and they are the two that nothing else in the suite duplicates:
  *
- * The scan is scoped to the WCAG 2.0/2.1/2.2 A + AA standard plus axe best-practice
- * (see `e2e/helpers.ts` → `AXE_TAGS`). Colour contrast is proven separately and
- * deterministically by the DS-01 token unit tests, so it is disabled here to avoid
- * flaky pixel-derived assertions (documented in `buildAxeScan`). No brittle
- * per-rule assertions — a surface either has zero violations against the standard
- * or it fails with an actionable list.
+ *   1. A REPRESENTATIVE resting scan (`PR_ROUTES`, light and dark) — the shared
+ *      shell, the densest collection, a record, the reading surface, the two
+ *      form-heavy fixtures, a form open inside a record, and the one route that
+ *      renders outside the shell.
+ *   2. Every OPEN-OVERLAY scan. A Drawer, the Search surface, the Command
+ *      Palette, a dangerous confirmation, the creation sheets, the inline
+ *      editors and the record overflow menu are scanned with their modal
+ *      semantics, focus scoping and live regions ACTIVE. These are the highest
+ *      -value accessibility tests in the product and they exist here and
+ *      nowhere else.
+ *
+ * The exhaustive route × appearance matrix — 61 routes in both appearances —
+ * moved to `accessibility-matrix.spec.ts`, which the nightly suite runs. That is
+ * a change to how often a repetition runs, NOT to whether accessibility gates a
+ * PR: axe still runs in 93 other gated spec files over 75 distinct routes, and
+ * the static `jsx-a11y` lint still runs in every push. See
+ * `e2e/accessibility-matrix.ts` for the measurement behind the split.
+ *
+ * The scan is scoped to the WCAG 2.0/2.1/2.2 A + AA standard plus axe
+ * best-practice (`e2e/helpers.ts` → `AXE_TAGS`). Colour contrast is proven
+ * separately and deterministically by the DS-01 token unit tests, so it is
+ * disabled here to avoid flaky pixel-derived assertions (documented in
+ * `buildAxeScan`). No brittle per-rule assertions — a surface either has zero
+ * violations against the standard or it fails with an actionable list.
  */
 
 import { expect, test } from "@playwright/test";
 
+import { PR_ROUTES } from "./accessibility-matrix";
 import {
   expectNoAxeViolations,
   gotoFixture,
   recordOverflowTrigger,
 } from "./helpers";
 
-/** The dev-only design fixtures — each renders a shared component in the real shell. */
-const DESIGN_FIXTURES = [
-  "/design/record-layout",
-  "/design/drawer",
-  "/design/cards-filters",
-  "/design/collection-layout",
-  "/design/activity-feed",
-  "/design/forms",
-  "/design/search",
-  "/design/command-palette",
-  "/design/feedback",
-  "/design/settings",
-  // PWA-01 — the icon review surface.
-  "/design/app-icon",
-] as const;
-
-/** Real product surfaces (rendered through the authenticated dev shell). */
-const PRODUCT_ROUTES = [
-  "/",
-  "/today",
-  "/today/waiting",
-  "/areas",
-  "/areas/a-dh",
-  "/areas/a-dh?tab=projects",
-  "/areas/a-dh?tab=activity",
-  // AREA-03 — the real Goals collection (the Alignment view) + a real Goal
-  // record with the derived Alignment Summary panel.
-  "/goals",
-  // PX-04 — the Goals "Deleted" lifecycle view (the durable restore surface).
-  "/goals?state=deleted",
-  "/goals/g-launch",
-  "/goals/g-launch?tab=activity",
-  "/projects",
-  // The BARE project record (no Drawer open) — the DEBT-21 regression gate: PROJ-04
-  // gave the record a non-skipping heading outline (record h1 → section h2 → content
-  // h3), so the bare page is now axe-clean without relying on the Drawer-open scan.
-  "/projects/pr-website",
-  // PROJ-06 — the complete Projects mobile-facing record tabs are swept by the
-  // existing route matrix instead of a separate scanner.
-  "/projects/pr-website?tasks=all",
-  "/projects/pr-website?tab=linked",
-  "/projects/pr-website?tab=activity",
-  "/tasks",
-  // PROJ-05 Slice 4 — the Settings tab (an active, non-archived project), the
-  // Archived collection (with a real permanently-archived card) and a bare
-  // archived record's resting state.
-  "/projects/pr-settings?tab=settings",
-  "/projects?state=archived",
-  "/projects/pr-archived-demo",
-  "/projects/pr-archived-demo?tab=settings",
-  // NOTES-01B/NOTES-01C — the real Notes collection, including its
-  // Active/Deleted lifecycle filter (the record itself, and its Split/Preview
-  // editor states, are covered by `e2e/notes.spec.ts`'s own journey).
-  "/notes",
-  "/notes?state=deleted",
-  // DS-14 — the Reading reference implementation, audited in the shared sweep
-  // rather than only in the Notes journey. The restyle moves the note body into
-  // a Reading region with its own family, size and measure; contrast, focus
-  // order and landmark structure all have to survive that.
-  "/notes/n-search-e2e",
-  // PEOPLE-01 — the real People collection, its Recent/Archived sub-views and the
-  // create-person page (the record itself is covered by `e2e/people.spec.ts`).
-  "/people",
-  "/people/recent",
-  "/people/archived",
-  "/new/person",
-  // ASSET-01 — the Assets collection, its date-driven sub-views and the create
-  // page (the record itself is covered by `e2e/assets.spec.ts`).
-  "/assets",
-  "/assets/recent",
-  "/assets/expiring",
-  "/assets/service-due",
-  "/assets/archived",
-  "/new/asset",
-  // V2.10 LIFE-02 — Life Admin: the banded collection, an obligation record
-  // (including the completion form open, which is the one thing an owner comes
-  // to the record to do) and the creation form.
-  "/obligations",
-  "/obligations/ob-rc-tax",
-  "/obligations/ob-rc-tax?complete=1",
-  "/obligations/new",
-  // HABITS-01 — the Habits collection, its Archived view and the creation form
-  // (whose weekday toggle group is a new shared control, so it earns its own
-  // place in the sweep rather than only in the module's own axe pass).
-  "/habits",
-  "/habits/archived",
-  "/habits/new",
-  // PX-03 — the remaining navigation-shell Coming Soon placeholder routes.
-  "/diary",
-  "/meetings",
-  "/reviews",
-  "/ai",
-  "/settings",
-  "/help",
-  // PWA — the offline surfaces. `/offline` renders OUTSIDE the app shell (it is
-  // the cacheable shell document), so it is the one product route whose
-  // landmarks, headings and focus order are entirely its own; and the Settings
-  // offline section carries three destructive controls and a live status region.
-  "/offline",
-  "/settings?section=offline",
-] as const;
-
-test.describe("automated accessibility — resting surfaces (light)", () => {
-  for (const path of [...DESIGN_FIXTURES, ...PRODUCT_ROUTES]) {
+test.describe("automated accessibility — representative surfaces (light)", () => {
+  for (const path of PR_ROUTES) {
     test(`no WCAG 2.2 AA violations at ${path}`, async ({ page }) => {
       await gotoFixture(page, path);
       await expectNoAxeViolations(page);
@@ -136,10 +47,10 @@ test.describe("automated accessibility — resting surfaces (light)", () => {
   }
 });
 
-test.describe("automated accessibility — resting surfaces (dark)", () => {
+test.describe("automated accessibility — representative surfaces (dark)", () => {
   test.use({ colorScheme: "dark" });
 
-  for (const path of [...DESIGN_FIXTURES, ...PRODUCT_ROUTES]) {
+  for (const path of PR_ROUTES) {
     test(`no WCAG 2.2 AA violations at ${path} (dark)`, async ({ page }) => {
       await gotoFixture(page, path);
       await expectNoAxeViolations(page);

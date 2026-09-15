@@ -2065,6 +2065,28 @@ blocks the completion claim above — each is normal product maintenance, and th
 | 10 | A bounded `people.getByIds` | `app/platform/people` | Carried forward from UNTITLED-13 | None | Add the bounded read | Low | No |
 | 11 | `assisted-ai.spec.ts`'s heaviest journey sits ~1s under its 30s budget | `e2e/d1.ts`, `e2e/assisted-ai.spec.ts` | **Root-caused, not fixed.** Each `d1Query` spawns wrangler at **3.1s of startup before it reads a byte**, and that test makes eight. Reading the SQLite file directly is 8ms but returns stale WAL snapshots — it failed CI with `no obligation created` for a record the form had just written, and a reader that misses committed rows can turn a real failure into a false green. Reverted. | None — it is a test-harness cost | Issue fewer statements per invocation. `spendingCategory()` and `secondSpendingCategory()` run the identical query in two processes to take row 0 and row 1 of one result | Medium | No |
 
+#### Added by V3-CSS-01 (the cascade layer architecture)
+
+| # | Item | Where | Why it remains | User impact | Next action | Priority | Blocks completion? |
+| :-- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 12 | Eight legacy control stylesheets, 1,966 lines, all now INERT | `floating.css` (593), `ui.css` (536), `filters.css` (380), `pill.css` (125), `tooltip.css` (92), `overflow-menu.css` (91), `skeleton.css` (82), `progress.css` (67) | They sit in `dh-legacy` and therefore lose to every Untitled utility. **Each was MEASURED to change nothing on screen when it started losing** — across 170 surface × width × appearance snapshots, none of the eight produced a single computed-style difference. | None — that is the measurement | Delete, file by file, and delete the file when its last rule goes. This is bounded deletion, not migration: the evidence that a rule is dead is already in hand. | Medium | No |
+| 13 | `forms.css` mixes generic field PAINT with field GEOMETRY | `forms.css`, 1,120 lines | Demoting the whole file to `dh-legacy` correctly retired the paint and incorrectly retired the geometry with it. MEASURED: `.dh-combobox__input` lost the `padding-inline-end: 32px` that reserves room for its own trailing control, and its text would have run under a button 32px from the field's inner edge. The file keeps `dh-product` until it is split. | None | Split it: geometry stays in `dh-product`, paint moves to `dh-legacy` and then out. Item 1 above is the same job seen from the call-site end. | Medium | No |
+| 14 | Two colour engines ship side by side | `tokens.css` (8,453 lines, five schemes × two appearances) and `untitled/theme.css` | Deliberately out of scope for V3-CSS-01, which changed the cascade and was required not to change the palette. `dh-tokens` is placed AFTER `theme` so DalyHub's values keep winning where the two collide, which is why nothing moved. | None — bundle size only | Decide between them, with its own evidence. Not a cascade question. | Low | No |
+| 15 | `assisted-ai.spec.ts`'s wrangler-startup cost, generalised | `e2e/d1.ts`, 183 `d1Execute` call sites | Item 11 root-caused this on one spec file. The same 3.1 s of wrangler startup is paid by **183 call sites** across the suite — roughly 9.5 minutes of process spawn before any SQL runs, which makes it the largest single remaining lever on E2E cost. | None — a test-harness cost | Batch statements per invocation, as item 11 describes. Worth doing as its own piece of work rather than opportunistically. | Medium | No |
+
+#### Closed by V3-CSS-01
+
+- ~~**Every DalyHub stylesheet is unlayered.**~~ Closed. 600,640 of 814,944
+  production bytes (73.7%) and 2,932 of 4,602 rules (63.7%) sat outside every
+  cascade layer; 0 rules do now. The model is
+  [`CSS_CASCADE_ARCHITECTURE.md`](../architecture/CSS_CASCADE_ARCHITECTURE.md)
+  and the contract is held by `e2e/css-cascade-ownership.spec.ts`.
+- ~~**`md-state-layer` could defeat a migrated component.**~~ Partially closed —
+  item 5's 34 usages are untouched and still owed, but the mechanism is gone:
+  `base.css` declares it inside `@layer base`, the lowest DalyHub layer, so a
+  component that migrates to Untitled's own hover treatment now wins
+  automatically rather than having to out-specify it.
+
 #### Closed by this audit, recorded rather than deleted
 
 - ~~**Two badges.**~~ Closed above. The blocker on record ("Untitled's badge is a

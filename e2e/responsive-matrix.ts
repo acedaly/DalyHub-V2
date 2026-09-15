@@ -63,6 +63,21 @@ export const DESIGN_FIXTURES = [
 export const PRODUCT_ROUTES = [
   "/",
   "/today",
+  /*
+   * V3-E2E-01 — `/tasks`, `/inbox` and `/upcoming` were MISSING from this list
+   * entirely, and their absence is recorded a few lines down as "the other half
+   * of why the regression was invisible": the list was written when Tasks was a
+   * placeholder, and nobody added them when it stopped being one. They are the
+   * three densest grids in the product and the ones a fixed column is most
+   * likely to break, and until now the full matrix swept none of them — only
+   * `AUDIT_WIDTHS` did, at three widths.
+   *
+   * Adding them here costs the NIGHTLY tier three more routes and costs the PR
+   * gate nothing: `/tasks` is already in `PR_CORE_ROUTES` and `DENSE_GRID_ROUTES`.
+   */
+  "/tasks",
+  "/inbox",
+  "/upcoming",
   // AREA-01 — real Areas collection + record tabs.
   "/areas",
   "/areas/a-dh",
@@ -159,6 +174,78 @@ export const AUDIT_WIDTHS = [
   { label: "tablet-900", width: 900, height: 800 },
   { label: "tablet-820", width: 820, height: 1180 },
 ] as const;
+
+/**
+ * V3-E2E-01 — the PR tier's routes and widths.
+ *
+ * `responsive-desktop.spec.ts` and `responsive-phone.spec.ts` are 549 tests and
+ * 28.5 minutes between them — 25% of the gate's tests and 10% of its measured
+ * time — and every one of those tests makes the SAME structural assertion (the
+ * document does not scroll sideways) on the same 50 routes at ten widths. The
+ * sweep earns its place; running all ten widths on all 50 routes on every push
+ * does not, because the contract breaks at BOUNDARIES and the widths in between
+ * re-prove what the boundary already proved.
+ *
+ * So the PR gate runs the boundaries on the surfaces an owner actually lives in,
+ * and the full matrix runs nightly. What "boundary" means here, measured rather
+ * than assumed:
+ *
+ *   320   the narrowest supported phone — where a fixed width, an unwrapped
+ *         token or a min-width column overflows first, and by a wide margin the
+ *         most productive width in the suite's history.
+ *   768   the `md` boundary, where the shell swaps from the mobile bar to the
+ *         rail and every collection re-lays-out. Run over the DENSE grids only,
+ *         which is where the swap has anything to break.
+ *   1440  the common desktop, and the width at which a capped measure, a
+ *         stranded column or an over-wide table shows up.
+ *
+ * The overlays keep their narrowest-phone extreme on the PR gate, because an
+ * overlay that overflows does it at 320 and a dismissed dialog is also the
+ * suite's most common source of cross-test contamination. The ultra-wide
+ * extreme goes nightly with the rest of the matrix.
+ *
+ * `test/unit/ci/responsive-matrix.test.ts` asserts these are subsets of the full
+ * lists, so a route cannot be in the fast tier and in nothing else.
+ */
+export const PR_CORE_ROUTES = [
+  // The daily drivers.
+  "/",
+  "/today",
+  "/tasks",
+  "/projects",
+  "/projects/pr-website",
+  "/areas",
+  "/areas/a-dh",
+  "/goals",
+  "/goals/g-launch",
+  "/notes",
+  "/notes/n-search-e2e",
+  "/diary",
+  "/meetings",
+  "/people",
+  "/obligations",
+  "/habits",
+  "/settings",
+  // The shared primitives, where a responsive regression is a regression
+  // everywhere rather than on one screen.
+  "/design/collection-layout",
+  "/design/record-layout",
+  "/design/forms",
+  "/design/cards-filters",
+] as const;
+
+/** The two boundary widths every PR-tier route is swept at. */
+export const PR_BOUNDARY_VIEWPORTS = [
+  { label: "mobile-320", width: 320, height: 720 },
+  { label: "desktop-1440", width: 1440, height: 900 },
+] as const;
+
+/** The `md` swap, run over the dense grids only. */
+export const PR_MD_VIEWPORT = {
+  label: "tablet-768",
+  width: 768,
+  height: 1024,
+} as const;
 
 export const DENSE_GRID_ROUTES = [
   "/tasks",

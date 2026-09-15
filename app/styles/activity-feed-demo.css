@@ -1,88 +1,97 @@
 /*
+ * V3-CSS-01 — wrapped in `dh-product` because this file is imported from a route
+ * module, and a JS `import "./x.css"` cannot carry a `layer()` keyword the way
+ * `app.css`'s `@import` does. Unlayered CSS outranks every layer unconditionally,
+ * so a fixture stylesheet left outside the system would silently outrank the
+ * product it exists to demonstrate — and the fixture would stop being evidence.
+ */
+@layer dh-product {
+  /*
  * DS-05 — development-only styles for the Timeline & Activity Feed fixture route.
  * Not shipped to production (the route is dev-only). Tokens only.
  */
 
-.af-demo {
-  max-width: var(--app-width-content);
-  margin: 0 auto;
-  padding: var(--app-space-6) var(--app-page-padding) var(--app-space-16);
-  min-width: 0;
-}
+  .af-demo {
+    max-width: var(--app-width-content);
+    margin: 0 auto;
+    padding: var(--app-space-6) var(--app-page-padding) var(--app-space-16);
+    min-width: 0;
+  }
 
-.af-demo__header {
-  margin-bottom: var(--app-space-5);
-}
+  .af-demo__header {
+    margin-bottom: var(--app-space-5);
+  }
 
-.af-demo__header h1 {
-  margin: 0 0 var(--app-space-2);
-  font-size: var(--dh-text-page-title-size);
-  font-weight: 500;
-  color: var(--dh-color-text);
-}
+  .af-demo__header h1 {
+    margin: 0 0 var(--app-space-2);
+    font-size: var(--dh-text-page-title-size);
+    font-weight: 500;
+    color: var(--dh-color-text);
+  }
 
-.af-demo__lead,
-.af-demo__note {
-  margin: 0;
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-meta-size);
-  line-height: 1.65;
-  overflow-wrap: anywhere;
-}
+  .af-demo__lead,
+  .af-demo__note {
+    margin: 0;
+    color: var(--dh-color-text-muted);
+    font-size: var(--dh-text-meta-size);
+    line-height: 1.65;
+    overflow-wrap: anywhere;
+  }
 
-.af-demo__controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--app-space-4);
-  margin: 0 0 var(--app-space-6);
-  padding: var(--app-space-3) var(--app-space-4);
-  border: var(--app-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface);
-}
+  .af-demo__controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--app-space-4);
+    margin: 0 0 var(--app-space-6);
+    padding: var(--app-space-3) var(--app-space-4);
+    border: var(--app-border-width-thin) solid var(--dh-color-border);
+    border-radius: var(--dh-radius-md);
+    background: var(--dh-color-surface);
+  }
 
-.af-demo__controls legend {
-  padding: 0 var(--app-space-2);
-  font-size: var(--dh-text-label-size);
-  font-weight: 500;
-  color: var(--dh-color-text-muted);
-}
+  .af-demo__controls legend {
+    padding: 0 var(--app-space-2);
+    font-size: var(--dh-text-label-size);
+    font-weight: 500;
+    color: var(--dh-color-text-muted);
+  }
 
-.af-demo__controls label {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--app-space-1);
-  font-size: var(--dh-text-meta-size);
-  color: var(--dh-color-text-muted);
-}
+  .af-demo__controls label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--app-space-1);
+    font-size: var(--dh-text-meta-size);
+    color: var(--dh-color-text-muted);
+  }
 
-.af-demo__section {
-  margin-top: var(--app-space-8);
-}
+  .af-demo__section {
+    margin-top: var(--app-space-8);
+  }
 
-.af-demo__section h2 {
-  margin: 0 0 var(--app-space-1);
-  font-size: var(--dh-text-section-title-size);
-  font-weight: 500;
-  color: var(--dh-color-text);
-}
+  .af-demo__section h2 {
+    margin: 0 0 var(--app-space-1);
+    font-size: var(--dh-text-section-title-size);
+    font-weight: 500;
+    color: var(--dh-color-text);
+  }
 
-.af-demo__note {
-  margin-bottom: var(--app-space-3);
-}
+  .af-demo__note {
+    margin-bottom: var(--app-space-3);
+  }
 
-.af-demo__stream {
-  margin-top: var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-lg);
-  background: var(--dh-color-bg);
-  padding: 0 var(--app-space-3);
-}
+  .af-demo__stream {
+    margin-top: var(--app-space-3);
+    border: var(--app-border-width-thin) solid var(--dh-color-border);
+    border-radius: var(--dh-radius-lg);
+    background: var(--dh-color-bg);
+    padding: 0 var(--app-space-3);
+  }
 
-.af-demo__drawer-prose {
-  margin: 0;
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-meta-size);
-  line-height: 1.65;
+  .af-demo__drawer-prose {
+    margin: 0;
+    color: var(--dh-color-text-muted);
+    font-size: var(--dh-text-meta-size);
+    line-height: 1.65;
+  }
 }

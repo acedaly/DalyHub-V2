@@ -151,6 +151,40 @@ const MANIFEST = join(ROOT, "e2e", "partitions.json");
  * not started spends none of its `globalTimeout`, and the workflow allows each
  * 40 min.
  */
+/*
+ * ── STILL EIGHTEEN after V3-E2E-01, and that is a decision ──────────────────
+ *
+ * The two-tier split took 35.0 min out of the required gate (279.3 → 244.3), so
+ * eighteen partitions now carry 13.6 min each against the 16.7 min ceiling
+ * instead of 15.5. The count could have come down instead — sixteen would put
+ * each partition back at 15.3 min — and it deliberately did not.
+ *
+ * The saving is spent on HEADROOM and LATENCY rather than on fewer runners,
+ * because the arithmetic says fewer runners buys almost nothing and costs the
+ * margin:
+ *
+ *   18 partitions → 13.6 min each → ~16.2 min of runner time each → ~292 total
+ *   16 partitions → 15.3 min each → ~18.1 min of runner time each → ~290 total
+ *
+ * Same total, and the sixteen-way split hands back every minute of the slowest
+ * partition — which is the number a person waiting on a PR actually experiences.
+ * MEASURED on run 34914152099 (`main` @ 77f8b55, green): eighteen partitions,
+ * 303.6 runner-minutes, mean 16.9 min, SLOWEST 20.4 min, and the gate is the
+ * critical path of a 21m40s pipeline. Latency is the scarce thing here, not
+ * runner-minutes.
+ *
+ * The other half of the argument is that this file's estimates have been
+ * optimistic twice, and both times the product lost coverage silently rather
+ * than loudly: thirteen partitions overran `globalTimeout` with tests they never
+ * reached, and on run 34914152099 the slowest partition took 20.4 min against a
+ * 15.8 min estimate. Spending a fresh 2 min/partition of margin on fewer runners
+ * would be betting against the only two measurements anyone has taken.
+ *
+ * The queueing objection above is also weaker than it reads. Run 34914152099
+ * measured all eighteen partitions with 0.7 MINUTES of queueing in total — the
+ * "roughly twelve concurrent jobs" figure interpolated from run 31445526789 did
+ * not hold on this account.
+ */
 export const PARTITION_COUNT = 18;
 
 /**
@@ -260,14 +294,44 @@ export const PARTITION_SPREAD_TOLERANCE = 0.15;
 /** Spec files the run itself ignores unless a capture variable is set. */
 const CAPTURE_SUFFIX = "-screenshots.spec.ts";
 
-/** Every spec file the ordinary (non-capture) gate is required to run. */
-export function listSpecFiles() {
+/**
+ * V3-E2E-01 — the TWO TIERS, and the one place they are decided.
+ *
+ * `e2e/partitions.json` carries `tiers.nightly`: the spec files the required PR
+ * gate does NOT run, because each is an exhaustive matrix whose contract is
+ * already gated elsewhere. They are not excluded from the suite — the nightly
+ * workflow runs exactly this list — and they keep their measured durations, so
+ * a nightly file that grows is as visible as a gated one.
+ *
+ * The rule the split has to satisfy, and that `check` enforces below: every
+ * spec file on disk is in exactly ONE tier. A file cannot be in neither (it
+ * would never run anywhere) and cannot be in both.
+ */
+function nightlyTier() {
+  const manifest = JSON.parse(readFileSync(MANIFEST, "utf8"));
+  return new Set(manifest.tiers?.nightly ?? []);
+}
+
+/** Every `.spec.ts` on disk that an ordinary (non-capture) run can execute. */
+export function listAllSpecFiles() {
   return readdirSync(SPEC_DIR)
     .filter(
       (name) => name.endsWith(".spec.ts") && !name.endsWith(CAPTURE_SUFFIX),
     )
     .map((name) => `e2e/${name}`)
     .sort();
+}
+
+/** Every spec file the required PR gate runs. */
+export function listSpecFiles() {
+  const nightly = nightlyTier();
+  return listAllSpecFiles().filter((file) => !nightly.has(file));
+}
+
+/** Every spec file the NIGHTLY suite runs, in manifest order. */
+export function listNightlySpecFiles() {
+  const onDisk = new Set(listAllSpecFiles());
+  return [...nightlyTier()].filter((file) => onDisk.has(file)).sort();
 }
 
 export function loadManifest() {
@@ -470,11 +534,21 @@ function commandGenerate(args) {
     }
   }
   const files = listSpecFiles();
-  // A spec file that has been deleted leaves nothing behind in any of the three
-  // maps, so a later `check` cannot trip over a measurement with no spec.
+  /*
+   * Pruned against every spec on DISK, not against the gate list.
+   *
+   * V3-E2E-01 — a nightly-tier file is deliberately absent from
+   * `listSpecFiles()`, and pruning against that list would delete its
+   * measurement the first time anyone regenerated. `check` requires nightly
+   * files to carry a real duration (the nightly suite's budget is derived from
+   * the same numbers), so the two rules would have contradicted each other on
+   * the next `generate`. A spec file that has actually been DELETED still
+   * leaves nothing behind in any of the three maps, which is what this is for.
+   */
+  const onDisk = listAllSpecFiles();
   for (const map of [durations, tests, source]) {
     for (const file of Object.keys(map)) {
-      if (!files.includes(file)) delete map[file];
+      if (!onDisk.includes(file)) delete map[file];
     }
   }
   const partitions = derivePartitions(durations, files).map((partition) => ({
@@ -559,9 +633,16 @@ export function manifestProblems(manifest, files) {
     }
   }
   for (const spec of seen.keys()) {
-    if (!files.includes(spec)) {
-      problems.push(`${spec} is in a partition but does not exist on disk`);
-    }
+    if (files.includes(spec)) continue;
+    /* Distinguish the two ways a partitioned spec can stop being a gate spec,
+     * because they need opposite fixes. */
+    const nightlyList = manifest.tiers?.nightly ?? [];
+    problems.push(
+      nightlyList.includes(spec)
+        ? `${spec} moved to tiers.nightly but is still in a partition — ` +
+            `regenerate: pnpm run e2e:partitions:generate`
+        : `${spec} is in a partition but does not exist on disk`,
+    );
   }
 
   /*
@@ -669,6 +750,53 @@ export function manifestProblems(manifest, files) {
     }
   }
 
+  /*
+   * V3-E2E-01 — every spec file is in exactly ONE tier.
+   *
+   * The PR gate runs `listSpecFiles()` and the nightly workflow runs
+   * `tiers.nightly`. A file that is in neither runs nowhere; a name in
+   * `tiers.nightly` that is not on disk is a rename nobody finished. Both are
+   * the same class of mistake the duration check exists for — a spec that
+   * silently stops being evidence — so they fail the same way.
+   */
+  const nightly = manifest.tiers?.nightly ?? [];
+  const onDisk = new Set(listAllSpecFiles());
+  const gated = new Set(files);
+  for (const spec of nightly) {
+    if (!onDisk.has(spec)) {
+      problems.push(
+        `${spec} is listed in tiers.nightly but does not exist on disk`,
+      );
+    }
+    if (gated.has(spec)) {
+      problems.push(
+        `${spec} is in tiers.nightly AND in the PR gate — a spec file belongs ` +
+          `to exactly one tier`,
+      );
+    }
+  }
+  for (const spec of onDisk) {
+    if (!gated.has(spec) && !nightly.includes(spec)) {
+      problems.push(
+        `${spec} is in neither tier — it would never run. Add it to the PR ` +
+          `gate (regenerate) or to tiers.nightly, and say which in the PR.`,
+      );
+    }
+  }
+  /*
+   * A nightly spec still needs a measured duration. It is not packed into a
+   * partition, but the nightly workflow's own budget is derived from the same
+   * numbers, and an unmeasured file there is exactly as invisible as one here.
+   */
+  for (const spec of nightly) {
+    if (onDisk.has(spec) && manifest.durations[spec] === undefined) {
+      problems.push(
+        `${spec} is in tiers.nightly but has no measured duration — the ` +
+          `nightly suite's cost would be a guess`,
+      );
+    }
+  }
+
   const derived = derivePartitions(manifest.durations, files);
   const shape = (partitions) =>
     JSON.stringify(
@@ -699,11 +827,25 @@ function commandCheck() {
     process.exitCode = 1;
     return;
   }
+  const nightly = listNightlySpecFiles();
+  const nightlySeconds = nightly.reduce(
+    (sum, file) => sum + (manifest.durations[file] ?? 0),
+    0,
+  );
   console.log(
-    `E2E partitions OK — ${files.length} spec files across ` +
+    `E2E partitions OK — ${files.length} PR-gate spec files across ` +
       `${manifest.partitions.length} partitions, heaviest ` +
       `${minutes(manifest.partitions[0].estimateSeconds)}.`,
   );
+  console.log(
+    `Nightly tier — ${nightly.length} spec files, ${minutes(nightlySeconds)} ` +
+      `of measured test time, run by .github/workflows/nightly.yml.`,
+  );
+}
+
+/** The nightly suite's spec files, as Playwright arguments. */
+function commandNightlySpecs() {
+  console.log(listNightlySpecFiles().join(" "));
 }
 
 function commandMatrix() {
@@ -794,9 +936,13 @@ switch (command) {
   case "plan":
     commandPlan();
     break;
+  case "nightly-specs":
+    commandNightlySpecs();
+    break;
   default:
     console.error(
-      "usage: e2e-partitions.mjs <generate|check|matrix|specs|describe|plan>",
+      "usage: e2e-partitions.mjs " +
+        "<generate|check|matrix|specs|describe|plan|nightly-specs>",
     );
     process.exitCode = 2;
 }

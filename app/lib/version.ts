@@ -39,7 +39,7 @@ export const APPLICATION_NAME = "DalyHub";
  *
  * ── `2.0.1` → `2.4.0`, and why there is no 2.1, 2.2 or 2.3 (V2.4-GATE-01) ────
  * The release train stopped after `2.0.1` and three whole programmes landed on
- * `main` behind it. A consolidated `2.4.0` is the SIMPLEST TRUTHFUL answer, and
+ * `main` behind it. A consolidated `2.4.0` was the SIMPLEST TRUTHFUL answer, and
  * the alternative was considered rather than skipped: tagging `2.1.0`, `2.2.0`
  * and `2.3.0` on the way past would name three releases that were never built,
  * never deployed and never ran anywhere. The artefact is identical for all four
@@ -47,23 +47,35 @@ export const APPLICATION_NAME = "DalyHub";
  * job is to answer "which build is live", which a number that never was a build
  * cannot do.
  *
- * `docs/release/RELEASE_NOTES_V2_4_0.md` therefore enumerates what V2.1, V2.2
- * and V2.3 shipped, because for the owner all of it arrives at once.
+ * ── `2.4.0` → `3.0.0`, and why the major moves ──────────────────────────────
+ * Not because of a feature. Between `2.4.0` and here, every module in the
+ * product was rebuilt on Untitled UI React Pro (UNTITLED-01 … 19) and the CSS
+ * cascade was given an explicit ownership model (V3-CSS-01) — 73.7% of the
+ * production stylesheet stopped being unlayered, and which rule wins on a
+ * migrated control changed accordingly. The implementation of nearly every
+ * surface an owner touches is different from the one `2.4.0` shipped, even
+ * where the behaviour is deliberately identical.
+ *
+ * A minor bump would have said "additions, backwards compatible". The data is
+ * backwards compatible; the frontend is a replacement. `3.0.0` is the honest
+ * number, and `docs/release/RELEASE_NOTES_V3_0_0.md` says what it covers.
  */
-export const APP_VERSION = "2.4.0";
+export const APP_VERSION = "3.0.0";
 
 /**
  * The release this version ships under. Shown beside the number in About.
  *
  * This is the release NAME, not a milestone name. It was "V2 Final Polish" while
- * that milestone was in flight; the shipped product is DalyHub V2, so that is
- * what About, Settings and every export archive now say.
+ * that milestone was in flight; the shipped product was DalyHub V2, so that is
+ * what About, Settings and every export archive said.
  *
- * UNCHANGED by the `2.4.0` bump, deliberately: the shipped product is still
- * DalyHub V2 and `2.4.0` is a version within it. Writing "V2.4" here would make
- * this a milestone name, which the paragraph above rules out.
+ * It moves to "V3" with `3.0.0` — and that is exactly the case this field is
+ * for. It stayed at "V2" through `2.1` … `2.4` because those were versions
+ * WITHIN V2; `3.0.0` is a different major line of the product, so the name it
+ * ships under changes with it. Writing "V3.0" here would make this a milestone
+ * name again, which the paragraph above rules out.
  */
-export const APP_RELEASE_NAME = "V2";
+export const APP_RELEASE_NAME = "V3";
 
 /** Environment labels that are safe to display. Anything else reads "unknown". */
 const KNOWN_ENVIRONMENTS: ReadonlySet<string> = new Set([

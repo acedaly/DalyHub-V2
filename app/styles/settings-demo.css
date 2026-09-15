@@ -1,59 +1,68 @@
-/**
+/*
+ * V3-CSS-01 — wrapped in `dh-product` because this file is imported from a route
+ * module, and a JS `import "./x.css"` cannot carry a `layer()` keyword the way
+ * `app.css`'s `@import` does. Unlayered CSS outranks every layer unconditionally,
+ * so a fixture stylesheet left outside the system would silently outrank the
+ * product it exists to demonstrate — and the fixture would stop being evidence.
+ */
+@layer dh-product {
+  /**
  * DS-10b — development-only Settings fixture styles (`/design/settings`).
  *
  * Presentation for the demo PAGE around the shared Settings layout. It reads only
  * DS-01 tokens. Not shipped to production (the fixture route is dev-only).
  */
 
-.settings-demo {
-  max-width: var(--app-width-content);
-  margin: 0 auto;
-  padding: var(--app-space-6) var(--app-page-padding) var(--app-space-12);
-}
+  .settings-demo {
+    max-width: var(--app-width-content);
+    margin: 0 auto;
+    padding: var(--app-space-6) var(--app-page-padding) var(--app-space-12);
+  }
 
-.settings-demo__header {
-  margin-bottom: var(--app-space-8);
-}
+  .settings-demo__header {
+    margin-bottom: var(--app-space-8);
+  }
 
-.settings-demo__header h1 {
-  margin: 0 0 var(--app-space-2);
-  font-size: var(--dh-text-page-title-size);
-  font-weight: 500;
-  color: var(--dh-color-text);
-}
+  .settings-demo__header h1 {
+    margin: 0 0 var(--app-space-2);
+    font-size: var(--dh-text-page-title-size);
+    font-weight: 500;
+    color: var(--dh-color-text);
+  }
 
-.settings-demo__header p {
-  margin: 0;
-  max-width: 46rem;
-  font-size: var(--dh-text-meta-size);
-  line-height: 1.65;
-  color: var(--dh-color-text-muted);
-}
+  .settings-demo__header p {
+    margin: 0;
+    max-width: 46rem;
+    font-size: var(--dh-text-meta-size);
+    line-height: 1.65;
+    color: var(--dh-color-text-muted);
+  }
 
-.settings-demo__narrow-wrap {
-  margin-top: var(--app-space-12);
-  padding-top: var(--app-space-8);
-  border-top: var(--app-border-width-thin) solid var(--dh-color-border);
-}
+  .settings-demo__narrow-wrap {
+    margin-top: var(--app-space-12);
+    padding-top: var(--app-space-8);
+    border-top: var(--app-border-width-thin) solid var(--dh-color-border);
+  }
 
-.settings-demo__narrow-title {
-  margin: 0 0 var(--app-space-1);
-  font-size: var(--dh-text-section-title-size);
-  font-weight: 500;
-  color: var(--dh-color-text);
-}
+  .settings-demo__narrow-title {
+    margin: 0 0 var(--app-space-1);
+    font-size: var(--dh-text-section-title-size);
+    font-weight: 500;
+    color: var(--dh-color-text);
+  }
 
-.settings-demo__narrow-note {
-  margin: 0 0 var(--app-space-4);
-  font-size: var(--dh-text-meta-size);
-  color: var(--dh-color-text-muted);
-}
+  .settings-demo__narrow-note {
+    margin: 0 0 var(--app-space-4);
+    font-size: var(--dh-text-meta-size);
+    color: var(--dh-color-text-muted);
+  }
 
-.settings-demo__narrow {
-  width: 20rem;
-  max-width: 100%;
-  padding: var(--app-space-4);
-  border: var(--app-border-width-thin) dashed var(--dh-color-border-strong);
-  border-radius: var(--dh-radius-lg);
-  background: var(--dh-color-bg-sunken);
+  .settings-demo__narrow {
+    width: 20rem;
+    max-width: 100%;
+    padding: var(--app-space-4);
+    border: var(--app-border-width-thin) dashed var(--dh-color-border-strong);
+    border-radius: var(--dh-radius-lg);
+    background: var(--dh-color-bg-sunken);
+  }
 }
