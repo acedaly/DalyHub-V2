@@ -243,6 +243,14 @@ Two rules follow, and they are the whole of it:
    workflows and signals, local structural geometry. That goes in `dh-product`,
    which sits above `utilities` on purpose.
 
+**One exception exists, and it is forced:** a library that injects its CSS at
+RUNTIME (CodeMirror does) is unlayered by construction, and unlayered beats every
+layer — so the DalyHub stylesheet that overrides it cannot be layered either.
+That is `markdown-editor.css`, and it is the only one. If you integrate another
+such library, say so at the import and prove your overrides contest nothing of
+Untitled's; the test derives the permitted set from the file rather than taking
+your word for it.
+
 If you reach for `!important` or add a class to out-specify something, the layer
 assignment is wrong. Fix the owner. `e2e/css-cascade-ownership.spec.ts` fails on
 any rule that has no layer, and on a legacy rule that beats Untitled on a control

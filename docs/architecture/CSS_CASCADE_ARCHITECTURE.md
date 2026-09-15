@@ -13,6 +13,11 @@ order is the ownership model. Nothing is unlayered, because unlayered CSS
 outranks layered CSS unconditionally and regardless of specificity — which means
 one unlayered file quietly outranks the entire design system.
 
+**There is exactly one exception, and it is forced rather than chosen:
+`markdown-editor.css`.** See [The one exception](#the-one-exception) below. It is
+not a loophole — `e2e/css-cascade-ownership.spec.ts` derives the permitted set
+from that file's own contents and fails on any other unlayered rule.
+
 ```
 theme → dh-tokens → base → dh-floor → dh-legacy → components → utilities → dh-product
 ```
@@ -50,12 +55,14 @@ source import order:
 | Production root CSS, raw | 814,944 B | 814,968 B |
 | Production root CSS, gzip | 98,232 B | 99,449 B |
 | `app.css` imports | 78 | 78 |
-| **Unlayered bytes** | **600,640 (73.7%)** | **3,776 (0.46%)** |
+| **Unlayered bytes** | **600,640 (73.7%)** | **11,562 (1.42%)** |
 | **Unlayered style rules** (CSSOM, live page) | **2,932 of 4,602 (63.7%)** | **0 of 4,602** |
 | `!important` declarations | 15 | 15 |
 
-The 3,776 remaining bytes are 84 Tailwind `@property` declarations and four
-`@keyframes`. Neither is a cascade participant and neither can be layered.
+The 11,562 remaining bytes are `markdown-editor.css` (the one forced exception,
+below), 84 Tailwind `@property` declarations and four `@keyframes`. Neither
+`@property` nor `@keyframes` is a cascade participant, and neither can be
+layered.
 
 The emitted cascade, read off the built artefact:
 
@@ -79,6 +86,52 @@ stylesheet, on an element carrying both `.dh-surface` (`ui.css`) and Untitled's
 
 Both halves are held by [`e2e/css-cascade-ownership.spec.ts`](../../e2e/css-cascade-ownership.spec.ts):
 the probe above, and a CSSOM walk asserting no rule sits outside a layer.
+
+## The one exception
+
+`markdown-editor.css` is imported **without** a `layer()` keyword, and that is a
+consequence of how the cascade works rather than a preference.
+
+**CodeMirror configures itself by injecting a `<style>` element at runtime**
+(`style-mod`'s `StyleModule`). A runtime-injected sheet is unlayered by
+construction: there is no `@import` for a `layer()` keyword to attach to, and the
+library offers no hook to place it. Unlayered normal declarations beat layered
+ones unconditionally — so the moment DalyHub's editor stylesheet entered a layer,
+a third-party library acquired absolute priority over the stylesheet whose entire
+job is to configure it.
+
+That is not hypothetical. It shipped in the first CI run of this architecture:
+
+| | |
+| :-- | :-- |
+| Measured | CodeMirror injects **72 unlayered rules**. Its own `.cm-content { padding: 4px 0 }` beat `.dh-md-editor__cm .cm-content`'s DalyHub padding. |
+| Rendered | The editor's first line lost its left inset entirely — computed `4px 0px 4px 0px`. |
+| Caught by | `e2e/editor-geometry.spec.ts`, at 390, 1024, 1280 and 1440, plus the empty-Note caret. Four E2E partitions red. |
+| Why it ever worked | Before V3-CSS-01 this file was unlayered too, and won on specificity (`.dh-md-editor__cm .cm-content` is 0-2-0 against CodeMirror's 0-1-0). Layering it is what handed the contest away. |
+
+**Why leaving it unlayered is safe, measured rather than assumed:** of the 66
+classes this file owns, **zero** appear in the markup on an element that also
+carries an Untitled utility. Its selectors live in the `.dh-md-*`, `.cm-*` and
+`.dh-record-link-picker*` namespaces, which Untitled has no opinion about. The
+file therefore cannot repaint an Untitled control even though nothing stops it on
+layer order.
+
+**The real fix, deliberately not taken here:** move the 49 `.cm-*` rules into
+CodeMirror's own `EditorView.theme()`, where they would participate in the same
+StyleModule and the same precedence as the defaults they override. That is a
+refactor of a working editor, and it belongs to its own change. Named
+maintenance debt item 16.
+
+### What this means for anyone adding a stylesheet
+
+If you integrate a library that injects its own CSS at runtime, **your overrides
+for it cannot live in a layer either**, and you must say so at the import with
+the same three things this one states: what injects, what it measured, and why
+leaving yours unlayered contests nothing of Untitled's. If you cannot show the
+third point, the answer is not a second exception — it is to stop the library
+injecting.
+
+---
 
 ## Where a stylesheet goes
 
@@ -108,12 +161,32 @@ it. When the last rule leaves a file, the file goes.
 | `skeleton.css` | 82 | loading placeholders |
 | `progress.css` | 67 | progress bars |
 
-**Every one of these produced zero visual change when demoted below
-`utilities`** — measured across 170 surface × width × appearance snapshots, see
-below. That is a strong claim about them: their contested rules are already
-being beaten by Untitled everywhere the product renders them, so they are dead
-weight rather than live paint, and deleting them is a safe, bounded job rather
-than a migration.
+None of these produced a visual change when demoted below `utilities`. **The
+strength of that statement is not the same for all eight**, and a later audit of
+the snapshot matrix is what established the difference — so it is recorded here
+rather than averaged away.
+
+The matrix sampled *collections* heavily and *records* and *overlays* barely: it
+carried `/projects` but not `/projects/pr-website`, `/goals` but not
+`/goals/g-launch`, and **no overlay was open in any of the 170 snapshots**.
+Auditing which of these files' classes were actually rendered in it:
+
+| File | Classes rendered in the matrix | What the audit then established directly |
+| :-- | --: | :--- |
+| `ui.css` | 10, on 12 surfaces | Covered by the diff. |
+| `filters.css` | 10, on 2 surfaces | Thin, but covered. |
+| `pill.css` | 3, on 1 surface | Thin, but covered. |
+| `overflow-menu.css` | 3, on 10 surfaces | Covered by the diff. |
+| `skeleton.css` | 1, on 2 surfaces | Thin, but covered. |
+| `floating.css` | **0** | **Live, and verified separately.** With the record overflow menu open: `.dh-floating` ×3 and `.dh-option` ×20, correct background, hairline, 12px radius and shadow in **both** appearances. Its elements carry **only `dh-*` classes and no Untitled utilities**, which is precisely why demoting it changes nothing — there is nothing on the element to contest it. |
+| `tooltip.css` | **0** | **Dead.** The shared Tooltip renders pure Untitled utilities (`rounded-lg bg-primary-*`, an `oklch` background); `dh-tooltip` appears **zero** times in the rendered DOM. 92 lines with no consumer. |
+| `progress.css` | **0** | **Inert.** It contains no `.dh-progress*` rules at all — UNTITLED-07 deleted them and the class names survive as markup hooks. Its only live rules are `.dh-ring*`, whose component `~/shared/charts/ProgressRing` is exported from the charts barrel and **imported by nobody**; `.dh-ring` appears in no markup. |
+
+So `tooltip.css` and `progress.css` are deletable now on evidence stronger than
+the diff's — they have no consumer at all — and `floating.css` is live paint that
+is safe where it sits for a reason that was measured rather than assumed. The
+claim that the diff alone proved all eight inert was too strong, and this table
+replaces it.
 
 ### Three files that look generic and are not
 

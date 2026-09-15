@@ -1,4 +1,17 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { expect, test } from "@playwright/test";
+
+/*
+ * The ONE stylesheet allowed to be unlayered, read as TEXT so that the
+ * exception this test permits is derived from the file rather than restated
+ * beside it and left to drift.
+ */
+const editorStylesheet = readFileSync(
+  join(process.cwd(), "app/styles/markdown-editor.css"),
+  "utf8",
+);
 
 /**
  * V3-CSS-01 — the CASCADE OWNERSHIP canary.
@@ -147,78 +160,175 @@ test.describe("V3-CSS-01 — cascade ownership", () => {
 
   /**
    * The structural half of the same contract, measured through the CSSOM rather
-   * than through one element: **no rule in the production stylesheet may sit
-   * outside a cascade layer.**
+   * than through one element: **the only unlayered rules in the document are the
+   * two documented exceptions.**
    *
    * A single unlayered rule is enough to reintroduce the defect, because
    * unlayered beats layered unconditionally — so this counts rather than
-   * samples. It catches the case the probe above cannot: a stylesheet added
-   * later that nobody remembered to layer.
+   * samples.
+   *
+   * ── Why this runs on TWO routes, and what that cost to learn ───────────────
+   *
+   * It used to run only on a fixture route, and it passed while the product was
+   * broken. CodeMirror injects its stylesheet at RUNTIME, so it exists only on a
+   * page that mounts an editor — and the fixture route mounts none. The first CI
+   * run of the layer architecture duly went green here and red in four
+   * partitions, on the editor's lost left padding.
+   *
+   * So the sweep visits a surface WITH a third-party runtime-injected
+   * stylesheet as well as one without, and it names the exceptions instead of
+   * allowing an empty set. An assertion that cannot see the thing it is about is
+   * not a gate.
    */
-  test("every rule in the production stylesheet belongs to a cascade layer", async ({
+  for (const [label, path] of [
+    ["a surface with no runtime-injected CSS", "/design/record-layout"],
+    ["a surface that mounts the CodeMirror editor", "/notes/n-search-e2e"],
+  ] as const) {
+    test(`only the documented exceptions are unlayered — ${label}`, async ({
+      page,
+    }) => {
+      await page.goto(path);
+      /* The editor mounts after hydration; the injected sheet does not exist
+       * until it does, which is the whole point of visiting this route. */
+      await page.waitForTimeout(2500);
+
+      const unlayered = await page.evaluate(() => {
+        const offenders: { selector: string; sheet: string }[] = [];
+
+        const walk = (
+          rules: CSSRuleList,
+          insideLayer: boolean,
+          sheetLabel: string,
+        ) => {
+          for (const rule of Array.from(rules)) {
+            const type = rule.constructor.name;
+
+            if (type === "CSSLayerBlockRule") {
+              walk((rule as CSSGroupingRule).cssRules, true, sheetLabel);
+              continue;
+            }
+            /* `@layer a, b, c;` declares order and carries no rules. */
+            if (type === "CSSLayerStatementRule") continue;
+            /* Grouping rules inherit their parent's layer membership. */
+            if (
+              type === "CSSMediaRule" ||
+              type === "CSSSupportsRule" ||
+              type === "CSSContainerRule" ||
+              type === "CSSScopeRule" ||
+              type === "CSSStartingStyleRule"
+            ) {
+              walk((rule as CSSGroupingRule).cssRules, insideLayer, sheetLabel);
+              continue;
+            }
+            /* At-rules that define a resource rather than paint an element are
+             * not cascade participants and cannot be layered. */
+            if (
+              type === "CSSFontFaceRule" ||
+              type === "CSSKeyframesRule" ||
+              type === "CSSPropertyRule" ||
+              type === "CSSImportRule" ||
+              type === "CSSNamespaceRule" ||
+              type === "CSSCounterStyleRule" ||
+              type === "CSSFontPaletteValuesRule"
+            ) {
+              continue;
+            }
+
+            if (!insideLayer) {
+              const selector =
+                (rule as CSSStyleRule).selectorText ?? rule.cssText;
+              offenders.push({
+                selector: String(selector).slice(0, 120),
+                sheet: sheetLabel,
+              });
+            }
+          }
+        };
+
+        for (const sheet of Array.from(document.styleSheets)) {
+          const label = sheet.href
+            ? sheet.href.split("/").pop()!
+            : "(runtime-injected <style>)";
+          /* Same-origin only; a cross-origin sheet throws on `cssRules`. */
+          try {
+            walk(sheet.cssRules, false, label);
+          } catch {
+            /* Not ours to police. */
+          }
+        }
+        return offenders;
+      });
+
+      /*
+       * The two exceptions, and nothing else.
+       *
+       *   1. CodeMirror's own injected sheet — the `.cm-*` namespace, plus the
+       *      generated `.ͼ*` classes `style-mod` emits, which carry no ASCII
+       *      class name at all.
+       *   2. `markdown-editor.css`, the stylesheet that configures CodeMirror.
+       *      It cannot be layered while the thing it overrides is not; the
+       *      argument is beside its import in `app/app.css`.
+       *
+       * The second set is READ FROM THE FILE rather than written out here. A
+       * hand-maintained list of namespaces is a list that drifts: the first
+       * draft of this test allowed `.dh-md-*` and missed
+       * `.dh-record-link-picker*`, which the same file owns, so it failed on a
+       * correct tree. Deriving the set means the exception is exactly "what
+       * that one file declares", and a rule added unlayered anywhere else
+       * still fails.
+       */
+      const allowedClasses = new Set(
+        [...editorStylesheet.matchAll(/\.([A-Za-z_][\w-]*)/g)].map((m) => m[1]),
+      );
+      const unexpected = unlayered.filter(({ selector }) => {
+        const classes = [...selector.matchAll(/\.([A-Za-z_][\w-]*)/g)].map(
+          (m) => m[1],
+        );
+        /* A selector with no ASCII class is CodeMirror's generated `.ͼ1` form
+         * (or a bare element selector, which is never allowed unlayered). */
+        if (classes.length === 0) return !selector.includes("ͼ");
+        return !classes.every(
+          (c) => allowedClasses.has(c) || c.startsWith("cm-"),
+        );
+      });
+
+      expect(
+        unexpected.slice(0, 20),
+        `${unexpected.length} rule(s) sit outside every cascade layer and are ` +
+          `not one of the two documented exceptions — they therefore outrank ` +
+          `all of Untitled regardless of specificity`,
+      ).toEqual([]);
+    });
+  }
+
+  /**
+   * The exception is BOUNDED, not open: the editor's own padding is proof that
+   * `markdown-editor.css` still beats the library it configures.
+   *
+   * This is the assertion that would have caught the regression directly. It
+   * fails if the file is ever put back into a layer, whatever the layer.
+   */
+  test("the editor stylesheet still beats CodeMirror's injected defaults", async ({
     page,
   }) => {
-    await page.goto(ANY_PRODUCT_ROUTE);
+    await page.goto("/notes/n-search-e2e");
+    const content = page.locator(".dh-md-editor__cm .cm-content");
+    await content.waitFor();
 
-    const unlayered = await page.evaluate(() => {
-      const offenders: string[] = [];
-
-      const walk = (rules: CSSRuleList, insideLayer: boolean) => {
-        for (const rule of Array.from(rules)) {
-          const type = rule.constructor.name;
-
-          if (type === "CSSLayerBlockRule") {
-            walk((rule as CSSGroupingRule).cssRules, true);
-            continue;
-          }
-          /* `@layer a, b, c;` declares order and carries no rules. */
-          if (type === "CSSLayerStatementRule") continue;
-          /* Grouping rules inherit their parent's layer membership. */
-          if (
-            type === "CSSMediaRule" ||
-            type === "CSSSupportsRule" ||
-            type === "CSSContainerRule" ||
-            type === "CSSScopeRule" ||
-            type === "CSSStartingStyleRule"
-          ) {
-            walk((rule as CSSGroupingRule).cssRules, insideLayer);
-            continue;
-          }
-          /* At-rules that define a resource rather than paint an element are not
-           * cascade participants and cannot be layered. */
-          if (
-            type === "CSSFontFaceRule" ||
-            type === "CSSKeyframesRule" ||
-            type === "CSSPropertyRule" ||
-            type === "CSSImportRule" ||
-            type === "CSSNamespaceRule" ||
-            type === "CSSCounterStyleRule" ||
-            type === "CSSFontPaletteValuesRule"
-          ) {
-            continue;
-          }
-
-          if (!insideLayer) {
-            const text = (rule as CSSStyleRule).selectorText ?? rule.cssText;
-            offenders.push(String(text).slice(0, 120));
-          }
-        }
-      };
-
-      for (const sheet of Array.from(document.styleSheets)) {
-        /* Same-origin only; a cross-origin sheet throws on `cssRules`. */
-        try {
-          walk(sheet.cssRules, false);
-        } catch {
-          /* Not ours to police. */
-        }
-      }
-      return offenders;
+    const padding = await content.evaluate((el) => {
+      const s = getComputedStyle(el);
+      return { left: s.paddingLeft, top: s.paddingTop };
     });
 
+    /* CodeMirror's default is `4px 0`. DalyHub's is a token-derived inset that
+     * lines the first character up with the toolbar's first icon. The exact
+     * value is the stylesheet's business; that it is NOT zero is the contract,
+     * and zero is precisely what a layered `markdown-editor.css` produced. */
     expect(
-      unlayered.slice(0, 20),
-      `${unlayered.length} rule(s) sit outside every cascade layer and therefore outrank all of Untitled regardless of specificity`,
-    ).toEqual([]);
+      Number.parseFloat(padding.left),
+      "the editor's first line has no left inset — CodeMirror's injected " +
+        "`padding: 4px 0` is winning, which means `markdown-editor.css` has " +
+        "been put into a cascade layer again",
+    ).toBeGreaterThan(0);
   });
 });
