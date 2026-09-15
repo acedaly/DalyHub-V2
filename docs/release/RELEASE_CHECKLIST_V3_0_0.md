@@ -2,13 +2,17 @@
 
 **Version `3.0.0` · Release name "V3" · PREPARED 2026-09-15 · CUT ATTEMPTED AND HELD 2026-09-15 · NOT RELEASED**
 
-> **The cut was attempted on 2026-09-15 and stopped at §0 condition 3.** The
-> first CI run of `main` after #297 was RED, and one of its three failures was a
-> real WCAG 2.2 AA regression that V3-CSS-01 had introduced. It was fixed by
-> [#298](https://github.com/acedaly/DalyHub-V2/pull/298), which is on `main` as
-> `4a2140f`, and **the release commit is now `4a2140f` rather than `4f49c169`**.
-> No tag has been created and nothing has been deployed. §2.6 has both runs, the
-> failures and their root causes.
+> **The release gate is now MET, and the release commit is `4a2140f`.** The cut
+> was attempted on 2026-09-15 against `4f49c169` and stopped at §0 condition 3:
+> that CI run was RED, and one of its three failures was a real WCAG 2.2 AA
+> regression V3-CSS-01 had introduced. It was fixed by
+> [#298](https://github.com/acedaly/DalyHub-V2/pull/298), and `main` @ `4a2140f`
+> is green — 23 of 23 jobs. §2.6 has both runs.
+>
+> **No tag has been created and nothing has been deployed**, and neither can be
+> from here: the nightly suite cannot be dispatched (§2.5) and the production
+> preflight needs Cloudflare credentials this session does not hold (§4). §7 is
+> the remaining sequence.
 
 > The evidence behind every V3.0.0 claim, and the exact sequence for deploying
 > it. Nothing is marked ✅ without a reference to a measurement. Where something
@@ -33,7 +37,7 @@ below are the ones the preparing change could not satisfy from a branch.
 | :-- | :--- | :--- |
 | 1 | The frontend foundation work (V3-CSS-01, the cascade layer architecture) is **merged to `main`** | ✅ merged in [#297](https://github.com/acedaly/DalyHub-V2/pull/297), `main` @ `4f49c169` |
 | 2 | The E2E gate restructure (V3-E2E-01, the PR/nightly tiers) is **merged to `main`** | ✅ merged in the same change; verified below |
-| 3 | **`main` is green** after both — full CI, including every E2E partition | ⏳ **not yet.** The run at `4f49c169` concluded `failure` (§2.6a). The fix is merged and CI run [`34962659072`](https://github.com/acedaly/DalyHub-V2/actions/runs/34962659072) at `4a2140f` is the one that answers this; §2.6b carries its result |
+| 3 | **`main` is green** after both — full CI, including every E2E partition | ✅ CI run [`34962659072`](https://github.com/acedaly/DalyHub-V2/actions/runs/34962659072) at `4a2140f`, **23 of 23 jobs `success`**. The earlier run at `4f49c169` was red and is kept as §2.6a |
 
 **The fourth, non-blocking condition is NOT met.** The nightly suite
 (`.github/workflows/nightly.yml`) has still never run — see §2.5. It is
@@ -189,12 +193,17 @@ after the change**, which is the order a regression test has to be written in.
 ✅ **222 tests passed** across the new and changed E2E specs, measured locally
 during the preparing change.
 
-⛔ **The first CI run of the release commit was RED**, and it found a real
-defect — run
+✅ **CI has run the release commit and it is green** — run
+[`34962659072`](https://github.com/acedaly/DalyHub-V2/actions/runs/34962659072)
+at `4a2140f`, §2.6b.
+
+⚠️ **It took two runs, and the first one earned its keep.** Run
 [`34955877627`](https://github.com/acedaly/DalyHub-V2/actions/runs/34955877627)
-at `4f49c169`. The per-job evidence and the root cause of every failure are in
-§2.6a; the fix is `4a2140f` and §2.6b is the run that decides the gate. Nothing
-is tagged and nothing is deployed.
+at `4f49c169` was RED and found a real accessibility defect that three months of
+migration passes, a 66,681-element computed-style diff and a local 222-test run
+had all missed. §2.6a is kept in full rather than replaced, because a release
+record that only shows the green run hides the one piece of evidence that the
+gate works.
 
 ### 2.4 What the E2E restructure did to the gate
 
@@ -340,11 +349,27 @@ this release.
 
 ### 2.6b `main` CI at `4a2140f` — the run the gate depends on
 
-⏳ Run [`34962659072`](https://github.com/acedaly/DalyHub-V2/actions/runs/34962659072),
-event `push`, `main` @ `4a2140f08861b1be1a5712f38de77e4f39d07b3a`. **This is the
-run §0 condition 3 turns on**, and the release does not proceed until it is
-green: every required E2E partition, no cancelled job, no unexecuted partition.
-p07 and p11 are the two to read first.
+✅ Run [`34962659072`](https://github.com/acedaly/DalyHub-V2/actions/runs/34962659072),
+event `push`, `main` @ `4a2140f08861b1be1a5712f38de77e4f39d07b3a`, attempt 1 —
+a `push`-event run on `main` itself, not a PR-branch run. **Conclusion:
+`success`. 23 of 23 jobs.**
+
+| Job | Result |
+| :-- | :--- |
+| Scope | ✅ success |
+| Static | ✅ success |
+| Unit | ✅ success — unit & component tests, then kernel tests on the Workers runtime with real D1 |
+| Build | ✅ success |
+| E2E p01 … p18 | ✅ **18 of 18 success** — including p07 and p11, the two that were red at `4f49c169` |
+| CI Gate | ✅ success |
+
+**No job was cancelled, no partition went unexecuted, and no failure artefact was
+published.** §0 condition 3 is satisfied by this run.
+
+Note what the Unit job covers at this commit: `test:kernel` runs the whole
+Workers-runtime suite, which **includes** `whole-product-rehearsal.test.ts` and
+`workspace-data-map.test.ts` — so §3's restore rehearsal is green on the release
+commit in CI, not only locally.
 
 **2 and 3. Timeout margin on a slow runner, not product defects.**
 
@@ -363,11 +388,11 @@ is the first re-test.
 
 ### 2.7 Local release gates, at the release commit
 
-Run in the release session against `4f49c169`, after `pnpm install --frozen-lockfile`.
-`4a2140f` changes four stylesheets, one new stylesheet, one spec and three
-documents, and touches no version constant, no migration and no application
-code — so every row below still reads the same at the release commit, and the
-`main` CI run in §2.6b re-runs all of them anyway:
+Run in the release session, after `pnpm install --frozen-lockfile`. The static
+gates, the version check and the restore rehearsal were **re-run at `4a2140f`**
+after the release commit moved; `test:unit` and `test:kernel` were measured at
+`4f49c169` and re-run at `4a2140f` by the `main` CI job in §2.6b, which is the
+stronger reading of the two:
 
 | Gate | Result |
 | :-- | :--- |
@@ -382,9 +407,9 @@ code — so every row below still reads the same at the release commit, and the
 | `pnpm run docs:links:check` | ✅ |
 | `pnpm run e2e:partitions:check` | ✅ |
 | `pnpm run e2e:fixture-dates:check` | ✅ |
-| `pnpm run test:unit` | ✅ **541 files, 7,767 tests passed**, 0 failed |
-| `pnpm run test:kernel` | ✅ **229 files, 3,613 tests passed**, 0 failed — Workers runtime with real D1 |
-| `pnpm run restore:rehearsal` | ✅ **2 files, 28 tests passed**, 0 failed — see §3 |
+| `pnpm run test:unit` | ✅ **541 files, 7,767 tests passed**, 0 failed (at `4f49c169`; re-run green by CI at `4a2140f`) |
+| `pnpm run test:kernel` | ✅ **229 files, 3,613 tests passed**, 0 failed — Workers runtime with real D1 (at `4f49c169`; re-run green by CI at `4a2140f`) |
+| `pnpm run restore:rehearsal` | ✅ **2 files, 28 tests passed**, 0 failed — at BOTH commits; see §3 |
 
 ---
 
@@ -402,7 +427,9 @@ durable domain, a truth manifest of derived owner-facing values at a frozen owne
 day, export, destroy every row through the registry-derived purge plan and every
 object in R2, prove it is gone, restore, recompute the manifest and compare.
 
-**2 files, 28 tests, all passed, 0 failed** (26.6s). What is compared is not row
+**2 files, 28 tests, all passed, 0 failed**, run at `4f49c169` and again at the
+release commit `4a2140f` — and a third time inside `test:kernel` on CI's Unit
+job, which runs the whole Workers suite. What is compared is not row
 counts: account balances derived again from the restored rows, month totals per
 currency, a transfer still excluded from spending, an obligation still settled by
 the transaction that settled it, a Goal's measurement series, a Review's
@@ -494,7 +521,7 @@ did not hold, and none was faked.
 
 | # | Action | Why it is here |
 | :-- | :--- | :--- |
-| 0 | **Confirm CI run [`34962659072`](https://github.com/acedaly/DalyHub-V2/actions/runs/34962659072) (`main` @ `4a2140f`) is green** | §0 condition 3 and §2.6b — the blocker is fixed and merged; this run is what proves it, and nothing below matters until it is green |
+| ~~0~~ | ~~Confirm `main` CI at `4a2140f` is green~~ | ✅ **done** — run [`34962659072`](https://github.com/acedaly/DalyHub-V2/actions/runs/34962659072), 23 of 23 |
 | 1 | `gh workflow run nightly.yml --ref main`, then confirm all three jobs green | §2.5 — `workflow_dispatch` returned `403` to the session |
 | 2 | `pnpm run db:production:list` — **record the output** | §1.1 — production's ledger is the only authority on which of `0048`–`0055` are pending |
 | 3 | Establish and verify an encrypted backup ([§6 steps 1–2](RELEASE_CHECKLIST_V2_4_0.md)) | §1.1 — this release applies migrations, so this is a precondition |

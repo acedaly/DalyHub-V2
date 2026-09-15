@@ -1,16 +1,22 @@
 # DalyHub V3.0.0 — Release Notes
 
-**Version `3.0.0` · Release name "V3" · Cut attempted 2026-09-15 · HELD**
+**Version `3.0.0` · Release name "V3" · Release candidate 2026-09-15 · `main` @ `4a2140f`**
 
 > Written for the person using DalyHub.
 >
-> **This release is written but not cut.** The attempt on 2026-09-15 stopped at
-> its own gate: the first CI run of `main` after the frontend work merged was
-> red, and one of its failures was a genuine accessibility regression that the
-> cascade change had introduced. It was fixed by
-> [#298](https://github.com/acedaly/DalyHub-V2/pull/298) before anything
-> shipped; the release now waits on that commit's own CI run. Nothing has been
-> tagged or deployed.
+> **This is the release candidate, and it is not deployed.** The repository, the
+> version constant and the test evidence are ready — `main` is green — but the
+> deployment needs Cloudflare credentials no automated session holds, and the
+> exhaustive nightly test suite has still never been run. Both are owner actions,
+> listed in [`RELEASE_CHECKLIST_V3_0_0.md`](RELEASE_CHECKLIST_V3_0_0.md) §7, and
+> **one of them is a precondition rather than a formality** — see *"Your data,
+> and the one thing that is not true of this release"* below.
+>
+> The first attempt at cutting this, on 2026-09-15, stopped at its own gate: CI
+> found a genuine accessibility regression the cascade change had introduced. It
+> was fixed by [#298](https://github.com/acedaly/DalyHub-V2/pull/298) before
+> anything shipped, and it is in Known limitations below, because the gate
+> working is worth recording.
 >
 > Everything below is what `3.0.0` will say once it goes out. The evidence, the
 > failures and what is left to do are in
