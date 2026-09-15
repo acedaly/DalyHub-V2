@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 /*
  * The ONE stylesheet allowed to be unlayered, read as TEXT so that the
@@ -132,6 +132,71 @@ async function readProbe(
       legacyBorderRadius: l.borderRadius,
     };
   });
+}
+
+/**
+ * The contrast of one element's colour against the first painted background
+ * above it, measured the way the browser itself would.
+ *
+ * Colours are resolved by PAINTING them on a 1x1 canvas and reading the byte,
+ * not by parsing `rgb()`. The product's tokens are `oklch()` under Tailwind v4
+ * and an ancestor background computes as `oklch(0.145 0 none)`, which no rgb()
+ * parser reads — the first version of this returned NaN and reported a passing
+ * caret as a failure. The canvas is the browser's own conversion, so it cannot
+ * drift from what is on screen; the same trick decides transparency during the
+ * walk upwards.
+ */
+async function contrastAgainstBackground(
+  page: Page,
+  selector: string,
+  property: "borderLeftColor" | "color",
+): Promise<{ colour: string; background: string; ratio: number } | null> {
+  return page.evaluate(
+    ({ selector, property }) => {
+      const element = document.querySelector(selector) as HTMLElement | null;
+      if (!element) return null;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = 1;
+      canvas.height = 1;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+      const bytes = (value: string) => {
+        ctx.clearRect(0, 0, 1, 1);
+        ctx.fillStyle = value;
+        ctx.fillRect(0, 0, 1, 1);
+        return ctx.getImageData(0, 0, 1, 1).data;
+      };
+      const luminance = (value: string) => {
+        const [r, g, b] = bytes(value);
+        const channel = (v: number) => {
+          const n = v / 255;
+          return n <= 0.03928 ? n / 12.92 : ((n + 0.055) / 1.055) ** 2.4;
+        };
+        return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+      };
+
+      const colour = getComputedStyle(element)[property];
+
+      /* The editor's surfaces are transparent up to the page, so walk for the
+       * first one that actually paints rather than assuming which element does. */
+      let node: HTMLElement | null = element;
+      let background = "rgb(255, 255, 255)";
+      while (node) {
+        const bg = getComputedStyle(node).backgroundColor;
+        if (bytes(bg)[3] > 0) {
+          background = bg;
+          break;
+        }
+        node = node.parentElement;
+      }
+
+      const a = luminance(colour);
+      const b = luminance(background);
+      const [hi, lo] = a > b ? [a, b] : [b, a];
+      return { colour, background, ratio: (hi + 0.05) / (lo + 0.05) };
+    },
+    { selector, property },
+  );
 }
 
 test.describe("V3-CSS-01 — cascade ownership", () => {
@@ -375,67 +440,11 @@ test.describe("V3-CSS-01 — cascade ownership", () => {
       // The caret only exists once the editor has focus.
       await content.click();
 
-      const measured = await page.evaluate(() => {
-        /* Resolve ANY CSS colour to sRGB bytes by painting it. The product's
-         * tokens are `oklch()` under Tailwind v4 and an ancestor background
-         * computes as `oklch(0.145 0 none)`, which no rgb() parser can read —
-         * the first version of this test returned NaN and reported a passing
-         * caret as a failure. The canvas is the browser's own conversion, so it
-         * cannot drift from what is actually on screen. */
-        const canvas = document.createElement("canvas");
-        canvas.width = 1;
-        canvas.height = 1;
-        const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
-        const parse = (value: string): [number, number, number] => {
-          ctx.clearRect(0, 0, 1, 1);
-          ctx.fillStyle = value;
-          ctx.fillRect(0, 0, 1, 1);
-          const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
-          return [r, g, b];
-        };
-        const luminance = ([r, g, b]: [number, number, number]) => {
-          const channel = (v: number) => {
-            const n = v / 255;
-            return n <= 0.03928 ? n / 12.92 : ((n + 0.055) / 1.055) ** 2.4;
-          };
-          return (
-            0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b)
-          );
-        };
-        const caret = document.querySelector(
-          ".dh-md-editor__cm .cm-cursor",
-        ) as HTMLElement | null;
-        if (!caret) return null;
-        const caretColor = getComputedStyle(caret).borderLeftColor;
-
-        /* The caret draws over the editor's surface, which is transparent all
-         * the way up to the page — so the page's own background is what it is
-         * actually seen against. Walk up for the first non-transparent one
-         * rather than assuming which element paints. */
-        let node: HTMLElement | null = caret;
-        let background = "rgb(255, 255, 255)";
-        while (node) {
-          const bg = getComputedStyle(node).backgroundColor;
-          /* Transparent in any colour space: alpha 0 after painting. */
-          ctx.clearRect(0, 0, 1, 1);
-          ctx.fillStyle = bg;
-          ctx.fillRect(0, 0, 1, 1);
-          if (ctx.getImageData(0, 0, 1, 1).data[3] > 0) {
-            background = bg;
-            break;
-          }
-          node = node.parentElement;
-        }
-
-        const a = luminance(parse(caretColor));
-        const b = luminance(parse(background));
-        const [hi, lo] = a > b ? [a, b] : [b, a];
-        return {
-          caretColor,
-          background,
-          ratio: (hi + 0.05) / (lo + 0.05),
-        };
-      });
+      const measured = await contrastAgainstBackground(
+        page,
+        ".dh-md-editor__cm .cm-cursor",
+        "borderLeftColor",
+      );
 
       expect(
         measured,
@@ -444,11 +453,74 @@ test.describe("V3-CSS-01 — cascade ownership", () => {
 
       expect(
         measured!.ratio,
-        `the text cursor is ${measured!.caretColor} against ${measured!.background}, ` +
+        `the text cursor is ${measured!.colour} against ${measured!.background}, ` +
           `a contrast of ${measured!.ratio.toFixed(2)}:1. Below 3:1 an owner ` +
           `cannot see where they are typing. This is what a CodeMirror default ` +
           `winning over a layered DalyHub rule looks like`,
       ).toBeGreaterThanOrEqual(3);
+    });
+  }
+
+  /**
+   * The placeholder, for the same reason and with the same shape.
+   *
+   * It is a separate rule in the same exception file, and it had the same
+   * defect: CodeMirror's `#888` was winning, which measures 3.54:1 against the
+   * editor's white surface where DalyHub's own muted token gives 4.88:1.
+   * Without this, moving or deleting that one override would recreate the
+   * regression with the caret tests still green — which is exactly how the
+   * caret got here, only the noticed half of a two-rule defect having a test.
+   *
+   * It fails in the MIRROR appearance to the caret, which is the argument for
+   * running both on each. Deleting the override again:
+   *
+   *   ✘ light  rgb(136,136,136) on rgb(255,255,255)  3.54:1
+   *   ✓ dark
+   *
+   * The caret's defect was total in dark and invisible in light; this one is
+   * the other way round. Either test alone, in either appearance alone, misses
+   * one of them.
+   *
+   * 4.5:1 is the WCAG 2.2 AA floor for text (1.4.3). A placeholder is a
+   * borderline case under the spec and a real one for an owner, so it is held
+   * to the text threshold rather than the non-text one the caret uses.
+   *
+   * The placeholder only exists on an empty document, so the seeded Note is
+   * emptied to produce one — the same thing `editor-geometry.spec.ts` does for
+   * its empty-caret assertion, in a different partition.
+   */
+  for (const scheme of ["light", "dark"] as const) {
+    test(`the empty-state placeholder is legible in the ${scheme} appearance`, async ({
+      page,
+    }) => {
+      await page.emulateMedia({ colorScheme: scheme });
+      await page.goto("/notes/n-search-e2e");
+      const content = page.locator(".dh-md-editor__cm .cm-content").first();
+      await content.waitFor();
+
+      await content.click();
+      await page.keyboard.press("ControlOrMeta+a");
+      await page.keyboard.press("Backspace");
+      await expect(page.locator(".cm-placeholder")).toBeVisible();
+
+      const measured = await contrastAgainstBackground(
+        page,
+        ".dh-md-editor__cm .cm-placeholder",
+        "color",
+      );
+
+      expect(
+        measured,
+        "no `.cm-placeholder` after emptying the document",
+      ).not.toBeNull();
+
+      expect(
+        measured!.ratio,
+        `the placeholder is ${measured!.colour} against ${measured!.background}, ` +
+          `a contrast of ${measured!.ratio.toFixed(2)}:1. CodeMirror's own ` +
+          `\`#888\` reads 3.54:1 against the editor's white surface; DalyHub's ` +
+          `muted token gives 4.88:1`,
+      ).toBeGreaterThanOrEqual(4.5);
     });
   }
 });

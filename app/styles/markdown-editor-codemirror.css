@@ -96,8 +96,13 @@
  * The dark caret is the one that matters: black on the `rgb(18,18,21)` page is
  * **1.12:1**, where the token gives 16.88:1. An owner could not see where they
  * were typing, in every writing surface the product has. The light-mode
- * placeholder is a smaller real regression beside it — 3.28:1 against a token
- * that gives 4.88:1.
+ * placeholder is a smaller real regression beside it — 3.54:1 against the
+ * editor's white surface, where the token gives 4.88:1.
+ *
+ * The two fail in OPPOSITE appearances, which is why
+ * `e2e/css-cascade-ownership.spec.ts` asserts each in both: the caret is
+ * invisible in dark and fine in light, the placeholder illegible in light and
+ * fine in dark.
  */
 
 .dh-md-editor__cm .cm-cursor,

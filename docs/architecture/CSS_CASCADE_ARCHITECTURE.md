@@ -14,7 +14,7 @@ outranks layered CSS unconditionally and regardless of specificity — which mea
 one unlayered file quietly outranks the entire design system.
 
 **There is exactly one exception, and it is forced rather than chosen:
-`markdown-editor-codemirror.css` — six rules.** See [The one exception](#the-one-exception) below. It is
+`markdown-editor-codemirror.css` — eight rules.** See [The one exception](#the-one-exception) below. It is
 not a loophole — `e2e/css-cascade-ownership.spec.ts` derives the permitted set
 from that file's own contents and fails on any other unlayered rule.
 
@@ -59,10 +59,16 @@ source import order:
 | **Unlayered style rules** (CSSOM, live page) | **2,932 of 4,602 (63.7%)** | **0 of 4,602** |
 | `!important` declarations | 15 | 15 |
 
-The 4,150 remaining bytes are `markdown-editor-codemirror.css` (six rules — the
-one forced exception, below), 84 Tailwind `@property` declarations and four
+The remaining unlayered bytes are `markdown-editor-codemirror.css` (eight rules
+— the one forced exception, below), 84 Tailwind `@property` declarations and four
 `@keyframes`. Neither `@property` nor `@keyframes` is a cascade participant, and
 neither can be layered.
+
+> **The byte figure above is not re-measured here.** It was taken when the
+> exception held six rules; this change adds two, so it is now low by their
+> size. It is left rather than guessed at, because the number is a measurement
+> and this change did not make one. What IS re-measured is the thing that
+> matters — see [The one exception](#the-one-exception).
 
 The emitted cascade, read off the built artefact:
 
@@ -89,7 +95,7 @@ the probe above, and a CSSOM walk asserting no rule sits outside a layer.
 
 ## The one exception
 
-`markdown-editor-codemirror.css` — **six rules** — is imported **without** a
+`markdown-editor-codemirror.css` — **eight rules** — is imported **without** a
 `layer()` keyword, and that is a consequence of how the cascade works rather than
 a preference.
 

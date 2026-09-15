@@ -226,7 +226,7 @@
 @import "./styles/backups.css" layer(dh-product);
 @import "./styles/help.css" layer(dh-product);
 /*
- * `dh-product`, like every other module surface. The six rules that could NOT be
+ * `dh-product`, like every other module surface. The eight rules that could NOT be
  * layered were split out below rather than dragging this whole file out of the
  * cascade with them — see `markdown-editor-codemirror.css` for the measurement
  * that forced the split.
@@ -236,7 +236,7 @@
  * NO `layer()`, and this is the architecture's ONE forced exception.
  *
  * CodeMirror injects its stylesheet at RUNTIME, which is unlayered by
- * construction, and unlayered beats every layer unconditionally. The six rules
+ * construction, and unlayered beats every layer unconditionally. The eight rules
  * in this file are the ones that override a property CodeMirror's own sheet
  * sets on the same element, so they cannot be layered either. Nothing else is
  * in it, and `e2e/css-cascade-ownership.spec.ts` derives the permitted
