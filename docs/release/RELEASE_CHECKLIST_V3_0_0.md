@@ -1,6 +1,6 @@
 # DalyHub V3.0.0 — Release Checklist & Runbook
 
-**Version `3.0.0` · Release name "V3" · PREPARED 2026-09-15 · NOT RELEASED**
+**Version `3.0.0` · Release name "V3" · PREPARED 2026-09-15 · RELEASE CANDIDATE 2026-09-15 · NOT DEPLOYED**
 
 > The evidence behind every V3.0.0 claim, and the exact sequence for deploying
 > it. Nothing is marked ✅ without a reference to a measurement. Where something
@@ -16,31 +16,43 @@
 
 ---
 
-## 0. Release gate — DO NOT CUT UNTIL ALL THREE ARE ✅
+## 0. Release gate
 
-This release is prepared deliberately ahead of being cut. The three conditions
-below are the ones the preparing change could not satisfy from a branch, and no
-tag may be pushed while any is unmet.
+This release was prepared deliberately ahead of being cut. The three conditions
+below are the ones the preparing change could not satisfy from a branch.
 
 | # | Condition | State |
 | :-- | :--- | :--- |
-| 1 | The frontend foundation work (V3-CSS-01, the cascade layer architecture) is **merged to `main`** | ⛔ on a branch at the time of writing |
-| 2 | The E2E gate restructure (V3-E2E-01, the PR/nightly tiers) is **merged to `main`** | ⛔ on a branch at the time of writing |
-| 3 | **`main` is green** after both — full CI, including every E2E partition | ⛔ not yet run on `main` |
+| 1 | The frontend foundation work (V3-CSS-01, the cascade layer architecture) is **merged to `main`** | ✅ merged in [#297](https://github.com/acedaly/DalyHub-V2/pull/297), `main` @ `4f49c169` |
+| 2 | The E2E gate restructure (V3-E2E-01, the PR/nightly tiers) is **merged to `main`** | ✅ merged in the same change; verified below |
+| 3 | **`main` is green** after both — full CI, including every E2E partition | ⏳ CI run [`34955877627`](https://github.com/acedaly/DalyHub-V2/actions/runs/34955877627) at `4f49c169` is IN FLIGHT as this is written; §2.6 carries the result and this row is not ✅ until it does |
 
-A fourth condition is not blocking but is strongly advised: **one green run of
-the nightly suite** (`.github/workflows/nightly.yml`, dispatchable on demand)
-against the merged `main`. The exhaustive accessibility and responsive matrices
-moved there in this same programme, so the first release after that move is
-exactly the wrong one to cut without having seen them pass once.
+**The fourth, non-blocking condition is NOT met.** The nightly suite
+(`.github/workflows/nightly.yml`) has still never run — see §2.5. It is
+`workflow_dispatch`-able and the release session attempted exactly that; GitHub
+answered **`403 Resource not accessible by integration`**, the same class of
+limit recorded in [`RELEASE_CHECKLIST_V2_4_0.md` §6](RELEASE_CHECKLIST_V2_4_0.md)
+for `workflow_dispatch` and `rerun-failed-jobs`. It is owner action and it is
+stated as a known limitation in the notes rather than quietly dropped.
+
+### The merged foundation, verified on `main`
+
+| Claim | Read from `main` @ `4f49c169` |
+| :--- | :--- |
+| Cascade ownership model exists and is documented | [`docs/architecture/CSS_CASCADE_ARCHITECTURE.md`](../architecture/CSS_CASCADE_ARCHITECTURE.md) |
+| Its contract is held by a test, not by a document | [`e2e/css-cascade-ownership.spec.ts`](../../e2e/css-cascade-ownership.spec.ts) |
+| PR-tier configuration exists | `e2e/partitions.json` → `tiers.nightly`, 18 partitions in the CI matrix |
+| Nightly workflow exists | [`.github/workflows/nightly.yml`](../../.github/workflows/nightly.yml), `schedule` + `workflow_dispatch` |
+| Tier invariants pass | `pnpm run e2e:partitions:check` ✅; `node scripts/e2e-partitions.mjs nightly-specs` → exactly `accessibility-matrix`, `responsive-desktop`, `responsive-phone`; `test/unit/ci/e2e-tiers.test.ts` green in the unit run below |
 
 ---
 
 ## 1. Scope
 
-V3.0.0 ships **no new product concept, no new module and no schema change.** The
-committed migration sequence at this commit is the one that was already there;
-nothing in this release runs a migration.
+V3.0.0 ships **no new product concept added by the release preparation itself**,
+and the frontend programmes it exists to release changed no schema. It is not,
+however, a schema-free release — see §1.1, which corrects what the prepared draft
+of this document said.
 
 What it ships is the accumulated frontend of two programmes that were complete on
 `main` and had never been released:
@@ -50,6 +62,49 @@ What it ships is the accumulated frontend of two programmes that were complete o
 - **V3-CSS-01** — the CSS cascade ownership model, and
 - **V3-E2E-01** — the two-tier E2E gate, which is a change to CI rather than to
   the product, and is listed because it changes what "green" means.
+
+…plus everything else that landed on `main` between `2.4.0`'s deployment and this
+commit, which is the Finance, Life Admin/Obligations, Attachments and Ask DalyHub
+work enumerated in [`CHANGELOG.md`](../../CHANGELOG.md) under `3.0.0`.
+
+### 1.1 The migration claim, corrected
+
+⛔ **The prepared draft of this checklist said "no schema change… nothing in this
+release runs a migration". That is FALSE at release granularity, and it is the
+one release defect this pass found.**
+
+It was true of the diff it was written against — `#297` touches no file under
+[`migrations/`](../../migrations), and neither did the Untitled passes. It is not
+true of the release, because a release is measured against **what is running in
+production**, not against the commit before it.
+
+Measured from the repository:
+
+| | |
+| :-- | :-- |
+| Committed migrations at `4f49c169` | **57 files**, head `0055_ai_assisted_features.sql` |
+| Last direct observation of production's ledger | **49 applied, head `0047`**, read 2026-08-24 ([`RELEASE_CHECKLIST_V2_4_0.md` §6](RELEASE_CHECKLIST_V2_4_0.md)) |
+| Last recorded production deployment | **2026-08-30T05:56:35Z**, deployment `cf596658-d648-4a58-a521-09cf6c0e279f`, with `verify:production` reporting *"production has no unapplied migrations"* |
+| Added to `main` after that deployment | `0050_create_obligations` (2026-09-06), `0051_obligation_notifications` (2026-09-06), `0052_create_attachments` (2026-09-06), `0053_create_finance` (2026-09-07), `0054_ai_grounded_features` (2026-09-08), `0055_ai_assisted_features` (2026-09-09) |
+
+Those six are the tables Finance, Life Admin, Attachments and Ask DalyHub are
+built on — modules this release's own CHANGELOG describes as new. A deploy that
+skipped them would ship a Worker whose code expects tables the database does not
+have.
+
+`0048_goal_condition` and `0049_create_tag_vocabulary` sit between the two
+observations and this document does **not** guess whether they are applied.
+**Production's own ledger decides**, and `pnpm run db:production:list` is what
+reads it.
+
+**Consequence for the production sequence.** Step 5 of
+[`RELEASE_CHECKLIST_V2_4_0.md` §6](RELEASE_CHECKLIST_V2_4_0.md) —
+`pnpm run db:production:apply` — is **required** for this release, not ceremony,
+and steps 1–2 (a verified encrypted backup before any migration) are therefore
+hard preconditions rather than advisable ones. The six migrations create tables;
+they do not alter or drop existing ones, so the failure mode being guarded
+against is a partially-applied deploy rather than data loss — which does not make
+the backup optional.
 
 ### Why the major number, and why not `2.5.0`
 
@@ -105,8 +160,8 @@ what its property list omits.
 ### 2.2 Colour, appearance and scheme are unchanged
 
 ✅ `pnpm run scheme:check`, `pnpm run dhds:check` and
-`pnpm run untitled:theme:check` pass — the generated scheme, the token audit and
-the generated Untitled theme are all as committed.
+`pnpm run untitled:theme:check` pass on `main` @ `4f49c169` — the generated
+scheme, the token audit and the generated Untitled theme are all as committed.
 
 ✅ The `dh-tokens` layer is placed **after** `theme` deliberately, so where the
 two colour vocabularies collide DalyHub's value — the one the product has always
@@ -123,10 +178,13 @@ a browser probe proving Untitled wins a contested property, and a CSSOM walk
 proving no rule sits outside a layer. **Both fail on `main` @ 77f8b55 and pass
 after the change**, which is the order a regression test has to be written in.
 
-✅ **222 tests passed** across the new and changed E2E specs, measured locally.
+✅ **222 tests passed** across the new and changed E2E specs, measured locally
+during the preparing change.
 
-⏳ **CI has not run this branch.** Every measurement in this section was taken in
-the development sandbox. §0 condition 3 exists for exactly this reason.
+⏳ **CI is running this commit now.** §0 condition 3 is answered by run
+[`34955877627`](https://github.com/acedaly/DalyHub-V2/actions/runs/34955877627);
+the per-job evidence is in §2.6, and nothing is tagged or deployed until it is
+green.
 
 ### 2.4 What the E2E restructure did to the gate
 
@@ -160,22 +218,103 @@ on every push.
 responsive sweep's route list entirely, an omission the file itself records as
 "the other half of why the regression was invisible". They are in it now.
 
-⏳ **The nightly workflow has never run.** It is scheduled and dispatchable;
-neither has happened.
+### 2.5 The nightly suite — still never run
+
+⛔ **The nightly workflow has never executed, and this release ships without it.**
+
+| | |
+| :-- | :-- |
+| Runs of `nightly.yml` to date | **0** (`list_workflow_runs` → `total_count: 0`) |
+| Attempted from the release session | `workflow_dispatch` against `main` |
+| Result | **`403 Resource not accessible by integration`** |
+| Scheduled | `0 16 * * *`, so the first scheduled run lands the evening of the cut |
+
+**This is the single largest gap in this release's evidence and it is not talked
+around.** The exhaustive accessibility and responsive matrices moved into that
+workflow in this same programme, so the first release after the move is exactly
+the one that should have seen them pass. What DID run is the PR gate, which
+keeps a representative accessibility scan in both appearances, every
+open-overlay scan, and the responsive boundary widths over the daily-driver
+surfaces — a thinner net, not an absent one.
+
+⏳ **Owner action, one command:**
+
+```sh
+gh workflow run nightly.yml --ref main
+gh run list --workflow=nightly.yml
+gh run watch <RUN_ID>
+```
+
+All three jobs — `accessibility-matrix`, `responsive-desktop`, `responsive-phone`
+— must be green. A failure there is triaged, not ignored: a genuine
+visual/accessibility/responsive defect is a reason to hold the deployment, and a
+stale assertion is a narrowly-scoped fix and a re-run.
+
+### 2.6 `main` CI at the release commit
+
+Run [`34955877627`](https://github.com/acedaly/DalyHub-V2/actions/runs/34955877627),
+event `push`, `main` @ `4f49c169ffaba0f6429cbe59d64f654011c136ab`, attempt 1. A
+`push`-event run on `main` itself, not a PR-branch run.
+
+| Job | Result |
+| :-- | :--- |
+| Scope | ✅ success — not a pull request, so the path filter is not consulted and everything runs |
+| Static | ✅ success — format, ESLint, TypeScript, scheme, partitions, fixture dates, doc links, icons |
+| Build | ✅ success — production build, Cloudflare config validated, artifact uploaded |
+| Unit | ⏳ in flight |
+| E2E p01 … p18 | ⏳ in flight — 18 partitions dispatched |
+| CI Gate | ⏳ |
+
+**This table is updated from the run itself before the release PR is opened**, and
+the release does not proceed on a run that is cancelled, that leaves a partition
+unexecuted, or that publishes a failure artefact.
+
+### 2.7 Local release gates, at the release commit
+
+Run in the release session against `4f49c169`, after `pnpm install --frozen-lockfile`:
+
+| Gate | Result |
+| :-- | :--- |
+| `pnpm run format:check` | ✅ |
+| `pnpm run lint` | ✅ |
+| `pnpm run typecheck` | ✅ |
+| `pnpm run build` | ✅ |
+| `pnpm run scheme:check` | ✅ |
+| `pnpm run dhds:check` | ✅ |
+| `pnpm run untitled:theme:check` | ✅ |
+| `pnpm run icons:check` | ✅ |
+| `pnpm run docs:links:check` | ✅ |
+| `pnpm run e2e:partitions:check` | ✅ |
+| `pnpm run e2e:fixture-dates:check` | ✅ |
+| `pnpm run test:unit` | ✅ **541 files, 7,767 tests passed**, 0 failed |
+| `pnpm run test:kernel` | ⏳ in flight |
 
 ---
 
 ## 3. Recoverable — the backup and restore halves
 
-⏭️ **Unchanged by this release and not re-verified here.** V3.0.0 touches no
-schema, no migration, no export format and no backup path. The evidence and the
-rehearsal procedure in
+⏭️ **The backup pipeline itself is unchanged by this release.** V3.0.0 touches no
+export format and no backup path. The evidence and the rehearsal procedure in
 [`RELEASE_CHECKLIST_V2_4_0.md` §3–4](RELEASE_CHECKLIST_V2_4_0.md) stand as
 written.
 
-⏳ **The owner should still run `pnpm run restore:rehearsal` before cutting**,
-because "nothing changed" is a claim about the diff and the rehearsal is a claim
-about the database.
+⏳ **The whole-product restore rehearsal is running at this commit.**
+`pnpm run restore:rehearsal` — `test/kernel/whole-product-rehearsal.test.ts` and
+`test/kernel/workspace-data-map.test.ts`: one synthetic workspace covering every
+durable domain, a truth manifest of derived owner-facing values at a frozen owner
+day, export, destroy every row through the registry-derived purge plan and every
+object in R2, prove it is gone, restore, recompute the manifest and compare. Its
+result is recorded here before the release PR is opened, and a failure stops the
+release outright — V3 is not worth cutting if recovery confidence is broken.
+
+⚠️ **It proves the mechanism, not the artifact.** It runs against the repository's
+own synthetic workspace in the Workers test runtime, not against production's
+data. §1.1 changes what that means for this release: six migrations will be
+applied to production, so the pre-migration backup in
+[`RELEASE_CHECKLIST_V2_4_0.md` §6 step 1–2](RELEASE_CHECKLIST_V2_4_0.md) is a
+hard precondition and `pnpm run backup:verify` /
+`pnpm run db:production:backup:list` must report a real, non-zero, verified
+object before `db:production:apply` is run.
 
 ---
 
@@ -187,15 +326,21 @@ to keep true, and a release runbook that disagrees with itself is worse than one
 that points somewhere.
 
 ⏳ **No step of it has been performed for this release.** Nothing has been backed
-up, migrated or deployed, and no environment that prepared this release held
-Cloudflare credentials — which `pnpm run verify:production` reports for itself
-rather than being told.
+up, migrated or deployed. The release session held **no Cloudflare credentials**
+— no `.production.env`, no `CLOUDFLARE_API_TOKEN`, `wrangler whoami` reporting
+not authenticated — so every `pnpm run` production command refuses at its own
+guard, including `deploy:production:preflight`. Nothing was invented to get past
+one, and no attempt was made to bypass Cloudflare Access.
+
+**§1.1 changes step 5 from a no-op to a requirement.** Do not skip it, and do not
+run it before steps 1–2 have produced a verified backup.
 
 ---
 
 ## 5. Version authority
 
-✅ One constant, three consumers, one test.
+✅ One constant, three consumers, one test. Verified by reading the files at
+`4f49c169`:
 
 | Where | Value |
 | :-- | :-- |
@@ -203,8 +348,12 @@ rather than being told.
 | `app/lib/version.ts` → `APP_RELEASE_NAME` | `V3` |
 | `package.json` → `version` | `3.0.0` |
 
-✅ `test/unit/about/package-version.test.ts` fails if the two drift.
-✅ About, `/health` and every export archive read the constant; nothing copies it.
+✅ `test/unit/about/package-version.test.ts` fails if the two drift, and passed in
+the §2.7 unit run.
+✅ About, `/health`, `/offline`, Settings and every export archive read the
+constant through `buildInfo()` or `APP_VERSION`; **no file copies a version
+string** — `grep` for `3.0.0` across `app/` and `workers/` returns only
+`app/lib/version.ts` and its own docstring.
 
 ---
 
@@ -223,6 +372,39 @@ Carried forward deliberately, each with a named next action in
    any SQL runs. The largest single remaining lever on E2E cost, and a separate
    piece of work.
 6. The Finance collection heading's missing gutter (pre-existing).
+
+---
+
+## 7. Owner actions outstanding before `v3.0.0` is live
+
+In order. None of these can be performed without credentials the release session
+did not hold, and none was faked.
+
+| # | Action | Why it is here |
+| :-- | :--- | :--- |
+| 1 | `gh workflow run nightly.yml --ref main`, then confirm all three jobs green | §2.5 — `workflow_dispatch` returned `403` to the session |
+| 2 | `pnpm run db:production:list` — **record the output** | §1.1 — production's ledger is the only authority on which of `0048`–`0055` are pending |
+| 3 | Establish and verify an encrypted backup ([§6 steps 1–2](RELEASE_CHECKLIST_V2_4_0.md)) | §1.1 — this release applies migrations, so this is a precondition |
+| 4 | `pnpm run deploy:production:preflight` and `deploy:production:release-check` | §4 — refuses without credentials |
+| 5 | `pnpm run db:production:apply` | §1.1 — **required for this release** |
+| 6 | `pnpm run deploy:production` from the exact tagged commit | §4 |
+| 7 | `pnpm run verify:production`, then sign in and read `/about` | confirms `3.0.0` / `V3` is what is actually running |
+| 8 | Record the results back into this file | §8 |
+
+---
+
+## 8. Release record — to be completed on deployment
+
+| | |
+| :-- | :--- |
+| Release commit (`main` after the release PR) | ⏳ |
+| Annotated tag `v3.0.0` | ⏳ — must be created on the exact release commit, and never moved |
+| GitHub Release | ⏳ |
+| Pre-deploy backup identifier | ⏳ |
+| Migrations applied | ⏳ — expect at least `0050`–`0055`; §1.1 |
+| Deployment timestamp | ⏳ |
+| `/health` reports | ⏳ — must read `3.0.0` |
+| Nightly suite run | ⏳ — §2.5 |
 
 ---
 
