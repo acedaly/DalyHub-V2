@@ -5,10 +5,12 @@
 > ## ⛔ HELD AGAIN, 2026-09-15 — the text cursor is invisible in dark mode
 >
 > Found after the release PR merged, while reading
-> [#300](https://github.com/acedaly/DalyHub-V2/pull/300). **`main` @ `652f389`
+> [#300](https://github.com/acedaly/DalyHub-V2/pull/300) — which then closed
+> unmerged, so the fix is [#303](https://github.com/acedaly/DalyHub-V2/pull/303).
+> **`main` @ `652f389`
 > must not be tagged or deployed.** §1.3 has the measurement. Nothing is
 > stranded: the `v3.0.0` tag was deliberately never created, so the release
-> commit simply moves to whatever `main` is after #300 lands.
+> commit simply moves to whatever `main` is after #303 lands.
 >
 > **The release gate was MET at `4a2140f`, and the release commit was `652f389`.** The cut
 > was attempted on 2026-09-15 against `4f49c169` and stopped at §0 condition 3:
@@ -215,8 +217,17 @@ it is measuring what it measures. This is the second defect in this corner that
 a hand-maintained list let through, which is the argument #300 makes for
 deriving the set instead.
 
-**Fixed by [#300](https://github.com/acedaly/DalyHub-V2/pull/300)**, opened
-independently and not duplicated from here.
+**Diagnosed first by [#300](https://github.com/acedaly/DalyHub-V2/pull/300)**,
+opened independently and not duplicated from here — **but #300 was CLOSED
+UNMERGED**, which left the defect on `main` with nothing in flight. The fix is
+therefore [#303](https://github.com/acedaly/DalyHub-V2/pull/303): the three
+rules move to the unlayered exception file, and the caret and placeholder each
+gain a contrast assertion in both appearances.
+
+⚠️ **#300 proposed the better long-term answer and it is worth recovering.**
+Rather than maintaining a list of the rules CodeMirror contests, it derived that
+set from the injected sheet on every PR run — which is what would stop a fourth
+hand-written list being wrong. #303 does not reproduce that work.
 
 **When it lands**, `main` moves again and the release SHA moves with it. The
 release PR is already merged (`652f389`) and there is nothing left to merge, so
@@ -634,7 +645,7 @@ rollback, so 8 and 9 belong to one window rather than two sittings.
 | # | Action | Why it is here |
 | :-- | :--- | :--- |
 | ~~0~~ | ~~Confirm `main` CI at `4a2140f` is green~~ | ✅ **done** — run [`34962659072`](https://github.com/acedaly/DalyHub-V2/actions/runs/34962659072), 23 of 23 |
-| **0b** | **Land [#300](https://github.com/acedaly/DalyHub-V2/pull/300) and confirm the resulting `main` CI run is green** | §1.3 — **the current blocker.** The release commit becomes that commit, and steps 2–4 below run against it |
+| **0b** | **Land [#303](https://github.com/acedaly/DalyHub-V2/pull/303) and confirm the resulting `main` CI run is green** | §1.3 — **the current blocker.** The release commit becomes that commit, and steps 2–4 below run against it. (#300 diagnosed the defect and closed unmerged; #303 carries the fix) |
 | 1 | `gh workflow run nightly.yml --ref main`; confirm `accessibility-matrix`, `responsive-desktop` and `responsive-phone` all green | §2.5 — `workflow_dispatch` returned `403` to the session, and this is the first release under the tier split |
 | 2 | `git checkout main && git pull`, then record `RELEASE_SHA=$(git rev-parse HEAD)` | §8 — every step below refers to this exact commit. The release PR itself **already merged**, as `652f389`; §1.3 then superseded that commit, so the release SHA is whatever `main` is once step 0b has landed |
 | 3 | **Confirm the `main` CI run triggered by that merge is green** | the tag must name a commit that passed the real `main` gate, not its parent |
@@ -672,8 +683,8 @@ deliberately."*
 | :-- | :--- |
 | Blocking fix | [#298](https://github.com/acedaly/DalyHub-V2/pull/298) — merged, `main` @ `4a2140f` |
 | Release metadata branch | `release/v3.0.0`, merged up to `4a2140f` |
-| Release commit (`main` after the release PR) | `652f389516938bf813d46b56cc4b3b4c7b29ad53` — **superseded**: §1.3 holds it, and the release commit moves to `main` after #300 |
-| Blocking defect found after the release merge | ⛔ §1.3 — the caret is invisible in dark mode (1.12:1). Fixed by [#300](https://github.com/acedaly/DalyHub-V2/pull/300), not yet landed |
+| Release commit (`main` after the release PR) | `652f389516938bf813d46b56cc4b3b4c7b29ad53` — **superseded**: §1.3 holds it, and the release commit moves to `main` after [#303](https://github.com/acedaly/DalyHub-V2/pull/303) |
+| Blocking defect found after the release merge | ⛔ §1.3 — the caret is invisible in dark mode (1.12:1). Fixed by [#303](https://github.com/acedaly/DalyHub-V2/pull/303), not yet landed |
 | Annotated tag `v3.0.0` | ⏳ — must be created on the exact release commit, and never moved |
 | GitHub Release | ⏳ |
 | Pre-deploy backup identifier | ⏳ |
