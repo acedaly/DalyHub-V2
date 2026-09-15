@@ -339,4 +339,116 @@ test.describe("V3-CSS-01 — cascade ownership", () => {
         "been put into a cascade layer again",
     ).toBeGreaterThan(0);
   });
+
+  /**
+   * The caret is VISIBLE. Not "the caret takes a particular property from a
+   * particular file" — visible, in both appearances, which is a contract a
+   * person can check against the running product.
+   *
+   * This is deliberately not written as "`.cm-cursor` gets its
+   * `border-left-color` from the exception file". That assertion would have
+   * passed for the whole of the defect it exists to catch, because the rule WAS
+   * there — in `markdown-editor.css`, in `dh-product`, losing to CodeMirror's
+   * unlayered `border-left-color`. What was wrong was not which file declared it
+   * but what an owner saw, and in the dark appearance what they saw was nothing:
+   *
+   *   caret, dark    rgb(0,0,0) on rgb(18,18,21)   =  1.12:1   (token: 16.88:1)
+   *   caret, light   rgb(0,0,0) on rgb(246,246,248) = 19.46:1  (token: 17.59:1)
+   *
+   * Light mode hid it completely — black on near-white is *better* contrast than
+   * the token, so the defect was invisible in the appearance most work happens
+   * in and total in the other. That is why this runs in both, and why the
+   * threshold is a contrast ratio rather than a colour.
+   *
+   * 3:1 is the WCAG 2.2 non-text contrast floor (1.4.11). The token gives ~17:1
+   * either way, so there is a wide margin between passing and the defect's
+   * 1.12:1 — this is not a test that needs retuning when a token moves.
+   */
+  for (const scheme of ["light", "dark"] as const) {
+    test(`the text cursor is visible in the ${scheme} appearance`, async ({
+      page,
+    }) => {
+      await page.emulateMedia({ colorScheme: scheme });
+      await page.goto("/notes/n-search-e2e");
+      const content = page.locator(".dh-md-editor__cm .cm-content").first();
+      await content.waitFor();
+      // The caret only exists once the editor has focus.
+      await content.click();
+
+      const measured = await page.evaluate(() => {
+        /* Resolve ANY CSS colour to sRGB bytes by painting it. The product's
+         * tokens are `oklch()` under Tailwind v4 and an ancestor background
+         * computes as `oklch(0.145 0 none)`, which no rgb() parser can read —
+         * the first version of this test returned NaN and reported a passing
+         * caret as a failure. The canvas is the browser's own conversion, so it
+         * cannot drift from what is actually on screen. */
+        const canvas = document.createElement("canvas");
+        canvas.width = 1;
+        canvas.height = 1;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+        const parse = (value: string): [number, number, number] => {
+          ctx.clearRect(0, 0, 1, 1);
+          ctx.fillStyle = value;
+          ctx.fillRect(0, 0, 1, 1);
+          const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+          return [r, g, b];
+        };
+        const luminance = ([r, g, b]: [number, number, number]) => {
+          const channel = (v: number) => {
+            const n = v / 255;
+            return n <= 0.03928 ? n / 12.92 : ((n + 0.055) / 1.055) ** 2.4;
+          };
+          return (
+            0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b)
+          );
+        };
+        const caret = document.querySelector(
+          ".dh-md-editor__cm .cm-cursor",
+        ) as HTMLElement | null;
+        if (!caret) return null;
+        const caretColor = getComputedStyle(caret).borderLeftColor;
+
+        /* The caret draws over the editor's surface, which is transparent all
+         * the way up to the page — so the page's own background is what it is
+         * actually seen against. Walk up for the first non-transparent one
+         * rather than assuming which element paints. */
+        let node: HTMLElement | null = caret;
+        let background = "rgb(255, 255, 255)";
+        while (node) {
+          const bg = getComputedStyle(node).backgroundColor;
+          /* Transparent in any colour space: alpha 0 after painting. */
+          ctx.clearRect(0, 0, 1, 1);
+          ctx.fillStyle = bg;
+          ctx.fillRect(0, 0, 1, 1);
+          if (ctx.getImageData(0, 0, 1, 1).data[3] > 0) {
+            background = bg;
+            break;
+          }
+          node = node.parentElement;
+        }
+
+        const a = luminance(parse(caretColor));
+        const b = luminance(parse(background));
+        const [hi, lo] = a > b ? [a, b] : [b, a];
+        return {
+          caretColor,
+          background,
+          ratio: (hi + 0.05) / (lo + 0.05),
+        };
+      });
+
+      expect(
+        measured,
+        "no `.cm-cursor` after focusing the editor — the caret could not be measured",
+      ).not.toBeNull();
+
+      expect(
+        measured!.ratio,
+        `the text cursor is ${measured!.caretColor} against ${measured!.background}, ` +
+          `a contrast of ${measured!.ratio.toFixed(2)}:1. Below 3:1 an owner ` +
+          `cannot see where they are typing. This is what a CodeMirror default ` +
+          `winning over a layered DalyHub rule looks like`,
+      ).toBeGreaterThanOrEqual(3);
+    });
+  }
 });
