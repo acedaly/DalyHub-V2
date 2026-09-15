@@ -11,6 +11,52 @@
  * The visual live-preview classes (`.cm-dh-*`) are applied to Markdown SOURCE
  * ranges by `live-decorations.ts`; styling them here (rather than injecting a
  * JS theme) keeps all design values in tokens and in one reviewable place.
+ *
+ * ── How a product surface VARIES this editor's geometry ─────────────────────
+ *
+ * Through the three custom properties below, and never by writing a competing
+ * declaration in its own stylesheet.
+ *
+ *   --dh-md-editor-measure           the writing column's cap (default: the
+ *                                    shared `--app-width-editor`)
+ *   --dh-md-editor-min-block-size    the surface's floor  (default: max(40dvh,
+ *                                    `--app-editor-min-height`))
+ *   --dh-md-editor-max-block-size    the surface's ceiling (default: 70vh)
+ *
+ * This file is the architecture's ONE unlayered stylesheet (the reason is in
+ * `app/app.css`, above its import), and unlayered normal declarations beat
+ * LAYERED ones unconditionally — specificity does not enter into it. So from
+ * V3-CSS-01 onwards a `dh-product` rule cannot override a value declared here,
+ * however specific its selector is. MEASURED at 1280x720, `main` @ 77f8b55
+ * against `main` @ 4f49c169, six product overrides that had worked for months
+ * silently became inert:
+ *
+ *   .dh-review-guide__prompt … .cm-editor  max-block-size  none  → 504px
+ *   .dh-meeting-workspace   … .cm-editor  max-block-size  432px → 504px
+ *   .dh-meeting-workspace   … .cm-editor  min-block-size  128px → 288px
+ *   .dh-meeting-workspace   … __fallback  min-block-size  128px → 288px
+ *   .dh-note-workspace      … > *         max-inline-size none  → 641px
+ *   .dh-meeting-workspace   … > *         max-inline-size none  → 641px
+ *
+ * The first of those is a WCAG 2.2 AA failure and not a matter of taste: the
+ * guided Review's reflection surface started scrolling inside a scrolling page,
+ * and axe's `scrollable-region-focusable` caught it on `.cm-scroller`
+ * (`e2e/reviews-guided.spec.ts` Journey 6) — the exact trap the comment in
+ * `review-guide.css` says that override exists to avoid.
+ *
+ * A custom property is the fix rather than a workaround because it is not a
+ * cascade contest at all: this file owns the DEFAULT, the product surface owns
+ * the VARIATION, and the value resolves by inheritance on the element. No
+ * `!important`, nothing out-specified, and no product selector in here — which
+ * matters, because "of the 66 classes this file owns, zero appear on an element
+ * that also carries an Untitled utility" is the argument that leaving it
+ * unlayered is safe, and importing `.dh-meeting-workspace` into it would spend
+ * that argument.
+ *
+ * Compact density keeps its own literal floor and ceiling below, and wins on
+ * specificity, so a compact editor nested inside a surface that sets these
+ * properties is unaffected — which is what the excluded `:not([data-density=
+ * "compact"])` in each product rule used to say.
  */
 
 .dh-md-editor {
@@ -41,7 +87,7 @@
  * ------------------------------------------------------------------------- */
 .dh-md-editor:not([data-density="compact"]) > * {
   inline-size: 100%;
-  max-inline-size: var(--app-width-editor);
+  max-inline-size: var(--dh-md-editor-measure, var(--app-width-editor));
   margin-inline: auto;
 }
 
@@ -214,7 +260,14 @@
 .dh-md-editor__fallback {
   display: block;
   inline-size: 100%;
-  min-block-size: max(40dvh, var(--app-editor-min-height));
+  min-block-size: var(
+    --dh-md-editor-min-block-size,
+    max(40dvh, var(--app-editor-min-height))
+  );
+  /* No ceiling by default — a `<textarea>` with `resize: vertical` is the
+   * owner's to grow. A surface that caps the enhanced editor caps this too, so
+   * the fallback does not become the one surface that runs off the screen. */
+  max-block-size: var(--dh-md-editor-max-block-size, none);
   padding: var(--app-space-4);
   border: none;
   background: transparent;
@@ -272,7 +325,7 @@
   color: var(--dh-color-text);
   font-family: var(--md-ref-typeface-plain);
   font-size: var(--dh-text-lead-size);
-  max-block-size: 70vh;
+  max-block-size: var(--dh-md-editor-max-block-size, 70vh);
 }
 
 /*
@@ -293,7 +346,10 @@
  * shorter floor in the rule above and is excluded here.
  */
 .dh-md-editor:not([data-density="compact"]) .dh-md-editor__cm .cm-editor {
-  min-block-size: max(40dvh, var(--app-editor-min-height));
+  min-block-size: var(
+    --dh-md-editor-min-block-size,
+    max(40dvh, var(--app-editor-min-height))
+  );
 }
 
 .dh-md-editor__cm .cm-editor.cm-focused {

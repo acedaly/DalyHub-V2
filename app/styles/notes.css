@@ -175,9 +175,14 @@
 }
 
 /* The editor already centres its own bands at the writing measure; inside the
- * workspace the column is set once, above, so the editor simply fills it. */
-.dh-note-workspace .dh-md-editor:not([data-density="compact"]) > * {
-  max-inline-size: none;
+ * workspace the column is set once, above, so the editor simply fills it.
+ *
+ * Through the editor's own configuration property: this file is in `dh-product`
+ * and `markdown-editor.css` is unlayered, so a competing `max-inline-size` here
+ * loses to it regardless of specificity. See the property table at the top of
+ * `markdown-editor.css`. */
+.dh-note-workspace {
+  --dh-md-editor-measure: none;
 }
 
 /* -------------------------------------------------------------------------- *

@@ -331,4 +331,69 @@ test.describe("V3-CSS-01 — cascade ownership", () => {
         "been put into a cascade layer again",
     ).toBeGreaterThan(0);
   });
+
+  /**
+   * The exception CUTS BOTH WAYS, and this is the half nothing pinned.
+   *
+   * `markdown-editor.css` beating CodeMirror (above) is the same fact as
+   * `markdown-editor.css` beating every `dh-product` stylesheet — unlayered
+   * normal declarations outrank layered ones unconditionally, and specificity
+   * does not enter into it. So from V3-CSS-01 onwards a product surface can no
+   * longer vary the editor's geometry by declaring a competing value, however
+   * specific its selector.
+   *
+   * Six overrides that had worked for months went inert that way, MEASURED at
+   * 1280x720 on `main` @ 77f8b55 against `main` @ 4f49c169:
+   *
+   *   .dh-review-guide__prompt … .cm-editor  max-block-size  none  → 504px
+   *   .dh-meeting-workspace   … .cm-editor  max-block-size  432px → 504px
+   *   .dh-meeting-workspace   … .cm-editor  min-block-size  128px → 288px
+   *   .dh-meeting-workspace   … __fallback  min-block-size  128px → 288px
+   *   .dh-note-workspace      … > *         max-inline-size none  → 641px
+   *   .dh-meeting-workspace   … > *         max-inline-size none  → 641px
+   *
+   * The first was a WCAG 2.2 AA failure — the guided Review's reflection
+   * surface began scrolling inside a scrolling page, and axe's
+   * `scrollable-region-focusable` caught it on `.cm-scroller`
+   * (`reviews-guided.spec.ts` Journey 6). The other five were silent.
+   *
+   * The Note workspace is the cheapest of the six to reach, and it is the same
+   * mechanism as all of them: the surface sets `--dh-md-editor-measure`, the
+   * editor reads it as the fallback in its own declaration, and the value
+   * resolves by INHERITANCE rather than by winning a cascade contest. This test
+   * fails if that configuration point is turned back into a literal — which is
+   * the shape the regression had.
+   */
+  test("a dh-product surface can still vary the editor's geometry", async ({
+    page,
+  }) => {
+    await page.goto("/notes/n-search-e2e");
+    const editor = page.locator(".dh-note-workspace .dh-md-editor").first();
+    await editor.waitFor();
+
+    const measured = await editor.evaluate((el) => {
+      const child = el.firstElementChild as HTMLElement | null;
+      return {
+        property: getComputedStyle(el)
+          .getPropertyValue("--dh-md-editor-measure")
+          .trim(),
+        childMaxInlineSize: child
+          ? getComputedStyle(child).maxInlineSize
+          : "NO CHILD",
+      };
+    });
+
+    expect(
+      measured.property,
+      "`.dh-note-workspace` no longer sets `--dh-md-editor-measure`, so the " +
+        "workspace's own column is not reaching the editor",
+    ).toBe("none");
+
+    expect(
+      measured.childMaxInlineSize,
+      "the editor's bands are capped at the shared writing measure inside a " +
+        "Note workspace that sets its column once, above them. An unlayered " +
+        "`markdown-editor.css` declaration is beating `notes.css` again",
+    ).toBe("none");
+  });
 });

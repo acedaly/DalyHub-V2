@@ -262,9 +262,16 @@
  * scroll region inside a scrolling page is exactly the nested-scrolling trap
  * REVIEW-04 sets out to avoid (and a scrollable region a keyboard user has to
  * escape from). The page scrolls; the writing surface does not.
+ *
+ * Said through the editor's own configuration property rather than as a
+ * competing `max-block-size` declaration. `markdown-editor.css` is unlayered and
+ * this file is in `dh-product`, so a declaration here LOSES to it whatever its
+ * specificity — which is how this override became inert at V3-CSS-01 and how the
+ * axe failure in `reviews-guided.spec.ts` Journey 6 arrived. The property is
+ * documented at the top of `markdown-editor.css`.
  */
-.dh-review-guide__prompt .dh-md-editor__cm .cm-editor {
-  max-block-size: none;
+.dh-review-guide__prompt {
+  --dh-md-editor-max-block-size: none;
 }
 
 .dh-review-guide__prompt-label {

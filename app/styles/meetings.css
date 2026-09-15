@@ -79,9 +79,14 @@
  * The band already carries the writing measure, so the shared editor must not
  * apply a second one — otherwise the text steps in by another margin at every
  * band.
+ *
+ * Through the editor's own configuration property: this file is in `dh-product`
+ * and `markdown-editor.css` is unlayered, so a competing `max-inline-size` here
+ * loses to it regardless of specificity. See the property table at the top of
+ * `markdown-editor.css`.
  */
-.dh-meeting-workspace .dh-md-editor:not([data-density="compact"]) > * {
-  max-inline-size: none;
+.dh-meeting-workspace {
+  --dh-md-editor-measure: none;
 }
 
 /* The two Markdown bodies carry their own visible field label from
@@ -101,14 +106,18 @@
  * never tall enough to bury the band under it. §L asks for "enough space to
  * actually be useful during a meeting", which is what the `max` is for: a
  * meeting's notes grow to 60vh before they scroll.
+ *
+ * Said through the editor's configuration properties, for the same cascade
+ * reason as the measure above. The floor applies to the enhanced editor and to
+ * the no-JavaScript fallback alike, which is what the two-selector rule this
+ * replaced was for; the 60vh ceiling reaches the `.cm-editor` the same way.
+ * A compact editor nested in a band keeps its own shorter literal floor and
+ * 50vh ceiling, which win on specificity — the case the `:not([data-density=
+ * "compact"])` in the old selector excluded by hand.
  */
-.dh-meeting-workspace
-  .dh-md-editor:not([data-density="compact"])
-  .dh-md-editor__cm
-  .cm-editor,
-.dh-meeting-workspace .dh-md-editor .dh-md-editor__fallback {
-  min-block-size: var(--app-editor-min-height-compact);
-  max-block-size: 60vh;
+.dh-meeting-workspace {
+  --dh-md-editor-min-block-size: var(--app-editor-min-height-compact);
+  --dh-md-editor-max-block-size: 60vh;
 }
 
 /* -------------------------------------------------------------------------- */
