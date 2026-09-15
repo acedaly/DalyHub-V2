@@ -296,14 +296,23 @@
   min-block-size: max(40dvh, var(--app-editor-min-height));
 }
 
-.dh-md-editor__cm .cm-editor.cm-focused {
-  outline: none; /* the wrapper carries the focus ring */
-}
-
-.dh-md-editor__cm .cm-scroller {
-  font-family: var(--md-ref-typeface-plain);
-  line-height: 1.65;
-}
+/* ------------------------------------------------------------------------- *
+ * V3-CSS-01 — six rules MOVED OUT of this file, to
+ * `markdown-editor-codemirror.css`.
+ *
+ * They are the only declarations here that contest CodeMirror's OWN injected
+ * defaults (`.cm-content`'s padding and margins, `.cm-scroller`'s font and
+ * line-height, `.cm-focused`'s outline, and the selection layer). CodeMirror
+ * injects those at runtime, unlayered, so the rules that beat them cannot live
+ * in a cascade layer — and that file is unlayered for exactly that reason and
+ * holds nothing else.
+ *
+ * Everything still in THIS file is layered in `dh-product` like any other
+ * module stylesheet, which is what lets `notes.css`, `diary.css`,
+ * `meetings.css`, `reviews.css` and `review-guide.css` keep overriding the
+ * editor's composition normally. CodeMirror sets nothing on `.cm-editor`, so
+ * the density caps below never needed the exception.
+ * ------------------------------------------------------------------------- */
 
 /*
  * EDIT-02 (PR #127) — the editor SURFACE and the writing MEASURE are two
@@ -325,20 +334,10 @@
  * first character up with the toolbar's first icon; the block padding gives the
  * document air at the top of the page rather than starting it against the rule.
  */
-.dh-md-editor__cm .cm-content {
-  padding: var(--app-space-5) var(--app-space-4) var(--app-space-10);
-  caret-color: var(--dh-color-accent);
-}
 
 .dh-md-editor__cm .cm-cursor,
 .dh-md-editor__cm .cm-dropCursor {
   border-left-color: var(--dh-color-text);
-}
-
-.dh-md-editor__cm .cm-selectionBackground,
-.dh-md-editor__cm .cm-focused .cm-selectionBackground,
-.dh-md-editor__cm .cm-line ::selection {
-  background: var(--dh-color-accent-subtle);
 }
 
 .dh-md-editor__cm .cm-placeholder {
@@ -724,15 +723,6 @@
  * consumer of the shared editor. Reading mode below keeps the prose measure —
  * left-aligned, from the same content edge.
  * ------------------------------------------------------------------------- */
-
-.dh-note-body .dh-md-editor__cm .cm-content {
-  font-family: var(--md-ref-typeface-plain);
-  font-size: var(--dh-text-lead-size);
-}
-
-.dh-note-body .dh-md-editor__cm .cm-scroller {
-  line-height: var(--dh-text-lead-line-height);
-}
 
 /* Reading mode renders the same note through the FND-08 pipeline rather than
  * through CodeMirror. It keeps the prose measure — reading is the job that

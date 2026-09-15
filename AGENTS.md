@@ -246,7 +246,7 @@ Two rules follow, and they are the whole of it:
 **One exception exists, and it is forced:** a library that injects its CSS at
 RUNTIME (CodeMirror does) is unlayered by construction, and unlayered beats every
 layer — so the DalyHub stylesheet that overrides it cannot be layered either.
-That is `markdown-editor.css`, and it is the only one. If you integrate another
+That is `markdown-editor-codemirror.css` — six rules — and it is the only one. Keep such a file to the declarations the library itself sets; un-layering the whole stylesheet that contains them takes the rest of the product's ability to compose with it away, silently. If you integrate another
 such library, say so at the import and prove your overrides contest nothing of
 Untitled's; the test derives the permitted set from the file rather than taking
 your word for it.
