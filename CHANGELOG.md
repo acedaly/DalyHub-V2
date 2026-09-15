@@ -31,7 +31,9 @@ was red, and one failure was a real accessibility regression the cascade change
 had introduced — fixed by
 [#298](https://github.com/acedaly/DalyHub-V2/pull/298) before anything shipped.
 Deploying this release will also apply migrations `0050`–`0055` — the Finance,
-Life Admin, Attachments and Ask DalyHub tables — so read
+Life Admin, Attachments and Ask DalyHub tables — and `0050` MOVES every
+obligation and drops the table it came from, so the old Worker cannot be put
+back afterwards. Read
 [`RELEASE_CHECKLIST_V3_0_0.md` §1.1](docs/release/RELEASE_CHECKLIST_V3_0_0.md)
 before the deployment, not after it._
 

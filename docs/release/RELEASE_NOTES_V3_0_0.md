@@ -134,7 +134,9 @@ Full detail is in [`CHANGELOG.md`](../../CHANGELOG.md) under `3.0.0`. In short:
 
 ## Your data, and the one thing that is not true of this release
 
-- **Your data is preserved, and nothing in this release deletes or rewrites it.**
+- **Your records are all still there afterwards, and none of them changes
+  meaning.** Your obligations do move house — see below — but every one of them
+  arrives, keeping its own identity, and everything attached to it comes with it.
 - **Your colours are unchanged.** All five schemes, both appearances, every
   semantic colour — and asserted unchanged by the token contrast tests in both
   appearances.
@@ -157,6 +159,22 @@ before the Worker is deployed**, behind a verified backup, in the order
 Migrations `0048` and `0049` may or may not already be applied; the production
 ledger is what decides, and `pnpm run db:production:list` is what reads it.
 Nothing here assumes an answer.
+
+**And it is not a tidy, additive upgrade.** `0050` is the one that matters:
+Obligations stop being a thing that belongs to an Asset and become records in
+their own right, so every obligation is physically moved into the main record
+table and the old `asset_obligations` table is dropped once they are all across.
+The move is designed to be safe — each obligation keeps its own id, so every
+task, series, event and Asset that pointed at it still does — and it is rehearsed
+end to end before it ships. What it is not is reversible by putting the old
+version of DalyHub back: after this runs, the old version cannot read your
+obligations. `0051`, `0054` and `0055` likewise rebuild notification and AI
+bookkeeping tables in place.
+
+That is why the upgrade is one sitting rather than two, and why the backup in
+front of it has to be one that has actually been restored from, not just taken.
+Both are spelled out in
+[`RELEASE_CHECKLIST_V3_0_0.md` §1.2 and §7](RELEASE_CHECKLIST_V3_0_0.md).
 
 ---
 

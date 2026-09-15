@@ -113,10 +113,53 @@ reads it.
 [`RELEASE_CHECKLIST_V2_4_0.md` §6](RELEASE_CHECKLIST_V2_4_0.md) —
 `pnpm run db:production:apply` — is **required** for this release, not ceremony,
 and steps 1–2 (a verified encrypted backup before any migration) are therefore
-hard preconditions rather than advisable ones. The six migrations create tables;
-they do not alter or drop existing ones, so the failure mode being guarded
-against is a partially-applied deploy rather than data loss — which does not make
-the backup optional.
+hard preconditions rather than advisable ones.
+
+### 1.2 And they are NOT create-only. There is no rollback after `0050`.
+
+⛔ **An earlier draft of §1.1 said "the six migrations create tables; they do not
+alter or drop existing ones, so the failure mode being guarded against is a
+partially-applied deploy rather than data loss". That is FALSE**, and it was the
+single most dangerous sentence in this document. Read from the migrations
+themselves:
+
+| Migration | What it does to existing data |
+| :--- | :--- |
+| `0050_create_obligations` | **moves every `asset_obligations` row** into `entities` + `obligation_details`, creates an `obligation.subject` link per row, then **`DROP TABLE asset_obligations`** (line 354) |
+| `0051_obligation_notifications` | `ALTER TABLE notification_settings RENAME COLUMN asset_obligations_enabled TO obligations_enabled`; **drops and rebuilds** `notification_deliveries` and `notifications` |
+| `0053_create_finance` | `ALTER TABLE obligation_details` — adds a column with a single-column `REFERENCES` clause |
+| `0054` / `0055` | each **drops and rebuilds** `ai_usage_requests` |
+
+**`0050`'s own header says the consequence out loud**, and it is the thing that
+governs the rollout:
+
+> Here the rows genuinely move, so **the previous Worker is broken by the data**
+> whether or not the table survives … What replaces the rollback is stated rather
+> than assumed: a production export is taken before this is applied … the nightly
+> R2 tier is the verified healthy copy, and the migration is rehearsed end to end
+> before it is merged.
+
+So three things follow, and none of them is optional:
+
+1. **Once `0050` is applied, the running `2.x` Worker is on an incompatible
+   schema.** The window between `db:production:apply` and a successful
+   `deploy:production` is a window in which production is broken. Treat it as a
+   coordinated rollout or a maintenance window, not as two independent steps.
+2. **A failed Worker deployment cannot be answered by rolling the application
+   back**, because the data has already moved. The recovery path is the verified
+   backup from §7 step 3 — restore, then retry — which is why that step is a hard
+   gate and not advice.
+3. **The backup must be verified as restorable, not merely taken.** `0050` keeps
+   obligation ids deliberately so every unforeign-keyed reference survives, and
+   `restore-safety.ts` is the only integrity authority over those chains; a
+   backup that has not been through
+   [`RELEASE_CHECKLIST_V2_4_0.md` §6 step 2](RELEASE_CHECKLIST_V2_4_0.md) is not
+   a recovery plan.
+
+Found by review on the release PR, against a draft of this document that had
+claimed the opposite. Recorded here rather than quietly corrected, because the
+wrong version of this paragraph is exactly the kind of thing a release runbook
+must not be believed about twice.
 
 ### Why the major number, and why not `2.5.0`
 
@@ -516,20 +559,45 @@ Carried forward deliberately, each with a named next action in
 
 ## 7. Owner actions outstanding before `v3.0.0` is live
 
-In order. None of these can be performed without credentials the release session
-did not hold, and none was faked.
+In order. Nothing below could be performed by the release session — the nightly
+dispatch is a `403` and every production command needs Cloudflare credentials it
+did not hold — and none of it was faked.
+
+**Steps 1–4 happen in the repository. Steps 5–10 are the production sequence**,
+and §1.2 governs the shape of it: once step 8 runs there is no application
+rollback, so 8 and 9 belong to one window rather than two sittings.
 
 | # | Action | Why it is here |
 | :-- | :--- | :--- |
 | ~~0~~ | ~~Confirm `main` CI at `4a2140f` is green~~ | ✅ **done** — run [`34962659072`](https://github.com/acedaly/DalyHub-V2/actions/runs/34962659072), 23 of 23 |
-| 1 | `gh workflow run nightly.yml --ref main`, then confirm all three jobs green | §2.5 — `workflow_dispatch` returned `403` to the session |
-| 2 | `pnpm run db:production:list` — **record the output** | §1.1 — production's ledger is the only authority on which of `0048`–`0055` are pending |
-| 3 | Establish and verify an encrypted backup ([§6 steps 1–2](RELEASE_CHECKLIST_V2_4_0.md)) | §1.1 — this release applies migrations, so this is a precondition |
-| 4 | `pnpm run deploy:production:preflight` and `deploy:production:release-check` | §4 — refuses without credentials |
-| 5 | `pnpm run db:production:apply` | §1.1 — **required for this release** |
-| 6 | `pnpm run deploy:production` from the exact tagged commit | §4 |
-| 7 | `pnpm run verify:production`, then sign in and read `/about` | confirms `3.0.0` / `V3` is what is actually running |
-| 8 | Record the results back into this file | §8 |
+| 1 | `gh workflow run nightly.yml --ref main`; confirm `accessibility-matrix`, `responsive-desktop` and `responsive-phone` all green | §2.5 — `workflow_dispatch` returned `403` to the session, and this is the first release under the tier split |
+| 2 | **Merge the release PR**, then `git checkout main && git pull` and record `RELEASE_SHA=$(git rev-parse HEAD)` | §8 — every step below refers to this exact commit |
+| 3 | **Confirm the `main` CI run triggered by that merge is green** | the tag must name a commit that passed the real `main` gate, not its parent |
+| 4 | `git tag -a v3.0.0 "$RELEASE_SHA" -m "DalyHub 3.0.0 — V3"`, verify `git rev-parse v3.0.0^{commit}` equals `RELEASE_SHA`, then `git push origin v3.0.0`, and create the GitHub Release from it | §8. Never moved afterwards |
+| 5 | `pnpm run db:production:list` — **record the output** | §1.1 — production's ledger is the only authority on which of `0048`–`0055` are pending |
+| 6 | Establish and **verify** an encrypted backup ([§6 steps 1–2](RELEASE_CHECKLIST_V2_4_0.md)) | §1.2 — this is the ONLY recovery path once step 8 runs. A backup that has not been restored is not one |
+| 7 | `pnpm run deploy:production:preflight` | §4 — pure configuration validation; refuses without credentials, and nothing may bypass it |
+| 8 | `pnpm run db:production:apply` | §1.1 — **required for this release**. §1.2 — **the point of no rollback**: production is on a schema the running Worker cannot serve from here until step 9 lands |
+| 9 | `pnpm run deploy:production` from the tagged commit, **immediately after step 8** | §1.2 — 8 and 9 are one window. If 9 fails, the answer is restore-from-backup and retry, never an application rollback |
+| 10 | `pnpm run deploy:production:release-check`, then `pnpm run verify:production`, then sign in and read `/about` | see the note below on ordering; confirms `3.0.0` / `V3` is what is actually running |
+| 11 | Record the results back into this file | §8 |
+
+⚠️ **Why `release-check` is at step 10 and not beside the preflight.**
+`runReleasePreflight()` in
+[`scripts/deploy-production.mjs`](../../scripts/deploy-production.mjs) treats a
+pending production migration as a **problem**, not a warning — it fails unless
+`--acknowledge-pending-migrations` is supplied — so with `0050`–`0055` pending it
+cannot pass before step 8. Run it after the migrations are applied, which is when
+its answer is meaningful anyway. If it is wanted earlier as a clean-tree /
+CI-green / HEAD-matches-origin check, the invocation is:
+
+```sh
+pnpm run deploy:production:release-check -- --acknowledge-pending-migrations
+```
+
+and the flag is an acknowledgement, not an application: the script says so
+itself — *"This deploy does NOT apply them — run `pnpm run db:production:apply`
+deliberately."*
 
 ---
 
