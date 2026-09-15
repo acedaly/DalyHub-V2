@@ -287,7 +287,8 @@ Run in the release session against `4f49c169`, after `pnpm install --frozen-lock
 | `pnpm run e2e:partitions:check` | ✅ |
 | `pnpm run e2e:fixture-dates:check` | ✅ |
 | `pnpm run test:unit` | ✅ **541 files, 7,767 tests passed**, 0 failed |
-| `pnpm run test:kernel` | ⏳ in flight |
+| `pnpm run test:kernel` | ✅ **229 files, 3,613 tests passed**, 0 failed — Workers runtime with real D1 |
+| `pnpm run restore:rehearsal` | ✅ **2 files, 28 tests passed**, 0 failed — see §3 |
 
 ---
 
@@ -298,14 +299,20 @@ export format and no backup path. The evidence and the rehearsal procedure in
 [`RELEASE_CHECKLIST_V2_4_0.md` §3–4](RELEASE_CHECKLIST_V2_4_0.md) stand as
 written.
 
-⏳ **The whole-product restore rehearsal is running at this commit.**
+✅ **The whole-product restore rehearsal passed at this commit.**
 `pnpm run restore:rehearsal` — `test/kernel/whole-product-rehearsal.test.ts` and
 `test/kernel/workspace-data-map.test.ts`: one synthetic workspace covering every
 durable domain, a truth manifest of derived owner-facing values at a frozen owner
 day, export, destroy every row through the registry-derived purge plan and every
-object in R2, prove it is gone, restore, recompute the manifest and compare. Its
-result is recorded here before the release PR is opened, and a failure stops the
-release outright — V3 is not worth cutting if recovery confidence is broken.
+object in R2, prove it is gone, restore, recompute the manifest and compare.
+
+**2 files, 28 tests, all passed, 0 failed** (26.6s). What is compared is not row
+counts: account balances derived again from the restored rows, month totals per
+currency, a transfer still excluded from spending, an obligation still settled by
+the transaction that settled it, a Goal's measurement series, a Review's
+persisted insight snapshot, a saved Report re-executed, the completion history
+Insight draws, and the AI FactBlock built from all of it — plus the proof that
+every table in the schema is classified for recovery.
 
 ⚠️ **It proves the mechanism, not the artifact.** It runs against the repository's
 own synthetic workspace in the Workers test runtime, not against production's
