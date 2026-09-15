@@ -1,28 +1,45 @@
 # DalyHub V3.0.0 — Release Checklist & Runbook
 
-**Version `3.0.0` · Release name "V3" · PREPARED 2026-09-15 · CUT ATTEMPTED AND HELD 2026-09-15 · NOT RELEASED**
+**Version `3.0.0` · Release name "V3" · PREPARED 2026-09-15 · NO BLOCKING DEFECT OPEN · NOT RELEASED**
 
-> ## ⛔ HELD AGAIN, 2026-09-15 — the text cursor is invisible in dark mode
+> ## Where this release actually stands
 >
-> Found after the release PR merged, while reading
-> [#300](https://github.com/acedaly/DalyHub-V2/pull/300) — which then closed
-> unmerged, so the fix is [#303](https://github.com/acedaly/DalyHub-V2/pull/303).
-> **`main` @ `652f389`
-> must not be tagged or deployed.** §1.3 has the measurement. Nothing is
-> stranded: the `v3.0.0` tag was deliberately never created, so the release
-> commit simply moves to whatever `main` is after #303 lands.
+> **Nothing is blocking it in the repository.** Two defects held it in turn and
+> both are fixed: the guided Review's `scrollable-region-focusable` failure
+> ([#298](https://github.com/acedaly/DalyHub-V2/pull/298), §2.6a) and the
+> invisible dark-mode text cursor
+> ([#303](https://github.com/acedaly/DalyHub-V2/pull/303), §1.3 — measured at
+> 1.12:1 before and 17.88:1 after). The release gate, §0, is met, and `main` is
+> green at `713fc87` on 23 of 23 jobs (§2.6c).
 >
-> **The release gate was MET at `4a2140f`, and the release commit was `652f389`.** The cut
-> was attempted on 2026-09-15 against `4f49c169` and stopped at §0 condition 3:
-> that CI run was RED, and one of its three failures was a real WCAG 2.2 AA
-> regression V3-CSS-01 had introduced. It was fixed by
-> [#298](https://github.com/acedaly/DalyHub-V2/pull/298), and `main` @ `4a2140f`
-> is green — 23 of 23 jobs. §2.6 has both runs.
+> **What remains is the production sequence, and none of it can run from an
+> automated session**: the nightly suite cannot be dispatched (§2.5) and every
+> production command needs Cloudflare credentials no such session holds (§4).
+> §7 is that sequence, in order, and it is all owner action.
 >
-> **No tag has been created and nothing has been deployed**, and neither can be
-> from here: the nightly suite cannot be dispatched (§2.5) and the production
-> preflight needs Cloudflare credentials this session does not hold (§4). §7 is
-> the remaining sequence.
+> ### ⚠️ The release commit is not a fixed SHA, and this document cannot name it
+>
+> It has already moved three times — `4a2140f` → `652f389` → `713fc87` — and it
+> moves again every time a change lands on `main`, **including a change to this
+> file**. The tag is therefore not chosen from the history; it is whatever
+> `origin/main` is at the moment §7 step 2 runs, and §7 step 2 runs when the
+> record is final.
+>
+> This is not bookkeeping. `checkReleaseGitState()` in
+> [`scripts/deploy-production.mjs`](../../scripts/deploy-production.mjs) fetches
+> `origin/main` and **refuses to deploy unless local `HEAD` equals it**, so
+> deploying from a tag that anything has landed on top of fails the guard and
+> needs `--allow-non-main` to get past. Reaching for that override to deploy an
+> avoidably stale tag is the opposite of what §4 records about this release,
+> which is that no guard was bypassed and nothing was invented to get past one.
+>
+> A tag cut early also **ships the record as it was then**. `713fc87` predates
+> the correction to `CHANGELOG.md`'s "no migration runs" claim, so tagging it
+> would have shipped an owner-facing changelog saying the release touches no
+> data, in front of a migration that moves every obligation and drops the table
+> it came from.
+>
+> **No tag has been created and nothing has been deployed.**
 
 > The evidence behind every V3.0.0 claim, and the exact sequence for deploying
 > it. Nothing is marked ✅ without a reference to a measurement. Where something
@@ -48,6 +65,13 @@ below are the ones the preparing change could not satisfy from a branch.
 | 1 | The frontend foundation work (V3-CSS-01, the cascade layer architecture) is **merged to `main`** | ✅ merged in [#297](https://github.com/acedaly/DalyHub-V2/pull/297), `main` @ `4f49c169` |
 | 2 | The E2E gate restructure (V3-E2E-01, the PR/nightly tiers) is **merged to `main`** | ✅ merged in the same change; verified below |
 | 3 | **`main` is green** after both — full CI, including every E2E partition | ✅ CI run [`34962659072`](https://github.com/acedaly/DalyHub-V2/actions/runs/34962659072) at `4a2140f`, **23 of 23 jobs `success`**. The earlier run at `4f49c169` was red and is kept as §2.6a |
+
+⚠️ **Condition 3 is about the foundation, and it is met. It is not the tag's
+gate.** The release commit has moved repeatedly since `4a2140f` — §1.3, and the
+banner at the top of this file — and the tag's gate is the `push` run on
+whichever commit §7 step 2 records, which §7 step 3 confirms. §2.6c is the most
+recent such run; whether it is *the* one depends on whether anything lands after
+it.
 
 **The fourth, non-blocking condition is NOT met.** The nightly suite
 (`.github/workflows/nightly.yml`) has still never run — see §2.5. It is
@@ -171,9 +195,12 @@ claimed the opposite. Recorded here rather than quietly corrected, because the
 wrong version of this paragraph is exactly the kind of thing a release runbook
 must not be believed about twice.
 
-### 1.3 The text cursor is invisible in the dark appearance
+### 1.3 The text cursor is invisible in the dark appearance — FIXED
 
-⛔ **Discovered 2026-09-15, after the release PR merged, and it holds the tag.**
+✅ **Discovered 2026-09-15 after the release PR merged, held the tag, and is
+resolved.** Fixed by [#303](https://github.com/acedaly/DalyHub-V2/pull/303),
+merged as `main` @ `713fc87`. The measurement that closes it is at the end of
+this section; the diagnosis below is kept as written.
 
 The same root cause as §2.6a, one property class over. `.cm-cursor`,
 `.cm-dropCursor` and `.cm-placeholder` are still declared in
@@ -229,12 +256,44 @@ Rather than maintaining a list of the rules CodeMirror contests, it derived that
 set from the injected sheet on every PR run — which is what would stop a fourth
 hand-written list being wrong. #303 does not reproduce that work.
 
-**When it lands**, `main` moves again and the release SHA moves with it. The
-release PR is already merged (`652f389`) and there is nothing left to merge, so
-the restart is §7 **step 0b, then steps 2–4** — refresh `main`, record the new
-`RELEASE_SHA`, confirm that commit's own CI, and tag THAT. Step 1 (the nightly
-suite) is worth re-running against the new `main` too, since it has never run
-against any commit.
+**It landed**, so `main` moved and the release SHA moved with it: `652f389` is
+superseded, and the fix is on `713fc87`. That does **not** make `713fc87` the
+commit to tag — see the banner at the top of this file; the release commit is
+whatever `origin/main` is when §7 step 2 runs, and every later change to this
+record moves it again. §7 step 0b is done. Step 1 (the nightly suite) is worth
+dispatching against this `main` too, since it has never run against any commit.
+
+#### The measurement that closes it
+
+Measured on `main` @ `713fc87`, by the same probe as above — inside the real
+`.cm-editor`, resolving colours through a canvas, and walking up to the first
+ancestor that actually paints a background:
+
+| | colour | against | contrast |
+| :--- | :--- | :--- | ---: |
+| caret, light | `rgb(16,16,20)` | `rgb(255,255,255)` | **18.98:1** |
+| caret, **dark** | `rgb(243,243,246)` | `oklch(0.145 0 none)` | **17.88:1** |
+| placeholder, light | `rgb(107,107,117)` | `rgb(255,255,255)` | **5.27:1** |
+| placeholder, dark | `rgb(140,140,151)` | `oklch(0.145 0 none)` | **5.95:1** |
+
+All four now resolve to their DalyHub tokens rather than CodeMirror's `black`
+and `#888`, and the dark caret has gone from **1.12:1 to 17.88:1**. The floors
+the tests hold are 3:1 for the caret (WCAG 2.2 1.4.11) and 4.5:1 for the
+placeholder (1.4.3); the margin either way is wide enough that a token moving
+does not put the gate near its threshold.
+
+⚠️ **These figures are not directly comparable, digit for digit, with the
+"intended" column above.** That column was computed against the dark page
+background `rgb(18,18,21)` for every row, including the light ones; the probe
+walks to whichever ancestor actually paints, which is white in the light
+appearance and `oklch(0.145 0 none)` — the editor's own dark surface, one step
+below the page — in the dark one. The comparison that matters is not between the
+two tables but within the dark caret row, where the same probe and the same
+surface give 1.12:1 before and 17.88:1 after.
+
+`e2e/css-cascade-ownership.spec.ts` — **8 passed** locally at `713fc87`,
+including the four contrast assertions and the two that hold the exception in
+the direction it exists for.
 
 ### Why the major number, and why not `2.5.0`
 
@@ -465,6 +524,23 @@ five of the six values still have no test of their own, which is why only the
 sixth was ever noticed. Raised there as a follow-up rather than widened into
 this release.
 
+**2 and 3. Timeout margin on a slow runner, not product defects.** These are the
+other two failures of run `34955877627`, at `4f49c169`, and they belong here
+rather than in §2.6b — an earlier draft printed them under the green run's
+heading, where "this run" read as the run that had just been called 23 of 23.
+
+```
+e2e/reviews.spec.ts:175             Test timeout of 30000ms exceeded
+e2e/tasks-daily-driver.spec.ts:191  Test timeout of 30000ms exceeded
+```
+
+Both pass locally at **21.0s and 23.3s** against the 30s per-test timeout, and
+both partitions overran their measured minute budgets on that run (p07 +23%,
+p11 +49%). That is the reading, and it is not a licence to call them flakes:
+two daily-driver journeys sitting at **70–78% of the per-test timeout** is a
+real fragility, and the next slow runner fails them again. It is recorded in §6
+as maintenance debt rather than fixed inside a release.
+
 ### 2.6b `main` CI at `4a2140f` — the run the gate depends on
 
 ✅ Run [`34962659072`](https://github.com/acedaly/DalyHub-V2/actions/runs/34962659072),
@@ -482,35 +558,67 @@ a `push`-event run on `main` itself, not a PR-branch run. **Conclusion:
 | CI Gate | ✅ success |
 
 **No job was cancelled, no partition went unexecuted, and no failure artefact was
-published.** §0 condition 3 is satisfied by this run.
+published.** §0 condition 3 — the foundation being green on `main` — is
+satisfied by this run.
 
 Note what the Unit job covers at this commit: `test:kernel` runs the whole
 Workers-runtime suite, which **includes** `whole-product-rehearsal.test.ts` and
-`workspace-data-map.test.ts` — so §3's restore rehearsal is green on the release
-commit in CI, not only locally.
+`workspace-data-map.test.ts` — so §3's restore rehearsal is green in CI at
+`4a2140f`, not only locally. It is green again at the release commit, below.
 
-**2 and 3. Timeout margin on a slow runner, not product defects.**
+### 2.6c `main` CI at `713fc87` — the run that clears §1.3
 
-```
-e2e/reviews.spec.ts:175             Test timeout of 30000ms exceeded
-e2e/tasks-daily-driver.spec.ts:191  Test timeout of 30000ms exceeded
-```
+`4a2140f` satisfied §0 condition 3. It is not the commit being tagged, and
+neither, necessarily, is this one — the release commit is whatever `origin/main`
+is when §7 step 2 runs, and anything landing on `main` after this run moves it
+again. What this section establishes is narrower and still necessary: **that the
+caret fix is green on `main`**, not merely on its PR branch.
 
-Both pass locally at **21.0s and 23.3s** against the 30s per-test timeout, and
-both partitions overran their measured minute budgets on this run (p07 +23%,
-p11 +49%). That is the reading, and it is not a licence to call them flakes:
-two daily-driver journeys sitting at **70–78% of the per-test timeout** is a
-real fragility, and the next slow runner fails them again. It is recorded in §6
-as maintenance debt rather than fixed inside a release, and `#299`'s own CI run
-is the first re-test.
+✅ Run [`35026183056`](https://github.com/acedaly/DalyHub-V2/actions/runs/35026183056),
+event `push`, `main` @ `713fc87df035201e0f3a5052f98f15421f2402e7`, attempt 1 —
+queued behind the run for `f304ddc` when it was recorded here, and recorded
+before its result on purpose: a run named in advance cannot be one picked
+afterwards from those that went green. **Conclusion: `success`. 23 of 23 jobs**,
+all 18 E2E partitions executed, nothing cancelled and no failure artefact
+published.
 
-### 2.7 Local release gates, at the release commit
+| Job | Result |
+| :-- | :--- |
+| Scope, Static, Unit, Build | ✅ success |
+| E2E p01 … p18 | ✅ **18 of 18 success**, first attempt |
+| CI Gate | ✅ success |
+
+The four contrast assertions §1.3 added therefore pass on a runner as well as
+locally, and p04, p06, p07 and p11 — the four partitions that produced the
+timeout failures in §6 item 7 — all passed here on the first attempt, which is
+the reading that item gives: runner speed, not the product.
+
+**The rule this section does not satisfy by itself.** §7 step 3 asks for a green
+`push` run on **the commit being tagged**. If this is still `origin/main`'s head
+when step 2 runs, this run is that run. If anything has landed since — and the
+change adding this very section will — then step 3 needs *that* commit's run,
+and this one is history. Either way, `v3.0.0` is not created against a run that
+has not concluded `success`.
+
+What is new at this commit relative to `4a2140f`: `css-cascade-ownership.spec.ts`
+carries **8 tests rather than 4**, the four additions being the caret and
+placeholder contrast assertions in both appearances (§1.3). They also pass
+locally at this commit, 8 of 8.
+
+### 2.7 Local release gates, at `4a2140f`
 
 Run in the release session, after `pnpm install --frozen-lockfile`. The static
 gates, the version check and the restore rehearsal were **re-run at `4a2140f`**
-after the release commit moved; `test:unit` and `test:kernel` were measured at
-`4f49c169` and re-run at `4a2140f` by the `main` CI job in §2.6b, which is the
-stronger reading of the two:
+after the release commit first moved; `test:unit` and `test:kernel` were
+measured at `4f49c169` and re-run at `4a2140f` by the `main` CI job in §2.6b,
+which is the stronger reading of the two.
+
+⚠️ **This table is not the release commit.** It has moved repeatedly since —
+see the banner at the top of this file — and what covers each such commit is its
+own `push` run on `main`, which runs every gate below and all 18 E2E partitions.
+These local figures are kept because they are where the counts came from, not
+because they describe the commit being tagged. The ten static gates were re-run
+by hand at `713fc87` and all pass.
 
 | Gate | Result |
 | :-- | :--- |
@@ -620,15 +728,42 @@ Carried forward deliberately, each with a named next action in
    any SQL runs. The largest single remaining lever on E2E cost, and a separate
    piece of work.
 6. The Finance collection heading's missing gutter (pre-existing).
-7. **Two daily-driver journeys sit at 70–78% of the 30s per-test timeout** —
-   `reviews.spec.ts:175` (21.0s) and `tasks-daily-driver.spec.ts:191` (23.3s),
-   measured locally. They failed CI run `34955877627` on a runner where both
-   partitions overran their minute budgets by 23% and 49%. Nothing is wrong with
-   the product; what is wrong is that the margin is thin enough for runner
-   variance to decide the result, and a release gate whose colour depends on
-   runner speed is not a gate. Raising a timeout is the wrong reflex — the V2.4
-   record is explicit that it was done once, as a measured budget correction,
-   named as one. The measurement comes first.
+7. **The E2E gate has no timeout margin.** Cutting this release produced **five
+   timeout-class failures across four partitions in three runs**, every one of
+   which passes locally and every one on a partition that overran its measured
+   minute budget (13.6 min):
+
+   | Run | Partition | Test | Local | Partition minutes |
+   | :--- | :--- | :--- | ---: | :--- |
+   | `34955877627` | p11 | `reviews.spec.ts:175` | 21.0s | 20.3 |
+   | `34955877627` | p11 | `tasks-daily-driver.spec.ts:191` | 23.3s | 20.3 |
+   | `34972801798` | p04 | `tasks-v22-daily-driver.spec.ts:335` | 28.1s | 14.1 |
+   | `34975162874` | p06 | `reports.spec.ts:163` | 14.3s | 16.4 |
+
+   (The fifth is p07's `reviews-guided.spec.ts` on `34955877627`, which was a
+   real defect and is §2.6a — it is counted here only because that partition ran
+   16.7 min, so its budget was over too.)
+
+   A **sixth** failure, of a different class, appeared on the release record's
+   own PR: `notifications.spec.ts:214` read `07:00` where it expected `06:30`,
+   on p05, which finished inside its budget. Not a timeout — the test blurred a
+   field whose `onBlur` STARTS an asynchronous save and then reloaded the page
+   on the next line, so it was racing the write it was asserting. It is fixed
+   in the same change as this note, by awaiting the POST, which also asserts
+   that blurring saves at all; the falsifier (a path regex that cannot match)
+   fails at the 30s timeout. It is listed here because it belongs to the same
+   argument: **five budget overruns and one unawaited write all decided the
+   gate's colour by timing rather than by the product.**
+
+   Nothing is wrong with the product. What is wrong is that the margin is thin
+   enough for runner variance to decide the result, and a release gate whose
+   colour depends on runner speed is not a gate. `tasks-v22-daily-driver.spec.ts:335`
+   at 28.1s local against a 30s timeout is not margin at all. Raising a timeout
+   is the wrong reflex — the V2.4 record is explicit that it was done once, as a
+   measured budget correction, named as one. **No timeout was raised while
+   cutting this release**; every red run above was answered by diagnosis, and the
+   one that was a defect was fixed. The measurement comes first, and it is the
+   next piece of work on this gate.
 
 ---
 
@@ -645,10 +780,10 @@ rollback, so 8 and 9 belong to one window rather than two sittings.
 | # | Action | Why it is here |
 | :-- | :--- | :--- |
 | ~~0~~ | ~~Confirm `main` CI at `4a2140f` is green~~ | ✅ **done** — run [`34962659072`](https://github.com/acedaly/DalyHub-V2/actions/runs/34962659072), 23 of 23 |
-| **0b** | **Land [#303](https://github.com/acedaly/DalyHub-V2/pull/303) and confirm the resulting `main` CI run is green** | §1.3 — **the current blocker.** The release commit becomes that commit, and steps 2–4 below run against it. (#300 diagnosed the defect and closed unmerged; #303 carries the fix) |
+| ~~0b~~ | ~~Land [#303](https://github.com/acedaly/DalyHub-V2/pull/303) — the §1.3 blocker~~ | ✅ **done** — merged as `main` @ `713fc87`, §1.3 closed with the post-fix measurement, and that commit's own `push` run is green: 23 of 23, §2.6c |
 | 1 | `gh workflow run nightly.yml --ref main`; confirm `accessibility-matrix`, `responsive-desktop` and `responsive-phone` all green | §2.5 — `workflow_dispatch` returned `403` to the session, and this is the first release under the tier split |
-| 2 | `git checkout main && git pull`, then record `RELEASE_SHA=$(git rev-parse HEAD)` | §8 — every step below refers to this exact commit. The release PR itself **already merged**, as `652f389`; §1.3 then superseded that commit, so the release SHA is whatever `main` is once step 0b has landed |
-| 3 | **Confirm the `main` CI run triggered by that merge is green** | the tag must name a commit that passed the real `main` gate, not its parent |
+| **2** | **`git checkout main && git pull`, then record `RELEASE_SHA=$(git rev-parse HEAD)`** — and do it HERE, not earlier | ⏳ **This step cannot be pre-filled, and three attempts to pre-fill it have each been overtaken.** The release commit is `origin/main` at this moment, not a SHA chosen from the history: `checkReleaseGitState()` refuses to deploy unless local `HEAD` equals `origin/main`, so a tag anything has landed on top of cannot be deployed from without `--allow-non-main`. Run this once the release record is final |
+| 3 | **Confirm the `push` CI run on `$RELEASE_SHA` itself is green** | ⏳ The tag must name a commit that passed the real `main` gate — not its parent, and not an ancestor that was green before the record was corrected. §2.6c is the most recent such run. **Nothing below may proceed on a run that has not concluded** |
 | 4 | `git tag -a v3.0.0 "$RELEASE_SHA" -m "DalyHub 3.0.0 — V3"`, verify `git rev-parse v3.0.0^{commit}` equals `RELEASE_SHA`, then `git push origin v3.0.0`, and create the GitHub Release from it | §8. Never moved afterwards |
 | 5 | `pnpm run db:production:list` — **record the output** | §1.1 — production's ledger is the only authority on which of `0048`–`0055` are pending |
 | 6 | Establish and **verify** an encrypted backup ([§6 steps 1–2](RELEASE_CHECKLIST_V2_4_0.md)) | §1.2 — this is the ONLY recovery path once step 8 runs. A backup that has not been restored is not one |
@@ -683,9 +818,11 @@ deliberately."*
 | :-- | :--- |
 | Blocking fix | [#298](https://github.com/acedaly/DalyHub-V2/pull/298) — merged, `main` @ `4a2140f` |
 | Release metadata branch | `release/v3.0.0`, merged up to `4a2140f` |
-| Release commit (`main` after the release PR) | `652f389516938bf813d46b56cc4b3b4c7b29ad53` — **superseded**: §1.3 holds it, and the release commit moves to `main` after [#303](https://github.com/acedaly/DalyHub-V2/pull/303) |
-| Blocking defect found after the release merge | ⛔ §1.3 — the caret is invisible in dark mode (1.12:1). Fixed by [#303](https://github.com/acedaly/DalyHub-V2/pull/303), not yet landed |
-| Annotated tag `v3.0.0` | ⏳ — must be created on the exact release commit, and never moved |
+| Release commit (`main` after the release PR) | ~~`652f389516938bf813d46b56cc4b3b4c7b29ad53`~~ — **superseded** by §1.3 before any tag existed |
+| **RELEASE COMMIT — the commit to tag** | ⏳ — recorded at §7 step 2 and **not before**. It is `origin/main` at that moment. It has been `4a2140f`, then `652f389`, then `713fc87`, and each was overtaken by the next correction to this record |
+| Last commit known green on `main` | ✅ `713fc87df035201e0f3a5052f98f15421f2402e7`, CI run [`35026183056`](https://github.com/acedaly/DalyHub-V2/actions/runs/35026183056), **23 of 23** — §2.6c |
+| Blocking defect found after the release merge | ✅ §1.3 — the caret was invisible in dark mode (1.12:1). Fixed by [#303](https://github.com/acedaly/DalyHub-V2/pull/303), landed; measured 17.88:1 after |
+| Annotated tag `v3.0.0` | ⏳ — created on `$RELEASE_SHA` from §7 step 2, and never moved |
 | GitHub Release | ⏳ |
 | Pre-deploy backup identifier | ⏳ |
 | Migrations applied | ⏳ — expect at least `0050`–`0055`; §1.1 |
