@@ -9,7 +9,8 @@
 > ([#298](https://github.com/acedaly/DalyHub-V2/pull/298), §2.6a) and the
 > invisible dark-mode text cursor
 > ([#303](https://github.com/acedaly/DalyHub-V2/pull/303), §1.3 — measured at
-> 1.12:1 before and 17.88:1 after). The release gate, §0, is met.
+> 1.12:1 before and 17.88:1 after). The release gate, §0, is met, and `main` is
+> green at `713fc87` on 23 of 23 jobs (§2.6c).
 >
 > **What remains is the production sequence, and none of it can run from an
 > automated session**: the nightly suite cannot be dispatched (§2.5) and every
@@ -573,11 +574,24 @@ is when §7 step 2 runs, and anything landing on `main` after this run moves it
 again. What this section establishes is narrower and still necessary: **that the
 caret fix is green on `main`**, not merely on its PR branch.
 
-⏳ Run [`35026183056`](https://github.com/acedaly/DalyHub-V2/actions/runs/35026183056),
+✅ Run [`35026183056`](https://github.com/acedaly/DalyHub-V2/actions/runs/35026183056),
 event `push`, `main` @ `713fc87df035201e0f3a5052f98f15421f2402e7`, attempt 1 —
 queued behind the run for `f304ddc` when it was recorded here, and recorded
 before its result on purpose: a run named in advance cannot be one picked
-afterwards from those that went green.
+afterwards from those that went green. **Conclusion: `success`. 23 of 23 jobs**,
+all 18 E2E partitions executed, nothing cancelled and no failure artefact
+published.
+
+| Job | Result |
+| :-- | :--- |
+| Scope, Static, Unit, Build | ✅ success |
+| E2E p01 … p18 | ✅ **18 of 18 success**, first attempt |
+| CI Gate | ✅ success |
+
+The four contrast assertions §1.3 added therefore pass on a runner as well as
+locally, and p04, p06, p07 and p11 — the four partitions that produced the
+timeout failures in §6 item 7 — all passed here on the first attempt, which is
+the reading that item gives: runner speed, not the product.
 
 **The rule this section does not satisfy by itself.** §7 step 3 asks for a green
 `push` run on **the commit being tagged**. If this is still `origin/main`'s head
@@ -755,7 +769,7 @@ rollback, so 8 and 9 belong to one window rather than two sittings.
 | # | Action | Why it is here |
 | :-- | :--- | :--- |
 | ~~0~~ | ~~Confirm `main` CI at `4a2140f` is green~~ | ✅ **done** — run [`34962659072`](https://github.com/acedaly/DalyHub-V2/actions/runs/34962659072), 23 of 23 |
-| ~~0b~~ | ~~Land [#303](https://github.com/acedaly/DalyHub-V2/pull/303) — the §1.3 blocker~~ | ✅ **done** — merged as `main` @ `713fc87`, and §1.3 is closed with the post-fix measurement. Its `push` run is §2.6c |
+| ~~0b~~ | ~~Land [#303](https://github.com/acedaly/DalyHub-V2/pull/303) — the §1.3 blocker~~ | ✅ **done** — merged as `main` @ `713fc87`, §1.3 closed with the post-fix measurement, and that commit's own `push` run is green: 23 of 23, §2.6c |
 | 1 | `gh workflow run nightly.yml --ref main`; confirm `accessibility-matrix`, `responsive-desktop` and `responsive-phone` all green | §2.5 — `workflow_dispatch` returned `403` to the session, and this is the first release under the tier split |
 | **2** | **`git checkout main && git pull`, then record `RELEASE_SHA=$(git rev-parse HEAD)`** — and do it HERE, not earlier | ⏳ **This step cannot be pre-filled, and three attempts to pre-fill it have each been overtaken.** The release commit is `origin/main` at this moment, not a SHA chosen from the history: `checkReleaseGitState()` refuses to deploy unless local `HEAD` equals `origin/main`, so a tag anything has landed on top of cannot be deployed from without `--allow-non-main`. Run this once the release record is final |
 | 3 | **Confirm the `push` CI run on `$RELEASE_SHA` itself is green** | ⏳ The tag must name a commit that passed the real `main` gate — not its parent, and not an ancestor that was green before the record was corrected. §2.6c is the most recent such run. **Nothing below may proceed on a run that has not concluded** |
@@ -795,7 +809,7 @@ deliberately."*
 | Release metadata branch | `release/v3.0.0`, merged up to `4a2140f` |
 | Release commit (`main` after the release PR) | ~~`652f389516938bf813d46b56cc4b3b4c7b29ad53`~~ — **superseded** by §1.3 before any tag existed |
 | **RELEASE COMMIT — the commit to tag** | ⏳ — recorded at §7 step 2 and **not before**. It is `origin/main` at that moment. It has been `4a2140f`, then `652f389`, then `713fc87`, and each was overtaken by the next correction to this record |
-| Last commit known green on `main` | `713fc87df035201e0f3a5052f98f15421f2402e7`, CI run [`35026183056`](https://github.com/acedaly/DalyHub-V2/actions/runs/35026183056) — ⏳, §2.6c |
+| Last commit known green on `main` | ✅ `713fc87df035201e0f3a5052f98f15421f2402e7`, CI run [`35026183056`](https://github.com/acedaly/DalyHub-V2/actions/runs/35026183056), **23 of 23** — §2.6c |
 | Blocking defect found after the release merge | ✅ §1.3 — the caret was invisible in dark mode (1.12:1). Fixed by [#303](https://github.com/acedaly/DalyHub-V2/pull/303), landed; measured 17.88:1 after |
 | Annotated tag `v3.0.0` | ⏳ — created on `$RELEASE_SHA` from §7 step 2, and never moved |
 | GitHub Release | ⏳ |

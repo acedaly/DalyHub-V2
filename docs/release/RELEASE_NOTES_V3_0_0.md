@@ -7,9 +7,10 @@
 > cursor was invisible** in every writing surface — Notes, Diary, the Meeting
 > workspace, the guided Review. It was the same cascade cause as the one below,
 > one property across. [#303](https://github.com/acedaly/DalyHub-V2/pull/303)
-> fixed it, landing on `main` @ `713fc87`; the caret now measures 17.88:1 in dark
-> where it measured 1.12:1, and four contrast assertions hold it in both
-> appearances. No tag was ever created, so nothing had to be undone.
+> fixed it, landing on `main` @ `713fc87` — green on 23 of 23 CI jobs. The caret
+> now measures 17.88:1 in dark where it measured 1.12:1, and four contrast
+> assertions hold it in both appearances. No tag was ever created, so nothing had
+> to be undone.
 > [`RELEASE_CHECKLIST_V3_0_0.md` §1.3](RELEASE_CHECKLIST_V3_0_0.md) has both
 > measurements. It is in Known limitations below, as the #298 one is, because a
 > release note that only says what went right is not a record.
