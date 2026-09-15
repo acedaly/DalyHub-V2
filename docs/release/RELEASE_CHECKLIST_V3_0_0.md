@@ -216,8 +216,14 @@ a hand-maintained list let through, which is the argument #300 makes for
 deriving the set instead.
 
 **Fixed by [#300](https://github.com/acedaly/DalyHub-V2/pull/300)**, opened
-independently and not duplicated from here. Once it lands, re-run §7 from step 2
-against the new `main`.
+independently and not duplicated from here.
+
+**When it lands**, `main` moves again and the release SHA moves with it. The
+release PR is already merged (`652f389`) and there is nothing left to merge, so
+the restart is §7 **step 0b, then steps 2–4** — refresh `main`, record the new
+`RELEASE_SHA`, confirm that commit's own CI, and tag THAT. Step 1 (the nightly
+suite) is worth re-running against the new `main` too, since it has never run
+against any commit.
 
 ### Why the major number, and why not `2.5.0`
 
@@ -630,7 +636,7 @@ rollback, so 8 and 9 belong to one window rather than two sittings.
 | ~~0~~ | ~~Confirm `main` CI at `4a2140f` is green~~ | ✅ **done** — run [`34962659072`](https://github.com/acedaly/DalyHub-V2/actions/runs/34962659072), 23 of 23 |
 | **0b** | **Land [#300](https://github.com/acedaly/DalyHub-V2/pull/300) and confirm the resulting `main` CI run is green** | §1.3 — **the current blocker.** The release commit becomes that commit, and steps 2–4 below run against it |
 | 1 | `gh workflow run nightly.yml --ref main`; confirm `accessibility-matrix`, `responsive-desktop` and `responsive-phone` all green | §2.5 — `workflow_dispatch` returned `403` to the session, and this is the first release under the tier split |
-| 2 | **Merge the release PR**, then `git checkout main && git pull` and record `RELEASE_SHA=$(git rev-parse HEAD)` | §8 — every step below refers to this exact commit |
+| 2 | `git checkout main && git pull`, then record `RELEASE_SHA=$(git rev-parse HEAD)` | §8 — every step below refers to this exact commit. The release PR itself **already merged**, as `652f389`; §1.3 then superseded that commit, so the release SHA is whatever `main` is once step 0b has landed |
 | 3 | **Confirm the `main` CI run triggered by that merge is green** | the tag must name a commit that passed the real `main` gate, not its parent |
 | 4 | `git tag -a v3.0.0 "$RELEASE_SHA" -m "DalyHub 3.0.0 — V3"`, verify `git rev-parse v3.0.0^{commit}` equals `RELEASE_SHA`, then `git push origin v3.0.0`, and create the GitHub Release from it | §8. Never moved afterwards |
 | 5 | `pnpm run db:production:list` — **record the output** | §1.1 — production's ledger is the only authority on which of `0048`–`0055` are pending |
