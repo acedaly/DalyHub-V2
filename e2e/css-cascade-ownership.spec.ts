@@ -7,9 +7,17 @@ import { expect, test } from "@playwright/test";
  * The ONE stylesheet allowed to be unlayered, read as TEXT so that the
  * exception this test permits is derived from the file rather than restated
  * beside it and left to drift.
+ *
+ * It is `markdown-editor-codemirror.css` and NOT `markdown-editor.css`: the
+ * first version of this exception un-layered the whole editor stylesheet, which
+ * then outranked the five product surfaces that legitimately override it and
+ * cost an axe violation on the guided Review. Pointing the allowlist at the
+ * six-rule file is what keeps the exception the size it has to be — widen that
+ * file and this test widens with it, deliberately; put a rule anywhere else
+ * unlayered and it fails.
  */
 const editorStylesheet = readFileSync(
-  join(process.cwd(), "app/styles/markdown-editor.css"),
+  join(process.cwd(), "app/styles/markdown-editor-codemirror.css"),
   "utf8",
 );
 

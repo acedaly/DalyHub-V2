@@ -1,0 +1,77 @@
+/*
+ * V3-CSS-01 — the ONLY unlayered stylesheet DalyHub ships, and the smallest it
+ * can be.
+ *
+ * CodeMirror configures itself by INJECTING a `<style>` element at runtime
+ * (`style-mod`'s `StyleModule`). A runtime-injected sheet is unlayered by
+ * construction — there is no `@import` for a `layer()` keyword to attach to —
+ * and unlayered normal declarations beat layered ones unconditionally. So a
+ * DalyHub rule that has to override a CodeMirror DEFAULT cannot live in a
+ * cascade layer either.
+ *
+ * -- Why this is separate from `markdown-editor.css` -------------------------
+ *
+ * The first attempt at this exception un-layered that whole file. It fixed the
+ * contest with CodeMirror and broke a different one: `markdown-editor.css` also
+ * carries DalyHub's own editor COMPOSITION, and five product stylesheets
+ * (`notes.css`, `diary.css`, `meetings.css`, `reviews.css`, `review-guide.css`)
+ * legitimately override it. Unlayered, it outranked all five.
+ *
+ * MEASURED: `review-guide.css`'s `.dh-review-guide__prompt … .cm-editor
+ * { max-block-size: none }` stopped cancelling the compact density cap, the
+ * guided Review's editor got its `50vh` ceiling back, `.cm-scroller` became
+ * scrollable, and axe reported a SERIOUS `scrollable-region-focusable`
+ * violation — `reviews-guided.spec.ts` Journey 6, red on `main`.
+ *
+ * So the exception is now only what it has to be. These six rules contest a
+ * property CodeMirror's own sheet sets on the same element, established by
+ * reading its 71 injected rules rather than by guessing:
+ *
+ *     .cm-content    margin, padding, min-height, outline, display, box-sizing
+ *     .cm-scroller   font-family, line-height, height, overflow-x, display
+ *     .cm-focused    outline
+ *
+ * CodeMirror sets NOTHING on `.cm-editor`, which is why the density caps stayed
+ * in `markdown-editor.css` where product surfaces can still override them.
+ *
+ * -- The rule for changing this file ----------------------------------------
+ *
+ * Nothing goes in here that CodeMirror does not itself declare. Everything else
+ * belongs in `markdown-editor.css`, in `dh-product`, where the rest of the
+ * product can compose with it. `e2e/css-cascade-ownership.spec.ts` derives the
+ * permitted unlayered set from THIS file, so widening the exception is a
+ * deliberate edit here and an accidental one anywhere else fails the gate.
+ *
+ * The real fix is to move these into CodeMirror's own `EditorView.theme()`,
+ * where they would share the StyleModule and precedence of the defaults they
+ * override, and this file would go. Named maintenance debt item 16.
+ */
+
+.dh-md-editor__cm .cm-editor.cm-focused {
+  outline: none; /* the wrapper carries the focus ring */
+}
+
+.dh-md-editor__cm .cm-scroller {
+  font-family: var(--md-ref-typeface-plain);
+  line-height: 1.65;
+}
+
+.dh-md-editor__cm .cm-content {
+  padding: var(--app-space-5) var(--app-space-4) var(--app-space-10);
+  caret-color: var(--dh-color-accent);
+}
+
+.dh-md-editor__cm .cm-selectionBackground,
+.dh-md-editor__cm .cm-focused .cm-selectionBackground,
+.dh-md-editor__cm .cm-line ::selection {
+  background: var(--dh-color-accent-subtle);
+}
+
+.dh-note-body .dh-md-editor__cm .cm-content {
+  font-family: var(--md-ref-typeface-plain);
+  font-size: var(--dh-text-lead-size);
+}
+
+.dh-note-body .dh-md-editor__cm .cm-scroller {
+  line-height: var(--dh-text-lead-line-height);
+}

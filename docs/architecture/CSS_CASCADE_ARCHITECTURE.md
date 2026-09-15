@@ -14,7 +14,7 @@ outranks layered CSS unconditionally and regardless of specificity — which mea
 one unlayered file quietly outranks the entire design system.
 
 **There is exactly one exception, and it is forced rather than chosen:
-`markdown-editor.css`.** See [The one exception](#the-one-exception) below. It is
+`markdown-editor-codemirror.css` — six rules.** See [The one exception](#the-one-exception) below. It is
 not a loophole — `e2e/css-cascade-ownership.spec.ts` derives the permitted set
 from that file's own contents and fails on any other unlayered rule.
 
@@ -55,14 +55,14 @@ source import order:
 | Production root CSS, raw | 814,944 B | 814,968 B |
 | Production root CSS, gzip | 98,232 B | 99,449 B |
 | `app.css` imports | 78 | 78 |
-| **Unlayered bytes** | **600,640 (73.7%)** | **11,562 (1.42%)** |
+| **Unlayered bytes** | **600,640 (73.7%)** | **4,150 (0.51%)** |
 | **Unlayered style rules** (CSSOM, live page) | **2,932 of 4,602 (63.7%)** | **0 of 4,602** |
 | `!important` declarations | 15 | 15 |
 
-The 11,562 remaining bytes are `markdown-editor.css` (the one forced exception,
-below), 84 Tailwind `@property` declarations and four `@keyframes`. Neither
-`@property` nor `@keyframes` is a cascade participant, and neither can be
-layered.
+The 4,150 remaining bytes are `markdown-editor-codemirror.css` (six rules — the
+one forced exception, below), 84 Tailwind `@property` declarations and four
+`@keyframes`. Neither `@property` nor `@keyframes` is a cascade participant, and
+neither can be layered.
 
 The emitted cascade, read off the built artefact:
 
@@ -89,8 +89,9 @@ the probe above, and a CSSOM walk asserting no rule sits outside a layer.
 
 ## The one exception
 
-`markdown-editor.css` is imported **without** a `layer()` keyword, and that is a
-consequence of how the cascade works rather than a preference.
+`markdown-editor-codemirror.css` — **six rules** — is imported **without** a
+`layer()` keyword, and that is a consequence of how the cascade works rather than
+a preference.
 
 **CodeMirror configures itself by injecting a `<style>` element at runtime**
 (`style-mod`'s `StyleModule`). A runtime-injected sheet is unlayered by
@@ -109,12 +110,32 @@ That is not hypothetical. It shipped in the first CI run of this architecture:
 | Caught by | `e2e/editor-geometry.spec.ts`, at 390, 1024, 1280 and 1440, plus the empty-Note caret. Four E2E partitions red. |
 | Why it ever worked | Before V3-CSS-01 this file was unlayered too, and won on specificity (`.dh-md-editor__cm .cm-content` is 0-2-0 against CodeMirror's 0-1-0). Layering it is what handed the contest away. |
 
-**Why leaving it unlayered is safe, measured rather than assumed:** of the 66
-classes this file owns, **zero** appear in the markup on an element that also
-carries an Untitled utility. Its selectors live in the `.dh-md-*`, `.cm-*` and
-`.dh-record-link-picker*` namespaces, which Untitled has no opinion about. The
-file therefore cannot repaint an Untitled control even though nothing stops it on
-layer order.
+**The first version of this exception was too wide, and `main` caught it.** It
+un-layered the whole of `markdown-editor.css`. That fixed the contest with
+CodeMirror and created another: the same file carries DalyHub's own editor
+composition, and five product stylesheets — `notes.css`, `diary.css`,
+`meetings.css`, `reviews.css`, `review-guide.css` — legitimately override it.
+Unlayered, it outranked all five.
+
+MEASURED on `main` @ `4f49c16`: `review-guide.css`'s
+`.dh-review-guide__prompt … .cm-editor { max-block-size: none }` stopped
+cancelling the compact density cap, the guided Review's editor got its `50vh`
+ceiling back, `.cm-scroller` became scrollable, and axe reported a **serious**
+`scrollable-region-focusable` violation. E2E partition p07, red.
+
+**So the exception is now only what it has to be.** Six rules, contesting a
+property CodeMirror's own sheet sets on the same element — established by reading
+its 71 injected rules rather than by guessing:
+
+| CodeMirror sets | on |
+| :-- | :-- |
+| `margin`, `padding`, `min-height`, `outline`, `display`, `box-sizing` | `.cm-content` |
+| `font-family`, `line-height`, `height`, `overflow-x`, `display` | `.cm-scroller` |
+| `outline` | `.cm-focused` |
+
+CodeMirror sets **nothing** on `.cm-editor`, which is why the density caps stayed
+in `markdown-editor.css` — in `dh-product`, where product surfaces can still
+override them normally.
 
 **The real fix, deliberately not taken here:** move the 49 `.cm-*` rules into
 CodeMirror's own `EditorView.theme()`, where they would participate in the same
@@ -125,11 +146,14 @@ maintenance debt item 16.
 ### What this means for anyone adding a stylesheet
 
 If you integrate a library that injects its own CSS at runtime, **your overrides
-for it cannot live in a layer either**, and you must say so at the import with
-the same three things this one states: what injects, what it measured, and why
-leaving yours unlayered contests nothing of Untitled's. If you cannot show the
-third point, the answer is not a second exception — it is to stop the library
-injecting.
+for it cannot live in a layer either**. Put them in their own file, keep it to
+the declarations the library itself sets, and say so at the import: what injects,
+and which of its declarations you are contesting.
+
+The mistake to avoid is the one made here first: do not un-layer the whole
+stylesheet that happens to contain those overrides. Everything else in it is
+ordinary product CSS that the rest of the product expects to be able to
+compose with, and unlayering it takes that away silently.
 
 ---
 
