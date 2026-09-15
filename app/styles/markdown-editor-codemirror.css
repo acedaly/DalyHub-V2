@@ -71,11 +71,16 @@
   background: var(--dh-color-accent-subtle);
 }
 
-/* The one rule here that CodeMirror does not contest, and it stays anyway: it
+/* @cascade-exception uncontested-by-design
+ *
+ * The one rule here that CodeMirror does not contest, and it stays anyway: it
  * is the type half of the Note-body reading pair whose leading (below, on
  * `.cm-scroller`) has to be unlayered. Split across the two files, a product
  * stylesheet could resize the type in `dh-product` and leave the line-height
- * behind it, which is the mismatched-leading bug rather than a tidier file. */
+ * behind it, which is the mismatched-leading bug rather than a tidier file.
+ *
+ * `css-cascade-ownership.spec.ts` reads that marker, so this is the only rule
+ * the lower bound lets through, and adding another is a visible edit here. */
 .dh-note-body .dh-md-editor__cm .cm-content {
   font-family: var(--md-ref-typeface-plain);
   font-size: var(--dh-text-lead-size);

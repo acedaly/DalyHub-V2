@@ -43,6 +43,40 @@ const layeredEditorStylesheet = readFileSync(
  */
 const STYLE_MOD_MARKER = "ͼ";
 
+/*
+ * The one way a rule may sit in the unlayered exception file WITHOUT CodeMirror
+ * contesting it: a comment carrying this marker, immediately above the rule,
+ * saying why.
+ *
+ * It lives in the stylesheet rather than in this spec on purpose. A carve-out
+ * written here is invisible to the person editing the CSS, and the whole
+ * lesson of this corner of the codebase is that a list kept away from the thing
+ * it describes drifts away from it. Marked next to the rule, widening the
+ * carve-out is an edit someone reviews.
+ */
+const UNCONTESTED_MARKER = "@cascade-exception uncontested-by-design";
+
+/** CSSOM normalises `,\n` to `, `; the file does not. Compare like for like. */
+const normaliseSelector = (selector: string) =>
+  selector.replace(/\s+/g, " ").trim();
+
+/**
+ * The marked selectors, read out of the exception stylesheet's text.
+ *
+ * The browser's parser drops comments, so this is a text scan: from the end of
+ * each marked comment to the `{` that opens the rule it introduces.
+ */
+const documentedUncontested = new Set(
+  editorStylesheet
+    .split(UNCONTESTED_MARKER)
+    .slice(1)
+    .map((after) => {
+      const selector = after.slice(after.indexOf("*/") + 2, after.indexOf("{"));
+      return normaliseSelector(selector);
+    })
+    .filter(Boolean),
+);
+
 /**
  * V3-CSS-01 — the CASCADE OWNERSHIP canary.
  *
@@ -432,6 +466,30 @@ test.describe("V3-CSS-01 — cascade ownership", () => {
           elements: Element[];
         };
 
+        /*
+         * The classes a selector actually TARGETS — the last compound of each
+         * comma-separated arm, not every class it mentions.
+         *
+         * The difference is the whole correctness of tier 2. CodeMirror's
+         * focused-selection rule is `.ͼ1 .cm-focused .cm-selectionBackground`,
+         * and it declares `background` on the selection layer alone. Reading
+         * every class in that selector would file `background` under
+         * `.cm-focused` as well, so a perfectly legitimate layered background
+         * on the focused editor would be reported as contested and the failure
+         * message would tell someone to un-layer a rule that wins already.
+         */
+        const targetClasses = (selector: string) =>
+          selector.split(",").flatMap((arm) => {
+            const compound =
+              arm
+                .trim()
+                .split(/[\s>+~]+/)
+                .pop() ?? "";
+            return [...compound.matchAll(/\.([A-Za-z_][\w-]*)/g)].map(
+              (m) => m[1],
+            );
+          });
+
         /* A pseudo-element's declarations contest the originating element's, so
          * `.cm-line ::selection` is matched as `.cm-line`. `querySelectorAll`
          * would simply throw on the pseudo-element form. */
@@ -491,16 +549,12 @@ test.describe("V3-CSS-01 — cascade ownership", () => {
         }
 
         /* The fallback map, derived the same way: a CodeMirror rule's properties
-         * belong to every class its selector names AND every class the elements
-         * it matches actually carry — which is what resolves `.ͼ1` to
+         * belong to the classes its selector TARGETS and to every class the
+         * elements it matches actually carry — which is what resolves `.ͼ1` to
          * `cm-editor` without anybody writing that down. */
         const propertiesByClass = new Map<string, Set<string>>();
         for (const rule of codemirror) {
-          const names = new Set(
-            [...rule.selector.matchAll(/\.([A-Za-z_][\w-]*)/g)].map(
-              (m) => m[1],
-            ),
-          );
+          const names = new Set(targetClasses(rule.selector));
           for (const el of rule.elements)
             for (const name of el.classList) names.add(name);
           for (const name of names) {
@@ -539,6 +593,7 @@ test.describe("V3-CSS-01 — cascade ownership", () => {
           const parsed = new CSSStyleSheet();
           parsed.replaceSync(cssText);
           const found: { selector: string; properties: string[] }[] = [];
+          const uncontested: string[] = [];
 
           for (const rule of collect(parsed.cssRules, [])) {
             if (!rule.properties.length) continue;
@@ -556,10 +611,7 @@ test.describe("V3-CSS-01 — cascade ownership", () => {
             /* Tier 2 — only where tier 1 could see nothing, because the element
              * this rule addresses is not on the page in this state. */
             if (!hits.size) {
-              const classes = [
-                ...rule.selector.matchAll(/\.([A-Za-z_][\w-]*)/g),
-              ].map((m) => m[1]);
-              for (const name of classes) {
+              for (const name of targetClasses(rule.selector)) {
                 const theirs = propertiesByClass.get(name);
                 if (!theirs) continue;
                 for (const ours of rule.properties)
@@ -571,14 +623,18 @@ test.describe("V3-CSS-01 — cascade ownership", () => {
 
             if (hits.size)
               found.push({ selector: rule.selector, properties: [...hits] });
+            else uncontested.push(rule.selector);
           }
-          return found;
+          return { found, uncontested };
         };
 
+        const inLayered = contestsIn(layered);
+        const inException = contestsIn(exception);
         const result = {
           codeMirrorRuleCount: codemirror.length,
-          inLayeredStylesheet: contestsIn(layered),
-          inExceptionStylesheet: contestsIn(exception),
+          inLayeredStylesheet: inLayered.found,
+          exceptionContested: inException.found.map((r) => r.selector),
+          exceptionUncontested: inException.uncontested,
         };
         sentinelProbe.remove();
         return result;
@@ -590,22 +646,15 @@ test.describe("V3-CSS-01 — cascade ownership", () => {
       },
     );
 
-    /* Two guards, because a derivation that silently sees nothing would pass
-     * this test for ever. The editor has to be mounted, and the detector has to
-     * be demonstrably capable of firing — which the exception file, whose whole
-     * reason for existing is that its rules ARE contested, proves for free. */
+    /* A derivation that silently sees nothing would pass this test for ever,
+     * so the editor has to have mounted before any of it means anything. */
     expect(
       analysis.codeMirrorRuleCount,
       "CodeMirror injected no rules — the editor did not mount, so this test " +
         "measured nothing",
     ).toBeGreaterThan(0);
-    expect(
-      analysis.inExceptionStylesheet.length,
-      "the detector found no contest even in the stylesheet that exists " +
-        "BECAUSE its rules are contested — it is no longer measuring anything",
-    ).toBeGreaterThan(0);
 
-    /* The contract. */
+    /* The UPPER bound: nothing layered may be contested. */
     expect(
       analysis.inLayeredStylesheet,
       "these rules sit in `markdown-editor.css`, inside the `dh-product` " +
@@ -614,6 +663,40 @@ test.describe("V3-CSS-01 — cascade ownership", () => {
         "rule does nothing. Move each one into " +
         "`app/styles/markdown-editor-codemirror.css`; do not out-specify it " +
         "and do not reach for `!important`",
+    ).toEqual([]);
+
+    /*
+     * The LOWER bound, and the reason it is a separate assertion.
+     *
+     * The upper bound above is enforced by a file the other test in this spec
+     * reads its ALLOWLIST from. So an unlayered rule that nothing contests,
+     * dropped into the exception file, would satisfy both: this test because
+     * only the layered file is checked for contests, and the CSSOM sweep
+     * because the allowlist grew to include it. The exception would be bounded
+     * in the direction nobody widens it and open in the direction everybody
+     * does — which is how the last two versions of it went wrong.
+     *
+     * So every rule in the exception file has to earn its place. The one that
+     * cannot is marked IN THE STYLESHEET, next to the rule, where the argument
+     * for it belongs and where widening the carve-out is a visible edit.
+     */
+    expect(
+      analysis.exceptionContested.length,
+      "the detector found no contest even in the stylesheet that exists " +
+        "BECAUSE its rules are contested — it is no longer measuring anything",
+    ).toBeGreaterThan(0);
+
+    const unjustified = analysis.exceptionUncontested.filter(
+      (selector) => !documentedUncontested.has(normaliseSelector(selector)),
+    );
+    expect(
+      unjustified,
+      "these rules sit OUTSIDE every cascade layer, in " +
+        "`markdown-editor-codemirror.css`, and nothing CodeMirror declares " +
+        "contests them — so they are outranking the whole of Untitled and " +
+        "every product stylesheet for no reason. Move each one back into " +
+        "`markdown-editor.css`, or, if it has to stay, say why above the rule " +
+        `with a \`${UNCONTESTED_MARKER}\` comment`,
     ).toEqual([]);
   });
 });
