@@ -1,5 +1,54 @@
 # Changelog
 
+## 3.0.0 — the interface has one system, and the cascade has an owner
+
+_Prepared. Not yet released — see
+[`RELEASE_CHECKLIST_V3_0_0.md`](docs/release/RELEASE_CHECKLIST_V3_0_0.md) for the
+three conditions that gate cutting it._
+
+- **The major number moves, and not because of a feature.**
+
+  Every module in DalyHub has been rebuilt on one design system, and then the
+  rules deciding which stylesheet wins were rewritten underneath all of it.
+  Almost every surface you touch is a different implementation from the one
+  `2.4.0` shipped — even where the behaviour is deliberately identical, because
+  keeping it identical was the point. Your data is untouched and no migration
+  runs.
+
+- **A button is a button now, everywhere.**
+
+  DalyHub was built module by module and looked like it: a button on Settings
+  and a button on Today were two different buttons that happened to agree, and a
+  card on Projects was a second implementation of the card on Areas. Buttons,
+  fields, selects, badges, tables, tabs, menus, dialogs, progress, avatars,
+  empty states and focus rings are one control each now. You will mostly notice
+  it by its absence — controls are the same size in every module, a field looks
+  like a field wherever you find one, and dark mode is one decision rather than
+  eighteen.
+
+- **Old rules can no longer silently repaint a new control.**
+
+  This is the invisible half, and it is the reason for the major number. Until
+  now, three quarters of DalyHub's stylesheet had unconditional priority over
+  the design system — not by intent, but by a technical decision that made the
+  rebuild safe to start and was never unwound when it finished. A rule written
+  years ago could quietly repaint a control that had been correctly rebuilt, and
+  the only way to find out was to measure the pixel.
+
+  Every rule now says which layer it belongs to, and the layer order says who
+  owns what. What it fixed on screen is small and specific: a few links were
+  taking a blanket accent colour instead of the one their component asked for,
+  and a few headings were being given a margin they had explicitly set to zero.
+  What it prevents is the whole class of problem.
+
+- **Two things that were true and are no longer.**
+
+  A card's coloured entity edge, and the room a search field reserves for its
+  own dropdown button, were both briefly lost while the layers were being sorted
+  out and both were found by measuring 66,681 rendered elements against the
+  release before this one. They are listed here because a release note that only
+  says what went right is not a record.
+
 - **Adding the next task is the same act everywhere you can see a task.**
 
   It used to depend on where you were standing. On Tasks you typed a line and

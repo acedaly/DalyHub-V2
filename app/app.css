@@ -1,23 +1,38 @@
 /*
- * DalyHub global stylesheet — Untitled UI foundation plus legacy compatibility.
+ * DalyHub global stylesheet — the composition, and the layer each part lands in.
  *
- * This file composes the layered stylesheets in cascade order. New and migrated
- * frontend code consumes Untitled UI's Tailwind v4 theme and component source
- * first; the older DalyHub token/CSS files remain a temporary compatibility
- * layer for feature pages that have not moved yet.
+ * Every `@import` below carries an explicit `layer(...)`, and that keyword is the
+ * only thing that decides who wins a contested declaration. The layers
+ * themselves, and the argument for their order, are declared once in
+ * `styles/untitled/untitled.css`; this file only says which bucket each
+ * stylesheet belongs to.
  *
- *   1. untitled/untitled.css — Tailwind v4, Untitled tokens and React Aria
- *                              variants, intentionally layered.
- *   2. tokens.css            — historical/transition tokens for legacy screens.
- *   2b. fonts.css            — the one self-hosted variable family.
- *   3. base.css              — reset, body type, focus, the M3 state layer,
- *                              reduced motion, and the one prose treatment.
- *   3b. pill.css             — the chip vocabulary + the Area identity mark.
- *   4. icons.css             — the icon + entity-identity primitives.
- *   5. shell.css             — the application frame: navigation drawer, top app
- *                              bar, navigation bar and FAB.
- *   6. collection-layout.css — the Shared Collection Layout.
- *   …then the remaining shared components, then the module surfaces, then print.
+ *   layer(dh-tokens)   the DalyHub token layer and the self-hosted family.
+ *   layer(base)        DalyHub's document foundation, beside Tailwind preflight.
+ *   layer(dh-legacy)   generic CONTROL paint in transition — Untitled's job. It
+ *                      loses to every Untitled utility, on purpose.
+ *   layer(dh-product)  genuine DalyHub product composition — layout, hierarchy,
+ *                      domain identity, specialised workflows. Wins, on purpose.
+ *
+ * ── How to place a new stylesheet ───────────────────────────────────────────
+ *
+ * Ask what the rules DO, not which module they came from:
+ *
+ *   · Is it the paint of a button, field, select, chip, badge, table, tab, menu,
+ *     dialog surface, card, progress bar, avatar, empty state or focus ring?
+ *     Then it is Untitled's, and the right change is to delete the rule and use
+ *     the component — not to add another file to `dh-legacy`. That layer is a
+ *     shrinking inventory, not a destination.
+ *   · Is it layout, information hierarchy, product-specific responsive
+ *     composition, domain spacing, entity identity, a specialised workflow or
+ *     signal, or local structural geometry? Then it is DalyHub's, and it goes in
+ *     `dh-product`.
+ *
+ * SOURCE ORDER still decides between two rules in the SAME layer, which is why
+ * the ordering comments below survive verbatim — every one of them is an
+ * argument about two DalyHub stylesheets, and layering did not change any of
+ * them. What layering changed is the relationship with Untitled, which source
+ * order never expressed.
  *
  * Appearance (APPEARANCE-01): `<html data-appearance>` carries the owner's
  * System / Light / Dark choice and `system` defers to `prefers-color-scheme`.
@@ -26,21 +41,21 @@
  */
 
 /*
- * UNTITLED-01 — Tailwind v4 and the Untitled UI theme, FIRST in the cascade.
+ * UNTITLED-01 — Tailwind v4, the Untitled UI theme, and the LAYER DECLARATION.
  *
- * Everything it emits lives inside `@layer`, and every DalyHub stylesheet below
- * is unlayered, so the legacy cascade is untouched by construction: unlayered
- * rules outrank layered ones whatever their specificity. A screen that has not
- * migrated keeps every rule it had, including its own reset; a migrated
- * component carries only Untitled utility classes, has no legacy rule competing
- * for it, and is styled entirely from here. See that file's header for the full
- * argument.
+ * First, because the `@layer` statement it carries establishes the order every
+ * import below is placed into, and a layer's position is fixed by where it is
+ * first named. Unlayered now means "a mistake", not "legacy": see
+ * `e2e/css-cascade-ownership.spec.ts`, which fails on any rule that has no layer.
  */
 @import "./styles/untitled/untitled.css";
 
-@import "./styles/tokens.css";
+@import "./styles/tokens.css" layer(dh-tokens);
 /* The self-hosted UI family, before legacy styles consume it. */
-@import "./styles/fonts.css";
+@import "./styles/fonts.css" layer(dh-tokens);
+/* NO `layer()` here on purpose: `base.css` declares its own two top-level
+ * layers (`base` and `dh-floor`), and a keyword here would nest both under
+ * `base`. See that file's header. */
 @import "./styles/base.css";
 /*
  * DHDS-08 — the shared MOTION layer.
@@ -52,7 +67,7 @@
  * `!important`, which means this has to lose on source order — the same
  * argument `ui.css` makes immediately below.
  */
-@import "./styles/motion.css";
+@import "./styles/motion.css" layer(dh-product);
 /*
  * DS-02 — the generic UI primitive layer.
  *
@@ -63,7 +78,7 @@
  * declarations used to live in `forms.css` and `pill.css`, both of which are
  * imported after this point and would otherwise win on source order alone.
  */
-@import "./styles/ui.css";
+@import "./styles/ui.css" layer(dh-legacy);
 /*
  * DHDS-09 — the shared FLOATING-SURFACE layer.
  *
@@ -74,61 +89,111 @@
  * clamp stay with `anchored.css` near the end of the cascade; this is
  * appearance and option anatomy only.
  */
-@import "./styles/floating.css";
-@import "./styles/pill.css";
-@import "./styles/icons.css";
+@import "./styles/floating.css" layer(dh-legacy);
+@import "./styles/pill.css" layer(dh-legacy);
+@import "./styles/icons.css" layer(dh-product);
 /* BRAND-01 — the product-identity surfaces (sidebar brand, full lockup). Before
  * the shell, because the shell's rail composes the compact identity. */
-@import "./styles/brand.css";
-@import "./styles/shell.css";
+@import "./styles/brand.css" layer(dh-product);
+@import "./styles/shell.css" layer(dh-product);
 /* APPEARANCE-01 — the one appearance selector, in both of its densities. After
  * the shell because the account-menu density sits inside the shell's panel, and
  * before the Settings surface, which composes the same component. */
-@import "./styles/appearance.css";
-@import "./styles/scroll-strip.css";
-@import "./styles/collection-layout.css";
-@import "./styles/skeleton.css";
-@import "./styles/record-layout.css";
-@import "./styles/drawer.css";
+@import "./styles/appearance.css" layer(dh-product);
+@import "./styles/scroll-strip.css" layer(dh-product);
+@import "./styles/collection-layout.css" layer(dh-product);
+@import "./styles/skeleton.css" layer(dh-legacy);
+@import "./styles/record-layout.css" layer(dh-product);
+@import "./styles/drawer.css" layer(dh-product);
 /* MOBILE-01 — the one shared phone sheet surface, and the shared Quick Capture
  * presentation layered on it. Imported after the Drawer because both live in the
  * same overlay band and the sheet is the newer, narrower surface. */
-@import "./styles/sheet.css";
-@import "./styles/capture.css";
-@import "./styles/card.css";
-@import "./styles/card-family.css";
-@import "./styles/icon-picker.css";
-@import "./styles/overflow-menu.css";
-@import "./styles/filters.css";
-@import "./styles/activity-feed.css";
-@import "./styles/forms.css";
+@import "./styles/sheet.css" layer(dh-product);
+@import "./styles/capture.css" layer(dh-product);
+/*
+  * `dh-product`, and MEASURED rather than assumed.
+  *
+  * The Shared Card looks like generic paint and is not: Untitled ships no
+  * generic Card (named maintenance debt item 2 — "a generic bounded box, and
+  * Untitled ships no generic Card"), so nothing upstream is waiting to take this
+  * over. What it carries is a RECORD — an entity with a title that opens
+  * something, a status, metadata and actions — and the two rules that make it
+  * one are domain signals: `[data-accent]`'s entity edge and
+  * `[data-selected]`'s fill.
+  *
+  * Demoting it below `utilities` deleted both. MEASURED on
+  * `/design/cards-filters`: all twelve accent cards collapsed to the same 1px
+  * `rgba(16, 16, 20, 0.06)` hairline, so `data-accent` — five tones, keyed to
+  * the entity — stopped meaning anything on screen at all.
+  */
+@import "./styles/card.css" layer(dh-product);
+/* `dh-product`, for the same reason as `card.css` above: `.dh-row` and
+  * `.dh-ecard` are record presentations, not generic boxes. */
+@import "./styles/card-family.css" layer(dh-product);
+@import "./styles/icon-picker.css" layer(dh-product);
+@import "./styles/overflow-menu.css" layer(dh-legacy);
+@import "./styles/filters.css" layer(dh-legacy);
+@import "./styles/activity-feed.css" layer(dh-product);
+/*
+  * `dh-product` — and this one is a COMPROMISE, recorded as such.
+  *
+  * 1,120 lines that mix two things: generic field PAINT, which is Untitled's
+  * (named maintenance debt item 1), and field GEOMETRY, which is DalyHub's.
+  * Demoting the file below `utilities` correctly retired the paint and
+  * incorrectly retired the geometry with it — MEASURED on `/design/forms`,
+  * `.dh-combobox__input` lost the `padding-inline-end: 32px` that reserves room
+  * for its own trailing control, and its text would have run under a button
+  * sitting 32px from the field's inner edge.
+  *
+  * Splitting the file rule by rule is the real fix and it is debt item 1's, not
+  * this pass's. Until then the file keeps the position it has always had, and
+  * the register says why.
+  */
+@import "./styles/forms.css" layer(dh-product);
 /* UNTITLED-18 — `switch.css` is GONE. The switch was the last Material CONTROL
  * in the product: a 52×32 M3 track with a growing thumb and a check glyph, in
  * 203 lines. `~/shared/forms/Switch` now wears Untitled's `base/toggle` track
  * and thumb, reached from the real input's `:checked` through Tailwind's peer
  * variants, so the control keeps its native semantics and carries no stylesheet
  * at all. */
-@import "./styles/today.css";
+/*
+ * `components`, NOT `dh-product` — and this is the one import on the list whose
+ * layer is decided by evidence rather than by category.
+ *
+ * `today.css` is the only stylesheet in the product written in `@apply` (67 of
+ * them): its rules are ALIASES for Untitled utilities, not DalyHub paint
+ * competing with them. It therefore has to behave like a utility and LOSE to one
+ * written on the element, which is what `components` gives it and what its own
+ * `@layer components` wrapper used to give it by hand.
+ *
+ * MEASURED when this file was first moved to `dh-product` with everything else:
+ * `.dh-next-action` on Today carries Untitled's `flex`, and `today.css`'s
+ * `.dh-day-row__next { display: block }` began beating it — the Next-action row
+ * collapsed from a flex row to a stacked block, and its label and link went from
+ * `block` to `inline` with it. Nothing about that rule changed; only the layer
+ * it sat in did.
+ */
+@import "./styles/today.css" layer(components);
 /* CAL-01 — the unified Schedule (agenda rows, the day rail, Next 7 Days, the
  * event detail). After today.css because a schedule row COMPOSES `.dh-day-row`
  * and only adds to it. */
-@import "./styles/schedule.css";
-@import "./styles/tasks.css";
+@import "./styles/schedule.css" layer(dh-product);
+@import "./styles/tasks.css" layer(dh-product);
 /* DS-04 — the product-level Task row/list/group. After `tasks.css` so the
  * DS-04 anatomy wins over the UIX-01 card-override layer wherever a selector
  * of equal specificity survives in both. */
-@import "./styles/task-list.css";
+@import "./styles/task-list.css" layer(dh-product);
 /* PLAN-01 — Weekly Planning. AFTER `tasks.css` and the task row/list, because the
  * queue rail asks the SHARED task row for its narrow composition rather than
  * restyling it, and a rule that adjusts a row's grid must win over the row's own
  * default. It adds no task-row treatment of its own. */
-@import "./styles/plan.css";
-@import "./styles/views.css";
+@import "./styles/plan.css" layer(dh-product);
+@import "./styles/views.css" layer(dh-product);
 /* UIX-02 — the shared view TAB RAIL (`.dh-viewtabs`), drawn by both `ViewTabs`
  * and the saved-view rail. After the segmented control because they are the two
  * halves of the same decision and this is the newer, quieter one. */
-@import "./styles/task-drawer.css";
-@import "./styles/task-signals.css";
+@import "./styles/task-drawer.css" layer(dh-product);
+@import "./styles/task-signals.css" layer(dh-product);
 /* TASKS-13 — the Task record's checklist and the row's compact progress figure.
  * AFTER `task-drawer.css` (the checklist adjusts the Task record's feature
  * region, which that file de-cards) AND after `task-signals.css`, because the
@@ -137,96 +202,130 @@
  * before `task-signals.css` left the shared -12px inline margin in force, and
  * MEASURED the consequence: the rename trigger overlapped the checkbox by 2px
  * and axe reported a serious `target-size` violation on every row. */
-@import "./styles/task-checklist.css";
-@import "./styles/task-dependencies.css";
-@import "./styles/projects.css";
-@import "./styles/project-templates.css";
-@import "./styles/goals.css";
-@import "./styles/health.css";
-@import "./styles/alignment.css";
-@import "./styles/relationships.css";
-@import "./styles/progress.css";
+@import "./styles/task-checklist.css" layer(dh-product);
+@import "./styles/task-dependencies.css" layer(dh-product);
+@import "./styles/projects.css" layer(dh-product);
+@import "./styles/project-templates.css" layer(dh-product);
+@import "./styles/goals.css" layer(dh-product);
+@import "./styles/health.css" layer(dh-product);
+@import "./styles/alignment.css" layer(dh-product);
+@import "./styles/relationships.css" layer(dh-product);
+@import "./styles/progress.css" layer(dh-legacy);
 /* GOAL-02 — the shared TrendLine / ComparisonBars primitives. After
    progress.css because both are read as progress visualisations. */
-@import "./styles/charts.css";
-@import "./styles/command.css";
-@import "./styles/feedback.css";
+@import "./styles/charts.css" layer(dh-product);
+@import "./styles/command.css" layer(dh-product);
+@import "./styles/feedback.css" layer(dh-product);
 /* NOTIFY-01 — the notification bell and the ledger-backed INBOX. Immediately
  * after feedback.css because the two are neighbours in name only: that one is
  * the transient toast layer, this one is the event log. Keeping them adjacent
  * is how a reader finds out they are different. */
-@import "./styles/notifications.css";
-@import "./styles/inspector.css";
-@import "./styles/settings.css";
-@import "./styles/backups.css";
-@import "./styles/help.css";
+@import "./styles/notifications.css" layer(dh-product);
+@import "./styles/inspector.css" layer(dh-product);
+@import "./styles/settings.css" layer(dh-product);
+@import "./styles/backups.css" layer(dh-product);
+@import "./styles/help.css" layer(dh-product);
+/*
+ * NO `layer()`, and this is the architecture's ONE forced exception.
+ *
+ * CodeMirror configures itself by INJECTING a `<style>` element at runtime
+ * (`style-mod`'s `StyleModule`), and a runtime-injected sheet is unlayered by
+ * construction — there is no import for a `layer()` keyword to attach to.
+ * Unlayered normal declarations beat layered ones unconditionally, so the
+ * moment this file entered a layer, a third-party library acquired absolute
+ * priority over the stylesheet that configures it.
+ *
+ * MEASURED on `/notes/n-search-e2e` with this file in `dh-product`: CodeMirror
+ * injects 72 unlayered rules, and its own `.cm-content { padding: 4px 0 }` beat
+ * `.dh-md-editor__cm .cm-content`'s DalyHub padding. The editor's first line
+ * lost its left inset entirely — computed `4px 0px 4px 0px` — which
+ * `e2e/editor-geometry.spec.ts` caught at 390, 1024, 1280 and 1440, plus the
+ * empty-Note caret. Before V3-CSS-01 this file was unlayered too and won on
+ * specificity; layering it is what handed the contest to CodeMirror.
+ *
+ * Leaving it unlayered is safe, and that is measured rather than assumed: of the
+ * 66 classes this file owns, **zero** appear in the markup on an element that
+ * also carries an Untitled utility. Its selectors live in the `.dh-md-*` and
+ * `.cm-*` namespaces, which Untitled has no opinion about — so the file cannot
+ * repaint an Untitled control even though nothing stops it on layer order.
+ *
+ * The real fix is to move these 49 `.cm-*` rules into CodeMirror's own
+ * `EditorView.theme()`, where they would participate in the same StyleModule
+ * and the same precedence as the defaults they override. That is a refactor of
+ * a working editor and belongs to its own change, not to a cascade pass; it is
+ * named maintenance debt item 16.
+ *
+ * `e2e/css-cascade-ownership.spec.ts` does NOT merely permit this — it pins it.
+ * The unlayered set is asserted to be exactly this file plus CodeMirror's own
+ * injected sheet, so a second unlayered stylesheet fails the gate.
+ */
 @import "./styles/markdown-editor.css";
 /* UIX-04 — the shared writing-surface composition (the document column, its
  * title and its one context line). After the editor, because it sets the column
  * the editor's bands align to. */
-@import "./styles/writing.css";
+@import "./styles/writing.css" layer(dh-product);
 /* DS-16 — the shared inline-editing surfaces. After the editor because the
  * inline long-form field embeds it, and after forms.css because its editing
  * controls reuse the shared button and input treatments. */
-@import "./styles/inline-edit.css";
-@import "./styles/notes.css";
-@import "./styles/diary.css";
-@import "./styles/people.css";
+@import "./styles/inline-edit.css" layer(dh-product);
+@import "./styles/notes.css" layer(dh-product);
+@import "./styles/diary.css" layer(dh-product);
+@import "./styles/people.css" layer(dh-product);
 /* HABITS-01 — the Habits collection, record and history grid, plus the shared
    DS-06 toggle group the weekday picker introduced. After people.css, with the
    other module surfaces. */
-@import "./styles/habits.css";
-@import "./styles/entity-link.css";
-@import "./styles/linked-items.css";
-@import "./styles/references.css";
-@import "./styles/meetings.css";
-@import "./styles/assets.css";
+@import "./styles/habits.css" layer(dh-product);
+@import "./styles/entity-link.css" layer(dh-product);
+@import "./styles/linked-items.css" layer(dh-product);
+@import "./styles/references.css" layer(dh-product);
+@import "./styles/meetings.css" layer(dh-product);
+@import "./styles/assets.css" layer(dh-product);
 /* V2.10 LIFE-02 — Life Admin. Directly after assets.css because the obligation
    row it defines replaces the one that lived there, and the Asset record's
    Obligations tab now draws it. */
-@import "./styles/obligations.css";
-@import "./styles/finance.css";
+@import "./styles/obligations.css" layer(dh-product);
+@import "./styles/finance.css" layer(dh-product);
 /* V2.11 FILE-01 — the shared Evidence surface. After the record-bearing module
    stylesheets because every one of them renders it, and it belongs to the shared
    component rather than to the first module that needed a file. */
-@import "./styles/attachments.css";
-@import "./styles/reviews.css";
+@import "./styles/attachments.css" layer(dh-product);
+@import "./styles/reviews.css" layer(dh-product);
 /* REVIEW-02/REVIEW-04 — the guided weekly Review and its phone stepper. After
  * reviews.css because it is the newer, narrower Review surface. */
-@import "./styles/review-guide.css";
+@import "./styles/review-guide.css" layer(dh-product);
 /* REVIEW-03 — the Review evidence surface and the shared bounded trend. After
  * both Review stylesheets because it is rendered inside each of them, and it
  * reuses the health/alignment pill anatomy rather than restating it. */
-@import "./styles/insights.css";
+@import "./styles/insights.css" layer(dh-product);
 /* V2.13 — the Reports collection and the report page. After insights.css
  * because Reports is the saved half of the same domain, and after charts.css
  * (imported with the shared components above) because the report page draws the
  * design system's own chart primitives rather than any of its own. */
-@import "./styles/reports.css";
+@import "./styles/reports.css" layer(dh-product);
 /* UIX-05 — the Analytics surface. After insights.css because it renders the same
  * shared chart primitives and deliberately adds no chart family of its own. */
-@import "./styles/analytics.css";
+@import "./styles/analytics.css" layer(dh-product);
 /* PWA — the offline, connection-state and installation surfaces. Late in the
  * cascade because the connection status sits inside the pane the shell owns. */
-@import "./styles/offline.css";
+@import "./styles/offline.css" layer(dh-product);
 /* AI-01 — the AI proposal, citation and Ask DalyHub surfaces. */
-@import "./styles/ai.css";
+@import "./styles/ai.css" layer(dh-product);
 /* EDIT-03 — the shared anchored-overlay layer, which every inline editor's menu
  * and popover is portalled into. Here with the other overlays, and BEFORE the
  * tooltip because a tooltip outranks it. */
-@import "./styles/anchored.css";
+@import "./styles/anchored.css" layer(dh-product);
 /* DHDS-11 — the drag, reorder and destination layer. Beside the anchored layer
  * because a drag preview is a floating object portalled to the body and takes
  * the same rung, and BEFORE the tooltip, which outranks everything. It is late
  * in the cascade so a surface that needs to place a handle differently can say
  * so without `!important`; the states themselves are declared here and nowhere
  * else. */
-@import "./styles/drag.css";
+@import "./styles/drag.css" layer(dh-product);
 /* M3-TIP — the ONE shared tooltip. Near the end of the cascade because it is an
  * overlay every other surface can raise, and it must sit above them all. */
-@import "./styles/tooltip.css";
+@import "./styles/tooltip.css" layer(dh-legacy);
 /* PREMIUM-01 — the reference-led product finish. Imported after every module so
  * it can converge shared surfaces without module-specific specificity wars. */
-@import "./styles/premium.css";
+@import "./styles/premium.css" layer(dh-product);
 /* Last: the print stylesheet hides all on-screen chrome, so it must win. */
-@import "./styles/print.css";
+@import "./styles/print.css" layer(dh-product);

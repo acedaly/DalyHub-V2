@@ -159,6 +159,56 @@ install exactly, and it was never on the critical path (E2E is). One fewer
 status and one fewer install, with no coverage lost — the step names still say
 which suite failed.
 
+### The two E2E tiers (V3-E2E-01)
+
+DalyHub runs **two** E2E suites, and the difference between them is how often a
+question is asked rather than whether it is asked.
+
+| | PR gate (`ci.yml`) | Nightly (`nightly.yml`) |
+| :-- | :--- | :--- |
+| Runs on | every push and pull request | 16:00 UTC daily, and on demand |
+| Required check | **yes** | **no, and it must never become one** |
+| Holds | the product's correctness journeys, a representative accessibility scan in both appearances, **every** open-overlay accessibility scan, the responsive boundary widths over the daily-driver surfaces, and the overlays at 320 | every route × both appearances under axe; every route × every viewport for horizontal overflow; the POLISH-01 audit band |
+| Spec files | everything not in `tiers.nightly` | exactly `tiers.nightly` |
+
+The tier list lives in [`e2e/partitions.json`](../../e2e/partitions.json) →
+`tiers.nightly`, with the measurements behind it. Three files are in it:
+`accessibility-matrix.spec.ts`, `responsive-desktop.spec.ts` and
+`responsive-phone.spec.ts`.
+
+**Why those three, and nothing else.** They were 687 of the gate's 2,178 tests
+(31.5%) and 41.1 of its 279.3 measured minutes (14.7%), and each is ONE assertion
+repeated across a route × width × appearance matrix. Measured before the split:
+**93 of the gate's other 139 spec files run axe over 75 distinct routes**, and
+**108 of them assert no-horizontal-overflow over 94 distinct routes**. Neither
+contract was ever concentrated in the matrix files, so moving them removes a
+repetition and not a gate. Static `jsx-a11y` lint is untouched and runs in
+**Static** on every push.
+
+**What is deliberately NOT in the nightly tier.** No correctness journey. No test
+because it fails often. The remaining 139 gated files are a flat tail of genuine
+product evidence, and the honest finding of the V3-E2E-01 measurement is that the
+gate's cost is not concentrated — cutting further would mean cutting coverage.
+
+| Command | What it does |
+| :--- | :--- |
+| `node scripts/e2e-partitions.mjs nightly-specs` | prints the nightly tier's spec files |
+| `pnpm run e2e:partitions:check` | additionally fails if a spec file is in **both** tiers, in **neither** tier, or in `tiers.nightly` without a measured duration |
+
+A nightly file still carries a real measured duration, because the nightly
+suite's own budget is derived from the same numbers and an unmeasured file there
+is exactly as invisible as one in the gate. `generate` prunes its maps against
+every spec on disk rather than against the gate list, so regenerating does not
+delete a nightly file's measurement.
+
+`test/unit/ci/e2e-tiers.test.ts` holds the invariants: the tier list is exactly
+those three files, each exists and is measured, the nightly workflow runs every
+one of them and nothing else, both `PR_ROUTES` and `PR_CORE_ROUTES` are subsets
+of the full sweeps, both tiers keep both appearances, and every open-overlay
+accessibility scan is still on the PR gate.
+
+---
+
 ### The E2E partition (HARDEN-04)
 
 The Playwright job is a GitHub Actions **matrix**, one job per partition of

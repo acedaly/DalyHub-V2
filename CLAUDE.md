@@ -7,6 +7,7 @@ Before making any changes, read and follow:
 - `docs/design/UNTITLED_UI_IMPLEMENTATION.md`
 - `docs/design/UNTITLED_UI_MIGRATION.md`
 - `docs/design/DESIGN_SYSTEM.md`
+- `docs/architecture/CSS_CASCADE_ARCHITECTURE.md`
 
 These DalyHub documents are authoritative for product behaviour, architecture and visual direction.
 
@@ -54,17 +55,32 @@ things, and the register says which each item is.
 The next major initiative is not a design-system one — see
 [`DALYHUB_MOBILE_FOUNDATION.md`](docs/architecture/DALYHUB_MOBILE_FOUNDATION.md).
 
+**V3-CSS-01 and V3-E2E-01 are also finished**, and are likewise not invitations
+to a next phase. The cascade has one explicit ownership model
+([`CSS_CASCADE_ARCHITECTURE.md`](docs/architecture/CSS_CASCADE_ARCHITECTURE.md))
+and the E2E gate has two tiers
+([SETUP_AND_CI.md](docs/development/SETUP_AND_CI.md#the-two-e2e-tiers-v3-e2e-01)).
+What is left of each is named, bounded and measured: eight `dh-legacy`
+stylesheets proven to change nothing on screen and awaiting deletion, and
+`forms.css`'s paint/geometry split. Both are in the maintenance register.
+
 1. **Before building a generic control, read the inventory**
    ([`UNTITLED_UI_IMPLEMENTATION.md`](docs/design/UNTITLED_UI_IMPLEMENTATION.md#the-generic-ui-inventory-at-the-end-of-this-pass)).
    Every generic concept is listed with its current source. The answer is almost
    always "that exists and it is Untitled's". Adding a second one is a
    design-system defect, not a shortcut.
-2. **When a surface migrates, its stylesheet's PAINT goes with it.** Module CSS
-   is unlayered, so any rule in it outranks every Untitled utility regardless of
-   specificity. A leftover rule does not look broken — it silently repaints a
-   migrated control, and the only way to find it is to measure the rendered
-   element. Fix the wrong owner; never out-specify it and never reach for
-   `!important`.
+2. **When a surface migrates, its stylesheet's PAINT goes with it.** This used to
+   be urgent because module CSS was unlayered and therefore outranked every
+   Untitled utility regardless of specificity. **V3-CSS-01 fixed that**: every
+   rule now sits in an explicit cascade layer, generic control paint sits in
+   `dh-legacy` where it LOSES to Untitled, and product composition sits in
+   `dh-product` where it wins. Read
+   [`CSS_CASCADE_ARCHITECTURE.md`](docs/architecture/CSS_CASCADE_ARCHITECTURE.md)
+   before touching a stylesheet, and put every new one in a layer — a stylesheet
+   with no `layer()` fails `e2e/css-cascade-ownership.spec.ts`. A leftover paint
+   rule still does not look broken; it is now merely inert rather than
+   dangerous, and deleting it is still the job. Fix the wrong owner; never
+   out-specify it and never reach for `!important`.
 3. **A fixture may only draw what the product draws.** When the last product
    consumer of a component goes, its `/design/*` entry goes in the same change.
    Nine components survived four passes because a gallery kept drawing them.

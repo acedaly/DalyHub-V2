@@ -1,28 +1,29 @@
 /*
  * UNTITLED-01 — the Tailwind v4 + Untitled UI entry point.
  *
- * This is the ONE place Tailwind enters DalyHub's cascade. It is imported first
- * from `app/app.css`, before `tokens.css` and every legacy stylesheet, and every
- * part of it is placed in an explicit `@layer`.
+ * This is the ONE place Tailwind enters DalyHub's cascade, and — since V3-CSS-01
+ * — the one place the whole cascade ORDER is declared. It is imported first from
+ * `app/app.css`, and every stylesheet the product loads, Tailwind's and
+ * DalyHub's alike, is placed in one of the layers named below.
  *
- * ── Why layers, and why this order ───────────────────────────────────────────
+ * ── What changed in V3-CSS-01, and why ──────────────────────────────────────
  *
- * Unlayered CSS beats layered CSS in the cascade, unconditionally and regardless
- * of specificity. DalyHub's ~2 MB of existing stylesheets are entirely unlayered
- * (verified: no `@layer` appears anywhere in `app/styles/*.css`). Putting all of
- * Tailwind — preflight included — inside layers therefore makes this import
- * SAFE BY CONSTRUCTION on day one:
+ * This file used to argue that leaving every DalyHub stylesheet UNLAYERED was
+ * what made the Untitled import safe: unlayered declarations outrank layered
+ * ones unconditionally, so no migrating surface could be reset out from under
+ * itself by preflight. That was true, and it was the right call while surfaces
+ * were still moving.
  *
- *   · a legacy surface keeps every rule it has, because its unlayered CSS
- *     outranks anything here;
- *   · a MIGRATED component, which carries Untitled's utility classes and none of
- *     DalyHub's class names, has no unlayered rule competing for it and is
- *     styled purely by Tailwind.
+ * The migration is finished, and the same sentence now reads as the defect it
+ * had become. "Unconditionally" has no exception for a surface that has ALREADY
+ * migrated: a one-class legacy selector beat every Untitled utility on the same
+ * element, regardless of specificity, authorship or intent — so a correctly
+ * migrated component could be silently repainted by a rule nobody meant to
+ * apply, and the only way to find out was to measure the rendered element.
  *
- * So the migration can proceed surface by surface without a flag day, and
- * without preflight resetting controls out from under screens that have not
- * moved yet. As each surface migrates, its legacy stylesheet is deleted and the
- * layered rules simply become the only rules.
+ * DalyHub's stylesheets are therefore layered too, and the ownership model is
+ * the layer order rather than an accident of which file happened not to be in a
+ * layer. See the declaration below.
  *
  * ── What is deliberately NOT here ────────────────────────────────────────────
  *
@@ -32,7 +33,55 @@
  * nothing.
  */
 
-@layer theme, base, dh-floor, components, utilities;
+/*
+ * V3-CSS-01 — THE DALYHUB CASCADE, declared in one place.
+ *
+ * Every rule the product ships belongs to one of these, and the order below is
+ * the whole ownership model. Reading left to right is reading who loses to whom.
+ *
+ *   theme       Tailwind's theme variables and the generated Untitled theme.
+ *   dh-tokens   DalyHub's own token layer. AFTER `theme`, deliberately: where the
+ *               two vocabularies use the same name, DalyHub's value is the one
+ *               the product has always rendered, and V3 changes the cascade
+ *               without changing the palette.
+ *   base        Tailwind preflight, Untitled's element normalisations and
+ *               DalyHub's document foundation, in that source order.
+ *   dh-floor    DalyHub's zero-specificity native-control and link floor, so a
+ *               bare `<select>` anywhere is never an unstyled browser control.
+ *   dh-legacy   DalyHub paint for GENERIC CONTROLS, in transition. It sits below
+ *               `utilities` on purpose: a button, field, chip, card, menu,
+ *               tooltip, skeleton or progress bar is Untitled's to draw, and a
+ *               legacy rule for one of them must LOSE rather than silently
+ *               repaint a migrated component. Emptying this layer is the
+ *               migration's finish line; nothing new may be added to it.
+ *   components  Tailwind's component layer.
+ *   utilities   Tailwind's and Untitled's utilities — where every migrated
+ *               component's appearance actually comes from.
+ *   dh-product  Genuine DalyHub product composition: layout, information
+ *               hierarchy, domain identity, specialised workflows and signals.
+ *               ABOVE `utilities`, because a product that composes Untitled must
+ *               be able to place it, and saying so in a layer is how that is
+ *               done without `!important` or a specificity war.
+ *
+ * `properties` is emitted by Tailwind itself and is not declared here.
+ *
+ * ── Why this replaces "everything DalyHub writes is unlayered" ───────────────
+ *
+ * The previous model made the Untitled import safe on day one by leaving every
+ * DalyHub stylesheet outside the layer system: unlayered declarations outrank
+ * layered ones unconditionally, so no migrating surface could be reset out from
+ * under itself. That was the right call for the migration and the wrong state to
+ * ship, because "unconditionally" has no exception for a surface that has
+ * ALREADY migrated. MEASURED on `main` @ 77f8b55: 600,574 of the production
+ * stylesheet's 814,944 bytes (73.7%), and 2,932 of its 4,602 rules (63.7%), sat
+ * outside every layer — so a single-class legacy selector beat every Untitled
+ * utility on the same element, whatever either author intended.
+ *
+ * `e2e/css-cascade-ownership.spec.ts` holds both halves of the contract against
+ * a real browser: a probe that proves Untitled wins a contested property, and a
+ * CSSOM walk that proves no rule sits outside a layer at all.
+ */
+@layer theme, dh-tokens, base, dh-floor, dh-legacy, components, utilities, dh-product;
 
 /*
  * Tailwind's three parts, imported individually so each can be assigned a layer.
@@ -49,8 +98,8 @@
  * cascade order, between Tailwind's `base` and `components` layers: below every
  * Untitled utility, so a migrated component's own colour, height and radius win;
  * above nothing, so an un-styled `<a>` or bare `<select>` anywhere in the product
- * still gets the DalyHub floor. Legacy unlayered stylesheets outrank all of it,
- * unchanged.
+ * still gets the DalyHub floor. `dh-legacy` and `dh-product` both outrank it, so
+ * a stylesheet that wants a different control still gets one.
  */
 
 /* The generated DalyHub-adapted Untitled theme. See `theme.source.css`. */

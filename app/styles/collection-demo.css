@@ -1,4 +1,12 @@
 /*
+ * V3-CSS-01 — wrapped in `dh-product` because this file is imported from a route
+ * module, and a JS `import "./x.css"` cannot carry a `layer()` keyword the way
+ * `app.css`'s `@import` does. Unlayered CSS outranks every layer unconditionally,
+ * so a fixture stylesheet left outside the system would silently outrank the
+ * product it exists to demonstrate — and the fixture would stop being evidence.
+ */
+@layer dh-product {
+  /*
  * PX-02 — development-only styles for the Collection Layout fixture.
  *
  * Loaded only by the dev-only `/design/collection-layout` route; never shipped to a
@@ -7,96 +15,97 @@
  * Skeleton styling lives in their own production stylesheets.
  */
 
-.dh-view-switcher {
-  display: inline-flex;
-  gap: var(--app-space-px);
-  padding: var(--app-space-px);
-  border: var(--app-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-control);
-  background: var(--dh-color-surface);
-}
+  .dh-view-switcher {
+    display: inline-flex;
+    gap: var(--app-space-px);
+    padding: var(--app-space-px);
+    border: var(--app-border-width-thin) solid var(--dh-color-border);
+    border-radius: var(--dh-radius-control);
+    background: var(--dh-color-surface);
+  }
 
-.dh-view-switcher__option {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-inline-size: var(--app-control-height-md);
-  min-block-size: var(--app-control-height-md);
-  border: none;
-  border-radius: var(--dh-radius-sm);
-  background: transparent;
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-lead-size);
-  cursor: pointer;
-}
+  .dh-view-switcher__option {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-inline-size: var(--app-control-height-md);
+    min-block-size: var(--app-control-height-md);
+    border: none;
+    border-radius: var(--dh-radius-sm);
+    background: transparent;
+    color: var(--dh-color-text-muted);
+    font-size: var(--dh-text-lead-size);
+    cursor: pointer;
+  }
 
-.dh-view-switcher__option[aria-pressed="true"] {
-  background: var(--dh-color-surface-raised);
-  color: var(--dh-color-text);
-  box-shadow: var(--dh-elevation-raised);
-}
+  .dh-view-switcher__option[aria-pressed="true"] {
+    background: var(--dh-color-surface-raised);
+    color: var(--dh-color-text);
+    box-shadow: var(--dh-elevation-raised);
+  }
 
-.dh-demo-primary,
-.dh-demo-secondary {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--app-space-1);
-  min-height: var(--app-control-height-md);
-  padding: 0 var(--app-space-3);
-  border-radius: var(--dh-radius-control);
-  font: inherit;
-  font-size: var(--dh-text-meta-size);
-  cursor: pointer;
-}
+  .dh-demo-primary,
+  .dh-demo-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--app-space-1);
+    min-height: var(--app-control-height-md);
+    padding: 0 var(--app-space-3);
+    border-radius: var(--dh-radius-control);
+    font: inherit;
+    font-size: var(--dh-text-meta-size);
+    cursor: pointer;
+  }
 
-.dh-demo-primary {
-  border: none;
-  background: var(--dh-color-accent);
-  color: var(--dh-color-text-on-accent);
-}
+  .dh-demo-primary {
+    border: none;
+    background: var(--dh-color-accent);
+    color: var(--dh-color-text-on-accent);
+  }
 
-.dh-demo-primary:hover {
-  background: var(--dh-color-accent);
-}
+  .dh-demo-primary:hover {
+    background: var(--dh-color-accent);
+  }
 
-.dh-demo-secondary {
-  border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
-  background: var(--dh-color-surface-raised);
-  color: var(--dh-color-text);
-}
+  .dh-demo-secondary {
+    border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
+    background: var(--dh-color-surface-raised);
+    color: var(--dh-color-text);
+  }
 
-.dh-demo-filters {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: var(--app-space-3);
-}
+  .dh-demo-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--app-space-3);
+  }
 
-.dh-demo-states {
-  display: flex;
-  gap: var(--app-space-3);
-  align-items: center;
-  border: var(--app-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-control);
-  padding: var(--app-space-1) var(--app-space-3);
-  margin: 0;
-}
+  .dh-demo-states {
+    display: flex;
+    gap: var(--app-space-3);
+    align-items: center;
+    border: var(--app-border-width-thin) solid var(--dh-color-border);
+    border-radius: var(--dh-radius-control);
+    padding: var(--app-space-1) var(--app-space-3);
+    margin: 0;
+  }
 
-.dh-demo-states legend {
-  font-size: var(--dh-text-meta-size);
-  color: var(--dh-color-text-muted);
-}
+  .dh-demo-states legend {
+    font-size: var(--dh-text-meta-size);
+    color: var(--dh-color-text-muted);
+  }
 
-.dh-demo-states label {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--app-space-1);
-  font-size: var(--dh-text-meta-size);
-}
+  .dh-demo-states label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--app-space-1);
+    font-size: var(--dh-text-meta-size);
+  }
 
-.dh-demo-bulkbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--app-space-3);
+  .dh-demo-bulkbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--app-space-3);
+  }
 }

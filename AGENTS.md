@@ -35,6 +35,7 @@ If you ever feel you need a long prompt to do a piece of work, that is a **docum
 | [`docs/design/UNTITLED_UI_IMPLEMENTATION.md`](docs/design/UNTITLED_UI_IMPLEMENTATION.md) | How does DalyHub implement that product direction with Untitled UI React Pro? |
 | [`docs/design/UNTITLED_UI_MIGRATION.md`](docs/design/UNTITLED_UI_MIGRATION.md) | What legacy frontend debt remains, and how do we migrate without losing product behaviour? |
 | [`docs/design/DESIGN_SYSTEM.md`](docs/design/DESIGN_SYSTEM.md) | Which DalyHub compositions, semantic adaptations and interaction exceptions are shared? |
+| [`docs/architecture/CSS_CASCADE_ARCHITECTURE.md`](docs/architecture/CSS_CASCADE_ARCHITECTURE.md) | Which cascade layer does a stylesheet belong in, and who wins when two rules disagree? |
 | [`docs/governance/OPEN_SOURCE_POLICY.md`](docs/governance/OPEN_SOURCE_POLICY.md) | When and how do we reuse open-source code, and how do we handle licensing? |
 | [`docs/reference/REFERENCE_PRODUCTS.md`](docs/reference/REFERENCE_PRODUCTS.md) | Which products do we study, and what do we learn from each? |
 | [`docs/product/PRODUCT_DEBT.md`](docs/product/PRODUCT_DEBT.md) | What is inconsistent today, and what is the target state? |
@@ -216,6 +217,47 @@ The existing token and scheme tests remain valid compatibility gates while their
 
 Legacy frontend migration is governed by [`UNTITLED_UI_MIGRATION.md`](docs/design/UNTITLED_UI_MIGRATION.md). Preserve product/domain behaviour before deleting old feature documents, styles or components.
 
+### 9.8b One cascade, and every rule is in it
+
+**No CSS DalyHub ships may be unlayered.** Unlayered declarations outrank layered
+ones unconditionally and regardless of specificity, so one unlayered file
+silently outranks the entire design system — which is what 73.7% of the
+production stylesheet was doing until V3-CSS-01 measured it.
+
+The order is declared once, in `app/styles/untitled/untitled.css`, and each
+stylesheet is assigned to a layer once, in `app/app.css`:
+
+```
+theme → dh-tokens → base → dh-floor → dh-legacy → components → utilities → dh-product
+```
+
+Two rules follow, and they are the whole of it:
+
+1. **Generic control paint is Untitled's.** Buttons, fields, selects, badges,
+   tables, tabs, menus, dialog surfaces, progress, avatars, empty states, dates
+   and focus rings. If a DalyHub rule paints one, it belongs in `dh-legacy`,
+   where it LOSES — and the right fix is to delete it and use the component.
+   `dh-legacy` is a shrinking inventory, not a destination; nothing new goes in.
+2. **Composition is DalyHub's.** Layout, information hierarchy, product-specific
+   responsive composition, domain spacing, entity identity, specialised
+   workflows and signals, local structural geometry. That goes in `dh-product`,
+   which sits above `utilities` on purpose.
+
+**One exception exists, and it is forced:** a library that injects its CSS at
+RUNTIME (CodeMirror does) is unlayered by construction, and unlayered beats every
+layer — so the DalyHub stylesheet that overrides it cannot be layered either.
+That is `markdown-editor.css`, and it is the only one. If you integrate another
+such library, say so at the import and prove your overrides contest nothing of
+Untitled's; the test derives the permitted set from the file rather than taking
+your word for it.
+
+If you reach for `!important` or add a class to out-specify something, the layer
+assignment is wrong. Fix the owner. `e2e/css-cascade-ownership.spec.ts` fails on
+any rule that has no layer, and on a legacy rule that beats Untitled on a control
+Untitled owns. The full model, its measurements and the three exceptions that
+earn their own layer are in
+[`CSS_CASCADE_ARCHITECTURE.md`](docs/architecture/CSS_CASCADE_ARCHITECTURE.md).
+
 ---
 
 ## 10. Open-source reuse policy
@@ -321,6 +363,7 @@ We test to move quickly *with confidence*, not to hit a coverage number.
 - **Every bug fix ships with a regression test** that fails before the fix and passes after.
 - **The kernel is sacred.** Entities, EntityLinks, Activity, Workspaces, and the rollup logic carry the highest coverage expectations — a kernel bug corrupts every module.
 - **Drive the real thing before claiming done.** For anything with runtime behaviour, exercise the actual flow, don't rely on types compiling. (Use the repo's verify workflow.)
+- **Two E2E tiers, and the difference is frequency, not coverage.** The required PR gate holds the correctness journeys, a representative accessibility scan in both appearances, **every** open-overlay accessibility scan, and the responsive boundary widths over the daily-driver surfaces. The nightly suite holds the exhaustive route × width × appearance matrices. A new spec file joins the PR gate unless it is an exhaustive matrix whose contract is already gated elsewhere — and `pnpm run e2e:partitions:check` fails if it ends up in both tiers or in neither. See [SETUP_AND_CI.md](docs/development/SETUP_AND_CI.md#the-two-e2e-tiers-v3-e2e-01).
 - **Accessibility and performance are tested, not assumed.** See [§15](#15-accessibility-requirements) and [§16](#16-performance-expectations).
 
 ---

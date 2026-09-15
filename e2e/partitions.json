@@ -1,6 +1,15 @@
 {
   "about": "GENERATED — do not hand-edit `durations`, `tests`, `source` or `partitions`. Run: pnpm run e2e:partitions:generate --from <results.json> --as <label>. Only `about`, `why` and `measuredFrom` are prose, and `pnpm run e2e:partitions:check` guards the rest.",
   "why": "HARDEN-04 / DEBT-128, corrected by HARDEN-06A (F-03). Playwright --shard divides the suite by test COUNT; these seconds are what each spec file actually COSTS, and the partitions below are balanced on them. Every spec file the gate runs MUST appear in `durations`, `tests` and `source` — `check` fails while any is sized by the `defaultSpecSeconds` guess, because a guess is not evidence and ten of them are what made partition p05 of run 32321840125 exceed globalTimeout with 33 tests never executed. V2.11 FILE-01, 2026-09-06 — ONE new spec file, MEASURED LOCALLY, and it FITS with the ceiling and the partition count both untouched: `attachments.spec.ts` is 64.0 s over 11 tests, measured in the sandbox that produced the change from a green run of the file (`11 passed`), with `--as local/v2.11-file-01`. PARTITION_COUNT stays 13 and `MAX_PARTITION_SECONDS` was not touched: the suite is 204.9 min of measured test time across 136 spec files and thirteen partitions derive a heaviest of 15.8 min against the 16.7 min ceiling, worst/mean 1.00. Sized by the same method as the CONV items: 11 tests, each a different CLAIM about a running browser rather than a different width — the whole attach → list → download-the-same-bytes → remove → 404 journey, which is the only place the BYTES are proved to survive a real `<input type=\"file\">`, a real Worker and a real authenticated download; the inline-preview split between a raster image and a PDF the CSP will not frame; two refusals that must say WHY (HTML wearing a `.pdf` name, and an SVG); the one shared Evidence surface asserted on an Asset, a Meeting and a Note; the phone journey at 393 with the `capture` attribute; touch targets under a COARSE POINTER; 320 px with a 96-character filename; and keyboard reach with one axe scan. Every case that could be paid for more cheaply is: the validator's allow-list, the signature check, the filename folding, the object key and the state machine are unit tests; the route's authorisation, the hostile-workspace refusals, the compensated write and the restore rehearsal run over real D1 and real R2 in the kernel suite; only the claims that are true of the running browser are paid for here. The Meeting case CREATES its own meeting rather than borrowing a seeded one — a case that skips when the fixture data is thin proves nothing on the day it matters — which is the 6.0 s difference between this file and a shorter, emptier one. Only the assignment of files to partitions moved; no other spec file's measured duration, test count or provenance changed. DEBT-205 is left alone deliberately again: capacity is still stranded in the two exclusive `responsive.spec.ts` shards, this item did not need it, and the correct fix stays a decision for the pass that takes it. V2.14 GROUND-04, 2026-09-07 — ONE new spec file, MEASURED LOCALLY, and it FITS with the ceiling and the partition count both untouched: `grounded-ai.spec.ts` is 161.6 s over 26 tests, measured in the sandbox that produced the change from a green run of the file (`26 passed`), with `--as local/v2.14-review-fixes`. The first reading of this file was 163.0 s over 24 tests and is superseded: two tests were added for the citation href (the honest case and four hostile ones) and the file got FASTER, because that reading was taken while a whole-gate run was competing for the same four cores. It is re-stated rather than kept because a measurement taken under contention is not a measurement of the file. PARTITION_COUNT stays 13 and `MAX_PARTITION_SECONDS` was not touched: the suite is 210.7 min of measured test time across 139 spec files and thirteen partitions derive a heaviest of 16.3 min against the 16.7 min ceiling, worst/mean 1.01. It was FIRST measured at 88.8 s over 15 tests and then deliberately made dearer: the two responsive tests each covered 320 px only, and they now run every phone width the repository recognises (320, 375, 390, 430 and landscape), because the panel is a list of chips whose content is the owner's own labels and a label that fits at 320 and wraps into an overflow at 430 is not hypothetical. That is the whole of the 74 s. Sized by the same method as the items before it: the file runs with the provider OFF, which is the state a checkout without a key is actually in, and pays only for claims that are true of the running browser — the Explain control present and not dead, the facts rendered without an explanation, the stale-result and unsupported-question refusals through the route itself, injected owner text present in the block as DATA and changing nothing, no AI surface on a route that should not have one, and the touch-target floor. Everything the browser cannot prove is paid for elsewhere: the whole gateway — reservation, ledger row, schema validation, citation validation, numeric grounding, refusal, reconciliation — plus workspace isolation per builder and the statement counts run over real D1 in `test/kernel/grounded-ai.test.ts`, and the FactBlock contract, the numeric validator, the intent parser, the injection corpus and every structural boundary are unit tests. Only the assignment of files to partitions moved; no other spec file's measured duration, test count or provenance changed. DEBT-205 is left alone deliberately again: capacity is still stranded in the two exclusive `responsive.spec.ts` shards, this item did not need it, and the correct fix stays a decision for the pass that takes it.",
+  "tiers": {
+    "about": "V3-E2E-01 — the two E2E tiers. `nightly` names the spec files the REQUIRED PR gate does not run; .github/workflows/nightly.yml runs exactly this list on a schedule and on demand. Every other .spec.ts on disk is in the PR gate, and `pnpm run e2e:partitions:check` fails if a file is in both tiers or in neither. A file here still needs a measured duration: the nightly suite's cost is derived from the same numbers.",
+    "why": "Three files were 687 of the gate's 2,178 tests (31.5%) and 41.1 of its 279.3 minutes (14.7%), and each was ONE assertion repeated across a route/width/appearance matrix. MEASURED before the split: 93 of the gate's other 139 spec files run axe over 75 distinct routes, and 108 of them assert no-horizontal-overflow over 94 distinct routes — so accessibility and responsive evidence was never concentrated in these files, and moving the matrices removes a REPETITION rather than a contract. The PR gate keeps a representative accessibility scan plus EVERY open-overlay scan (accessibility.spec.ts), and the boundary widths over the daily-driver surfaces plus the overlays at 320 (responsive-core.spec.ts). Nothing that is a critical correctness journey is in this list, and nothing is here because it fails often.",
+    "nightly": [
+      "e2e/accessibility-matrix.spec.ts",
+      "e2e/responsive-desktop.spec.ts",
+      "e2e/responsive-phone.spec.ts"
+    ]
+  },
   "measuredFrom": [
     "V2.16 CONSOL-00, 2026-09-08 — ONE new spec file, MEASURED LOCALLY, and it fits with the ceiling and the partition count both untouched: `consol-00-question-first-navigation.spec.ts` is 39.5 s over 8 tests, measured in the sandbox that produced the change from a green run of the file (`8 passed`), with `--as local/v2.16-consol-00`. PARTITION_COUNT stays 13 and `MAX_PARTITION_SECONDS` was not touched: the suite is 215.2 min of measured test time across 141 spec files and thirteen partitions derive a heaviest of 16.7 min against the 16.7 min ceiling, worst/mean 1.01. THE HEADROOM IS NOW 4.8 SECONDS PER PARTITION — 99.5% of the ceiling — and that is stated rather than absorbed: DEBT-205's stranded capacity was recovered by V2.8 CONV-03 and the split is now genuinely balanced, so the next item that adds E2E coverage of any size has to raise PARTITION_COUNT or make a spec file cheaper. Raised as DEBT-254 with these numbers so it is a decision rather than a surprise. Sized by the method every item since CONV-01 has used: 8 tests, each a different CLAIM about a running browser rather than a different width — the five question headings present and in order at 1440; each block's destinations a LIST NAMED by its heading, which is the whole of what makes this release reach a non-sighted owner; the membership of Do, Deal with, Money, Understand and the tools block; `/analytics`, `/finance` and `/obligations` unmoved with exactly one current row after a navigation; keyboard order equal to visual order over all 24 rows; axe over the rail in both appearances with no horizontal overflow; the collapsed tablet rail keeping every accessible name; the phone bar still exactly Today · Tasks · Add · Projects · More; and the phone sheet carrying the same five questions with 44px targets under a COARSE pointer — which is the test that found the WCAG 2.5.8 regression this item fixes (`--dh-shell-nav-row-height` was authored as a literal 36px in DHDS-10, leaving `--app-nav-row-height`'s coarse-pointer floor with no consumer). Everything the browser cannot prove is paid for elsewhere: the whole navigation MODEL — group membership, ordering, the hundred-band per group, the absence of a duplicate navOrder, every href and the phone opt-ins — is `test/unit/modules/navigation-information-architecture.test.ts` against the real registry, `prefetch=\"intent\"` on every row of every group is `test/unit/shell/navigation-prefetch.test.tsx` (React Router only emits the tag from a built manifest, so a browser assertion would pass whatever the prop said), and the palette's agreement with the rail is `test/unit/commands/command-palette-coherence.test.ts`. Only the assignment of files to partitions moved; no other spec file's measured duration, test count or provenance changed.",
     "V2.8 CONV-02, 2026-09-03 — ONE new spec file, MEASURED LOCALLY, and it FITS with the ceiling and the partition count both untouched: `conv-02-waiting-taskrow.spec.ts` is 91.5 s over 8 tests, measured in the sandbox that produced the change from a green run of the file (`8 passed`), with `--as local/v2.8-conv-02`. PARTITION_COUNT stays 13 and `MAX_PARTITION_SECONDS` was not touched: the suite is 203.0 min of measured test time and thirteen partitions derive a heaviest of 16.3 min against the 16.7 min ceiling, worst/mean 1.04. Sized by the same method as CONV-01: 8 tests over ONE seeded fixture shared by the whole file, each a different CLAIM — anatomy with the waiting fact and no Card/grip/selection; the row's follow-up state against the filter, the rail and `/tasks`; open, a row edit and the follow-up through the Details form surviving a reload; completion with departure, focus handoff, one announcement and server-truth counts, then reopen; loaded pages surviving a mutation; keyboard reach and axe at 1440; 393 px; 320 px — with exactly four axe scans. The statement budget is proved over real D1 in `test/kernel/conv-02-waiting-budget.test.ts`, the row-state parity in `recall-03-commitments-due.test.ts`, the slot contract and the surface's optimistic paths in unit tests; only the claims true of the running browser are paid for here. `recall-03-commitments-due.spec.ts` was re-pointed to the shared row and keeps its measured duration. Only the assignment of files to partitions moved; no other spec file's measured duration, test count or provenance changed. DEBT-205 is left alone deliberately again.",
@@ -27,7 +36,8 @@
   "partitionCount": 18,
   "defaultSpecSeconds": 120,
   "durations": {
-    "e2e/accessibility.spec.ts": 752.7,
+    "e2e/accessibility-matrix.spec.ts": 467.6,
+    "e2e/accessibility.spec.ts": 184.7,
     "e2e/account-security.spec.ts": 66.8,
     "e2e/activity-actor.spec.ts": 50.1,
     "e2e/activity-feed.spec.ts": 30.6,
@@ -57,6 +67,7 @@
     "e2e/cross-module-views.spec.ts": 172.3,
     "e2e/csp.spec.ts": 100,
     "e2e/csrf.spec.ts": 5.3,
+    "e2e/css-cascade-ownership.spec.ts": 3.2,
     "e2e/design-foundation.spec.ts": 13.3,
     "e2e/dhds-10-inline-manipulation.spec.ts": 114.7,
     "e2e/dhds-11-drag-reorder.spec.ts": 137.5,
@@ -134,8 +145,9 @@
     "e2e/record-header-title.spec.ts": 36.9,
     "e2e/record-lifecycle.spec.ts": 28,
     "e2e/reports.spec.ts": 89.7,
-    "e2e/responsive-desktop.spec.ts": 914.9,
-    "e2e/responsive-phone.spec.ts": 799,
+    "e2e/responsive-core.spec.ts": 179.1,
+    "e2e/responsive-desktop.spec.ts": 937.3,
+    "e2e/responsive-phone.spec.ts": 855.6,
     "e2e/restore.spec.ts": 21.7,
     "e2e/reviews-guided.spec.ts": 200.8,
     "e2e/reviews-insights.spec.ts": 92.3,
@@ -163,7 +175,7 @@
     "e2e/today-task-convergence.spec.ts": 75.8,
     "e2e/today.spec.ts": 53.7,
     "e2e/tooltip.spec.ts": 61.9,
-    "e2e/touch-targets.spec.ts": 59.9,
+    "e2e/touch-targets.spec.ts": 47.6,
     "e2e/ui-quality.spec.ts": 20.2,
     "e2e/ux-01-daily-driver.spec.ts": 44.6,
     "e2e/ux-02-plan-habits.spec.ts": 106.7,
@@ -171,7 +183,8 @@
     "e2e/waiting.spec.ts": 42.7
   },
   "tests": {
-    "e2e/accessibility.spec.ts": 138,
+    "e2e/accessibility-matrix.spec.ts": 120,
+    "e2e/accessibility.spec.ts": 38,
     "e2e/account-security.spec.ts": 17,
     "e2e/activity-actor.spec.ts": 3,
     "e2e/activity-feed.spec.ts": 9,
@@ -201,6 +214,7 @@
     "e2e/cross-module-views.spec.ts": 9,
     "e2e/csp.spec.ts": 9,
     "e2e/csrf.spec.ts": 2,
+    "e2e/css-cascade-ownership.spec.ts": 2,
     "e2e/design-foundation.spec.ts": 4,
     "e2e/dhds-10-inline-manipulation.spec.ts": 13,
     "e2e/dhds-11-drag-reorder.spec.ts": 16,
@@ -278,8 +292,9 @@
     "e2e/record-header-title.spec.ts": 12,
     "e2e/record-lifecycle.spec.ts": 3,
     "e2e/reports.spec.ts": 12,
-    "e2e/responsive-desktop.spec.ts": 286,
-    "e2e/responsive-phone.spec.ts": 263,
+    "e2e/responsive-core.spec.ts": 62,
+    "e2e/responsive-desktop.spec.ts": 301,
+    "e2e/responsive-phone.spec.ts": 278,
     "e2e/restore.spec.ts": 5,
     "e2e/reviews-guided.spec.ts": 6,
     "e2e/reviews-insights.spec.ts": 14,
@@ -307,7 +322,7 @@
     "e2e/today-task-convergence.spec.ts": 11,
     "e2e/today.spec.ts": 12,
     "e2e/tooltip.spec.ts": 14,
-    "e2e/touch-targets.spec.ts": 13,
+    "e2e/touch-targets.spec.ts": 14,
     "e2e/ui-quality.spec.ts": 4,
     "e2e/ux-01-daily-driver.spec.ts": 12,
     "e2e/ux-02-plan-habits.spec.ts": 12,
@@ -315,7 +330,8 @@
     "e2e/waiting.spec.ts": 5
   },
   "source": {
-    "e2e/accessibility.spec.ts": "results",
+    "e2e/accessibility-matrix.spec.ts": "local/v3-e2e-01",
+    "e2e/accessibility.spec.ts": "local/v3-e2e-01",
     "e2e/account-security.spec.ts": "results",
     "e2e/activity-actor.spec.ts": "results",
     "e2e/activity-feed.spec.ts": "results",
@@ -345,6 +361,7 @@
     "e2e/cross-module-views.spec.ts": "run 34789120450 (18 partitions, f8a474c)",
     "e2e/csp.spec.ts": "results",
     "e2e/csrf.spec.ts": "results",
+    "e2e/css-cascade-ownership.spec.ts": "local/v3-e2e-01",
     "e2e/design-foundation.spec.ts": "results",
     "e2e/dhds-10-inline-manipulation.spec.ts": "results",
     "e2e/dhds-11-drag-reorder.spec.ts": "results",
@@ -422,8 +439,9 @@
     "e2e/record-header-title.spec.ts": "results",
     "e2e/record-lifecycle.spec.ts": "results",
     "e2e/reports.spec.ts": "results",
-    "e2e/responsive-desktop.spec.ts": "results",
-    "e2e/responsive-phone.spec.ts": "results",
+    "e2e/responsive-core.spec.ts": "local/v3-e2e-01",
+    "e2e/responsive-desktop.spec.ts": "local/v3-e2e-01",
+    "e2e/responsive-phone.spec.ts": "local/v3-e2e-01",
     "e2e/restore.spec.ts": "results",
     "e2e/reviews-guided.spec.ts": "results",
     "e2e/reviews-insights.spec.ts": "results",
@@ -451,7 +469,7 @@
     "e2e/today-task-convergence.spec.ts": "run 34789120450 (18 partitions, f8a474c)",
     "e2e/today.spec.ts": "run 34789120450 (18 partitions, f8a474c)",
     "e2e/tooltip.spec.ts": "results",
-    "e2e/touch-targets.spec.ts": "results",
+    "e2e/touch-targets.spec.ts": "local/v3-e2e-01",
     "e2e/ui-quality.spec.ts": "results",
     "e2e/ux-01-daily-driver.spec.ts": "results",
     "e2e/ux-02-plan-habits.spec.ts": "run 34789120450 (18 partitions, f8a474c)",
@@ -461,270 +479,270 @@
   "partitions": [
     {
       "name": "p01",
-      "estimateSeconds": 934.6,
-      "testEstimate": 122,
+      "estimateSeconds": 817.5,
+      "testEstimate": 77,
       "specs": [
-        "e2e/area-lifecycle.spec.ts",
-        "e2e/doc-editor-keyboard-save.spec.ts",
-        "e2e/doc-editor-responsive.spec.ts",
-        "e2e/feedback.spec.ts",
-        "e2e/find-empty-search.spec.ts",
-        "e2e/find-tag-vocabulary.spec.ts",
+        "e2e/editor-geometry.spec.ts",
+        "e2e/find-capture-tags.spec.ts",
         "e2e/people.spec.ts",
-        "e2e/pwa-offline.spec.ts",
-        "e2e/record-anatomy.spec.ts"
-      ]
-    },
-    {
-      "name": "p02",
-      "estimateSeconds": 934.6,
-      "testEstimate": 95,
-      "specs": [
-        "e2e/areas.spec.ts",
-        "e2e/cross-module-views.spec.ts",
-        "e2e/drawer.spec.ts",
-        "e2e/notifications.spec.ts",
-        "e2e/project-activity.spec.ts",
-        "e2e/recall-01-search-content.spec.ts",
-        "e2e/search.spec.ts",
-        "e2e/steer-goals.spec.ts",
-        "e2e/tasks.spec.ts"
-      ]
-    },
-    {
-      "name": "p03",
-      "estimateSeconds": 933.7,
-      "testEstimate": 85,
-      "specs": [
-        "e2e/calendar.spec.ts",
-        "e2e/color-scheme.spec.ts",
-        "e2e/find-task-tags.spec.ts",
-        "e2e/gate-02-honest-signals.spec.ts",
-        "e2e/goals-alignment.spec.ts",
-        "e2e/plan-weekly-planning.spec.ts",
-        "e2e/product-frame.spec.ts",
-        "e2e/tasks-journey.spec.ts",
-        "e2e/today-keyboard.spec.ts"
-      ]
-    },
-    {
-      "name": "p04",
-      "estimateSeconds": 933.7,
-      "testEstimate": 88,
-      "specs": [
-        "e2e/attachments.spec.ts",
-        "e2e/collection-header.spec.ts",
-        "e2e/habits.spec.ts",
-        "e2e/linked-items.spec.ts",
-        "e2e/people-timeline.spec.ts",
-        "e2e/project-templates.spec.ts",
         "e2e/projects-mobile.spec.ts",
+        "e2e/pwa-budget.spec.ts",
         "e2e/record-header-title.spec.ts",
-        "e2e/tasks-daily-driver.spec.ts"
-      ]
-    },
-    {
-      "name": "p05",
-      "estimateSeconds": 933.6,
-      "testEstimate": 80,
-      "specs": [
-        "e2e/conv-02-waiting-taskrow.spec.ts",
-        "e2e/dhds-11-drag-reorder.spec.ts",
-        "e2e/floating-surfaces.spec.ts",
-        "e2e/goals-outcomes.spec.ts",
-        "e2e/goals.spec.ts",
-        "e2e/meetings-follow-up.spec.ts",
-        "e2e/pwa-offline-tasks.spec.ts",
-        "e2e/record-lifecycle.spec.ts",
-        "e2e/today.spec.ts"
-      ]
-    },
-    {
-      "name": "p06",
-      "estimateSeconds": 933.5,
-      "testEstimate": 167,
-      "specs": [
-        "e2e/accessibility.spec.ts",
-        "e2e/recall-03-commitments-due.spec.ts",
-        "e2e/recall-04-day-week-truth.spec.ts",
-        "e2e/tasks-capture-language.spec.ts",
-        "e2e/today-mobile.spec.ts"
-      ]
-    },
-    {
-      "name": "p07",
-      "estimateSeconds": 933.4,
-      "testEstimate": 72,
-      "specs": [
-        "e2e/branded-plum-diagnostic.spec.ts",
-        "e2e/cards-filters.spec.ts",
-        "e2e/diary.spec.ts",
-        "e2e/follow-02-goal-movement.spec.ts",
-        "e2e/identity.spec.ts",
-        "e2e/mobile-capture-journeys.spec.ts",
-        "e2e/people-diary-context.spec.ts",
-        "e2e/tasks-dependencies.spec.ts"
-      ]
-    },
-    {
-      "name": "p08",
-      "estimateSeconds": 932.4,
-      "testEstimate": 87,
-      "specs": [
-        "e2e/appearance.spec.ts",
-        "e2e/audit-13-conversion-atomicity.spec.ts",
-        "e2e/creation-controls.spec.ts",
-        "e2e/finance.spec.ts",
-        "e2e/interaction-consistency.spec.ts",
-        "e2e/meetings-concurrency.spec.ts",
-        "e2e/mobile-modules.spec.ts",
-        "e2e/notes.spec.ts",
-        "e2e/steer-week-door.spec.ts"
-      ]
-    },
-    {
-      "name": "p09",
-      "estimateSeconds": 931.4,
-      "testEstimate": 285,
-      "specs": [
-        "e2e/global-capture.spec.ts",
-        "e2e/inline-editor-overlay.spec.ts",
-        "e2e/keyboard.spec.ts",
-        "e2e/responsive-phone.spec.ts"
-      ]
-    },
-    {
-      "name": "p10",
-      "estimateSeconds": 930.5,
-      "testEstimate": 84,
-      "specs": [
-        "e2e/activity-feed.spec.ts",
-        "e2e/dhds-10-inline-manipulation.spec.ts",
-        "e2e/goal-measurement.spec.ts",
-        "e2e/plan-smart-lists.spec.ts",
-        "e2e/project-settings.spec.ts",
-        "e2e/reviews-insights.spec.ts",
-        "e2e/smoke.spec.ts",
-        "e2e/tasks-v22-daily-driver.spec.ts",
-        "e2e/today-focus.spec.ts"
-      ]
-    },
-    {
-      "name": "p11",
-      "estimateSeconds": 930.5,
-      "testEstimate": 86,
-      "specs": [
-        "e2e/account-security.spec.ts",
-        "e2e/assisted-ai.spec.ts",
-        "e2e/follow-01-week-account.spec.ts",
-        "e2e/meetings-people-history.spec.ts",
-        "e2e/mobile-shell.spec.ts",
-        "e2e/owner-timezone.spec.ts",
-        "e2e/project-health.spec.ts",
-        "e2e/reviews.spec.ts",
-        "e2e/steer-goal-story.spec.ts"
-      ]
-    },
-    {
-      "name": "p12",
-      "estimateSeconds": 930.4,
-      "testEstimate": 120,
-      "specs": [
-        "e2e/assets.spec.ts",
-        "e2e/conv-01-project-taskrow.spec.ts",
-        "e2e/grounded-ai.spec.ts",
-        "e2e/iphone-daily-driver.spec.ts",
-        "e2e/plan-responsive.spec.ts",
-        "e2e/tasks-collection.spec.ts",
-        "e2e/tasks-optimistic.spec.ts",
-        "e2e/visual-system.spec.ts"
-      ]
-    },
-    {
-      "name": "p13",
-      "estimateSeconds": 930.4,
-      "testEstimate": 118,
-      "specs": [
-        "e2e/dhds-13-commercial-quality.spec.ts",
-        "e2e/export.spec.ts",
-        "e2e/help-about.spec.ts",
-        "e2e/projects.spec.ts",
-        "e2e/recall-02-completed-time.spec.ts",
-        "e2e/restore.spec.ts",
-        "e2e/reviews-guided.spec.ts",
         "e2e/settings.spec.ts",
-        "e2e/tooltip.spec.ts"
-      ]
-    },
-    {
-      "name": "p14",
-      "estimateSeconds": 929.9,
-      "testEstimate": 92,
-      "specs": [
-        "e2e/activity-actor.spec.ts",
-        "e2e/analytics.spec.ts",
-        "e2e/consol-00-question-first-navigation.spec.ts",
-        "e2e/notes-knowledge.spec.ts",
-        "e2e/px-03-navigation.spec.ts",
-        "e2e/reports.spec.ts",
-        "e2e/ui-quality.spec.ts",
+        "e2e/smoke.spec.ts",
         "e2e/ux-02-plan-habits.spec.ts"
       ]
     },
     {
-      "name": "p15",
-      "estimateSeconds": 929.4,
-      "testEstimate": 99,
+      "name": "p02",
+      "estimateSeconds": 816.5,
+      "testEstimate": 76,
       "specs": [
         "e2e/areas-goals-mobile.spec.ts",
-        "e2e/csrf.spec.ts",
-        "e2e/design-foundation.spec.ts",
-        "e2e/editing-consistency.spec.ts",
-        "e2e/find-capture-tags.spec.ts",
-        "e2e/forms.spec.ts",
-        "e2e/life-admin.spec.ts",
+        "e2e/assets-mobile-capture.spec.ts",
+        "e2e/consol-00-question-first-navigation.spec.ts",
+        "e2e/find-tag-vocabulary.spec.ts",
+        "e2e/recall-01-search-content.spec.ts",
+        "e2e/steer-goals.spec.ts",
+        "e2e/tasks-collection.spec.ts"
+      ]
+    },
+    {
+      "name": "p03",
+      "estimateSeconds": 816.5,
+      "testEstimate": 53,
+      "specs": [
+        "e2e/area-lifecycle.spec.ts",
+        "e2e/cross-module-views.spec.ts",
+        "e2e/csp.spec.ts",
+        "e2e/doc-editor-keyboard-save.spec.ts",
+        "e2e/global-capture.spec.ts",
+        "e2e/meetings-people-history.spec.ts",
+        "e2e/people-timeline.spec.ts",
+        "e2e/project-templates.spec.ts"
+      ]
+    },
+    {
+      "name": "p04",
+      "estimateSeconds": 816.3,
+      "testEstimate": 76,
+      "specs": [
+        "e2e/capture-settings.spec.ts",
+        "e2e/dhds-11-drag-reorder.spec.ts",
+        "e2e/find-empty-search.spec.ts",
+        "e2e/gate-02-honest-signals.spec.ts",
         "e2e/spine-workspaces.spec.ts",
-        "e2e/tasks-checklist.spec.ts"
+        "e2e/tasks-v22-daily-driver.spec.ts",
+        "e2e/today-keyboard.spec.ts",
+        "e2e/today-task-convergence.spec.ts"
+      ]
+    },
+    {
+      "name": "p05",
+      "estimateSeconds": 815.5,
+      "testEstimate": 109,
+      "specs": [
+        "e2e/assisted-ai.spec.ts",
+        "e2e/conv-01-project-taskrow.spec.ts",
+        "e2e/creation-controls.spec.ts",
+        "e2e/linked-items.spec.ts",
+        "e2e/notifications.spec.ts",
+        "e2e/pwa-offline.spec.ts",
+        "e2e/record-anatomy.spec.ts",
+        "e2e/tasks-optimistic.spec.ts"
+      ]
+    },
+    {
+      "name": "p06",
+      "estimateSeconds": 815.3,
+      "testEstimate": 67,
+      "specs": [
+        "e2e/activity-actor.spec.ts",
+        "e2e/dhds-10-inline-manipulation.spec.ts",
+        "e2e/goals.spec.ts",
+        "e2e/mobile-modules.spec.ts",
+        "e2e/plan-smart-lists.spec.ts",
+        "e2e/record-lifecycle.spec.ts",
+        "e2e/reports.spec.ts",
+        "e2e/tasks.spec.ts"
+      ]
+    },
+    {
+      "name": "p07",
+      "estimateSeconds": 814.9,
+      "testEstimate": 84,
+      "specs": [
+        "e2e/color-scheme.spec.ts",
+        "e2e/editing-consistency.spec.ts",
+        "e2e/finance.spec.ts",
+        "e2e/people-relationship.spec.ts",
+        "e2e/recall-03-commitments-due.spec.ts",
+        "e2e/reviews-guided.spec.ts",
+        "e2e/tasks-capture-language.spec.ts",
+        "e2e/ux-01-daily-driver.spec.ts"
+      ]
+    },
+    {
+      "name": "p08",
+      "estimateSeconds": 814.3,
+      "testEstimate": 127,
+      "specs": [
+        "e2e/forms.spec.ts",
+        "e2e/goal-measurement.spec.ts",
+        "e2e/identity.spec.ts",
+        "e2e/inline-editor-overlay.spec.ts",
+        "e2e/mobile-shell.spec.ts",
+        "e2e/product-frame.spec.ts",
+        "e2e/project-activity.spec.ts",
+        "e2e/projects.spec.ts"
+      ]
+    },
+    {
+      "name": "p09",
+      "estimateSeconds": 813.9,
+      "testEstimate": 78,
+      "specs": [
+        "e2e/areas.spec.ts",
+        "e2e/cards-filters.spec.ts",
+        "e2e/csrf.spec.ts",
+        "e2e/feedback.spec.ts",
+        "e2e/goals-alignment.spec.ts",
+        "e2e/interaction-consistency.spec.ts",
+        "e2e/planning.spec.ts",
+        "e2e/tasks-dependencies.spec.ts"
+      ]
+    },
+    {
+      "name": "p10",
+      "estimateSeconds": 813.9,
+      "testEstimate": 86,
+      "specs": [
+        "e2e/attachments.spec.ts",
+        "e2e/collection-header.spec.ts",
+        "e2e/follow-01-week-account.spec.ts",
+        "e2e/follow-02-goal-movement.spec.ts",
+        "e2e/life-admin.spec.ts",
+        "e2e/tasks-checklist.spec.ts",
+        "e2e/tooltip.spec.ts"
+      ]
+    },
+    {
+      "name": "p11",
+      "estimateSeconds": 813.3,
+      "testEstimate": 58,
+      "specs": [
+        "e2e/branded-plum-diagnostic.spec.ts",
+        "e2e/conv-02-waiting-taskrow.spec.ts",
+        "e2e/non-diary-audit.spec.ts",
+        "e2e/reviews.spec.ts",
+        "e2e/tasks-daily-driver.spec.ts",
+        "e2e/tasks-journey.spec.ts",
+        "e2e/today-mobile.spec.ts",
+        "e2e/ui-quality.spec.ts"
+      ]
+    },
+    {
+      "name": "p12",
+      "estimateSeconds": 812.7,
+      "testEstimate": 81,
+      "specs": [
+        "e2e/appearance.spec.ts",
+        "e2e/goals-outcomes.spec.ts",
+        "e2e/habits.spec.ts",
+        "e2e/keyboard.spec.ts",
+        "e2e/people-diary-context.spec.ts",
+        "e2e/project-settings.spec.ts",
+        "e2e/search.spec.ts",
+        "e2e/today-focus.spec.ts"
+      ]
+    },
+    {
+      "name": "p13",
+      "estimateSeconds": 812.5,
+      "testEstimate": 90,
+      "specs": [
+        "e2e/audit-13-conversion-atomicity.spec.ts",
+        "e2e/calendar.spec.ts",
+        "e2e/diary.spec.ts",
+        "e2e/export.spec.ts",
+        "e2e/notes.spec.ts",
+        "e2e/plan-responsive.spec.ts",
+        "e2e/reviews-insights.spec.ts",
+        "e2e/steer-week-door.spec.ts"
+      ]
+    },
+    {
+      "name": "p14",
+      "estimateSeconds": 812.4,
+      "testEstimate": 116,
+      "specs": [
+        "e2e/ai-assistance.spec.ts",
+        "e2e/css-cascade-ownership.spec.ts",
+        "e2e/design-foundation.spec.ts",
+        "e2e/entity-icons.spec.ts",
+        "e2e/help-about.spec.ts",
+        "e2e/iphone-daily-driver.spec.ts",
+        "e2e/recall-04-day-week-truth.spec.ts",
+        "e2e/touch-targets.spec.ts"
+      ]
+    },
+    {
+      "name": "p15",
+      "estimateSeconds": 811.3,
+      "testEstimate": 89,
+      "specs": [
+        "e2e/assets-ownership.spec.ts",
+        "e2e/dhds-13-commercial-quality.spec.ts",
+        "e2e/drawer.spec.ts",
+        "e2e/floating-surfaces.spec.ts",
+        "e2e/grounded-ai.spec.ts",
+        "e2e/meetings-concurrency.spec.ts",
+        "e2e/meetings-follow-up.spec.ts",
+        "e2e/restore.spec.ts"
       ]
     },
     {
       "name": "p16",
-      "estimateSeconds": 926.4,
-      "testEstimate": 288,
+      "estimateSeconds": 810.4,
+      "testEstimate": 66,
       "specs": [
-        "e2e/capture-settings.spec.ts",
-        "e2e/responsive-desktop.spec.ts"
+        "e2e/account-security.spec.ts",
+        "e2e/assets.spec.ts",
+        "e2e/find-task-tags.spec.ts",
+        "e2e/notes-knowledge.spec.ts",
+        "e2e/recall-02-completed-time.spec.ts",
+        "e2e/steer-goal-story.spec.ts",
+        "e2e/visual-system.spec.ts"
       ]
     },
     {
       "name": "p17",
-      "estimateSeconds": 925.5,
-      "testEstimate": 99,
+      "estimateSeconds": 810.3,
+      "testEstimate": 96,
       "specs": [
-        "e2e/ai-assistance.spec.ts",
-        "e2e/editor-geometry.spec.ts",
-        "e2e/people-relationship.spec.ts",
-        "e2e/planning.spec.ts",
+        "e2e/command-palette.spec.ts",
+        "e2e/owner-timezone.spec.ts",
+        "e2e/plan-weekly-planning.spec.ts",
+        "e2e/pwa-offline-tasks.spec.ts",
+        "e2e/px-03-navigation.spec.ts",
         "e2e/task-drawer.spec.ts",
-        "e2e/today-task-convergence.spec.ts",
-        "e2e/touch-targets.spec.ts",
+        "e2e/today.spec.ts",
         "e2e/waiting.spec.ts"
       ]
     },
     {
       "name": "p18",
-      "estimateSeconds": 925.1,
-      "testEstimate": 111,
+      "estimateSeconds": 809.6,
+      "testEstimate": 165,
       "specs": [
-        "e2e/assets-mobile-capture.spec.ts",
-        "e2e/assets-ownership.spec.ts",
-        "e2e/command-palette.spec.ts",
-        "e2e/csp.spec.ts",
-        "e2e/entity-icons.spec.ts",
+        "e2e/accessibility.spec.ts",
+        "e2e/activity-feed.spec.ts",
+        "e2e/analytics.spec.ts",
+        "e2e/doc-editor-responsive.spec.ts",
+        "e2e/mobile-capture-journeys.spec.ts",
         "e2e/motion.spec.ts",
-        "e2e/non-diary-audit.spec.ts",
-        "e2e/pwa-budget.spec.ts",
-        "e2e/ux-01-daily-driver.spec.ts"
+        "e2e/project-health.spec.ts",
+        "e2e/responsive-core.spec.ts"
       ]
     }
   ]

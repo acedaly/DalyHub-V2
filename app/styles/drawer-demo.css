@@ -1,4 +1,12 @@
 /*
+ * V3-CSS-01 — wrapped in `dh-product` because this file is imported from a route
+ * module, and a JS `import "./x.css"` cannot carry a `layer()` keyword the way
+ * `app.css`'s `@import` does. Unlayered CSS outranks every layer unconditionally,
+ * so a fixture stylesheet left outside the system would silently outrank the
+ * product it exists to demonstrate — and the fixture would stop being evidence.
+ */
+@layer dh-product {
+  /*
  * DS-03 — styles for the development-only Drawer demonstration route.
  *
  * These styles dress the FIXTURE's background page and demo bodies only; all
@@ -7,184 +15,185 @@
  * production bundle.
  */
 
-.drawer-demo {
-  max-width: var(--app-width-content);
-  margin-inline: auto;
-  padding: clamp(var(--app-space-5), 4vw, var(--app-space-10))
-    var(--app-page-padding);
-}
+  .drawer-demo {
+    max-width: var(--app-width-content);
+    margin-inline: auto;
+    padding: clamp(var(--app-space-5), 4vw, var(--app-space-10))
+      var(--app-page-padding);
+  }
 
-.drawer-demo__header h1 {
-  font-size: var(--dh-text-page-title-size);
-  line-height: 1.2;
-  letter-spacing: -0.01em;
-  margin: 0 0 var(--app-space-2);
-}
+  .drawer-demo__header h1 {
+    font-size: var(--dh-text-page-title-size);
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    margin: 0 0 var(--app-space-2);
+  }
 
-.drawer-demo__lead {
-  font-size: var(--dh-text-lead-size);
-  color: var(--dh-color-text-muted);
-  margin: 0 0 var(--app-space-6);
-  max-width: var(--app-width-prose);
-}
+  .drawer-demo__lead {
+    font-size: var(--dh-text-lead-size);
+    color: var(--dh-color-text-muted);
+    margin: 0 0 var(--app-space-6);
+    max-width: var(--app-width-prose);
+  }
 
-/* A small stateful strip whose values must survive opening/closing a drawer. */
-.drawer-demo__state {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--app-space-4);
-  align-items: end;
-  padding: var(--app-space-4);
-  margin-bottom: var(--app-space-6);
-  background: var(--dh-color-surface);
-  border: var(--app-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-}
+  /* A small stateful strip whose values must survive opening/closing a drawer. */
+  .drawer-demo__state {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--app-space-4);
+    align-items: end;
+    padding: var(--app-space-4);
+    margin-bottom: var(--app-space-6);
+    background: var(--dh-color-surface);
+    border: var(--app-border-width-thin) solid var(--dh-color-border);
+    border-radius: var(--dh-radius-md);
+  }
 
-.drawer-demo__field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-1);
-}
+  .drawer-demo__field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--app-space-1);
+  }
 
-.drawer-demo__field label {
-  font-size: var(--dh-text-label-size);
-  font-weight: 500;
-  color: var(--dh-color-text-muted);
-}
+  .drawer-demo__field label {
+    font-size: var(--dh-text-label-size);
+    font-weight: 500;
+    color: var(--dh-color-text-muted);
+  }
 
-.drawer-demo__field input {
-  min-height: var(--app-control-height-md);
-  padding: 0 var(--app-space-3);
-  font: inherit;
-  color: var(--dh-color-text);
-  background: var(--dh-color-surface-raised);
-  border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
-  border-radius: var(--dh-radius-control);
-}
+  .drawer-demo__field input {
+    min-height: var(--app-control-height-md);
+    padding: 0 var(--app-space-3);
+    font: inherit;
+    color: var(--dh-color-text);
+    background: var(--dh-color-surface-raised);
+    border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
+    border-radius: var(--dh-radius-control);
+  }
 
-.drawer-demo__button {
-  min-height: var(--app-control-height-lg);
-  padding: 0 var(--app-space-4);
-  font: inherit;
-  font-weight: 500;
-  color: var(--dh-color-text);
-  background: var(--dh-color-accent-subtle);
-  border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
-  border-radius: var(--dh-radius-control);
-  cursor: pointer;
-}
+  .drawer-demo__button {
+    min-height: var(--app-control-height-lg);
+    padding: 0 var(--app-space-4);
+    font: inherit;
+    font-weight: 500;
+    color: var(--dh-color-text);
+    background: var(--dh-color-accent-subtle);
+    border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
+    border-radius: var(--dh-radius-control);
+    cursor: pointer;
+  }
 
-.drawer-demo__button:hover {
-  background: var(--dh-color-accent-subtle);
-}
+  .drawer-demo__button:hover {
+    background: var(--dh-color-accent-subtle);
+  }
 
-/* The record list on the background page: each item opens a drawer. */
-.drawer-demo__list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: var(--app-space-3);
-}
+  /* The record list on the background page: each item opens a drawer. */
+  .drawer-demo__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: var(--app-space-3);
+  }
 
-.drawer-demo__card {
-  display: block;
-  padding: var(--app-space-4);
-  color: var(--dh-color-text);
-  text-decoration: none;
-  background: var(--dh-color-surface-raised);
-  border: var(--app-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  transition: border-color var(--dh-motion-fast) var(--dh-ease-standard);
-}
+  .drawer-demo__card {
+    display: block;
+    padding: var(--app-space-4);
+    color: var(--dh-color-text);
+    text-decoration: none;
+    background: var(--dh-color-surface-raised);
+    border: var(--app-border-width-thin) solid var(--dh-color-border);
+    border-radius: var(--dh-radius-md);
+    transition: border-color var(--dh-motion-fast) var(--dh-ease-standard);
+  }
 
-.drawer-demo__card:hover {
-  border-color: var(--dh-color-border-strong);
-  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
-}
+  .drawer-demo__card:hover {
+    border-color: var(--dh-color-border-strong);
+    background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
+  }
 
-.drawer-demo__card-type {
-  display: block;
-  font-size: var(--dh-text-label-size);
-  font-weight: 500;
-  color: var(--dh-color-accent);
-}
+  .drawer-demo__card-type {
+    display: block;
+    font-size: var(--dh-text-label-size);
+    font-weight: 500;
+    color: var(--dh-color-accent);
+  }
 
-.drawer-demo__card-title {
-  display: block;
-  margin-top: var(--app-space-1);
-  font-size: var(--dh-text-lead-size);
-  font-weight: 500;
-}
+  .drawer-demo__card-title {
+    display: block;
+    margin-top: var(--app-space-1);
+    font-size: var(--dh-text-lead-size);
+    font-weight: 500;
+  }
 
-/* A long, scrollable filler used to prove the background scroll position is kept
+  /* A long, scrollable filler used to prove the background scroll position is kept
  * and that the drawer body scrolls independently of the page. */
-.drawer-demo__filler {
-  margin-top: var(--app-space-8);
-  display: grid;
-  gap: var(--app-space-3);
-}
+  .drawer-demo__filler {
+    margin-top: var(--app-space-8);
+    display: grid;
+    gap: var(--app-space-3);
+  }
 
-.drawer-demo__filler p {
-  margin: 0;
-  color: var(--dh-color-text-muted);
-}
+  .drawer-demo__filler p {
+    margin: 0;
+    color: var(--dh-color-text-muted);
+  }
 
-/* Inline demo bodies inside the drawers reuse the record layout; these classes
+  /* Inline demo bodies inside the drawers reuse the record layout; these classes
  * only style the small demo affordances (link rows, prose). */
-.drawer-demo-prose {
-  margin: 0 0 var(--app-space-3);
-  line-height: 1.65;
-  color: var(--dh-color-text-muted);
-  overflow-wrap: anywhere;
-}
+  .drawer-demo-prose {
+    margin: 0 0 var(--app-space-3);
+    line-height: 1.65;
+    color: var(--dh-color-text-muted);
+    overflow-wrap: anywhere;
+  }
 
-.drawer-demo-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--app-space-2);
-  margin-bottom: var(--app-space-4);
-}
+  .drawer-demo-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--app-space-2);
+    margin-bottom: var(--app-space-4);
+  }
 
-.drawer-demo-link {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--app-control-height-md);
-  padding: 0 var(--app-space-3);
-  font-size: var(--dh-text-meta-size);
-  font-weight: 500;
-  color: var(--dh-color-text-on-accent);
-  text-decoration: none;
-  background: var(--dh-color-accent);
-  border-radius: var(--dh-radius-control);
-}
+  .drawer-demo-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--app-control-height-md);
+    padding: 0 var(--app-space-3);
+    font-size: var(--dh-text-meta-size);
+    font-weight: 500;
+    color: var(--dh-color-text-on-accent);
+    text-decoration: none;
+    background: var(--dh-color-accent);
+    border-radius: var(--dh-radius-control);
+  }
 
-.drawer-demo-link:hover {
-  background: var(--dh-color-accent);
-}
+  .drawer-demo-link:hover {
+    background: var(--dh-color-accent);
+  }
 
-.drawer-demo-guard {
-  display: flex;
-  align-items: center;
-  gap: var(--app-space-2);
-  margin-bottom: var(--app-space-4);
-  font-size: var(--dh-text-meta-size);
-  color: var(--dh-color-text-muted);
-}
+  .drawer-demo-guard {
+    display: flex;
+    align-items: center;
+    gap: var(--app-space-2);
+    margin-bottom: var(--app-space-4);
+    font-size: var(--dh-text-meta-size);
+    color: var(--dh-color-text-muted);
+  }
 
-.drawer-demo-longlist {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: var(--app-space-2);
-}
+  .drawer-demo-longlist {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: var(--app-space-2);
+  }
 
-.drawer-demo-longlist li {
-  padding: var(--app-space-3);
-  background: var(--dh-color-surface);
-  border: var(--app-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-control);
-  color: var(--dh-color-text-muted);
+  .drawer-demo-longlist li {
+    padding: var(--app-space-3);
+    background: var(--dh-color-surface);
+    border: var(--app-border-width-thin) solid var(--dh-color-border);
+    border-radius: var(--dh-radius-control);
+    color: var(--dh-color-text-muted);
+  }
 }

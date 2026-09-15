@@ -1,0 +1,146 @@
+name: Nightly E2E
+
+# V3-E2E-01 — the DEEP half of the two-tier E2E gate.
+#
+# `ci.yml` runs the required PR gate: the product's correctness journeys, a
+# representative accessibility scan plus every open-overlay scan, and the
+# responsive boundary widths over the daily-driver surfaces. This workflow runs
+# the EXHAUSTIVE matrices the PR gate deliberately does not — every route × every
+# appearance under axe, and every route × every viewport for horizontal overflow.
+#
+# The split is recorded, with its measurements, in `e2e/partitions.json` →
+# `tiers`. The short version: those three files were 31.5% of the gate's tests
+# and 14.7% of its measured minutes, and each was ONE assertion repeated across a
+# matrix whose contract 93–108 other gated spec files already assert on 75–94
+# distinct routes. Moving them here removes a repetition from every push and
+# keeps the sweep as a nightly safety net for the route nobody thought to touch.
+#
+# It is NOT a required check and must never become one: a scheduled workflow
+# cannot gate a pull request, and a nightly failure is triaged the next morning
+# rather than blocking a merge. What it must do is be LOUD when it fails, which
+# is what the failing job and its uploaded report are for.
+
+on:
+  schedule:
+    # 16:00 UTC — 02:00 Australia/Sydney (AEST) / 03:00 (AEDT), so a failure is
+    # waiting at the start of the owner's day rather than landing mid-afternoon.
+    # GitHub's scheduler is best-effort and can run late under load; nothing here
+    # depends on the exact minute.
+    - cron: "0 16 * * *"
+  # On demand, for the case this suite exists to serve: a change that touches the
+  # shell, the cascade or a shared primitive, where the author wants the full
+  # sweep BEFORE merging rather than the morning after.
+  workflow_dispatch:
+
+concurrency:
+  group: nightly-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up toolchain
+        uses: ./.github/actions/setup
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Upload production build artifact
+        # Same two paths as `ci.yml`'s build job: `vite preview` needs
+        # `.wrangler/deploy/` as well as `build/`, and `include-hidden-files` is
+        # required or the dot-path is silently dropped.
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-build-nightly
+          path: |
+            build/
+            .wrangler/deploy/
+          include-hidden-files: true
+          retention-days: 1
+          if-no-files-found: error
+
+  nightly:
+    name: Nightly E2E (${{ matrix.suite }})
+    needs: build
+    runs-on: ubuntu-latest
+    # The exhaustive matrices are ~12 minutes of measured test time each, and
+    # `playwright.config.ts` sets no `globalTimeout` outside CI-gate conditions.
+    # 45 leaves room for setup, the browser download and a slow runner without
+    # GitHub cancelling the job and destroying the report.
+    timeout-minutes: 45
+    strategy:
+      # One suite's failure must not hide another's — the whole point of running
+      # them is to learn which surfaces regressed.
+      fail-fast: false
+      matrix:
+        # Named individually rather than derived, because there are three of
+        # them and a matrix built from a manifest would need the manifest read in
+        # a prior job for a list this short. `pnpm run e2e:partitions:check`
+        # fails if any of these stops being a nightly-tier file, so the two
+        # cannot drift silently.
+        suite:
+          - accessibility-matrix
+          - responsive-desktop
+          - responsive-phone
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up toolchain
+        uses: ./.github/actions/setup
+
+      - name: Download production build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: production-build-nightly
+          path: .
+
+      - name: Install Playwright browser
+        # The FULL Chromium build, for the DEBT-125 reason recorded in `ci.yml`:
+        # `--only-shell` installs a different binary that SIGSEGVs partway
+        # through a long run, and these are the longest runs in the project.
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: This suite belongs to the nightly tier
+        # Proves the file being run is actually a nightly-tier file before
+        # running it, so a rename that was only half-done fails here with a
+        # readable message instead of silently running nothing.
+        run: |
+          set -euo pipefail
+          nightly="$(node scripts/e2e-partitions.mjs nightly-specs)"
+          echo "nightly tier: $nightly"
+          case " $nightly " in
+            *" e2e/${{ matrix.suite }}.spec.ts "*) ;;
+            *)
+              echo "::error::e2e/${{ matrix.suite }}.spec.ts is not in tiers.nightly"
+              exit 1
+              ;;
+          esac
+
+      - name: Run e2e/${{ matrix.suite }}.spec.ts
+        env:
+          PLAYWRIGHT_SKIP_BUILD: "1"
+        run: pnpm exec playwright test "e2e/${{ matrix.suite }}.spec.ts"
+
+      - name: Upload the report
+        # Unconditionally, unlike the PR gate's failure-only uploads: a nightly
+        # run has no author watching it, so the evidence has to be there in the
+        # morning whichever way it went — and a green run's `results.json` is
+        # what refreshes these files' measured durations.
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-${{ matrix.suite }}
+          path: playwright-report/
+          retention-days: 14
+          if-no-files-found: ignore

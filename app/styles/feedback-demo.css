@@ -1,106 +1,115 @@
 /*
+ * V3-CSS-01 — wrapped in `dh-product` because this file is imported from a route
+ * module, and a JS `import "./x.css"` cannot carry a `layer()` keyword the way
+ * `app.css`'s `@import` does. Unlayered CSS outranks every layer unconditionally,
+ * so a fixture stylesheet left outside the system would silently outrank the
+ * product it exists to demonstrate — and the fixture would stop being evidence.
+ */
+@layer dh-product {
+  /*
  * DS-10 feedback & inspector demonstration styles (development fixture only).
  * Token-only; not shipped to production (imported by the dev-only route).
  */
 
-.fb-demo {
-  max-width: var(--app-width-content);
-  margin: 0 auto;
-  padding: var(--app-space-6) var(--app-page-padding);
-}
+  .fb-demo {
+    max-width: var(--app-width-content);
+    margin: 0 auto;
+    padding: var(--app-space-6) var(--app-page-padding);
+  }
 
-.fb-demo__header h1 {
-  margin: 0 0 var(--app-space-2);
-  font-size: var(--dh-text-page-title-size);
-  font-weight: 500;
-}
+  .fb-demo__header h1 {
+    margin: 0 0 var(--app-space-2);
+    font-size: var(--dh-text-page-title-size);
+    font-weight: 500;
+  }
 
-.fb-demo__header p {
-  margin: 0 0 var(--app-space-6);
-  color: var(--dh-color-text-muted);
-  max-width: 46rem;
-}
+  .fb-demo__header p {
+    margin: 0 0 var(--app-space-6);
+    color: var(--dh-color-text-muted);
+    max-width: 46rem;
+  }
 
-.fb-demo__grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
-  gap: var(--app-space-4);
-}
+  .fb-demo__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+    gap: var(--app-space-4);
+  }
 
-.fb-demo__panel {
-  border: var(--app-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-lg);
-  padding: var(--app-space-4);
-  background: var(--dh-color-surface-raised);
-}
+  .fb-demo__panel {
+    border: var(--app-border-width-thin) solid var(--dh-color-border);
+    border-radius: var(--dh-radius-lg);
+    padding: var(--app-space-4);
+    background: var(--dh-color-surface-raised);
+  }
 
-.fb-demo__panel h2 {
-  margin: 0 0 var(--app-space-2);
-  font-size: var(--dh-text-lead-size);
-  font-weight: 500;
-}
+  .fb-demo__panel h2 {
+    margin: 0 0 var(--app-space-2);
+    font-size: var(--dh-text-lead-size);
+    font-weight: 500;
+  }
 
-.fb-demo__note {
-  margin: 0 0 var(--app-space-4);
-  font-size: var(--dh-text-meta-size);
-  color: var(--dh-color-text-muted);
-}
+  .fb-demo__note {
+    margin: 0 0 var(--app-space-4);
+    font-size: var(--dh-text-meta-size);
+    color: var(--dh-color-text-muted);
+  }
 
-.fb-demo__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--app-space-2);
-}
+  .fb-demo__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--app-space-2);
+  }
 
-.fb-demo__actions button,
-.fb-demo__row button {
-  appearance: none;
-  border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
-  background: var(--dh-color-surface);
-  color: var(--dh-color-text);
-  font-size: var(--dh-text-meta-size);
-  min-height: var(--app-touch-target-min);
-  padding: var(--app-space-1) var(--app-space-3);
-  border-radius: var(--dh-radius-control);
-  cursor: pointer;
-}
-.fb-demo__actions button:hover,
-.fb-demo__row button:hover {
-  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
-  border-color: var(--dh-color-accent);
-}
+  .fb-demo__actions button,
+  .fb-demo__row button {
+    appearance: none;
+    border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
+    background: var(--dh-color-surface);
+    color: var(--dh-color-text);
+    font-size: var(--dh-text-meta-size);
+    min-height: var(--app-touch-target-min);
+    padding: var(--app-space-1) var(--app-space-3);
+    border-radius: var(--dh-radius-control);
+    cursor: pointer;
+  }
+  .fb-demo__actions button:hover,
+  .fb-demo__row button:hover {
+    background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
+    border-color: var(--dh-color-accent);
+  }
 
-.fb-demo__list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-2);
-}
+  .fb-demo__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--app-space-2);
+  }
 
-.fb-demo__row {
-  display: flex;
-  align-items: center;
-  gap: var(--app-space-2);
-}
-.fb-demo__row span {
-  flex: 1 1 auto;
-  min-width: 0;
-}
+  .fb-demo__row {
+    display: flex;
+    align-items: center;
+    gap: var(--app-space-2);
+  }
+  .fb-demo__row span {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
 
-.fb-demo__empty,
-.fb-demo__hint {
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-meta-size);
-}
+  .fb-demo__empty,
+  .fb-demo__hint {
+    color: var(--dh-color-text-muted);
+    font-size: var(--dh-text-meta-size);
+  }
 
-.fb-demo__inspector-form,
-.fb-demo__field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-2);
-}
-.fb-demo__inspector-form {
-  gap: var(--app-space-4);
+  .fb-demo__inspector-form,
+  .fb-demo__field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--app-space-2);
+  }
+  .fb-demo__inspector-form {
+    gap: var(--app-space-4);
+  }
 }

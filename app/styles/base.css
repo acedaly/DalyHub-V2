@@ -1,4 +1,21 @@
 /*
+ * V3-CSS-01 — this file declares its OWN two layers, and `app.css` imports it
+ * without a `layer()` keyword because of it.
+ *
+ * An `@import … layer(base)` would have nested the `dh-floor` block below into
+ * `base.dh-floor` — a sub-layer of `base` rather than the top-level `dh-floor`
+ * the cascade declaration names. The layer would still exist, and it would no
+ * longer be the one anything else refers to. Two explicit top-level blocks say
+ * what is meant and cannot drift.
+ *
+ *   @layer base      the document foundation: box-sizing, body type and colour,
+ *                    the focus indicator, the shared state layer, reduced
+ *                    motion, and the one prose treatment.
+ *   @layer dh-floor  the zero-specificity native-control and link floor.
+ */
+
+@layer base {
+  /*
  * M3-01 — base document styles, expressed entirely in design tokens.
  *
  * The minimal, un-opinionated foundation every page sits on: box-sizing, the
@@ -9,19 +26,19 @@
  * tokens.css.
  */
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
 
-html,
-body {
-  margin: 0;
-  padding: 0;
-}
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+  }
 
-/* MOBILE-01 — the document scroller must know about the phone bottom bar.
+  /* MOBILE-01 — the document scroller must know about the phone bottom bar.
  *
  * `scrollIntoView`, keyboard focus scrolling and anchor jumps all stop at the
  * viewport edge, which on a phone is UNDERNEATH the fixed bottom navigation. A
@@ -43,11 +60,11 @@ body {
  * between them. What the button DOES get is the end band the pane reserves
  * (`--app-fab-band` in `shell.css`), which is the M3 contract for a FAB: nothing
  * is trapped beneath it, because the end of every page clears it. */
-html {
-  scroll-padding-block-end: calc(
-    var(--app-bottomnav-height, 0px) + var(--app-space-2)
-  );
-  /*
+  html {
+    scroll-padding-block-end: calc(
+      var(--app-bottomnav-height, 0px) + var(--app-space-2)
+    );
+    /*
    * DS-03 — the same reservation at the LEADING edge, which was missing.
    *
    * The rule above reserves the band the phone's navigation bar occupies, so
@@ -62,12 +79,12 @@ html {
    * kind of token, so nothing is measured or guessed: `--app-shell-top-chrome`
    * is the desktop bar's height, and the phone bar's where that one is hidden.
    */
-  scroll-padding-block-start: calc(
-    var(--app-shell-top-chrome, 0px) + var(--app-space-2)
-  );
-}
+    scroll-padding-block-start: calc(
+      var(--app-shell-top-chrome, 0px) + var(--app-space-2)
+    );
+  }
 
-/*
+  /*
  * The page gutter and the dashboard gap are STEPPED, not fluid.
  *
  * They used to be `clamp(1rem, 4vw, 2rem)`, which gives every viewport width its
@@ -81,30 +98,30 @@ html {
  * sees them too (custom properties inherit downward only, and `html` is the
  * document scroll container).
  */
-@media (min-width: 48rem) {
-  :root {
-    --app-page-padding: var(--app-page-padding-tablet);
-    --app-dashboard-gap: var(--app-dashboard-gap-tablet);
-    --app-stat-track: var(--app-stat-track-desktop);
+  @media (min-width: 48rem) {
+    :root {
+      --app-page-padding: var(--app-page-padding-tablet);
+      --app-dashboard-gap: var(--app-dashboard-gap-tablet);
+      --app-stat-track: var(--app-stat-track-desktop);
+    }
   }
-}
 
-@media (min-width: 64rem) {
-  :root {
-    --app-page-padding: var(--app-page-padding-desktop);
-    --app-dashboard-gap: var(--app-dashboard-gap-desktop);
+  @media (min-width: 64rem) {
+    :root {
+      --app-page-padding: var(--app-page-padding-desktop);
+      --app-dashboard-gap: var(--app-dashboard-gap-desktop);
+    }
   }
-}
 
-body {
-  background: var(--dh-color-bg);
-  color: var(--dh-color-text);
-  font: var(--t-body);
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-}
+  body {
+    background: var(--dh-color-bg);
+    color: var(--dh-color-text);
+    font: var(--t-body);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
 
-/*
+  /*
  * The focus indicator: M3's 2px primary outline, offset so it reads as a ring
  * around the component rather than as part of it (WCAG 2.2 AA, AGENTS.md §15).
  * `primary` clears 3:1 against every surface the ring is drawn over, in both
@@ -114,7 +131,7 @@ body {
  * own corner radius, so a fully-rounded button gets a fully-rounded ring and a
  * text field gets a 4px one, with nothing to keep in sync.
  */
-/*
+  /*
  * DS-02 — the indicator is the three DalyHub focus tokens (DS-01 §8), not a
  * per-component decision. It still follows each component's own radius, so
  * there is nothing to keep in sync.
@@ -127,16 +144,16 @@ body {
  * 36px button starts to look like a second border. Thickness, contrast and the
  * fact that every focusable thing has one are untouched.
  */
-:focus-visible {
-  outline: var(--dh-focus-width) solid var(--dh-focus-color);
-  outline-offset: var(--dh-focus-offset);
-}
+  :focus-visible {
+    outline: var(--dh-focus-width) solid var(--dh-focus-color);
+    outline-offset: var(--dh-focus-offset);
+  }
 
-/* -------------------------------------------------------------------------- */
-/* The M3 state layer                                                         */
-/* -------------------------------------------------------------------------- */
+  /* -------------------------------------------------------------------------- */
+  /* The M3 state layer                                                         */
+  /* -------------------------------------------------------------------------- */
 
-/*
+  /*
  * An interactive M3 component does not swap its container colour on hover; it
  * grows a translucent layer of its own CONTENT colour on top of whatever it is
  * already painted with. That is why one implementation covers a filled button, a
@@ -207,28 +224,28 @@ body {
  * opacity is not one. Repetition that a test can see beats a fake token it
  * cannot.
  */
-:is(
-  .md-state-layer,
-  .record-action,
-  .dh-card__action,
-  .dh-overflow-menu__trigger,
-  .dh-inline-edit__trigger,
-  .dh-inline-edit__edit,
-  .dh-filter-btn--ghost
-) {
-  position: relative;
-}
+  :is(
+    .md-state-layer,
+    .record-action,
+    .dh-card__action,
+    .dh-overflow-menu__trigger,
+    .dh-inline-edit__trigger,
+    .dh-inline-edit__edit,
+    .dh-filter-btn--ghost
+  ) {
+    position: relative;
+  }
 
-:is(
-  .md-state-layer,
-  .record-action,
-  .dh-card__action,
-  .dh-overflow-menu__trigger,
-  .dh-inline-edit__trigger,
-  .dh-inline-edit__edit,
-  .dh-filter-btn--ghost
-)::after {
-  /*
+  :is(
+    .md-state-layer,
+    .record-action,
+    .dh-card__action,
+    .dh-overflow-menu__trigger,
+    .dh-inline-edit__trigger,
+    .dh-inline-edit__edit,
+    .dh-filter-btn--ghost
+  )::after {
+    /*
    * `content: ""`, not `content: none`.
    *
    * This said `none` from M3-INT until 2026-08-25, and `none` means the
@@ -248,29 +265,29 @@ body {
    * hand-rolled hover fills with this class and would otherwise have shipped
    * twenty-six controls with no hover state at all.
    */
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: currentColor;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--dh-motion-instant) var(--dh-ease-standard);
-}
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: currentColor;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--dh-motion-instant) var(--dh-ease-standard);
+  }
 
-:is(
-    .md-state-layer,
-    .record-action,
-    .dh-card__action,
-    .dh-overflow-menu__trigger,
-    .dh-inline-edit__trigger,
-    .dh-inline-edit__edit,
-    .dh-filter-btn--ghost
-  ):hover::after {
-  opacity: var(--dh-state-hover-opacity);
-}
+  :is(
+      .md-state-layer,
+      .record-action,
+      .dh-card__action,
+      .dh-overflow-menu__trigger,
+      .dh-inline-edit__trigger,
+      .dh-inline-edit__edit,
+      .dh-filter-btn--ghost
+    ):hover::after {
+    opacity: var(--dh-state-hover-opacity);
+  }
 
-/*
+  /*
  * FOCUS. M3 gives keyboard focus a state layer of its own, and DalyHub needs it
  * for a second reason: several of these controls (the inline-edit trigger, the
  * editor toolbar) previously paired their hover fill with `:focus-visible`
@@ -279,49 +296,49 @@ body {
  * rather than for the two that remembered. The 2px `:focus-visible` outline is
  * unaffected and still does the heavy lifting.
  */
-:is(
-    .md-state-layer,
-    .record-action,
-    .dh-card__action,
-    .dh-overflow-menu__trigger,
-    .dh-inline-edit__trigger,
-    .dh-inline-edit__edit,
-    .dh-filter-btn--ghost
-  ):focus-visible::after {
-  opacity: var(--dh-state-focus-opacity);
-}
+  :is(
+      .md-state-layer,
+      .record-action,
+      .dh-card__action,
+      .dh-overflow-menu__trigger,
+      .dh-inline-edit__trigger,
+      .dh-inline-edit__edit,
+      .dh-filter-btn--ghost
+    ):focus-visible::after {
+    opacity: var(--dh-state-focus-opacity);
+  }
 
-/* PRESSED. After hover and focus so it wins while the pointer is down — and the
+  /* PRESSED. After hover and focus so it wins while the pointer is down — and the
  * state the hand-rolled implementations almost universally lacked, because a
  * copied `:hover` rule rarely grows an `:active` sibling. */
-:is(
-    .md-state-layer,
-    .record-action,
-    .dh-card__action,
-    .dh-overflow-menu__trigger,
-    .dh-inline-edit__trigger,
-    .dh-inline-edit__edit,
-    .dh-filter-btn--ghost
-  ):active::after {
-  opacity: var(--dh-state-pressed-opacity);
-}
+  :is(
+      .md-state-layer,
+      .record-action,
+      .dh-card__action,
+      .dh-overflow-menu__trigger,
+      .dh-inline-edit__trigger,
+      .dh-inline-edit__edit,
+      .dh-filter-btn--ghost
+    ):active::after {
+    opacity: var(--dh-state-pressed-opacity);
+  }
 
-/* A disabled component has no states at all — the M3 disabled treatment (12%
+  /* A disabled component has no states at all — the M3 disabled treatment (12%
  * container, 38% content) replaces them. Last, so it beats hover/focus/pressed
  * whatever the pointer does. */
-:is(
-    .md-state-layer,
-    .record-action,
-    .dh-card__action,
-    .dh-overflow-menu__trigger,
-    .dh-inline-edit__trigger,
-    .dh-inline-edit__edit,
-    .dh-filter-btn--ghost
-  ):is(:disabled, [aria-disabled="true"])::after {
-  opacity: 0;
-}
+  :is(
+      .md-state-layer,
+      .record-action,
+      .dh-card__action,
+      .dh-overflow-menu__trigger,
+      .dh-inline-edit__trigger,
+      .dh-inline-edit__edit,
+      .dh-filter-btn--ghost
+    ):is(:disabled, [aria-disabled="true"])::after {
+    opacity: 0;
+  }
 
-/*
+  /*
  * SELECTED is not an opacity in this contract, and that is deliberate.
  *
  * M3 draws a selected navigation row, a selected segment, an active toolbar
@@ -332,11 +349,11 @@ body {
  * `currentColor` on a selected control is already `on-secondary-container`.
  */
 
-/* -------------------------------------------------------------------------- */
-/* DS-14 — the CONTROL BASELINE                                                */
-/* -------------------------------------------------------------------------- */
+  /* -------------------------------------------------------------------------- */
+  /* DS-14 — the CONTROL BASELINE                                                */
+  /* -------------------------------------------------------------------------- */
 
-/*
+  /*
  * Every native form control in the product, whether or not a module remembered
  * to reach for `.dh-input`.
  *
@@ -352,7 +369,7 @@ body {
  * styling still win without needing `!important` or a more specific selector.
  * Only appearance is set — no layout, no width — so nothing reflows.
  */
-/*
+  /*
  * UNTITLED-04 — the native-control and link FLOOR lives in a cascade LAYER.
  *
  * Every rule below is `:where(...)`, i.e. zero specificity, and each of their
@@ -372,6 +389,452 @@ body {
  * Legacy unlayered stylesheets are unaffected: they still outrank everything
  * here, as they did before.
  */
+
+  /* Honour the user's reduced-motion preference: motion never carries meaning that
+ * is lost when it is disabled (AGENTS.md §15, DESIGN_SYSTEM.md → Motion). */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: var(--dh-motion-none) !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: var(--dh-motion-none) !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* Forced-colors (Windows High Contrast) compatibility (DS-11). In forced-colors
+ * mode the OS replaces authored colours with its own palette; a custom-property
+ * outline colour is discarded, so the keyboard focus ring is re-pinned to the
+ * system `Highlight` colour to stay visible. Nothing else needs overriding: the
+ * design system conveys state with icon/text + shape (never colour alone) and
+ * gives modal surfaces real borders, both of which survive the forced palette. */
+  @media (forced-colors: active) {
+    :focus-visible {
+      outline-color: Highlight;
+    }
+  }
+
+  /* Visually-hidden but screen-reader-available content (labels, live regions,
+ * keyboard instructions). Shared by DS-02/03/04/07 and any component that needs
+ * an accessible name without visible text. */
+  .dh-visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* -------------------------------------------------------------------------- */
+  /* Generic content surfaces (error page, home, module placeholders).          */
+  /* The PX-02 pane uses `.dh-pane-body` (shell.css) for padded document content; */
+  /* `.page` remains for genuine standalone document pages (e.g. the error page). */
+  /* -------------------------------------------------------------------------- */
+
+  .page {
+    max-width: var(--app-width-narrow);
+    margin-inline: auto;
+    padding: clamp(var(--app-space-6), 5vw, var(--app-space-16))
+      var(--app-page-padding);
+  }
+
+  .page h1 {
+    font-size: var(--dh-text-page-title-size);
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    margin: 0 0 var(--app-space-2);
+  }
+
+  /*
+ * UIX-06 — the route error / not-found surface.
+ *
+ * It cannot render the app shell (see `root.tsx`), so it borrows the product's
+ * EMPTY-STATE anatomy instead: centred, one heading, one line, one action. Same
+ * shape as every other "nothing here" in the application, drawn with the same
+ * tokens, so the one screen an owner reaches by accident stops being the one
+ * screen that looks like a different product.
+ */
+  .dh-route-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--app-space-2);
+    text-align: center;
+    color: var(--dh-color-text-muted);
+  }
+
+  .dh-route-error h1 {
+    color: var(--dh-color-text);
+    font-size: var(--dh-text-record-title-size);
+    line-height: var(--dh-text-record-title-line-height);
+    font-weight: var(--dh-text-record-title-weight);
+    letter-spacing: var(--dh-text-display-tracking);
+  }
+
+  .dh-route-error p {
+    margin: 0;
+    max-width: var(--app-width-narrow);
+  }
+
+  .dh-route-error__actions {
+    margin-block-start: var(--app-space-4);
+  }
+
+  .page h2,
+  .dh-pane-body h2 {
+    font-size: var(--dh-text-section-title-size);
+    line-height: 1.35;
+    margin: var(--app-space-6) 0 var(--app-space-2);
+  }
+
+  .lead {
+    font-size: var(--dh-text-lead-size);
+    color: var(--dh-color-text-muted);
+    margin: 0 0 var(--app-space-4);
+  }
+
+  .muted {
+    color: var(--dh-color-text-muted);
+  }
+
+  /*
+ * PROSE links inside a generic page or pane body.
+ *
+ * UIX-06 excluded anchors that are BUTTONS. `.dh-btn--primary` paints
+ * `on-primary` on a `primary` container; this rule then repainted the label
+ * `primary` — the same colour as the container — so an anchor styled as a
+ * filled button rendered as an empty violet pill with an invisible label. It
+ * was live on the not-found surface's only action in both appearances, and it
+ * is a 1:1 contrast failure wherever else an `<a class="dh-btn">` sits inside
+ * one of these two containers (WCAG 1.4.3).
+ *
+ * `:not(.dh-btn)` rather than a `.dh-btn` override, because the button already
+ * states its own colour correctly for all five variants — the bug is that a
+ * container rule was reaching into a component.
+ */
+  .page a:not(.dh-btn),
+  .dh-pane-body a:not(.dh-btn) {
+    color: var(--dh-color-accent);
+  }
+
+  .page ul,
+  .dh-pane-body ul {
+    padding-left: var(--app-space-5);
+    margin: 0 0 var(--app-space-4);
+  }
+
+  .page li,
+  .dh-pane-body li {
+    margin-bottom: var(--app-space-1);
+  }
+
+  .page hr {
+    border: none;
+    border-top: var(--app-border-width-thin) solid var(--dh-color-border);
+    margin: var(--app-space-8) 0;
+  }
+
+  /* -------------------------------------------------------------------------- */
+  /* PX-03 — the "Coming Soon" module-placeholder section.                      */
+  /* -------------------------------------------------------------------------- */
+
+  /*
+ * DS-14 — the honest placeholder, CONTAINED.
+ *
+ * `/ai` says the AI layer is not built, and that wording is unchanged and stays
+ * unchanged: no teaser, no waitlist, no preview, no disabled controls implying
+ * a feature exists. What changes is that the statement stops floating on an
+ * empty canvas and sits in the same card every other surface uses, so "not
+ * built yet" reads as a deliberate answer rather than as a page that failed to
+ * finish loading. Restyling a placeholder is allowed to make it look designed;
+ * it is not allowed to make it look implemented.
+ */
+  .dh-coming-soon {
+    margin-top: var(--app-space-6);
+    padding: var(--app-space-6);
+    max-width: var(--app-width-narrow);
+    background: var(--dh-color-surface);
+    border: var(--app-border-width-thin) solid var(--dh-color-border);
+    border-radius: var(--dh-radius-lg);
+  }
+
+  .dh-coming-soon__title {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--app-space-2);
+    font-size: var(--dh-text-lead-size);
+    font-weight: 500;
+    color: var(--dh-color-text);
+    margin: 0 0 var(--app-space-3);
+  }
+
+  .dh-coming-soon__label {
+    font-weight: 500;
+    margin: 0 0 var(--app-space-2);
+  }
+
+  pre {
+    overflow-x: auto;
+    padding: var(--app-space-4);
+    border: var(--app-border-width-thin) solid var(--dh-color-border);
+    border-radius: var(--dh-radius-md);
+    background: var(--dh-color-surface);
+    font-family: var(--md-ref-typeface-mono);
+    font-size: var(--dh-text-meta-size);
+  }
+
+  .home-modules {
+    padding-left: var(--app-space-5);
+  }
+
+  /*
+ * M3-01 — the shared Markdown sink (FND-08), and the product's ONE prose
+ * treatment.
+ *
+ * DS-14 gave prose its own serif inside a `Reading` region; ADR-074 decision 6
+ * retired both. Prose is now the plain typeface at `body-large` on a 65ch
+ * measure — one decision, applied everywhere long-form text renders, with no
+ * region wrapper to declare and no second family to load.
+ *
+ * The boundary between "something you read" and "something you operate" is now
+ * carried by SIZE and MEASURE rather than by a typeface: prose is `body-large`
+ * on a capped column, and the chrome around it is `label-large` and
+ * `body-medium` at full width.
+ */
+  .markdown-content {
+    max-inline-size: var(--app-width-prose);
+    font-size: var(--dh-text-lead-size);
+    line-height: var(--dh-text-lead-line-height);
+    letter-spacing: var(--dh-text-body-tracking);
+  }
+
+  /*
+ * A heading inside the column labels the prose rather than being it, so it steps
+ * onto the title styles and gets its space from the rhythm rather than from a
+ * browser default.
+ */
+  /*
+ * UIX-04 — a document heading LADDER, not three names for the same size.
+ *
+ * This block used to map h1 → `title-large` (22), h2 → `title-medium` (16) and
+ * h3–h6 → `body-large` (16). Two of those are the size of the paragraph beneath
+ * them, so a note with `##` sections and `###` sub-sections rendered as an
+ * undifferentiated wall: the outline the author wrote was invisible to the
+ * reader. The four `--app-writing-h*` sizes step properly (28/22/18/16), and the
+ * bottom rung earns its distinction from weight and colour rather than from a
+ * size the scale does not have.
+ *
+ * Space above a heading is larger than space below it, so a heading belongs to
+ * the text that FOLLOWS it rather than floating between two blocks — the single
+ * most reliable cue that a document has structure.
+ */
+  .markdown-content :is(h1, h2, h3, h4, h5, h6) {
+    font-family: var(--md-ref-typeface-plain);
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+    margin-block: var(--app-space-8) var(--app-space-2);
+    text-wrap: balance;
+  }
+
+  .markdown-content :is(h1, h2, h3, h4, h5, h6):first-child {
+    margin-block-start: 0;
+  }
+
+  .markdown-content h1 {
+    font-size: var(--app-writing-h1-size);
+  }
+  .markdown-content h2 {
+    font-size: var(--app-writing-h2-size);
+  }
+  .markdown-content h3 {
+    font-size: var(--app-writing-h3-size);
+  }
+  .markdown-content :is(h4, h5, h6) {
+    font-size: var(--app-writing-h4-size);
+    color: var(--dh-color-text-muted);
+  }
+
+  /*
+ * Paragraph rhythm is expressed in `em`, so it tracks the reader's own text
+ * size: a paragraph gap fixed in rem grows out of proportion the moment OS text
+ * scaling is on (AGENTS.md §15). The same token feeds the live editor, so
+ * toggling Read/Write does not reflow the document.
+ */
+  .markdown-content p {
+    margin-block: 0 var(--app-writing-paragraph-gap);
+  }
+
+  .markdown-content > :last-child {
+    margin-block-end: 0;
+  }
+
+  /* A quotation is set off by a SQUARE single-sided rule — a rounded corner needs
+ * a border all the way around it (brief §2), and one rounded edge on a
+ * three-sided shape is the malformed corner the rule exists to prevent. */
+  .markdown-content blockquote {
+    margin-inline: 0;
+    margin-block: var(--app-space-4);
+    padding-inline-start: var(--app-space-4);
+    border-inline-start: var(--app-border-width-thick) solid
+      var(--dh-color-border);
+    color: var(--dh-color-text-muted);
+  }
+
+  /*
+ * UIX-04 — a list is a set of paragraphs, and it is spaced like one.
+ *
+ * The previous rule gave adjacent items 4px and nested content nothing, so a
+ * numbered list of multi-sentence points (the shape most working notes take)
+ * ran together into a block the eye could not separate. Items now carry the same
+ * rhythm as paragraphs, a paragraph INSIDE an item keeps its own spacing, and a
+ * nested list tightens rather than compounding the gap.
+ */
+  .markdown-content :is(ul, ol) {
+    margin-block: 0 var(--app-writing-paragraph-gap);
+    padding-inline-start: var(--app-space-5);
+  }
+
+  .markdown-content li + li {
+    margin-block-start: 0.4em;
+  }
+
+  .markdown-content li > p {
+    margin-block-end: 0.4em;
+  }
+
+  .markdown-content li > :last-child {
+    margin-block-end: 0;
+  }
+
+  /* A nested list belongs to the item above it — no double gap at the seam. */
+  .markdown-content li :is(ul, ol) {
+    margin-block: 0.4em 0;
+  }
+
+  /* GFM task lists: the checkbox is part of the line, not an indent of its own. */
+  .markdown-content li:has(> input[type="checkbox"]) {
+    list-style: none;
+    margin-inline-start: calc(-1 * var(--app-space-5));
+    padding-inline-start: var(--app-space-5);
+  }
+
+  .markdown-content li > input[type="checkbox"] {
+    margin-inline-start: calc(-1 * var(--app-space-5));
+    margin-inline-end: var(--app-space-2);
+    accent-color: var(--dh-color-accent);
+  }
+
+  .markdown-content hr {
+    margin-block: var(--app-space-6);
+    border: none;
+    border-block-start: var(--app-border-width-thin) solid
+      var(--dh-color-border);
+  }
+
+  /*
+ * UIX-04 §46 — a link is visible without being loud.
+ *
+ * The design token, never the browser blue, and an underline offset far enough
+ * from the baseline that descenders are not struck through — so the link reads
+ * as text with an attribute rather than as a button in a sentence. Meaning is
+ * never colour-only: the underline is always there (AGENTS.md §15).
+ */
+  .markdown-content a {
+    color: var(--dh-color-accent);
+    text-decoration: underline;
+    text-decoration-thickness: var(--app-border-width-thin);
+    text-underline-offset: 0.2em;
+    text-decoration-color: color-mix(
+      in srgb,
+      var(--dh-color-accent) 45%,
+      transparent
+    );
+    /* A pasted URL must wrap rather than push the whole column sideways. */
+    overflow-wrap: anywhere;
+  }
+
+  .markdown-content a:hover {
+    text-decoration-color: currentcolor;
+  }
+
+  /* Code is sans-adjacent chrome inside prose: monospace, and never the serif. */
+  .markdown-content :is(code, pre) {
+    font-family: var(--md-ref-typeface-mono);
+    font-size: 0.9em;
+  }
+
+  /*
+ * UIX-04 §47 — inline code and fenced blocks.
+ *
+ * Inline code gets a quiet container so it is legible mid-sentence without
+ * becoming a second colour in the paragraph. A fence is a block the reader
+ * scans, so it sits on the sunken surface and scrolls INSIDE itself: a long
+ * line of code must never widen the document (the failure that puts a
+ * horizontal scrollbar on the whole page at 390px).
+ */
+  .markdown-content :not(pre) > code {
+    padding: 0.1em 0.32em;
+    border-radius: var(--dh-radius-sm);
+    background: var(--dh-color-bg-sunken);
+    color: var(--dh-color-text);
+  }
+
+  .markdown-content pre {
+    margin-block: var(--app-space-4);
+    padding: var(--app-space-3) var(--app-space-4);
+    border-radius: var(--dh-radius-md);
+    background: var(--dh-color-bg-sunken);
+    overflow-x: auto;
+    line-height: 1.55;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .markdown-content pre > code {
+    padding: 0;
+    background: none;
+  }
+
+  /* A table inside prose is a COLLECTION — it is scanned, not read — so it drops
+ * the serif and the reading measure and takes the collection's hairlines and
+ * tabular figures. It scrolls inside its own box rather than widening the page. */
+  .markdown-content table {
+    display: block;
+    overflow-x: auto;
+    max-inline-size: 100%;
+    margin-block: var(--app-space-4);
+    border-collapse: collapse;
+    font-family: var(--md-ref-typeface-plain);
+    font-size: var(--dh-text-body-size);
+    line-height: 1.4;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .markdown-content :is(th, td) {
+    padding: var(--app-space-2) var(--app-space-3);
+    border-block-end: var(--app-border-width-thin) solid var(--dh-color-border);
+    text-align: start;
+  }
+
+  .markdown-content th {
+    font-weight: 500;
+    color: var(--dh-color-text-muted);
+  }
+
+  /* -------------------------------------------------------------------------- */
+  /* Contextual row actions                                                     */
+  /* -------------------------------------------------------------------------- */
+
+  /* DHDS-08 moved this contract to `motion.css`, where the rest of the product's
+ * reveal grammar lives. The class names (`dh-action-reveal`,
+ * `data-dh-action-context`) and the behaviour are unchanged. */
+}
+
 @layer dh-floor {
   :where(
     input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(
@@ -517,446 +980,3 @@ body {
     color: var(--dh-color-accent);
   }
 }
-
-/* Honour the user's reduced-motion preference: motion never carries meaning that
- * is lost when it is disabled (AGENTS.md §15, DESIGN_SYSTEM.md → Motion). */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: var(--dh-motion-none) !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: var(--dh-motion-none) !important;
-    scroll-behavior: auto !important;
-  }
-}
-
-/* Forced-colors (Windows High Contrast) compatibility (DS-11). In forced-colors
- * mode the OS replaces authored colours with its own palette; a custom-property
- * outline colour is discarded, so the keyboard focus ring is re-pinned to the
- * system `Highlight` colour to stay visible. Nothing else needs overriding: the
- * design system conveys state with icon/text + shape (never colour alone) and
- * gives modal surfaces real borders, both of which survive the forced palette. */
-@media (forced-colors: active) {
-  :focus-visible {
-    outline-color: Highlight;
-  }
-}
-
-/* Visually-hidden but screen-reader-available content (labels, live regions,
- * keyboard instructions). Shared by DS-02/03/04/07 and any component that needs
- * an accessible name without visible text. */
-.dh-visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Generic content surfaces (error page, home, module placeholders).          */
-/* The PX-02 pane uses `.dh-pane-body` (shell.css) for padded document content; */
-/* `.page` remains for genuine standalone document pages (e.g. the error page). */
-/* -------------------------------------------------------------------------- */
-
-.page {
-  max-width: var(--app-width-narrow);
-  margin-inline: auto;
-  padding: clamp(var(--app-space-6), 5vw, var(--app-space-16))
-    var(--app-page-padding);
-}
-
-.page h1 {
-  font-size: var(--dh-text-page-title-size);
-  line-height: 1.2;
-  letter-spacing: -0.01em;
-  margin: 0 0 var(--app-space-2);
-}
-
-/*
- * UIX-06 — the route error / not-found surface.
- *
- * It cannot render the app shell (see `root.tsx`), so it borrows the product's
- * EMPTY-STATE anatomy instead: centred, one heading, one line, one action. Same
- * shape as every other "nothing here" in the application, drawn with the same
- * tokens, so the one screen an owner reaches by accident stops being the one
- * screen that looks like a different product.
- */
-.dh-route-error {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--app-space-2);
-  text-align: center;
-  color: var(--dh-color-text-muted);
-}
-
-.dh-route-error h1 {
-  color: var(--dh-color-text);
-  font-size: var(--dh-text-record-title-size);
-  line-height: var(--dh-text-record-title-line-height);
-  font-weight: var(--dh-text-record-title-weight);
-  letter-spacing: var(--dh-text-display-tracking);
-}
-
-.dh-route-error p {
-  margin: 0;
-  max-width: var(--app-width-narrow);
-}
-
-.dh-route-error__actions {
-  margin-block-start: var(--app-space-4);
-}
-
-.page h2,
-.dh-pane-body h2 {
-  font-size: var(--dh-text-section-title-size);
-  line-height: 1.35;
-  margin: var(--app-space-6) 0 var(--app-space-2);
-}
-
-.lead {
-  font-size: var(--dh-text-lead-size);
-  color: var(--dh-color-text-muted);
-  margin: 0 0 var(--app-space-4);
-}
-
-.muted {
-  color: var(--dh-color-text-muted);
-}
-
-/*
- * PROSE links inside a generic page or pane body.
- *
- * UIX-06 excluded anchors that are BUTTONS. `.dh-btn--primary` paints
- * `on-primary` on a `primary` container; this rule then repainted the label
- * `primary` — the same colour as the container — so an anchor styled as a
- * filled button rendered as an empty violet pill with an invisible label. It
- * was live on the not-found surface's only action in both appearances, and it
- * is a 1:1 contrast failure wherever else an `<a class="dh-btn">` sits inside
- * one of these two containers (WCAG 1.4.3).
- *
- * `:not(.dh-btn)` rather than a `.dh-btn` override, because the button already
- * states its own colour correctly for all five variants — the bug is that a
- * container rule was reaching into a component.
- */
-.page a:not(.dh-btn),
-.dh-pane-body a:not(.dh-btn) {
-  color: var(--dh-color-accent);
-}
-
-.page ul,
-.dh-pane-body ul {
-  padding-left: var(--app-space-5);
-  margin: 0 0 var(--app-space-4);
-}
-
-.page li,
-.dh-pane-body li {
-  margin-bottom: var(--app-space-1);
-}
-
-.page hr {
-  border: none;
-  border-top: var(--app-border-width-thin) solid var(--dh-color-border);
-  margin: var(--app-space-8) 0;
-}
-
-/* -------------------------------------------------------------------------- */
-/* PX-03 — the "Coming Soon" module-placeholder section.                      */
-/* -------------------------------------------------------------------------- */
-
-/*
- * DS-14 — the honest placeholder, CONTAINED.
- *
- * `/ai` says the AI layer is not built, and that wording is unchanged and stays
- * unchanged: no teaser, no waitlist, no preview, no disabled controls implying
- * a feature exists. What changes is that the statement stops floating on an
- * empty canvas and sits in the same card every other surface uses, so "not
- * built yet" reads as a deliberate answer rather than as a page that failed to
- * finish loading. Restyling a placeholder is allowed to make it look designed;
- * it is not allowed to make it look implemented.
- */
-.dh-coming-soon {
-  margin-top: var(--app-space-6);
-  padding: var(--app-space-6);
-  max-width: var(--app-width-narrow);
-  background: var(--dh-color-surface);
-  border: var(--app-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-lg);
-}
-
-.dh-coming-soon__title {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--app-space-2);
-  font-size: var(--dh-text-lead-size);
-  font-weight: 500;
-  color: var(--dh-color-text);
-  margin: 0 0 var(--app-space-3);
-}
-
-.dh-coming-soon__label {
-  font-weight: 500;
-  margin: 0 0 var(--app-space-2);
-}
-
-pre {
-  overflow-x: auto;
-  padding: var(--app-space-4);
-  border: var(--app-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface);
-  font-family: var(--md-ref-typeface-mono);
-  font-size: var(--dh-text-meta-size);
-}
-
-.home-modules {
-  padding-left: var(--app-space-5);
-}
-
-/*
- * M3-01 — the shared Markdown sink (FND-08), and the product's ONE prose
- * treatment.
- *
- * DS-14 gave prose its own serif inside a `Reading` region; ADR-074 decision 6
- * retired both. Prose is now the plain typeface at `body-large` on a 65ch
- * measure — one decision, applied everywhere long-form text renders, with no
- * region wrapper to declare and no second family to load.
- *
- * The boundary between "something you read" and "something you operate" is now
- * carried by SIZE and MEASURE rather than by a typeface: prose is `body-large`
- * on a capped column, and the chrome around it is `label-large` and
- * `body-medium` at full width.
- */
-.markdown-content {
-  max-inline-size: var(--app-width-prose);
-  font-size: var(--dh-text-lead-size);
-  line-height: var(--dh-text-lead-line-height);
-  letter-spacing: var(--dh-text-body-tracking);
-}
-
-/*
- * A heading inside the column labels the prose rather than being it, so it steps
- * onto the title styles and gets its space from the rhythm rather than from a
- * browser default.
- */
-/*
- * UIX-04 — a document heading LADDER, not three names for the same size.
- *
- * This block used to map h1 → `title-large` (22), h2 → `title-medium` (16) and
- * h3–h6 → `body-large` (16). Two of those are the size of the paragraph beneath
- * them, so a note with `##` sections and `###` sub-sections rendered as an
- * undifferentiated wall: the outline the author wrote was invisible to the
- * reader. The four `--app-writing-h*` sizes step properly (28/22/18/16), and the
- * bottom rung earns its distinction from weight and colour rather than from a
- * size the scale does not have.
- *
- * Space above a heading is larger than space below it, so a heading belongs to
- * the text that FOLLOWS it rather than floating between two blocks — the single
- * most reliable cue that a document has structure.
- */
-.markdown-content :is(h1, h2, h3, h4, h5, h6) {
-  font-family: var(--md-ref-typeface-plain);
-  font-weight: 600;
-  line-height: 1.3;
-  letter-spacing: -0.01em;
-  margin-block: var(--app-space-8) var(--app-space-2);
-  text-wrap: balance;
-}
-
-.markdown-content :is(h1, h2, h3, h4, h5, h6):first-child {
-  margin-block-start: 0;
-}
-
-.markdown-content h1 {
-  font-size: var(--app-writing-h1-size);
-}
-.markdown-content h2 {
-  font-size: var(--app-writing-h2-size);
-}
-.markdown-content h3 {
-  font-size: var(--app-writing-h3-size);
-}
-.markdown-content :is(h4, h5, h6) {
-  font-size: var(--app-writing-h4-size);
-  color: var(--dh-color-text-muted);
-}
-
-/*
- * Paragraph rhythm is expressed in `em`, so it tracks the reader's own text
- * size: a paragraph gap fixed in rem grows out of proportion the moment OS text
- * scaling is on (AGENTS.md §15). The same token feeds the live editor, so
- * toggling Read/Write does not reflow the document.
- */
-.markdown-content p {
-  margin-block: 0 var(--app-writing-paragraph-gap);
-}
-
-.markdown-content > :last-child {
-  margin-block-end: 0;
-}
-
-/* A quotation is set off by a SQUARE single-sided rule — a rounded corner needs
- * a border all the way around it (brief §2), and one rounded edge on a
- * three-sided shape is the malformed corner the rule exists to prevent. */
-.markdown-content blockquote {
-  margin-inline: 0;
-  margin-block: var(--app-space-4);
-  padding-inline-start: var(--app-space-4);
-  border-inline-start: var(--app-border-width-thick) solid
-    var(--dh-color-border);
-  color: var(--dh-color-text-muted);
-}
-
-/*
- * UIX-04 — a list is a set of paragraphs, and it is spaced like one.
- *
- * The previous rule gave adjacent items 4px and nested content nothing, so a
- * numbered list of multi-sentence points (the shape most working notes take)
- * ran together into a block the eye could not separate. Items now carry the same
- * rhythm as paragraphs, a paragraph INSIDE an item keeps its own spacing, and a
- * nested list tightens rather than compounding the gap.
- */
-.markdown-content :is(ul, ol) {
-  margin-block: 0 var(--app-writing-paragraph-gap);
-  padding-inline-start: var(--app-space-5);
-}
-
-.markdown-content li + li {
-  margin-block-start: 0.4em;
-}
-
-.markdown-content li > p {
-  margin-block-end: 0.4em;
-}
-
-.markdown-content li > :last-child {
-  margin-block-end: 0;
-}
-
-/* A nested list belongs to the item above it — no double gap at the seam. */
-.markdown-content li :is(ul, ol) {
-  margin-block: 0.4em 0;
-}
-
-/* GFM task lists: the checkbox is part of the line, not an indent of its own. */
-.markdown-content li:has(> input[type="checkbox"]) {
-  list-style: none;
-  margin-inline-start: calc(-1 * var(--app-space-5));
-  padding-inline-start: var(--app-space-5);
-}
-
-.markdown-content li > input[type="checkbox"] {
-  margin-inline-start: calc(-1 * var(--app-space-5));
-  margin-inline-end: var(--app-space-2);
-  accent-color: var(--dh-color-accent);
-}
-
-.markdown-content hr {
-  margin-block: var(--app-space-6);
-  border: none;
-  border-block-start: var(--app-border-width-thin) solid var(--dh-color-border);
-}
-
-/*
- * UIX-04 §46 — a link is visible without being loud.
- *
- * The design token, never the browser blue, and an underline offset far enough
- * from the baseline that descenders are not struck through — so the link reads
- * as text with an attribute rather than as a button in a sentence. Meaning is
- * never colour-only: the underline is always there (AGENTS.md §15).
- */
-.markdown-content a {
-  color: var(--dh-color-accent);
-  text-decoration: underline;
-  text-decoration-thickness: var(--app-border-width-thin);
-  text-underline-offset: 0.2em;
-  text-decoration-color: color-mix(
-    in srgb,
-    var(--dh-color-accent) 45%,
-    transparent
-  );
-  /* A pasted URL must wrap rather than push the whole column sideways. */
-  overflow-wrap: anywhere;
-}
-
-.markdown-content a:hover {
-  text-decoration-color: currentcolor;
-}
-
-/* Code is sans-adjacent chrome inside prose: monospace, and never the serif. */
-.markdown-content :is(code, pre) {
-  font-family: var(--md-ref-typeface-mono);
-  font-size: 0.9em;
-}
-
-/*
- * UIX-04 §47 — inline code and fenced blocks.
- *
- * Inline code gets a quiet container so it is legible mid-sentence without
- * becoming a second colour in the paragraph. A fence is a block the reader
- * scans, so it sits on the sunken surface and scrolls INSIDE itself: a long
- * line of code must never widen the document (the failure that puts a
- * horizontal scrollbar on the whole page at 390px).
- */
-.markdown-content :not(pre) > code {
-  padding: 0.1em 0.32em;
-  border-radius: var(--dh-radius-sm);
-  background: var(--dh-color-bg-sunken);
-  color: var(--dh-color-text);
-}
-
-.markdown-content pre {
-  margin-block: var(--app-space-4);
-  padding: var(--app-space-3) var(--app-space-4);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-bg-sunken);
-  overflow-x: auto;
-  line-height: 1.55;
-  -webkit-overflow-scrolling: touch;
-}
-
-.markdown-content pre > code {
-  padding: 0;
-  background: none;
-}
-
-/* A table inside prose is a COLLECTION — it is scanned, not read — so it drops
- * the serif and the reading measure and takes the collection's hairlines and
- * tabular figures. It scrolls inside its own box rather than widening the page. */
-.markdown-content table {
-  display: block;
-  overflow-x: auto;
-  max-inline-size: 100%;
-  margin-block: var(--app-space-4);
-  border-collapse: collapse;
-  font-family: var(--md-ref-typeface-plain);
-  font-size: var(--dh-text-body-size);
-  line-height: 1.4;
-  font-variant-numeric: tabular-nums;
-}
-
-.markdown-content :is(th, td) {
-  padding: var(--app-space-2) var(--app-space-3);
-  border-block-end: var(--app-border-width-thin) solid var(--dh-color-border);
-  text-align: start;
-}
-
-.markdown-content th {
-  font-weight: 500;
-  color: var(--dh-color-text-muted);
-}
-
-/* -------------------------------------------------------------------------- */
-/* Contextual row actions                                                     */
-/* -------------------------------------------------------------------------- */
-
-/* DHDS-08 moved this contract to `motion.css`, where the rest of the product's
- * reveal grammar lives. The class names (`dh-action-reveal`,
- * `data-dh-action-context`) and the behaviour are unchanged. */

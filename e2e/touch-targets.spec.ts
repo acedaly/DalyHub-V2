@@ -310,3 +310,73 @@ test.describe("touch targets — row actions at phone widths with a POINTER", ()
     });
   }
 });
+
+/**
+ * V3-CSS-01 — the SHARED TEXT CONTROL's coarse-pointer floor, on a tablet.
+ *
+ * ── Why this exists, and what it is defending against ───────────────────────
+ *
+ * A review of the cascade layer architecture pointed at a real mechanism: every
+ * control `inputClassName()` produces carries Tailwind's
+ * `min-h-[var(--input-height)]` — 38px, in the `utilities` layer — while
+ * `ui.css`'s coarse-pointer floor (`:is(.dh-control, .dh-input)` at
+ * `--input-height-touch`) moved into `dh-legacy`, which loses to `utilities`.
+ * That part is correct: MEASURED through the CSSOM, `ui.css`'s 44px rule IS
+ * beaten by the 38px utility on a coarse pointer.
+ *
+ * The consequence it predicted does NOT occur, and that was measured too: a
+ * shared field renders 45px and a shared button 44px on a coarse pointer, at
+ * phone AND tablet widths. The floor is held by `forms.css`'s own
+ * `@media (hover: none)` rule, which sits in `dh-product` and therefore beats
+ * the utility.
+ *
+ * But it is held BY ACCIDENT. `forms.css` is in `dh-product` because demoting
+ * it broke the combobox's trailing padding — not because anyone reasoned about
+ * touch targets. Named maintenance debt item 13 proposes splitting that file so
+ * its generic field PAINT moves to `dh-legacy`, and a split that swept this rule
+ * along with the paint would drop every shared field to 38px on every touch
+ * device, silently, with no test to say so.
+ *
+ * So the invariant is asserted here rather than left to survive the next
+ * refactor on luck.
+ *
+ * ── Why a TABLET width, specifically ────────────────────────────────────────
+ *
+ * Below 48rem a second rule (`.dh-form-actions--sticky > *`, also `dh-product`)
+ * raises form-action buttons to the floor, so a phone-width test passes whether
+ * or not the shared rule survives — the same "correct everywhere anyone looked"
+ * failure the DEBT-50 block above exists about. 900px is a coarse pointer with
+ * that rescue out of scope.
+ */
+test.describe("touch targets — shared controls on a coarse pointer, above the phone band", () => {
+  test.use({
+    viewport: { width: 900, height: 1200 },
+    hasTouch: true,
+    isMobile: true,
+  });
+
+  test("the shared text control and button keep the 44px floor", async ({
+    page,
+  }) => {
+    await gotoFixture(page, "/design/forms");
+
+    // The configuration this test exists for: a touch device wide enough that
+    // the phone-band rescue rules do not apply. Asserted rather than assumed,
+    // so the test cannot quietly start passing for the wrong reason.
+    const media = await page.evaluate(() => ({
+      hoverNone: matchMedia("(hover: none)").matches,
+      underPhoneBand: matchMedia("(max-width: 48rem)").matches,
+    }));
+    expect(media.hoverNone, "the viewport must report a coarse pointer").toBe(
+      true,
+    );
+    expect(
+      media.underPhoneBand,
+      "the viewport must sit ABOVE the 48rem band, or the sticky form-action " +
+        "rule rescues the button and this test proves nothing",
+    ).toBe(false);
+
+    await expectMinTouchTarget(page.locator("input.dh-input").first());
+    await expectMinTouchTarget(page.locator(".dh-button").first());
+  });
+});
