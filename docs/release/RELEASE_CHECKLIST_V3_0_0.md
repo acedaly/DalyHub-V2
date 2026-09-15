@@ -1,6 +1,13 @@
 # DalyHub V3.0.0 — Release Checklist & Runbook
 
-**Version `3.0.0` · Release name "V3" · PREPARED 2026-09-15 · RELEASE CANDIDATE 2026-09-15 · NOT DEPLOYED**
+**Version `3.0.0` · Release name "V3" · PREPARED 2026-09-15 · CUT ATTEMPTED AND HELD 2026-09-15 · NOT RELEASED**
+
+> **The release is STOPPED at §0 condition 3.** The first CI run of `main` after
+> #297 was RED, and one of its three failures is a real WCAG 2.2 AA regression
+> that V3-CSS-01 introduced. It is being fixed in
+> [#299](https://github.com/acedaly/DalyHub-V2/pull/299); no tag has been
+> created and nothing has been deployed. §2.6 has the failures and their root
+> causes.
 
 > The evidence behind every V3.0.0 claim, and the exact sequence for deploying
 > it. Nothing is marked ✅ without a reference to a measurement. Where something
@@ -25,7 +32,7 @@ below are the ones the preparing change could not satisfy from a branch.
 | :-- | :--- | :--- |
 | 1 | The frontend foundation work (V3-CSS-01, the cascade layer architecture) is **merged to `main`** | ✅ merged in [#297](https://github.com/acedaly/DalyHub-V2/pull/297), `main` @ `4f49c169` |
 | 2 | The E2E gate restructure (V3-E2E-01, the PR/nightly tiers) is **merged to `main`** | ✅ merged in the same change; verified below |
-| 3 | **`main` is green** after both — full CI, including every E2E partition | ⏳ CI run [`34955877627`](https://github.com/acedaly/DalyHub-V2/actions/runs/34955877627) at `4f49c169` is IN FLIGHT as this is written; §2.6 carries the result and this row is not ✅ until it does |
+| 3 | **`main` is green** after both — full CI, including every E2E partition | ⛔ **NOT MET.** CI run [`34955877627`](https://github.com/acedaly/DalyHub-V2/actions/runs/34955877627) at `4f49c169` concluded `failure`: E2E p07 and p11 red, CI Gate red. §2.6 |
 
 **The fourth, non-blocking condition is NOT met.** The nightly suite
 (`.github/workflows/nightly.yml`) has still never run — see §2.5. It is
@@ -181,10 +188,10 @@ after the change**, which is the order a regression test has to be written in.
 ✅ **222 tests passed** across the new and changed E2E specs, measured locally
 during the preparing change.
 
-⏳ **CI is running this commit now.** §0 condition 3 is answered by run
-[`34955877627`](https://github.com/acedaly/DalyHub-V2/actions/runs/34955877627);
-the per-job evidence is in §2.6, and nothing is tagged or deployed until it is
-green.
+⛔ **CI ran this commit and it is RED.** §0 condition 3 is answered by run
+[`34955877627`](https://github.com/acedaly/DalyHub-V2/actions/runs/34955877627),
+and the answer is no. The per-job evidence and the root cause of every failure
+are in §2.6. Nothing is tagged and nothing is deployed.
 
 ### 2.4 What the E2E restructure did to the gate
 
@@ -252,22 +259,80 @@ stale assertion is a narrowly-scoped fix and a re-run.
 
 ### 2.6 `main` CI at the release commit
 
-Run [`34955877627`](https://github.com/acedaly/DalyHub-V2/actions/runs/34955877627),
-event `push`, `main` @ `4f49c169ffaba0f6429cbe59d64f654011c136ab`, attempt 1. A
-`push`-event run on `main` itself, not a PR-branch run.
+⛔ Run [`34955877627`](https://github.com/acedaly/DalyHub-V2/actions/runs/34955877627),
+event `push`, `main` @ `4f49c169ffaba0f6429cbe59d64f654011c136ab`, attempt 1 —
+a `push`-event run on `main` itself, not a PR-branch run. **Conclusion:
+`failure`.**
 
 | Job | Result |
 | :-- | :--- |
 | Scope | ✅ success — not a pull request, so the path filter is not consulted and everything runs |
 | Static | ✅ success — format, ESLint, TypeScript, scheme, partitions, fixture dates, doc links, icons |
+| Unit | ✅ success — unit & component tests, then kernel tests on the Workers runtime with real D1 |
 | Build | ✅ success — production build, Cloudflare config validated, artifact uploaded |
-| Unit | ⏳ in flight |
-| E2E p01 … p18 | ⏳ in flight — 18 partitions dispatched |
-| CI Gate | ⏳ |
+| E2E — 16 of 18 partitions | ✅ success |
+| **E2E p07** | ⛔ **failure** — 83 passed, 1 failed, 0 never executed, 16.7 min against a 13.6 min budget |
+| **E2E p11** | ⛔ **failure** — 56 passed, 2 failed, 0 never executed, 20.3 min against a 13.6 min budget |
+| CI Gate | ⛔ failure — *Check every required job succeeded* |
 
-**This table is updated from the run itself before the release PR is opened**, and
-the release does not proceed on a run that is cancelled, that leaves a partition
-unexecuted, or that publishes a failure artefact.
+No job was cancelled and **no partition went unexecuted** — every failure is a
+test that ran and failed, which is the distinction
+[`RELEASE_CHECKLIST_V2_4_0.md` §5](RELEASE_CHECKLIST_V2_4_0.md) exists about.
+
+#### The three failures, root-caused
+
+**1. A real WCAG 2.2 AA regression, and it is this release's own.**
+
+```
+e2e/reviews-guided.spec.ts:579 — Journey 6: axe passes in light and dark, at desktop and phone
+  axe WCAG 2.2 AA violations
+    scrollable-region-focusable (serious) on .cm-scroller
+    "Element should have focusable content / Element should be focusable"
+```
+
+Reproduced locally in 43 seconds, every time. **Cause: V3-CSS-01's one
+deliberately unlayered stylesheet cuts both ways.** `markdown-editor.css` stays
+out of every layer so CodeMirror's runtime-injected sheet cannot outrank it —
+correct, documented and tested. But unlayered normal declarations beat layered
+ones *unconditionally*, so the same change put that file ahead of every
+`dh-product` stylesheet too. Six product overrides of the editor's geometry went
+inert. MEASURED at 1280×720, `main` @ `77f8b55` against `main` @ `4f49c169`:
+
+| Declaration, and who owns it | Before | After |
+| :--- | ---: | ---: |
+| `.dh-review-guide__prompt … .cm-editor` `max-block-size` | `none` | `504px` |
+| `.dh-meeting-workspace … .cm-editor` `max-block-size` | `432px` | `504px` |
+| `.dh-meeting-workspace … .cm-editor` `min-block-size` | `128px` | `288px` |
+| `.dh-meeting-workspace … __fallback` `min-block-size` | `128px` | `288px` |
+| `.dh-note-workspace … > *` `max-inline-size` | `none` | `641px` |
+| `.dh-meeting-workspace … > *` `max-inline-size` | `none` | `641px` |
+
+Only the first had a test, which is why only the first was noticed. §2.1's
+computed-style diff covered 66,681 elements over 32 routes and missed all six,
+because none of those routes mounted an editor with enough content to scroll —
+a limit of that measurement worth recording next to its result.
+
+Fixed in [#299](https://github.com/acedaly/DalyHub-V2/pull/299): the editor
+keeps its defaults and exposes three custom properties, the surfaces configure
+those, and the value resolves by inheritance instead of by a cascade contest the
+product can no longer win. All seven probed values are back to their `77f8b55`
+readings, and `css-cascade-ownership.spec.ts` gains the assertion that would
+have caught this — proven to fail without the change.
+
+**2 and 3. Timeout margin on a slow runner, not product defects.**
+
+```
+e2e/reviews.spec.ts:175             Test timeout of 30000ms exceeded
+e2e/tasks-daily-driver.spec.ts:191  Test timeout of 30000ms exceeded
+```
+
+Both pass locally at **21.0s and 23.3s** against the 30s per-test timeout, and
+both partitions overran their measured minute budgets on this run (p07 +23%,
+p11 +49%). That is the reading, and it is not a licence to call them flakes:
+two daily-driver journeys sitting at **70–78% of the per-test timeout** is a
+real fragility, and the next slow runner fails them again. It is recorded in §6
+as maintenance debt rather than fixed inside a release, and `#299`'s own CI run
+is the first re-test.
 
 ### 2.7 Local release gates, at the release commit
 
@@ -379,6 +444,15 @@ Carried forward deliberately, each with a named next action in
    any SQL runs. The largest single remaining lever on E2E cost, and a separate
    piece of work.
 6. The Finance collection heading's missing gutter (pre-existing).
+7. **Two daily-driver journeys sit at 70–78% of the 30s per-test timeout** —
+   `reviews.spec.ts:175` (21.0s) and `tasks-daily-driver.spec.ts:191` (23.3s),
+   measured locally. They failed CI run `34955877627` on a runner where both
+   partitions overran their minute budgets by 23% and 49%. Nothing is wrong with
+   the product; what is wrong is that the margin is thin enough for runner
+   variance to decide the result, and a release gate whose colour depends on
+   runner speed is not a gate. Raising a timeout is the wrong reflex — the V2.4
+   record is explicit that it was done once, as a measured budget correction,
+   named as one. The measurement comes first.
 
 ---
 
@@ -389,6 +463,7 @@ did not hold, and none was faked.
 
 | # | Action | Why it is here |
 | :-- | :--- | :--- |
+| 0 | **Review and merge [#299](https://github.com/acedaly/DalyHub-V2/pull/299), then confirm the resulting `main` CI run is green** | §0 condition 3 and §2.6 — this is the release blocker, and nothing below it matters until `main` is green |
 | 1 | `gh workflow run nightly.yml --ref main`, then confirm all three jobs green | §2.5 — `workflow_dispatch` returned `403` to the session |
 | 2 | `pnpm run db:production:list` — **record the output** | §1.1 — production's ledger is the only authority on which of `0048`–`0055` are pending |
 | 3 | Establish and verify an encrypted backup ([§6 steps 1–2](RELEASE_CHECKLIST_V2_4_0.md)) | §1.1 — this release applies migrations, so this is a precondition |
@@ -404,6 +479,8 @@ did not hold, and none was faked.
 
 | | |
 | :-- | :--- |
+| Blocking fix | [#299](https://github.com/acedaly/DalyHub-V2/pull/299) — open, not merged |
+| Release metadata branch | `release/v3.0.0` — not opened as a PR while `main` is red |
 | Release commit (`main` after the release PR) | ⏳ |
 | Annotated tag `v3.0.0` | ⏳ — must be created on the exact release commit, and never moved |
 | GitHub Release | ⏳ |

@@ -21,10 +21,13 @@ _Nothing yet._
 
 ## 3.0.0 — the interface has one system, and the cascade has an owner (2026-09-15)
 
-_Cut 2026-09-15 from `main` @ `4f49c169`, green on CI run
-[`34955877627`](https://github.com/acedaly/DalyHub-V2/actions/runs/34955877627).
-Deploying it applies migrations `0050`–`0055` — the Finance, Life Admin,
-Attachments and Ask DalyHub tables — so read
+_Written, not yet cut. The attempt on 2026-09-15 stopped at its own gate: CI run
+[`34955877627`](https://github.com/acedaly/DalyHub-V2/actions/runs/34955877627)
+on `main` @ `4f49c169` was red, and one failure was a real accessibility
+regression the cascade change had introduced
+([#299](https://github.com/acedaly/DalyHub-V2/pull/299)). Deploying this release
+will also apply migrations `0050`–`0055` — the Finance, Life Admin, Attachments
+and Ask DalyHub tables — so read
 [`RELEASE_CHECKLIST_V3_0_0.md` §1.1](docs/release/RELEASE_CHECKLIST_V3_0_0.md)
 before the deployment, not after it._
 

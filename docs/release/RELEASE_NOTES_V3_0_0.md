@@ -1,16 +1,21 @@
 # DalyHub V3.0.0 — Release Notes
 
-**Version `3.0.0` · Release name "V3" · Release candidate, cut 2026-09-15**
+**Version `3.0.0` · Release name "V3" · Cut attempted 2026-09-15 · HELD**
 
 > Written for the person using DalyHub.
 >
-> **This is the release candidate.** The repository state, the version constant
-> and the evidence in [`RELEASE_CHECKLIST_V3_0_0.md`](RELEASE_CHECKLIST_V3_0_0.md)
-> are final; the production deployment has not been performed, because it needs
-> Cloudflare credentials no automated session holds. What remains is listed in
-> the checklist as owner action, and **one item of it is a precondition, not a
-> formality** — see *"Your data, and the one thing that is not true of this
-> release"* below.
+> **This release is written but not cut.** The attempt on 2026-09-15 stopped at
+> its own gate: the first CI run of `main` after the frontend work merged was
+> red, and one of its failures is a genuine accessibility regression that the
+> cascade change introduced. It is being fixed in
+> [#299](https://github.com/acedaly/DalyHub-V2/pull/299), and nothing has been
+> tagged or deployed.
+>
+> Everything below is what `3.0.0` will say once it goes out. The evidence, the
+> failures and what is left to do are in
+> [`RELEASE_CHECKLIST_V3_0_0.md`](RELEASE_CHECKLIST_V3_0_0.md), and **one item
+> there is a precondition rather than a formality** — see *"Your data, and the
+> one thing that is not true of this release"* below.
 
 ---
 
@@ -152,6 +157,15 @@ Nothing here assumes an answer.
 
 Stated rather than omitted.
 
+- **The cascade change broke the editor's geometry on four surfaces, and one of
+  them was an accessibility failure.** The guided Review's writing surface began
+  scrolling inside a scrolling page instead of growing, which is a WCAG 2.2 AA
+  failure and was caught by the test suite; the Note and Meeting writing
+  surfaces quietly went back to a narrower column and a taller minimum. Found
+  while cutting this release and fixed in
+  [#299](https://github.com/acedaly/DalyHub-V2/pull/299) before it shipped —
+  listed here because a release note that only says what went right is not a
+  record.
 - **The exhaustive nightly E2E suite has not run against this commit.** The
   accessibility and responsive matrices moved to a nightly workflow in this same
   release, and it has never been dispatched — the session that prepared this
