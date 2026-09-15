@@ -1,10 +1,41 @@
 # Changelog
 
-## 3.0.0 — the interface has one system, and the cascade has an owner
+All notable owner-facing changes to DalyHub.
 
-_Prepared. Not yet released — see
-[`RELEASE_CHECKLIST_V3_0_0.md`](docs/release/RELEASE_CHECKLIST_V3_0_0.md) for the
-three conditions that gate cutting it._
+This file is written for the person using DalyHub, not for the person building it
+— it says what changed on screen and why. The engineering record lives in
+[`ROADMAP_V2.md`](docs/roadmap/ROADMAP_V2.md) (what was built),
+[`PRODUCT_DEBT.md`](docs/product/PRODUCT_DEBT.md) (what is still inconsistent) and
+[`ARCHITECTURE_DECISIONS.md`](docs/decisions/ARCHITECTURE_DECISIONS.md) (why the
+system is shaped the way it is).
+
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+From **2.0.0** DalyHub carries a release version, shown in **About** and reported
+by `/health` from one authority (`app/lib/version.ts`). Entries before that release
+are grouped by date and by the roadmap item that delivered them, because there was
+no version number to group them under.
+
+## Unreleased
+
+_Nothing yet._
+
+## 3.0.0 — the interface has one system, and the cascade has an owner (2026-09-15)
+
+_Cut 2026-09-15 from `main` @ `4a2140f`, green on CI run
+[`34962659072`](https://github.com/acedaly/DalyHub-V2/actions/runs/34962659072)
+— 23 of 23 jobs. Not yet deployed.
+It took two runs: the first attempt, on `main` @ `4f49c169`, stopped at its own
+gate. CI run
+[`34955877627`](https://github.com/acedaly/DalyHub-V2/actions/runs/34955877627)
+was red, and one failure was a real accessibility regression the cascade change
+had introduced — fixed by
+[#298](https://github.com/acedaly/DalyHub-V2/pull/298) before anything shipped.
+Deploying this release will also apply migrations `0050`–`0055` — the Finance,
+Life Admin, Attachments and Ask DalyHub tables — and `0050` MOVES every
+obligation and drops the table it came from, so the old Worker cannot be put
+back afterwards. Read
+[`RELEASE_CHECKLIST_V3_0_0.md` §1.1](docs/release/RELEASE_CHECKLIST_V3_0_0.md)
+before the deployment, not after it._
 
 - **The major number moves, and not because of a feature.**
 
@@ -1253,34 +1284,22 @@ three conditions that gate cutting it._
   tighter working-card grid; and the remaining workspaces now share compact
   controls, card density and section rhythm.
 
-## Unreleased
+- **The convergence passes that got the product here.**
 
-- Refined Today into a decision-first command centre: one canonical Now task,
-  the next real Meeting, a shorter active plan, collapsed completed work and
-  weekly reporting below the day's decisions.
+  Carried from the pre-design-system work that was complete but unreleased
+  when `2.4.0` was cut:
 
-- Converged every module on the approved DalyHub command-centre finish: tighter
-  navigation and page rhythm, quieter controls, one outlined card family,
-  cleaner record surfaces, and matching desktop/mobile chrome.
+  - Refined Today into a decision-first command centre: one canonical Now task,
+    the next real Meeting, a shorter active plan, collapsed completed work and
+    weekly reporting below the day's decisions.
 
-- Refined Today into a clearer command centre: an honest live day summary,
-  stronger task-first hierarchy, one bounded measure strip, and a quieter
-  supporting rail across desktop and phone.
+  - Converged every module on the approved DalyHub command-centre finish: tighter
+    navigation and page rhythm, quieter controls, one outlined card family,
+    cleaner record surfaces, and matching desktop/mobile chrome.
 
-All notable owner-facing changes to DalyHub.
-
-This file is written for the person using DalyHub, not for the person building it
-— it says what changed on screen and why. The engineering record lives in
-[`ROADMAP_V2.md`](docs/roadmap/ROADMAP_V2.md) (what was built),
-[`PRODUCT_DEBT.md`](docs/product/PRODUCT_DEBT.md) (what is still inconsistent) and
-[`ARCHITECTURE_DECISIONS.md`](docs/decisions/ARCHITECTURE_DECISIONS.md) (why the
-system is shaped the way it is).
-
-The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-From **2.0.0** DalyHub carries a release version, shown in **About** and reported
-by `/health` from one authority (`app/lib/version.ts`). Entries before that release
-are grouped by date and by the roadmap item that delivered them, because there was
-no version number to group them under.
+  - Refined Today into a clearer command centre: an honest live day summary,
+    stronger task-first hierarchy, one bounded measure strip, and a quieter
+    supporting rail across desktop and phone.
 
 ---
 
