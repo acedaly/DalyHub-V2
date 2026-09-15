@@ -7,7 +7,7 @@
 > invisible** in every writing surface — Notes, Diary, the Meeting workspace, the
 > guided Review. It is the same cascade cause as the one below, one property
 > across, and it is fixed by
-> [#300](https://github.com/acedaly/DalyHub-V2/pull/300).
+> [#303](https://github.com/acedaly/DalyHub-V2/pull/303).
 > [`RELEASE_CHECKLIST_V3_0_0.md` §1.3](RELEASE_CHECKLIST_V3_0_0.md) has the
 > measurement. No tag was created, so nothing has to be undone.
 
