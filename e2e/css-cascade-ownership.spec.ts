@@ -12,9 +12,11 @@ import { expect, test, type Page } from "@playwright/test";
  * first version of this exception un-layered the whole editor stylesheet, which
  * then outranked the five product surfaces that legitimately override it and
  * cost an axe violation on the guided Review. Pointing the allowlist at the
- * six-rule file is what keeps the exception the size it has to be — widen that
- * file and this test widens with it, deliberately; put a rule anywhere else
- * unlayered and it fails.
+ * exception file is what keeps it the size it has to be — widen that file and
+ * this test widens with it, deliberately; put a rule anywhere else unlayered
+ * and it fails. It held six rules when it was first narrowed and holds eight
+ * now, the caret and the placeholder having been left behind in the layered
+ * file where they lost to CodeMirror.
  */
 const editorStylesheet = readFileSync(
   join(process.cwd(), "app/styles/markdown-editor-codemirror.css"),

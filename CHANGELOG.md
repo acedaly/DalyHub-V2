@@ -21,15 +21,19 @@ _Nothing yet._
 
 ## 3.0.0 — the interface has one system, and the cascade has an owner (2026-09-15)
 
-_Cut 2026-09-15 from `main` @ `4a2140f`, green on CI run
-[`34962659072`](https://github.com/acedaly/DalyHub-V2/actions/runs/34962659072)
-— 23 of 23 jobs. Not yet deployed.
-It took two runs: the first attempt, on `main` @ `4f49c169`, stopped at its own
-gate. CI run
+_Cut 2026-09-15 from `main` @ `713fc87`. Not yet deployed.
+It took three attempts to get a commit worth tagging, and none of them shipped a
+defect. The first, on `main` @ `4f49c169`, stopped at its own gate: CI run
 [`34955877627`](https://github.com/acedaly/DalyHub-V2/actions/runs/34955877627)
-was red, and one failure was a real accessibility regression the cascade change
-had introduced — fixed by
-[#298](https://github.com/acedaly/DalyHub-V2/pull/298) before anything shipped.
+was red and one failure was a real accessibility regression the cascade change
+had introduced, fixed by
+[#298](https://github.com/acedaly/DalyHub-V2/pull/298). The second, `4a2140f`,
+was green on CI run
+[`34962659072`](https://github.com/acedaly/DalyHub-V2/actions/runs/34962659072)
+— 23 of 23 jobs — and was cut from; a defect no test could see was then found in
+it by hand, the text cursor being invisible in the dark appearance, and it was
+fixed by [#303](https://github.com/acedaly/DalyHub-V2/pull/303). No tag was ever
+created, so nothing had to be undone either time.
 Deploying this release will also apply migrations `0050`–`0055` — the Finance,
 Life Admin, Attachments and Ask DalyHub tables — and `0050` MOVES every
 obligation and drops the table it came from, so the old Worker cannot be put
@@ -43,8 +47,15 @@ before the deployment, not after it._
   rules deciding which stylesheet wins were rewritten underneath all of it.
   Almost every surface you touch is a different implementation from the one
   `2.4.0` shipped — even where the behaviour is deliberately identical, because
-  keeping it identical was the point. Your data is untouched and no migration
-  runs.
+  keeping it identical was the point. None of that half touches your data.
+
+  The release as a whole does: the product work listed further down brings
+  migrations `0050`–`0055` with it, as the paragraph above this list says. An
+  earlier version of this bullet ended "your data is untouched and no migration
+  runs", which was true of the design-system work it describes and false of the
+  release it appears in. It is corrected here rather than quietly deleted,
+  because it is the sentence an owner would have read before an upgrade that
+  moves every obligation into a different table.
 
 - **A button is a button now, everywhere.**
 

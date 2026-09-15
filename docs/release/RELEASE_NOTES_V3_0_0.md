@@ -1,20 +1,27 @@
 # DalyHub V3.0.0 — Release Notes
 
-**Version `3.0.0` · Release name "V3" · Release candidate 2026-09-15 · HELD on a defect**
+**Version `3.0.0` · Release name "V3" · Release candidate 2026-09-15**
 
-> ⛔ **Do not deploy this yet.** After the release was cut, a defect was found
-> that the test gate could not see: in the **dark appearance the text cursor is
-> invisible** in every writing surface — Notes, Diary, the Meeting workspace, the
-> guided Review. It is the same cascade cause as the one below, one property
-> across, and it is fixed by
-> [#303](https://github.com/acedaly/DalyHub-V2/pull/303).
-> [`RELEASE_CHECKLIST_V3_0_0.md` §1.3](RELEASE_CHECKLIST_V3_0_0.md) has the
-> measurement. No tag was created, so nothing has to be undone.
+> ✅ **The defect that held this is fixed.** After the release was cut, a defect
+> was found that the test gate could not see: in the **dark appearance the text
+> cursor was invisible** in every writing surface — Notes, Diary, the Meeting
+> workspace, the guided Review. It was the same cascade cause as the one below,
+> one property across. [#303](https://github.com/acedaly/DalyHub-V2/pull/303)
+> fixed it and the candidate moved to `main` @ `713fc87`; the caret now measures
+> 17.88:1 in dark where it measured 1.12:1, and four contrast assertions hold it
+> in both appearances. No tag was ever created, so nothing had to be undone.
+> [`RELEASE_CHECKLIST_V3_0_0.md` §1.3](RELEASE_CHECKLIST_V3_0_0.md) has both
+> measurements. It is in Known limitations below, as the #298 one is, because a
+> release note that only says what went right is not a record.
 
 > Written for the person using DalyHub.
 >
 > **This is the release candidate, and it is not deployed.** The repository, the
-> version constant and the test evidence are ready — `main` is green — but the
+> version constant and the test evidence are ready — `main` was green at
+> `4a2140f`, and the run on the commit that will actually carry the tag,
+> `713fc87`, is still in flight; it is
+> [`RELEASE_CHECKLIST_V3_0_0.md` §2.6c](RELEASE_CHECKLIST_V3_0_0.md), and no tag
+> is created until it reads `success` — but the
 > deployment needs Cloudflare credentials no automated session holds, and the
 > exhaustive nightly test suite has still never been run. Both are owner actions,
 > listed in [`RELEASE_CHECKLIST_V3_0_0.md`](RELEASE_CHECKLIST_V3_0_0.md) §7, and
@@ -191,6 +198,15 @@ Both are spelled out in
 
 Stated rather than omitted.
 
+- **The cascade change made the text cursor invisible in the dark appearance**,
+  in every writing surface DalyHub has. CodeMirror's own black caret was
+  outranking DalyHub's, which measured 1.12:1 against the editor's dark surface
+  — an owner could not see where they were typing. It survived a fully green
+  test run: axe has no rule for caret colour, and in the **light** appearance
+  the defect reads *better* than the intended colour, so nothing was going to
+  notice it except a person in dark mode. Found by hand after the release was
+  cut, fixed in [#303](https://github.com/acedaly/DalyHub-V2/pull/303) before
+  anything shipped, and now held by contrast assertions in both appearances.
 - **The cascade change broke the editor's geometry on four surfaces, and one of
   them was an accessibility failure.** The guided Review's writing surface began
   scrolling inside a scrolling page instead of growing, which is a WCAG 2.2 AA

@@ -23,13 +23,21 @@
  * scrollable, and axe reported a SERIOUS `scrollable-region-focusable`
  * violation — `reviews-guided.spec.ts` Journey 6, red on `main`.
  *
- * So the exception is now only what it has to be. These six rules contest a
+ * So the exception is now only what it has to be. These eight rules contest a
  * property CodeMirror's own sheet sets on the same element, established by
  * reading its 71 injected rules rather than by guessing:
  *
- *     .cm-content    margin, padding, min-height, outline, display, box-sizing
- *     .cm-scroller   font-family, line-height, height, overflow-x, display
- *     .cm-focused    outline
+ *     .cm-content      margin, padding, min-height, outline, display, box-sizing
+ *     .cm-scroller     font-family, line-height, height, overflow-x, display
+ *     .cm-focused      outline
+ *     .cm-cursor       border-left-color
+ *     .cm-dropCursor   border-left-color
+ *     .cm-placeholder  color
+ *
+ * The last three arrived later, and their story is at the bottom of this file:
+ * the first narrowing of this exception moved six rules and left those behind
+ * in `markdown-editor.css`, where they lost. Six became eight by measurement,
+ * not by preference.
  *
  * CodeMirror sets NOTHING on `.cm-editor`, which is why the density caps stayed
  * in `markdown-editor.css` where product surfaces can still override them.
