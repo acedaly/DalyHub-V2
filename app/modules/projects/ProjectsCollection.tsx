@@ -656,7 +656,29 @@ function ProjectsCollection({
            * horizontal scroll at 320px. With it the strip scrolls inside its
            * own track, which is what it is built to do.
            */
-          className="flex w-full min-w-0 flex-wrap items-center gap-3 max-md:flex-col max-md:items-stretch"
+          /*
+           * MOBILE-02 §6 — ONE row at every width, phones included.
+           *
+           * This band used to take `max-md:flex-col max-md:items-stretch`, so
+           * below 48rem the mode rail and the presentation switcher became two
+           * stacked rows of 45px touch targets. MEASURED at 393x852 on `main`
+           * @ 6fdc2c2: the band was 127px and the first Project card began at
+           * y=281 — a third of a phone screen spent before the first record,
+           * where the audit that this collection's card was shrunk for measured
+           * the first card at y=216. The card had done its part (180px then,
+           * 126px now); the chrome took the gain back and the collection showed
+           * four records where §6 asks for five or six.
+           *
+           * The rail is already built for the narrow case: it sits in its own
+           * `overflow-x-auto` track (see the comment on it below) precisely so
+           * that it can be given less width than its tabs need and scroll
+           * inside itself. Sharing the row with the switcher is therefore what
+           * that track is FOR, and it is also what the Untitled reference band
+           * draws — the column was the deviation. MEASURED after, at 320, 360,
+           * 393 and 430: band 70px, first card at y=224, no document overflow at
+           * any of them, and the rail's track 97px at its narrowest.
+           */
+          className="flex w-full min-w-0 flex-wrap items-center gap-3"
           data-untitled-source="dashboards-01/02:filter-bar"
         >
           {/*

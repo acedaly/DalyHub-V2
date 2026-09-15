@@ -204,6 +204,20 @@
   gap: var(--dh-control-gap);
 
   /*
+   * The width the PRIORITY mark is entitled to, stated once.
+   *
+   * The mark is `flag + gap + tag` and the tag is two characters, so the object
+   * is ~34.5px at the row's metadata size; the phone tier's floor rounds that
+   * up. It lives here rather than inside that tier because TWO rules depend on
+   * the same number from opposite sides — the priority cell reserves it, and
+   * the project cell must not grow into it — and a reservation that two rules
+   * spell separately is one edit away from being two different numbers. In
+   * `rem` so it stays true under OS text scaling, which a pixel value would
+   * not.
+   */
+  --taskrow-priority-floor: 3.5rem;
+
+  /*
    * The row's height IS the completion control's target, and nothing else.
    *
    * `--dh-row-height` at compact resolves to `max(2.75rem, 45px)` — the WCAG 2.2
@@ -1430,6 +1444,42 @@
     align-items: center;
     gap: var(--dh-space-2);
     min-inline-size: 0;
+    /*
+     * V2.9 CI-GREEN — the metadata line RECOMPOSES rather than squeezing, at
+     * every phone width and not only at the narrowest one.
+     *
+     * The line carries three facts of very different rigidity. The date is
+     * `flex: none` because half a date is not a date, and the priority mark has
+     * a 56px floor because it is a touch target; so the PROJECT was the only
+     * thing that could give, and it gave everything. MEASURED on `main`
+     * @ 6fdc2c2, painted against wanted: `/today` 29.2/99 at 375 and 47.2/99 at
+     * 393, `/tasks` 43.8/113 at 375 and 61.8/113 at 393 — a Project name
+     * reduced to two or three characters on the two most common handset widths,
+     * on both of the routes that draw this row.
+     *
+     * The 21rem tier below was written for exactly this and no longer reaches
+     * it: it was measured when Today's Now row was 20.44rem at 393px, and the
+     * Untitled shell gives that same row 22.56rem, so the row that the tier
+     * exists to protect now sits above it. Re-measuring the threshold would fix
+     * today's numbers and rot again, because the width at which all three facts
+     * fit is not a property of the container at all — it depends on how long
+     * the date reads ("2:00 pm" is 60px, "Over a year ago" is 109px) and how
+     * long the Project is named. A width query cannot see either.
+     *
+     * So the decision is handed to the layout, which can: the line wraps. Every
+     * fact then paints whole, the second line appears only on the rows that
+     * actually need it, and nothing is hidden, clipped or re-measured. This is
+     * the answer the 12rem tier already reaches for in its own comment —
+     * "RECOMPOSE, never squeeze" — applied at the width the squeeze starts
+     * rather than at the width it becomes an overflow. That tier's own
+     * `flex-wrap`/`row-gap` pair is therefore gone: it is inherited from here.
+     *
+     * MEASURED after, painted/wanted at 320/360/375/393/430 on both routes:
+     * 100% of every Project name, every width, no horizontal overflow. The cost
+     * is one 28px line on the rows that wrap.
+     */
+    flex-wrap: wrap;
+    row-gap: var(--dh-space-1);
   }
 
   /*
@@ -1486,6 +1536,27 @@
   .dh-taskrow__cell--project {
     min-inline-size: 4rem;
     flex: 0 1 auto;
+    /*
+     * V2.9 CI-GREEN — and it never takes the WHOLE metadata line.
+     *
+     * DS-04 §10 is that metadata yields before the title does, and
+     * `today-focus.spec.ts:566` measures it as the title's track being strictly
+     * wider than the project's cell. Once the line wraps, a long enough Project
+     * name satisfies neither: it gets a line of its own and fills it, so the
+     * metadata is exactly as wide as the title and the priority mark is pushed
+     * onto a line by itself. MEASURED on CI run 1045's p10 at 320: title 159,
+     * project 159.
+     *
+     * The cap is the priority mark's own floor plus the gap it keeps, so the
+     * project can never grow into the space the mark is entitled to — which is
+     * the same reservation the `padding-inline-start` below makes, said from
+     * the other side. The mark therefore stays on the project's line instead of
+     * wrapping past it, the project stays strictly narrower than the track, and
+     * the ellipsis does what an ellipsis is for.
+     */
+    max-inline-size: calc(
+      100% - var(--dh-space-2) - var(--taskrow-priority-floor)
+    );
   }
 
   .dh-taskrow__cell .dh-inline-edit__trigger {
@@ -1565,7 +1636,7 @@
      * its own content, and stating that in `rem` keeps it true under OS text
      * scaling, which a pixel value would not.
      */
-    min-inline-size: 3.5rem;
+    min-inline-size: var(--taskrow-priority-floor);
   }
 
   /*
@@ -1647,6 +1718,22 @@
  * whole, while the plain `/tasks` list at 375px (21.44rem) and above keeps both.
  * The tier is a container query, so it follows the LIST — a Board column or a
  * Today panel gets the same decision the window can't make for it.
+ *
+ * ── V2.9 CI-GREEN — what this tier still decides ─────────────────────────────
+ * The paragraphs above are the history and are no longer the REASON. Two things
+ * moved out from under them: the Untitled shell widened Today's Now row from
+ * 20.44rem to 22.56rem at 393px, so the row the threshold was calibrated on now
+ * sits above it; and the metadata line wraps at every phone width, so a line
+ * short of room recomposes instead of paying for the date out of the project.
+ * The truncation this tier was chosen to prevent is prevented up there now, for
+ * every width and every length of date, rather than below one number.
+ *
+ * What survives is a HEIGHT decision, and it is worth keeping on its own terms:
+ * at the narrowest widths the metadata already wraps without the date, so
+ * carrying one as well buys a third line on a row that is only a title and two
+ * facts. Below 21rem the date is the fact a Task row can most afford to lose —
+ * `/today` groups by day and an overdue date is coloured, so the row is rarely
+ * the only place it is said.
  */
 @container tasklist (max-width: 21rem) {
   .dh-taskrow__cell--due {
@@ -1703,10 +1790,8 @@
       "waiting waiting waiting";
   }
 
-  .dh-taskrow__meta {
-    flex-wrap: wrap;
-    row-gap: var(--dh-space-1);
-  }
+  /* The wrap itself is inherited from the phone composition above, which wraps
+   * at every phone width rather than only where the row would overflow. */
 
   /* With a row of its own there is no trailing edge to pin to, and the auto
    * margin would push the mark onto a line by itself. */

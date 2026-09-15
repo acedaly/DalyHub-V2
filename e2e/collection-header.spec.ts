@@ -594,47 +594,117 @@ test.describe("UIQ-021 — the shared menu fits the viewport", () => {
     }
   });
 
+  /**
+   * Open the COLLECTION HEADER's ⋯ and return its panel, with the height it
+   * wants and the top it is anchored to.
+   *
+   * ── Why the clamp is measured here and not on a task row ────────────────────
+   * The two journeys below used a row's ⋯, and the viewport they asked for has
+   * now rotted twice — both times failing by PASSING on a menu that never
+   * clamped. It began as 420px with the trigger at y=240; DHDS-09 moved the
+   * shared surface from 20rem to 22rem, the five actions stopped wrapping, the
+   * menu shrank to 217px and the 232px above the trigger simply took it, so the
+   * trigger moved to y=200. The Untitled pass moved the row geometry again and
+   * the same thing happened: MEASURED on `main` @ 6fdc2c2, `scrollHeight` 217
+   * against `clientHeight` 217 — placed, not clamped.
+   *
+   * Re-tuning the number a third time would not have worked, because the row
+   * menu cannot be made to clamp at all. It is free to SHIFT as well as flip: a
+   * list gives it the whole column to slide along, so it clamps only once the
+   * viewport itself is shorter than the menu plus its two 8px margins — 233px
+   * for a 217px menu — and at that height `.dh-collection__sticky` covers the
+   * rows completely, so there is no trigger left to press. MEASURED: at 250px a
+   * row scrolled to y=100 sits under the pane header, and `elementFromPoint` on
+   * its ⋯ returns `.dh-pane-header__actions`.
+   *
+   * The header's own ⋯ has no such freedom, and that is the point. Its trigger
+   * lives in the sticky header at the top of the page, so the menu is anchored
+   * `below` at a fixed top and has nowhere to slide: every pixel it is given is
+   * the distance from that top to the bottom margin. Make that less than the
+   * menu needs and the clamp is the only remaining answer — which is the
+   * contract this journey exists to hold, on a surface where a short window
+   * really does produce it.
+   */
+  async function openHeaderMenu(page: Page): Promise<Locator> {
+    const panel = page.getByRole("menu");
+    await page
+      .getByRole("button", { name: "More task actions", exact: true })
+      .click();
+    await expect(panel).toBeVisible();
+    return panel;
+  }
+
+  /**
+   * A viewport in which the header menu cannot open whole — derived from the
+   * menu, never guessed.
+   *
+   * Measure the menu where it can be itself: its natural height, and the top it
+   * anchors to. The viewport is then that top plus nine tenths of the height,
+   * so the room below the anchor is a tenth short of what the menu wants. A
+   * tenth rather than a pixel because the alternative is a threshold that flips
+   * on a sub-pixel change to a menu item, which is how the previous constant
+   * went quiet.
+   */
+  async function viewportTooShortForTheHeaderMenu(page: Page): Promise<number> {
+    await page.setViewportSize({ width: 1280, height: 1000 });
+    await gotoFixture(page, "/tasks");
+    const panel = await openHeaderMenu(page);
+    const menu = await panel.evaluate((node) => ({
+      natural: node.scrollHeight,
+      top: node.getBoundingClientRect().y,
+    }));
+    await page.keyboard.press("Escape");
+
+    expect(
+      menu.natural,
+      "the header menu has no height to be taller than; the surface or the " +
+        "trigger is wrong, not the clamp",
+    ).toBeGreaterThan(0);
+
+    return Math.round(menu.top + menu.natural * 0.9);
+  }
+
   test("a menu too tall for either side clamps and scrolls internally", async ({
     page,
   }) => {
-    /*
-     * A deliberately short viewport, so a full task-row menu cannot fit above
-     * OR below and the clamp is the only remaining answer.
-     *
-     * The trigger sits at y=200 rather than y=240, and the number is load
-     * bearing: DHDS-09's shared surface is 22rem where the private overflow
-     * panel was 20rem, so the same five actions now wrap less and the menu is
-     * 217px tall instead of taller than 232. At y=240 there was 232px above the
-     * trigger and the menu simply FIT — the test would have passed on a menu
-     * that never clamped. At y=200 there is 191px above and 176px below, so
-     * neither side can take it and the clamp is what is being measured again.
-     */
-    await page.setViewportSize({ width: 1280, height: 420 });
+    const viewport = await viewportTooShortForTheHeaderMenu(page);
+    await page.setViewportSize({ width: 1280, height: viewport });
     await gotoFixture(page, "/tasks");
-    const panel = await openRowMenuNear(page, 200);
+    const panel = await openHeaderMenu(page);
 
     const clamped = await panel.evaluate((node) => ({
       scrollHeight: node.scrollHeight,
       clientHeight: node.clientHeight,
       overflowY: getComputedStyle(node).overflowY,
     }));
-    expect(clamped.scrollHeight).toBeGreaterThan(clamped.clientHeight);
+    expect(
+      clamped.scrollHeight,
+      "the menu is taller than any placement in this viewport, so it must be " +
+        "clamped and scrollable rather than merely placed",
+    ).toBeGreaterThan(clamped.clientHeight);
     expect(["auto", "scroll"]).toContain(clamped.overflowY);
 
     const box = await panel.boundingBox();
     expect(box!.y).toBeGreaterThanOrEqual(0);
-    expect(box!.y + box!.height).toBeLessThanOrEqual(420);
+    expect(box!.y + box!.height).toBeLessThanOrEqual(viewport);
   });
 
   test("the last item of a clamped menu is reachable from the keyboard", async ({
     page,
   }) => {
-    // The same geometry as the test above, for the same reason: at y=240 this
-    // menu no longer clamps, so the keyboard would have been walking an
-    // unclamped list.
-    await page.setViewportSize({ width: 1280, height: 420 });
+    // The same derived geometry and the same surface as the test above, for the
+    // same reason: a viewport that lets the menu open whole would have the
+    // keyboard walking an unclamped list while claiming to walk a clamped one —
+    // which is exactly what this journey was quietly doing.
+    const viewport = await viewportTooShortForTheHeaderMenu(page);
+    await page.setViewportSize({ width: 1280, height: viewport });
     await gotoFixture(page, "/tasks");
-    const panel = await openRowMenuNear(page, 200);
+    const panel = await openHeaderMenu(page);
+
+    // It really is clamped: the premise the keyboard walk depends on.
+    expect(
+      await panel.evaluate((node) => node.scrollHeight > node.clientHeight),
+    ).toBe(true);
 
     // End jumps to the last item; the panel scrolls it into view rather than
     // the page having to. Flipping and clamping change no keyboard semantics.

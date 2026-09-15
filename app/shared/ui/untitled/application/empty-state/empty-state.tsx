@@ -4,15 +4,84 @@
 // Source licence: MIT for the open-source component source; Untitled UI React Pro materials remain subject to the purchased Pro license.
 // Written by `scripts/vendor-untitled.mjs`; edit the manifest or the override
 // layer in `~/shared/ui/untitled/overrides/` rather than this file, which is
-// regenerated. Only the import specifiers differ from upstream.
-import type { ComponentProps, ComponentPropsWithRef, ReactNode } from "react";
-import { Children, createContext, isValidElement, useContext } from "react";
-import { FileIcon } from "@untitledui/file-icons";
+// regenerated. Only the import specifiers differ from upstream, plus:
+//
+// PATCHED by the vendoring script: Upstream's `EmptyState.FileTypeIcon` statically imports `FileIcon` from `@untitledui/file-icons`.
+// `FileIcon` is a DISPATCHER — it maps a `type` string onto one of ~150 file-type
+// glyphs — so it references the whole set and nothing in it can be tree-shaken,
+// `sideEffects: false` notwithstanding. DalyHub renders no file-type icon anywhere:
+// the only importer of that package in the repository was this sub-component.
+// Measured on the V2 production build, it cost 429,066 uncompressed bytes (59,321
+// gzipped) inside the OFFLINE SHELL PRECACHE — `/offline` renders an EmptyState,
+// so every DalyHub install downloaded the whole file-icon set before it could
+// boot offline. That is 21% of the precache for a component the product does
+// not draw. Composing around it is not available: a module is the unit of import,
+// so DalyHub's own EmptyState carries this graph whichever export it names.
+// Removed here in five narrow edits (this one, the component, its type member,
+// its assignment and a type import left with nothing to name); `@untitledui/file-icons`
+// stays installed and documented, it is simply no longer bundled. Re-instating
+// a file-type icon means importing the ONE glyph a surface draws, not the dispatcher.
+//
+// PATCHED by the vendoring script: …the `FileTypeIcon` component itself, and the props interface that reads
+// its two types off `FileIcon` (see the removal note above).
+//
+// PATCHED by the vendoring script: …its member on the compound component's type (see the removal note above).
+//
+// PATCHED by the vendoring script: …and its assignment onto the compound component, which is the reference that
+// kept the whole graph alive (see the removal note above). With this gone `ComponentProps`
+// has no remaining use in the file, so the type import sheds it.
+//
+// PATCHED by the vendoring script: …the now-unused `ComponentProps` type import (see the removal note above).
+//
+// PATCHED by the vendoring script: Upstream's `EmptyState.Header` draws a decorative BACKGROUND PATTERN behind
+// the empty state, defaulting to `circle`, through a dispatcher over four artworks
+// — one of which, `grid-check`, is a single 139,635-byte SVG. Naming the dispatcher
+// references all four, so the shell carries every pattern whichever one is
+// asked for. DalyHub asks for none of them: its one shared EmptyState passed
+// `pattern="none"` at the only call site in the product, because `PRODUCT_EXPERIENCE`
+// Part V says an empty state is "calm and centred in its content region — never
+// full-screen theatre", and a patterned backdrop is the theatre that rule rejects.
+// So this is not a byte we might spend later: it implements the option the
+// product has already decided against. Measured at 120,977 uncompressed bytes
+// of the OFFLINE SHELL PRECACHE. The `pattern`/`patternSize` props go with
+// the import, and the DalyHub call site drops its `pattern="none"`. `~/shared/ui/untitled/shared-assets/background-patterns`
+// stays vendored and one import away for any surface that does want one.
+//
+// PATCHED by the vendoring script: …the `pattern` and `patternSize` props those two imports existed for, and
+// the conditional that drew them (see the background-pattern note above).
+//
+// PATCHED by the vendoring script: …`Header`'s own signature, now that it has no pattern to place (see the background-pattern
+// note above).
+//
+// PATCHED by the vendoring script: …and the render itself (see the background-pattern note above).
+//
+// PATCHED by the vendoring script: Upstream's `EmptyState.Illustration` renders one of four named Untitled artworks,
+// and naming the component references all four. DalyHub does not use it and
+// has said so in prose since the component was adopted: its own EmptyState
+// takes an `illustration` ReactNode and renders it directly, with the comment
+// "upstream's `Illustration` slot only takes one of its own named artworks,
+// so a DalyHub illustration renders directly here". Measured at 76,062 uncompressed
+// bytes of the OFFLINE SHELL PRECACHE for a slot the product routes around.
+// `~/shared/ui/untitled/shared-assets/illustrations` stays vendored and one
+// import away.
+//
+// PATCHED by the vendoring script: …the `Illustration` component itself (see the illustration note above).
+//
+// PATCHED by the vendoring script: …and `Header`'s detection of it. `hasIllustration` compares a child's type
+// against `Illustration`, so in DalyHub it was ALREADY always false — removing
+// it changes no rendered margin, and takes `Children` and `isValidElement`
+// with it (see the illustration note above).
+//
+// PATCHED by the vendoring script: …its member on the compound component's type (see the illustration note above).
+//
+// PATCHED by the vendoring script: …its assignment onto the compound component (see the illustration note above).
+//
+// PATCHED by the vendoring script: …and the two React helpers `hasIllustration` was the only user of (see the
+// illustration note above).
+import type { ComponentPropsWithRef, ReactNode } from "react";
+import { createContext, useContext } from "react";
 import { SearchLg } from "@untitledui/icons";
 import { FeaturedIcon as FeaturedIconbase } from "~/shared/ui/untitled/foundations/featured-icon/featured-icon";
-import type { BackgroundPatternProps } from "~/shared/ui/untitled/shared-assets/background-patterns";
-import { BackgroundPattern } from "~/shared/ui/untitled/shared-assets/background-patterns";
-import { Illustration as Illustrations } from "~/shared/ui/untitled/shared-assets/illustrations";
 import { cx } from "~/shared/ui/untitled/utils/cx";
 
 interface RootContextProps {
@@ -37,51 +106,16 @@ const FeaturedIcon = ({ color = "gray", theme = "modern", icon = SearchLg, size,
     return <FeaturedIconbase {...props} {...{ color, theme, icon }} size={!size && rootSize === "lg" ? "xl" : size || "lg"} />;
 };
 
-const Illustration = ({ type = "cloud", color = "gray", size = "lg", ...props }: ComponentPropsWithRef<typeof Illustrations>) => {
-    const { size: rootSize } = useContext(RootContext);
+interface HeaderProps extends ComponentPropsWithRef<"div"> {}
 
-    return (
-        <Illustrations
-            role="img"
-            {...props}
-            {...{ type, color }}
-            size={rootSize === "sm" ? "sm" : rootSize === "md" ? "md" : size}
-            className={cx("z-10", props.className)}
-        />
-    );
-};
-
-interface FileTypeIconProps extends ComponentPropsWithRef<"div"> {
-    type?: ComponentProps<typeof FileIcon>["type"];
-    theme?: ComponentProps<typeof FileIcon>["variant"];
-}
-
-const FileTypeIcon = ({ type = "folder", theme = "solid", ...props }: FileTypeIconProps) => {
-    return (
-        <div {...props} className={cx("relative z-10 flex rounded-full bg-linear-to-b from-neutral-50 to-neutral-200 p-8", props.className)}>
-            <FileIcon type={type} variant={theme} className="size-10 drop-shadow-sm" />
-        </div>
-    );
-};
-
-interface HeaderProps extends ComponentPropsWithRef<"div"> {
-    pattern?: "none" | BackgroundPatternProps["pattern"];
-    patternSize?: "sm" | "md" | "lg";
-}
-
-const Header = ({ pattern = "circle", patternSize = "md", ...props }: HeaderProps) => {
+const Header = ({ ...props }: HeaderProps) => {
     const { size } = useContext(RootContext);
-    // Whether we are passing `Illustration` component as children.
-    const hasIllustration = Children.toArray(props.children).some((headerChild) => isValidElement(headerChild) && headerChild.type === Illustration);
 
     return (
         <header
             {...props}
-            className={cx("relative mb-4", (size === "md" || size === "lg") && "mb-5", hasIllustration && size === "lg" && "mb-6!", props.className)}
+            className={cx("relative mb-4", (size === "md" || size === "lg") && "mb-5", props.className)}
         >
-            {pattern !== "none" && (
-                <BackgroundPattern size={patternSize} pattern={pattern} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-            )}
             {props.children}
         </header>
     );
@@ -327,9 +361,7 @@ const EmptyState = Root as typeof Root & {
     Footer: typeof Footer;
     Content: typeof Content;
     Description: typeof Description;
-    Illustration: typeof Illustration;
     FeaturedIcon: typeof FeaturedIcon;
-    FileTypeIcon: typeof FileTypeIcon;
     AvatarRadius: typeof AvatarRadius;
     AvatarRow: typeof AvatarRow;
     AvatarGrid: typeof AvatarGrid;
@@ -340,9 +372,7 @@ EmptyState.Header = Header;
 EmptyState.Footer = Footer;
 EmptyState.Content = Content;
 EmptyState.Description = Description;
-EmptyState.Illustration = Illustration;
 EmptyState.FeaturedIcon = FeaturedIcon;
-EmptyState.FileTypeIcon = FileTypeIcon;
 EmptyState.AvatarRadius = AvatarRadius;
 EmptyState.AvatarRow = AvatarRow;
 EmptyState.AvatarGrid = AvatarGrid;

@@ -806,6 +806,76 @@ export async function awaitMutation<T>(
 }
 
 /**
+ * Press something until the WRITE it commands actually goes out.
+ *
+ * ── Why a press needs proving at all ─────────────────────────────────────────
+ * `awaitMutation` above waits for the response that IS the product's answer,
+ * which is right, and it assumes the press reached a live handler. On a row
+ * that assumption fails in one specific way: a React Router revalidation
+ * RE-CREATES the row — it can change component type (`DraggableTaskRow` ⇄
+ * `TaskRow` at the same key) or move it between sections — and a row that
+ * remounts takes any menu open on it with it. The press then lands on a
+ * detached node. Nothing throws. `click()` reports success, no request is ever
+ * made, and `waitForResponse` waits out its entire budget.
+ *
+ * This is documented twice in `tasks-collection.spec.ts` in the product's own
+ * words ("the revalidation re-creating the row under its open menu") and has
+ * survived two mitigations: HARDEN-04's `networkidle` and DEBT-203's wait on
+ * the preceding write. It still failed as `:649` on CI runs 34894702514 and
+ * 34906306003. `networkidle` cannot close it, because the revalidation the
+ * action asks for can begin AFTER the quiet window that satisfies it.
+ *
+ * ── What this waits for, and why that is not a retry hiding a race ───────────
+ * The state transition is the WRITE, and the write is the only honest proof the
+ * press landed — precisely because a lost press is silent. So each attempt gets
+ * a slice of the budget, and an attempt that produces no request is retried
+ * from the press, which for a menu means re-opening it on whatever row now
+ * exists. A person does the same thing when a press does nothing.
+ *
+ * It cannot mask a defect. A command that never writes still fails here, after
+ * every attempt, naming the route it waited for — where today the same defect
+ * surfaces as an unexplained 90s timeout inside a helper three frames up. And
+ * it cannot double-write: a press that DID reach a handler produces its
+ * response inside its own slice, which ends the loop.
+ *
+ * Use it only where the act is idempotent, because a retry may repeat it. The
+ * caller says so by choosing this over `awaitMutation`.
+ */
+export async function pressUntilMutation(
+  page: Page,
+  pathname: string | RegExp,
+  press: () => Promise<void>,
+  options: {
+    readonly method?: string;
+    readonly attempts?: number;
+    readonly attemptTimeout?: number;
+  } = {},
+): Promise<void> {
+  const attempts = options.attempts ?? 4;
+  const attemptTimeout = options.attemptTimeout ?? 10_000;
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      await awaitMutation(page, pathname, press, {
+        method: options.method,
+        timeout: attemptTimeout,
+      });
+      return;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw new Error(
+    `no ${options.method ?? "POST"} to ${String(pathname)} after ${attempts} ` +
+      `presses of ${attemptTimeout}ms each. The command is not writing — this ` +
+      "is the product failing, not a slow runner, because each attempt " +
+      `re-issued the press from scratch.\n\nLast wait: ${String(lastError)}`,
+  );
+}
+
+/**
  * Wait until every animation running in the document has finished (V2.8
  * CONV-03, DEBT-203).
  *
@@ -1177,6 +1247,54 @@ export async function revealRowActions(row: Locator): Promise<void> {
   if ((await reveal.count()) > 0) {
     await expect(reveal).toHaveCSS("opacity", "1");
   }
+}
+
+/**
+ * Press a menu trigger and return the menu it opened — confirming that it DID
+ * open, and pressing again if a re-render swallowed the press.
+ *
+ * ── The defect this exists for ───────────────────────────────────────────────
+ * A React Router loader revalidation re-renders the surface holding the
+ * trigger. Playwright's own actionability checks pass (the button is visible,
+ * stable, enabled and hit-testable) and the event is then dispatched at a node
+ * React has since replaced, so it lands on nothing. Nothing throws: the click
+ * "succeeds", the menu never opens, and the NEXT step — a `menuitem` locator, or
+ * a `waitForResponse` for the write that item would have sent — waits out its
+ * whole budget and fails somewhere else entirely.
+ *
+ * MEASURED, and not on this branch: `tasks-collection.spec.ts:128` failed this
+ * way on `main` in runs 34807921899 and 34826437375 and again in 34894702514,
+ * always on the THIRD presentation of the loop and always as
+ * `locator.click: Test timeout ... waiting for getByRole('menuitem', { name:
+ * 'List layout' })` — the item was never there to click because the press that
+ * should have revealed it went to a detached button. `:649` failed in the same
+ * run as a 90s `page.waitForResponse` for `/tasks/bulk`, which is the same
+ * dropped press one surface deeper: no press, no menu item, no write, no
+ * response to wait for.
+ *
+ * ── Why this is synchronisation and not a retry that hides a race ────────────
+ * The state transition being waited for is "the menu is open", which is the
+ * product's own answer to the press and the precondition every caller actually
+ * depends on. Asserting it turns a silent drop into an immediate, named failure
+ * instead of a timeout three steps later. Re-pressing is what a person does when
+ * a press does nothing, and it cannot mask a real defect: a menu that never
+ * opens still fails here, with the trigger named, rather than passing.
+ *
+ * It is deliberately NOT `waitForTimeout` and NOT a raised timeout. A sleep
+ * guesses at how long a runner takes to re-render; this waits for the thing
+ * itself, so a slow machine makes it slower and never makes it wrong.
+ */
+export async function openMenuFrom(
+  trigger: Locator,
+  options: { readonly menu?: Locator } = {},
+): Promise<Locator> {
+  const page = trigger.page();
+  const menu = options.menu ?? page.getByRole("menu");
+  await expect(async () => {
+    await trigger.click();
+    await expect(menu.first()).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000, intervals: [200, 400, 800, 1_600] });
+  return menu;
 }
 
 /**

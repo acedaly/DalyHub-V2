@@ -125,7 +125,6 @@ export default defineConfig({
       "react-aria-components",
       "@react-stately/utils",
       "@untitledui/icons",
-      "@untitledui/file-icons",
       "@internationalized/date",
       "react-hotkeys-hook",
       "ical.js",

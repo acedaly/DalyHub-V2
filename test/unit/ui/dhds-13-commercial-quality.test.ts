@@ -93,10 +93,36 @@ describe("DHDS-13 — the tablet rail keeps its glyph", () => {
 });
 
 describe("DHDS-13 — a fact is never sliced mid-glyph", () => {
-  it("reserves the priority mark's own width in the row's priority cell", () => {
+  it("reserves the priority mark's own width, and keeps the project out of it", () => {
+    /*
+     * The reservation is now made from BOTH sides, and this asserts both.
+     *
+     * It was one rule: the priority cell carried `min-inline-size: 3.5rem` so
+     * the mark could not be sliced. Once the phone metadata line wraps, that is
+     * no longer enough — a long Project name takes a whole line, fills it, and
+     * pushes the mark onto a line of its own, which is how
+     * `today-focus.spec.ts:566` failed on CI run 34894702514 with the title's
+     * track and the project's cell both measuring 159. So the project cell now
+     * caps itself at everything EXCEPT the mark's floor and the gap beside it.
+     *
+     * Two rules depending on one number is exactly why the number is a variable
+     * rather than a literal spelled twice, and the three assertions below are
+     * that whole contract: the floor is declared once and is still 3.5rem, the
+     * mark reserves it, and the project may not grow into it.
+     */
     const css = read("app", "styles", "task-list.css");
-    expect(css).toMatch(
-      /\.dh-taskrow__cell--priority\s*{[^}]*min-inline-size:\s*3\.5rem;/s,
+    expect(
+      css,
+      "the mark's floor is declared once, on the row, in rem so OS text scaling keeps it true",
+    ).toMatch(/\.dh-taskrow\s*{[^}]*--taskrow-priority-floor:\s*3\.5rem;/s);
+    expect(css, "the priority cell reserves the mark's own width").toMatch(
+      /\.dh-taskrow__cell--priority\s*{[^}]*min-inline-size:\s*var\(--taskrow-priority-floor\);/s,
+    );
+    expect(
+      css,
+      "and the project cell may not grow into the space the mark is entitled to",
+    ).toMatch(
+      /\.dh-taskrow__cell--project\s*{[^}]*max-inline-size:\s*calc\(\s*100% - var\(--dh-space-2\) - var\(--taskrow-priority-floor\)\s*\);/s,
     );
   });
 
