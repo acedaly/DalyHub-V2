@@ -2,7 +2,15 @@
 
 **Version `3.0.0` · Release name "V3" · PREPARED 2026-09-15 · CUT ATTEMPTED AND HELD 2026-09-15 · NOT RELEASED**
 
-> **The release gate is now MET, and the release commit is `4a2140f`.** The cut
+> ## ⛔ HELD AGAIN, 2026-09-15 — the text cursor is invisible in dark mode
+>
+> Found after the release PR merged, while reading
+> [#300](https://github.com/acedaly/DalyHub-V2/pull/300). **`main` @ `652f389`
+> must not be tagged or deployed.** §1.3 has the measurement. Nothing is
+> stranded: the `v3.0.0` tag was deliberately never created, so the release
+> commit simply moves to whatever `main` is after #300 lands.
+>
+> **The release gate was MET at `4a2140f`, and the release commit was `652f389`.** The cut
 > was attempted on 2026-09-15 against `4f49c169` and stopped at §0 condition 3:
 > that CI run was RED, and one of its three failures was a real WCAG 2.2 AA
 > regression V3-CSS-01 had introduced. It was fixed by
@@ -160,6 +168,62 @@ Found by review on the release PR, against a draft of this document that had
 claimed the opposite. Recorded here rather than quietly corrected, because the
 wrong version of this paragraph is exactly the kind of thing a release runbook
 must not be believed about twice.
+
+### 1.3 The text cursor is invisible in the dark appearance
+
+⛔ **Discovered 2026-09-15, after the release PR merged, and it holds the tag.**
+
+The same root cause as §2.6a, one property class over. `.cm-cursor`,
+`.cm-dropCursor` and `.cm-placeholder` are still declared in
+`markdown-editor.css`, which #298 correctly returned to `dh-product` — but
+CodeMirror declares those same properties on those same elements in its
+unlayered injected sheet, so it wins. #298's exception list was written by hand
+from a probe that printed 60 of CodeMirror's 320 selector/property pairs, and
+both of these were below the cut.
+
+Measured on `main` @ `652f389` — **probing inside the real `.cm-editor`**, which
+is the part that matters: CodeMirror scopes its rules under a generated class on
+that element (`cm-editor cm-focused ͼ1 ͼ2 ͼ4`), so a synthetic node placed
+above it matches only the DalyHub rule and reports a false pass. The first probe
+run here did exactly that and had to be redone.
+
+| | light | dark |
+| :--- | :--- | :--- |
+| `.cm-cursor` / `.cm-dropCursor` `border-left-color` | `rgb(0,0,0)` | `rgb(0,0,0)` |
+| intended (`--dh-color-text`) | `rgb(16,16,20)` | `rgb(243,243,246)` |
+| `.cm-placeholder` `color` | `rgb(136,136,136)` | `rgb(136,136,136)` |
+| intended (`--dh-color-text-muted`) | `rgb(107,107,117)` | `rgb(140,140,151)` |
+
+Against the dark page background `rgb(18,18,21)`:
+
+| | actual | intended |
+| :--- | ---: | ---: |
+| **caret, dark** | **1.12:1** | 16.88:1 |
+| caret, light | 19.46:1 | 17.59:1 |
+| placeholder, light | 3.28:1 | 4.88:1 |
+| placeholder, dark | 5.27:1 | 5.62:1 |
+
+**1.12:1 is invisible.** In the dark appearance an owner cannot see where they
+are typing, on every Markdown surface the product has — Notes, Diary, the
+Meeting workspace, the guided Review. The light-mode placeholder is a smaller
+real regression alongside it: 3.28:1 where DalyHub's own token gives 4.88:1.
+
+**Why the gate missed it, again.** axe has no rule for caret colour, and a
+placeholder is not a text node it scores — so `reviews-guided.spec.ts` Journey 6
+and all 23 green jobs at `4a2140f` passed over it. The green run is not wrong;
+it is measuring what it measures. This is the second defect in this corner that
+a hand-maintained list let through, which is the argument #300 makes for
+deriving the set instead.
+
+**Fixed by [#300](https://github.com/acedaly/DalyHub-V2/pull/300)**, opened
+independently and not duplicated from here.
+
+**When it lands**, `main` moves again and the release SHA moves with it. The
+release PR is already merged (`652f389`) and there is nothing left to merge, so
+the restart is §7 **step 0b, then steps 2–4** — refresh `main`, record the new
+`RELEASE_SHA`, confirm that commit's own CI, and tag THAT. Step 1 (the nightly
+suite) is worth re-running against the new `main` too, since it has never run
+against any commit.
 
 ### Why the major number, and why not `2.5.0`
 
@@ -570,8 +634,9 @@ rollback, so 8 and 9 belong to one window rather than two sittings.
 | # | Action | Why it is here |
 | :-- | :--- | :--- |
 | ~~0~~ | ~~Confirm `main` CI at `4a2140f` is green~~ | ✅ **done** — run [`34962659072`](https://github.com/acedaly/DalyHub-V2/actions/runs/34962659072), 23 of 23 |
+| **0b** | **Land [#300](https://github.com/acedaly/DalyHub-V2/pull/300) and confirm the resulting `main` CI run is green** | §1.3 — **the current blocker.** The release commit becomes that commit, and steps 2–4 below run against it |
 | 1 | `gh workflow run nightly.yml --ref main`; confirm `accessibility-matrix`, `responsive-desktop` and `responsive-phone` all green | §2.5 — `workflow_dispatch` returned `403` to the session, and this is the first release under the tier split |
-| 2 | **Merge the release PR**, then `git checkout main && git pull` and record `RELEASE_SHA=$(git rev-parse HEAD)` | §8 — every step below refers to this exact commit |
+| 2 | `git checkout main && git pull`, then record `RELEASE_SHA=$(git rev-parse HEAD)` | §8 — every step below refers to this exact commit. The release PR itself **already merged**, as `652f389`; §1.3 then superseded that commit, so the release SHA is whatever `main` is once step 0b has landed |
 | 3 | **Confirm the `main` CI run triggered by that merge is green** | the tag must name a commit that passed the real `main` gate, not its parent |
 | 4 | `git tag -a v3.0.0 "$RELEASE_SHA" -m "DalyHub 3.0.0 — V3"`, verify `git rev-parse v3.0.0^{commit}` equals `RELEASE_SHA`, then `git push origin v3.0.0`, and create the GitHub Release from it | §8. Never moved afterwards |
 | 5 | `pnpm run db:production:list` — **record the output** | §1.1 — production's ledger is the only authority on which of `0048`–`0055` are pending |
@@ -607,7 +672,8 @@ deliberately."*
 | :-- | :--- |
 | Blocking fix | [#298](https://github.com/acedaly/DalyHub-V2/pull/298) — merged, `main` @ `4a2140f` |
 | Release metadata branch | `release/v3.0.0`, merged up to `4a2140f` |
-| Release commit (`main` after the release PR) | ⏳ |
+| Release commit (`main` after the release PR) | `652f389516938bf813d46b56cc4b3b4c7b29ad53` — **superseded**: §1.3 holds it, and the release commit moves to `main` after #300 |
+| Blocking defect found after the release merge | ⛔ §1.3 — the caret is invisible in dark mode (1.12:1). Fixed by [#300](https://github.com/acedaly/DalyHub-V2/pull/300), not yet landed |
 | Annotated tag `v3.0.0` | ⏳ — must be created on the exact release commit, and never moved |
 | GitHub Release | ⏳ |
 | Pre-deploy backup identifier | ⏳ |
