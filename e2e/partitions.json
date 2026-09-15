@@ -175,7 +175,7 @@
     "e2e/today-task-convergence.spec.ts": 75.8,
     "e2e/today.spec.ts": 53.7,
     "e2e/tooltip.spec.ts": 61.9,
-    "e2e/touch-targets.spec.ts": 59.9,
+    "e2e/touch-targets.spec.ts": 47.6,
     "e2e/ui-quality.spec.ts": 20.2,
     "e2e/ux-01-daily-driver.spec.ts": 44.6,
     "e2e/ux-02-plan-habits.spec.ts": 106.7,
@@ -322,7 +322,7 @@
     "e2e/today-task-convergence.spec.ts": 11,
     "e2e/today.spec.ts": 12,
     "e2e/tooltip.spec.ts": 14,
-    "e2e/touch-targets.spec.ts": 13,
+    "e2e/touch-targets.spec.ts": 14,
     "e2e/ui-quality.spec.ts": 4,
     "e2e/ux-01-daily-driver.spec.ts": 12,
     "e2e/ux-02-plan-habits.spec.ts": 12,
@@ -469,7 +469,7 @@
     "e2e/today-task-convergence.spec.ts": "run 34789120450 (18 partitions, f8a474c)",
     "e2e/today.spec.ts": "run 34789120450 (18 partitions, f8a474c)",
     "e2e/tooltip.spec.ts": "results",
-    "e2e/touch-targets.spec.ts": "results",
+    "e2e/touch-targets.spec.ts": "local/v3-e2e-01",
     "e2e/ui-quality.spec.ts": "results",
     "e2e/ux-01-daily-driver.spec.ts": "results",
     "e2e/ux-02-plan-habits.spec.ts": "run 34789120450 (18 partitions, f8a474c)",
@@ -479,270 +479,270 @@
   "partitions": [
     {
       "name": "p01",
-      "estimateSeconds": 818.3,
-      "testEstimate": 62,
+      "estimateSeconds": 817.5,
+      "testEstimate": 77,
       "specs": [
-        "e2e/conv-02-waiting-taskrow.spec.ts",
-        "e2e/design-foundation.spec.ts",
-        "e2e/non-diary-audit.spec.ts",
-        "e2e/recall-04-day-week-truth.spec.ts",
-        "e2e/reviews.spec.ts",
-        "e2e/smoke.spec.ts",
-        "e2e/tasks-daily-driver.spec.ts",
-        "e2e/tasks-journey.spec.ts",
-        "e2e/today-mobile.spec.ts"
-      ]
-    },
-    {
-      "name": "p02",
-      "estimateSeconds": 817.3,
-      "testEstimate": 78,
-      "specs": [
-        "e2e/capture-settings.spec.ts",
-        "e2e/cards-filters.spec.ts",
-        "e2e/dhds-11-drag-reorder.spec.ts",
-        "e2e/find-empty-search.spec.ts",
-        "e2e/gate-02-honest-signals.spec.ts",
-        "e2e/spine-workspaces.spec.ts",
-        "e2e/tasks-v22-daily-driver.spec.ts",
-        "e2e/today-task-convergence.spec.ts"
-      ]
-    },
-    {
-      "name": "p03",
-      "estimateSeconds": 817.2,
-      "testEstimate": 69,
-      "specs": [
-        "e2e/dhds-10-inline-manipulation.spec.ts",
-        "e2e/doc-editor-keyboard-save.spec.ts",
-        "e2e/goals.spec.ts",
-        "e2e/life-admin.spec.ts",
-        "e2e/mobile-modules.spec.ts",
-        "e2e/plan-smart-lists.spec.ts",
-        "e2e/reports.spec.ts",
-        "e2e/tasks.spec.ts"
-      ]
-    },
-    {
-      "name": "p04",
-      "estimateSeconds": 817.1,
-      "testEstimate": 69,
-      "specs": [
-        "e2e/areas-goals-mobile.spec.ts",
-        "e2e/assets-mobile-capture.spec.ts",
-        "e2e/consol-00-question-first-navigation.spec.ts",
-        "e2e/find-tag-vocabulary.spec.ts",
-        "e2e/people-timeline.spec.ts",
-        "e2e/steer-goals.spec.ts",
-        "e2e/tasks-collection.spec.ts"
-      ]
-    },
-    {
-      "name": "p05",
-      "estimateSeconds": 816.4,
-      "testEstimate": 61,
-      "specs": [
-        "e2e/area-lifecycle.spec.ts",
-        "e2e/cross-module-views.spec.ts",
-        "e2e/csp.spec.ts",
-        "e2e/global-capture.spec.ts",
-        "e2e/linked-items.spec.ts",
-        "e2e/meetings-people-history.spec.ts",
-        "e2e/project-templates.spec.ts",
-        "e2e/recall-03-commitments-due.spec.ts"
-      ]
-    },
-    {
-      "name": "p06",
-      "estimateSeconds": 816.1,
-      "testEstimate": 66,
-      "specs": [
-        "e2e/account-security.spec.ts",
-        "e2e/assets.spec.ts",
-        "e2e/export.spec.ts",
-        "e2e/find-task-tags.spec.ts",
-        "e2e/notes-knowledge.spec.ts",
-        "e2e/record-lifecycle.spec.ts",
-        "e2e/tasks-optimistic.spec.ts"
-      ]
-    },
-    {
-      "name": "p07",
-      "estimateSeconds": 815.6,
-      "testEstimate": 79,
-      "specs": [
-        "e2e/color-scheme.spec.ts",
-        "e2e/editing-consistency.spec.ts",
-        "e2e/finance.spec.ts",
-        "e2e/forms.spec.ts",
-        "e2e/inline-editor-overlay.spec.ts",
-        "e2e/people-relationship.spec.ts",
-        "e2e/reviews-guided.spec.ts",
-        "e2e/tasks-capture-language.spec.ts"
-      ]
-    },
-    {
-      "name": "p08",
-      "estimateSeconds": 815,
-      "testEstimate": 102,
-      "specs": [
-        "e2e/command-palette.spec.ts",
-        "e2e/plan-weekly-planning.spec.ts",
-        "e2e/product-frame.spec.ts",
-        "e2e/pwa-offline-tasks.spec.ts",
-        "e2e/px-03-navigation.spec.ts",
-        "e2e/recall-01-search-content.spec.ts",
-        "e2e/task-drawer.spec.ts",
-        "e2e/waiting.spec.ts"
-      ]
-    },
-    {
-      "name": "p09",
-      "estimateSeconds": 814.9,
-      "testEstimate": 112,
-      "specs": [
-        "e2e/ai-assistance.spec.ts",
-        "e2e/csrf.spec.ts",
         "e2e/editor-geometry.spec.ts",
-        "e2e/goals-alignment.spec.ts",
-        "e2e/help-about.spec.ts",
-        "e2e/iphone-daily-driver.spec.ts",
-        "e2e/planning.spec.ts",
-        "e2e/touch-targets.spec.ts"
-      ]
-    },
-    {
-      "name": "p10",
-      "estimateSeconds": 814.7,
-      "testEstimate": 121,
-      "specs": [
-        "e2e/follow-02-goal-movement.spec.ts",
-        "e2e/goal-measurement.spec.ts",
-        "e2e/identity.spec.ts",
-        "e2e/mobile-shell.spec.ts",
-        "e2e/project-activity.spec.ts",
-        "e2e/projects.spec.ts",
-        "e2e/today-focus.spec.ts",
-        "e2e/ux-01-daily-driver.spec.ts"
-      ]
-    },
-    {
-      "name": "p11",
-      "estimateSeconds": 813.6,
-      "testEstimate": 76,
-      "specs": [
-        "e2e/areas.spec.ts",
-        "e2e/branded-plum-diagnostic.spec.ts",
-        "e2e/entity-icons.spec.ts",
-        "e2e/feedback.spec.ts",
-        "e2e/interaction-consistency.spec.ts",
-        "e2e/tasks-dependencies.spec.ts",
-        "e2e/ui-quality.spec.ts"
-      ]
-    },
-    {
-      "name": "p12",
-      "estimateSeconds": 813.2,
-      "testEstimate": 93,
-      "specs": [
-        "e2e/audit-13-conversion-atomicity.spec.ts",
-        "e2e/calendar.spec.ts",
-        "e2e/diary.spec.ts",
-        "e2e/notes.spec.ts",
-        "e2e/plan-responsive.spec.ts",
-        "e2e/reviews-insights.spec.ts",
-        "e2e/steer-week-door.spec.ts",
-        "e2e/today.spec.ts"
-      ]
-    },
-    {
-      "name": "p13",
-      "estimateSeconds": 813.2,
-      "testEstimate": 70,
-      "specs": [
-        "e2e/css-cascade-ownership.spec.ts",
         "e2e/find-capture-tags.spec.ts",
-        "e2e/meetings-concurrency.spec.ts",
         "e2e/people.spec.ts",
         "e2e/projects-mobile.spec.ts",
         "e2e/pwa-budget.spec.ts",
         "e2e/record-header-title.spec.ts",
         "e2e/settings.spec.ts",
+        "e2e/smoke.spec.ts",
         "e2e/ux-02-plan-habits.spec.ts"
       ]
     },
     {
-      "name": "p14",
-      "estimateSeconds": 813,
+      "name": "p02",
+      "estimateSeconds": 816.5,
+      "testEstimate": 76,
+      "specs": [
+        "e2e/areas-goals-mobile.spec.ts",
+        "e2e/assets-mobile-capture.spec.ts",
+        "e2e/consol-00-question-first-navigation.spec.ts",
+        "e2e/find-tag-vocabulary.spec.ts",
+        "e2e/recall-01-search-content.spec.ts",
+        "e2e/steer-goals.spec.ts",
+        "e2e/tasks-collection.spec.ts"
+      ]
+    },
+    {
+      "name": "p03",
+      "estimateSeconds": 816.5,
+      "testEstimate": 53,
+      "specs": [
+        "e2e/area-lifecycle.spec.ts",
+        "e2e/cross-module-views.spec.ts",
+        "e2e/csp.spec.ts",
+        "e2e/doc-editor-keyboard-save.spec.ts",
+        "e2e/global-capture.spec.ts",
+        "e2e/meetings-people-history.spec.ts",
+        "e2e/people-timeline.spec.ts",
+        "e2e/project-templates.spec.ts"
+      ]
+    },
+    {
+      "name": "p04",
+      "estimateSeconds": 816.3,
+      "testEstimate": 76,
+      "specs": [
+        "e2e/capture-settings.spec.ts",
+        "e2e/dhds-11-drag-reorder.spec.ts",
+        "e2e/find-empty-search.spec.ts",
+        "e2e/gate-02-honest-signals.spec.ts",
+        "e2e/spine-workspaces.spec.ts",
+        "e2e/tasks-v22-daily-driver.spec.ts",
+        "e2e/today-keyboard.spec.ts",
+        "e2e/today-task-convergence.spec.ts"
+      ]
+    },
+    {
+      "name": "p05",
+      "estimateSeconds": 815.5,
+      "testEstimate": 109,
+      "specs": [
+        "e2e/assisted-ai.spec.ts",
+        "e2e/conv-01-project-taskrow.spec.ts",
+        "e2e/creation-controls.spec.ts",
+        "e2e/linked-items.spec.ts",
+        "e2e/notifications.spec.ts",
+        "e2e/pwa-offline.spec.ts",
+        "e2e/record-anatomy.spec.ts",
+        "e2e/tasks-optimistic.spec.ts"
+      ]
+    },
+    {
+      "name": "p06",
+      "estimateSeconds": 815.3,
+      "testEstimate": 67,
+      "specs": [
+        "e2e/activity-actor.spec.ts",
+        "e2e/dhds-10-inline-manipulation.spec.ts",
+        "e2e/goals.spec.ts",
+        "e2e/mobile-modules.spec.ts",
+        "e2e/plan-smart-lists.spec.ts",
+        "e2e/record-lifecycle.spec.ts",
+        "e2e/reports.spec.ts",
+        "e2e/tasks.spec.ts"
+      ]
+    },
+    {
+      "name": "p07",
+      "estimateSeconds": 814.9,
       "testEstimate": 84,
       "specs": [
+        "e2e/color-scheme.spec.ts",
+        "e2e/editing-consistency.spec.ts",
+        "e2e/finance.spec.ts",
+        "e2e/people-relationship.spec.ts",
+        "e2e/recall-03-commitments-due.spec.ts",
+        "e2e/reviews-guided.spec.ts",
+        "e2e/tasks-capture-language.spec.ts",
+        "e2e/ux-01-daily-driver.spec.ts"
+      ]
+    },
+    {
+      "name": "p08",
+      "estimateSeconds": 814.3,
+      "testEstimate": 127,
+      "specs": [
+        "e2e/forms.spec.ts",
+        "e2e/goal-measurement.spec.ts",
+        "e2e/identity.spec.ts",
+        "e2e/inline-editor-overlay.spec.ts",
+        "e2e/mobile-shell.spec.ts",
+        "e2e/product-frame.spec.ts",
+        "e2e/project-activity.spec.ts",
+        "e2e/projects.spec.ts"
+      ]
+    },
+    {
+      "name": "p09",
+      "estimateSeconds": 813.9,
+      "testEstimate": 78,
+      "specs": [
+        "e2e/areas.spec.ts",
+        "e2e/cards-filters.spec.ts",
+        "e2e/csrf.spec.ts",
+        "e2e/feedback.spec.ts",
+        "e2e/goals-alignment.spec.ts",
+        "e2e/interaction-consistency.spec.ts",
+        "e2e/planning.spec.ts",
+        "e2e/tasks-dependencies.spec.ts"
+      ]
+    },
+    {
+      "name": "p10",
+      "estimateSeconds": 813.9,
+      "testEstimate": 86,
+      "specs": [
+        "e2e/attachments.spec.ts",
+        "e2e/collection-header.spec.ts",
+        "e2e/follow-01-week-account.spec.ts",
+        "e2e/follow-02-goal-movement.spec.ts",
+        "e2e/life-admin.spec.ts",
+        "e2e/tasks-checklist.spec.ts",
+        "e2e/tooltip.spec.ts"
+      ]
+    },
+    {
+      "name": "p11",
+      "estimateSeconds": 813.3,
+      "testEstimate": 58,
+      "specs": [
+        "e2e/branded-plum-diagnostic.spec.ts",
+        "e2e/conv-02-waiting-taskrow.spec.ts",
+        "e2e/non-diary-audit.spec.ts",
+        "e2e/reviews.spec.ts",
+        "e2e/tasks-daily-driver.spec.ts",
+        "e2e/tasks-journey.spec.ts",
+        "e2e/today-mobile.spec.ts",
+        "e2e/ui-quality.spec.ts"
+      ]
+    },
+    {
+      "name": "p12",
+      "estimateSeconds": 812.7,
+      "testEstimate": 81,
+      "specs": [
         "e2e/appearance.spec.ts",
-        "e2e/doc-editor-responsive.spec.ts",
         "e2e/goals-outcomes.spec.ts",
         "e2e/habits.spec.ts",
         "e2e/keyboard.spec.ts",
         "e2e/people-diary-context.spec.ts",
         "e2e/project-settings.spec.ts",
-        "e2e/search.spec.ts"
+        "e2e/search.spec.ts",
+        "e2e/today-focus.spec.ts"
+      ]
+    },
+    {
+      "name": "p13",
+      "estimateSeconds": 812.5,
+      "testEstimate": 90,
+      "specs": [
+        "e2e/audit-13-conversion-atomicity.spec.ts",
+        "e2e/calendar.spec.ts",
+        "e2e/diary.spec.ts",
+        "e2e/export.spec.ts",
+        "e2e/notes.spec.ts",
+        "e2e/plan-responsive.spec.ts",
+        "e2e/reviews-insights.spec.ts",
+        "e2e/steer-week-door.spec.ts"
+      ]
+    },
+    {
+      "name": "p14",
+      "estimateSeconds": 812.4,
+      "testEstimate": 116,
+      "specs": [
+        "e2e/ai-assistance.spec.ts",
+        "e2e/css-cascade-ownership.spec.ts",
+        "e2e/design-foundation.spec.ts",
+        "e2e/entity-icons.spec.ts",
+        "e2e/help-about.spec.ts",
+        "e2e/iphone-daily-driver.spec.ts",
+        "e2e/recall-04-day-week-truth.spec.ts",
+        "e2e/touch-targets.spec.ts"
       ]
     },
     {
       "name": "p15",
-      "estimateSeconds": 811.6,
-      "testEstimate": 88,
+      "estimateSeconds": 811.3,
+      "testEstimate": 89,
       "specs": [
-        "e2e/activity-actor.spec.ts",
         "e2e/assets-ownership.spec.ts",
         "e2e/dhds-13-commercial-quality.spec.ts",
         "e2e/drawer.spec.ts",
         "e2e/floating-surfaces.spec.ts",
         "e2e/grounded-ai.spec.ts",
+        "e2e/meetings-concurrency.spec.ts",
         "e2e/meetings-follow-up.spec.ts",
         "e2e/restore.spec.ts"
       ]
     },
     {
       "name": "p16",
-      "estimateSeconds": 811.1,
-      "testEstimate": 91,
+      "estimateSeconds": 810.4,
+      "testEstimate": 66,
       "specs": [
-        "e2e/attachments.spec.ts",
-        "e2e/collection-header.spec.ts",
-        "e2e/conv-01-project-taskrow.spec.ts",
-        "e2e/follow-01-week-account.spec.ts",
-        "e2e/tasks-checklist.spec.ts",
-        "e2e/tooltip.spec.ts",
+        "e2e/account-security.spec.ts",
+        "e2e/assets.spec.ts",
+        "e2e/find-task-tags.spec.ts",
+        "e2e/notes-knowledge.spec.ts",
+        "e2e/recall-02-completed-time.spec.ts",
+        "e2e/steer-goal-story.spec.ts",
         "e2e/visual-system.spec.ts"
       ]
     },
     {
       "name": "p17",
-      "estimateSeconds": 811,
-      "testEstimate": 107,
+      "estimateSeconds": 810.3,
+      "testEstimate": 96,
       "specs": [
-        "e2e/assisted-ai.spec.ts",
-        "e2e/creation-controls.spec.ts",
-        "e2e/notifications.spec.ts",
+        "e2e/command-palette.spec.ts",
         "e2e/owner-timezone.spec.ts",
-        "e2e/pwa-offline.spec.ts",
-        "e2e/recall-02-completed-time.spec.ts",
-        "e2e/record-anatomy.spec.ts",
-        "e2e/steer-goal-story.spec.ts"
+        "e2e/plan-weekly-planning.spec.ts",
+        "e2e/pwa-offline-tasks.spec.ts",
+        "e2e/px-03-navigation.spec.ts",
+        "e2e/task-drawer.spec.ts",
+        "e2e/today.spec.ts",
+        "e2e/waiting.spec.ts"
       ]
     },
     {
       "name": "p18",
-      "estimateSeconds": 810.1,
+      "estimateSeconds": 809.6,
       "testEstimate": 165,
       "specs": [
         "e2e/accessibility.spec.ts",
         "e2e/activity-feed.spec.ts",
         "e2e/analytics.spec.ts",
+        "e2e/doc-editor-responsive.spec.ts",
         "e2e/mobile-capture-journeys.spec.ts",
         "e2e/motion.spec.ts",
         "e2e/project-health.spec.ts",
-        "e2e/responsive-core.spec.ts",
-        "e2e/today-keyboard.spec.ts"
+        "e2e/responsive-core.spec.ts"
       ]
     }
   ]
