@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 /*
  * The ONE stylesheet allowed to be unlayered, read as TEXT so that the
@@ -132,6 +132,71 @@ async function readProbe(
       legacyBorderRadius: l.borderRadius,
     };
   });
+}
+
+/**
+ * The contrast of one element's colour against the first painted background
+ * above it, measured the way the browser itself would.
+ *
+ * Colours are resolved by PAINTING them on a 1x1 canvas and reading the byte,
+ * not by parsing `rgb()`. The product's tokens are `oklch()` under Tailwind v4
+ * and an ancestor background computes as `oklch(0.145 0 none)`, which no rgb()
+ * parser reads — the first version of this returned NaN and reported a passing
+ * caret as a failure. The canvas is the browser's own conversion, so it cannot
+ * drift from what is on screen; the same trick decides transparency during the
+ * walk upwards.
+ */
+async function contrastAgainstBackground(
+  page: Page,
+  selector: string,
+  property: "borderLeftColor" | "color",
+): Promise<{ colour: string; background: string; ratio: number } | null> {
+  return page.evaluate(
+    ({ selector, property }) => {
+      const element = document.querySelector(selector) as HTMLElement | null;
+      if (!element) return null;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = 1;
+      canvas.height = 1;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+      const bytes = (value: string) => {
+        ctx.clearRect(0, 0, 1, 1);
+        ctx.fillStyle = value;
+        ctx.fillRect(0, 0, 1, 1);
+        return ctx.getImageData(0, 0, 1, 1).data;
+      };
+      const luminance = (value: string) => {
+        const [r, g, b] = bytes(value);
+        const channel = (v: number) => {
+          const n = v / 255;
+          return n <= 0.03928 ? n / 12.92 : ((n + 0.055) / 1.055) ** 2.4;
+        };
+        return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+      };
+
+      const colour = getComputedStyle(element)[property];
+
+      /* The editor's surfaces are transparent up to the page, so walk for the
+       * first one that actually paints rather than assuming which element does. */
+      let node: HTMLElement | null = element;
+      let background = "rgb(255, 255, 255)";
+      while (node) {
+        const bg = getComputedStyle(node).backgroundColor;
+        if (bytes(bg)[3] > 0) {
+          background = bg;
+          break;
+        }
+        node = node.parentElement;
+      }
+
+      const a = luminance(colour);
+      const b = luminance(background);
+      const [hi, lo] = a > b ? [a, b] : [b, a];
+      return { colour, background, ratio: (hi + 0.05) / (lo + 0.05) };
+    },
+    { selector, property },
+  );
 }
 
 test.describe("V3-CSS-01 — cascade ownership", () => {
@@ -339,4 +404,123 @@ test.describe("V3-CSS-01 — cascade ownership", () => {
         "been put into a cascade layer again",
     ).toBeGreaterThan(0);
   });
+
+  /**
+   * The caret is VISIBLE. Not "the caret takes a particular property from a
+   * particular file" — visible, in both appearances, which is a contract a
+   * person can check against the running product.
+   *
+   * This is deliberately not written as "`.cm-cursor` gets its
+   * `border-left-color` from the exception file". That assertion would have
+   * passed for the whole of the defect it exists to catch, because the rule WAS
+   * there — in `markdown-editor.css`, in `dh-product`, losing to CodeMirror's
+   * unlayered `border-left-color`. What was wrong was not which file declared it
+   * but what an owner saw, and in the dark appearance what they saw was nothing:
+   *
+   *   caret, dark    rgb(0,0,0) on rgb(18,18,21)   =  1.12:1   (token: 16.88:1)
+   *   caret, light   rgb(0,0,0) on rgb(246,246,248) = 19.46:1  (token: 17.59:1)
+   *
+   * Light mode hid it completely — black on near-white is *better* contrast than
+   * the token, so the defect was invisible in the appearance most work happens
+   * in and total in the other. That is why this runs in both, and why the
+   * threshold is a contrast ratio rather than a colour.
+   *
+   * 3:1 is the WCAG 2.2 non-text contrast floor (1.4.11). The token gives ~17:1
+   * either way, so there is a wide margin between passing and the defect's
+   * 1.12:1 — this is not a test that needs retuning when a token moves.
+   */
+  for (const scheme of ["light", "dark"] as const) {
+    test(`the text cursor is visible in the ${scheme} appearance`, async ({
+      page,
+    }) => {
+      await page.emulateMedia({ colorScheme: scheme });
+      await page.goto("/notes/n-search-e2e");
+      const content = page.locator(".dh-md-editor__cm .cm-content").first();
+      await content.waitFor();
+      // The caret only exists once the editor has focus.
+      await content.click();
+
+      const measured = await contrastAgainstBackground(
+        page,
+        ".dh-md-editor__cm .cm-cursor",
+        "borderLeftColor",
+      );
+
+      expect(
+        measured,
+        "no `.cm-cursor` after focusing the editor — the caret could not be measured",
+      ).not.toBeNull();
+
+      expect(
+        measured!.ratio,
+        `the text cursor is ${measured!.colour} against ${measured!.background}, ` +
+          `a contrast of ${measured!.ratio.toFixed(2)}:1. Below 3:1 an owner ` +
+          `cannot see where they are typing. This is what a CodeMirror default ` +
+          `winning over a layered DalyHub rule looks like`,
+      ).toBeGreaterThanOrEqual(3);
+    });
+  }
+
+  /**
+   * The placeholder, for the same reason and with the same shape.
+   *
+   * It is a separate rule in the same exception file, and it had the same
+   * defect: CodeMirror's `#888` was winning, which measures 3.54:1 against the
+   * editor's white surface where DalyHub's own muted token gives 4.88:1.
+   * Without this, moving or deleting that one override would recreate the
+   * regression with the caret tests still green — which is exactly how the
+   * caret got here, only the noticed half of a two-rule defect having a test.
+   *
+   * It fails in the MIRROR appearance to the caret, which is the argument for
+   * running both on each. Deleting the override again:
+   *
+   *   ✘ light  rgb(136,136,136) on rgb(255,255,255)  3.54:1
+   *   ✓ dark
+   *
+   * The caret's defect was total in dark and invisible in light; this one is
+   * the other way round. Either test alone, in either appearance alone, misses
+   * one of them.
+   *
+   * 4.5:1 is the WCAG 2.2 AA floor for text (1.4.3). A placeholder is a
+   * borderline case under the spec and a real one for an owner, so it is held
+   * to the text threshold rather than the non-text one the caret uses.
+   *
+   * The placeholder only exists on an empty document, so the seeded Note is
+   * emptied to produce one — the same thing `editor-geometry.spec.ts` does for
+   * its empty-caret assertion, in a different partition.
+   */
+  for (const scheme of ["light", "dark"] as const) {
+    test(`the empty-state placeholder is legible in the ${scheme} appearance`, async ({
+      page,
+    }) => {
+      await page.emulateMedia({ colorScheme: scheme });
+      await page.goto("/notes/n-search-e2e");
+      const content = page.locator(".dh-md-editor__cm .cm-content").first();
+      await content.waitFor();
+
+      await content.click();
+      await page.keyboard.press("ControlOrMeta+a");
+      await page.keyboard.press("Backspace");
+      await expect(page.locator(".cm-placeholder")).toBeVisible();
+
+      const measured = await contrastAgainstBackground(
+        page,
+        ".dh-md-editor__cm .cm-placeholder",
+        "color",
+      );
+
+      expect(
+        measured,
+        "no `.cm-placeholder` after emptying the document",
+      ).not.toBeNull();
+
+      expect(
+        measured!.ratio,
+        `the placeholder is ${measured!.colour} against ${measured!.background}, ` +
+          `a contrast of ${measured!.ratio.toFixed(2)}:1. CodeMirror's own ` +
+          `\`#888\` reads 3.54:1 against the editor's white surface; DalyHub's ` +
+          `muted token gives 4.88:1`,
+      ).toBeGreaterThanOrEqual(4.5);
+    });
+  }
 });

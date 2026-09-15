@@ -335,14 +335,10 @@
  * document air at the top of the page rather than starting it against the rule.
  */
 
-.dh-md-editor__cm .cm-cursor,
-.dh-md-editor__cm .cm-dropCursor {
-  border-left-color: var(--dh-color-text);
-}
-
-.dh-md-editor__cm .cm-placeholder {
-  color: var(--dh-color-text-muted);
-}
+/* The caret and the placeholder moved to `markdown-editor-codemirror.css`:
+ * CodeMirror declares `border-left-color` on `.cm-cursor`/`.cm-dropCursor` and
+ * `color` on `.cm-placeholder`, so from a layer they could not win. See that
+ * file's header. */
 
 /* --- Live-preview construct styling (applied to source ranges) ------------ */
 
