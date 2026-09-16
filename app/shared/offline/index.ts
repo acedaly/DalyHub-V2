@@ -48,7 +48,7 @@ export {
 export {
   OFFLINE_REPLAY_APPLIED_EVENT,
   announceReplayApplied,
-  enqueueTaskMutation,
+  enqueueOfflineMutation,
   getActiveOfflineNamespace,
   hasOutstandingMutations,
   notifyMutationQueueChanged,
@@ -56,7 +56,7 @@ export {
   setActiveOfflineNamespace,
   subscribeMutationQueue,
   type EnqueueResult,
-  type TaskMutationIntent,
+  type OfflineMutationIntent,
 } from "./mutation-queue";
 
 export {

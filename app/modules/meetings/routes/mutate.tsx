@@ -8,6 +8,17 @@ import {
   MeetingStorageError,
   type MeetingItemKind,
 } from "~/kernel/meetings";
+import {
+  OFFLINE_APPEND_ITEM_KIND,
+  isAppendOperation,
+  type OfflineAppendOperation,
+  type OfflineReplayEnvelope,
+} from "~/kernel/offline";
+import {
+  readOfflineReplayRequest,
+  withOfflineMutationReplay,
+  type OfflineReplayRequest,
+} from "~/platform/offline";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { ownerLocalToUtc } from "~/shared/datetime";
@@ -66,6 +77,54 @@ export interface MeetingUpdateResponse {
   readonly detailsUpdatedAt: string;
 }
 
+/**
+ * MOBILE-03 — read and VALIDATE the offline-replay fields on a Meeting
+ * submission.
+ *
+ * Returns `null` for every online submission (the overwhelmingly common case,
+ * and the one that must cost nothing — no claim, no receipt, no extra
+ * statement), `"malformed"` when the fields are present but inconsistent, and
+ * the request otherwise.
+ *
+ * The three consistency rules mirror the Task route's, for the same reason: a
+ * hand-made `offlineKey` must not be attachable to an intent it was never
+ * issued for.
+ *
+ *   1. the declared operation must be an APPEND — this route accepts no other
+ *      offline operation, so a queued `set_priority` replayed here is refused
+ *      before a claim is written rather than being quietly ignored;
+ *   2. the intent must be `add_item`, which is the only intent an append
+ *      performs;
+ *   3. the submitted `kind` must be the one the declared operation creates, so
+ *      a key issued for a decision cannot write an action.
+ */
+function readMeetingReplay(
+  f: FormData,
+  intent: string,
+):
+  | (OfflineReplayRequest & { readonly operation: OfflineAppendOperation })
+  | null
+  | "malformed" {
+  const replay = readOfflineReplayRequest(f, String(f.get("body") ?? ""));
+  if (replay === null || replay === "malformed") return replay;
+  const operation = replay.operation;
+  if (!isAppendOperation(operation)) return "malformed";
+  if (intent !== "add_item") return "malformed";
+  if (String(f.get("kind") ?? "") !== OFFLINE_APPEND_ITEM_KIND[operation]) {
+    return "malformed";
+  }
+  return { ...replay, operation };
+}
+
+/** The body a replay this route could not read answers with. */
+function malformedMeetingReplay(): OfflineReplayEnvelope & {
+  readonly ok: false;
+  readonly error: string;
+} {
+  const message = "That change could not be read, so nothing was applied.";
+  return { ok: false, error: message, offline: { kind: "invalid", message } };
+}
+
 export async function action({ request, context, params }: Route.ActionArgs) {
   if (request.method !== "POST")
     throw new Response("Method Not Allowed", { status: 405 });
@@ -114,13 +173,63 @@ export async function action({ request, context, params }: Route.ActionArgs) {
         attendeeCount: result.attendeeCount,
         attendeesRecorded: result.attendeesRecorded,
       } satisfies MarkHeldResponse);
-    } else if (intent === "add_item")
-      await scope.meetings.addItem(
-        id,
-        String(f.get("kind")) as MeetingItemKind,
-        String(f.get("body") ?? ""),
-      );
-    else if (intent === "remove_item")
+    } else if (intent === "add_item") {
+      /*
+       * MOBILE-03 — the one intent that can arrive from the offline queue.
+       *
+       * An append captured during a meeting with no signal replays HERE, to
+       * this same handler, with three extra form fields. There is no
+       * replay-only code path: `scope.meetings.addItem` is called identically
+       * either way, so a decision captured offline and one typed online produce
+       * the same item, the same position allocation and the same Activity.
+       *
+       * What the replay adds is the receipt: the idempotency key minted when
+       * the item was queued is claimed before anything is written, so a retry
+       * whose first response was lost writes nothing the second time. That is
+       * the whole of the extra protection an append needs — it overwrites no
+       * value, so it cannot conflict (`offline-conflict.ts`).
+       */
+      const replay = readMeetingReplay(f, intent);
+      if (replay === "malformed") {
+        return Response.json(malformedMeetingReplay(), { status: 400 });
+      }
+      const kind = String(f.get("kind")) as MeetingItemKind;
+      const body = String(f.get("body") ?? "");
+      if (replay !== null) {
+        const outcome = await withOfflineMutationReplay(
+          {
+            db: env.DB,
+            workspaceId: scope.context.workspaceId,
+            ownerSubject: s.user.subject,
+            entityId: id,
+            operation: replay.operation,
+            now: new Date(),
+          },
+          replay,
+          /*
+           * "The meeting is there." An append contends over no field, so it has
+           * no current value; `null` is the present signal and `undefined`
+           * would be the gone one. The meeting's existence was already
+           * established by the `scope.meetings.get(id)` guard at the top of
+           * this action, which answers `404` when it is not — so by here it is,
+           * and passing `undefined` would be asserting something untrue.
+           */
+          null,
+          () => scope.meetings.addItem(id, kind, body),
+          // `addItem` reports a refusal by THROWING (MeetingArchivedError,
+          // MeetingItemConflictError), which the guard turns into a released
+          // claim and re-raises into this action's own catch. So a value
+          // returned from it is always an item that was written.
+          () => true,
+          () => "That item couldn’t be added.",
+        );
+        return Response.json({
+          ok: outcome.applied,
+          offline: outcome.report,
+        } satisfies { ok: boolean } & OfflineReplayEnvelope);
+      }
+      await scope.meetings.addItem(id, kind, body);
+    } else if (intent === "remove_item")
       await scope.meetings.removeItem(id, String(f.get("itemId")));
     else if (intent === "add_attendee") {
       // A Person attends the Meeting: the `meeting.attendee` link. Both endpoints

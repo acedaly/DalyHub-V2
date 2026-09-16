@@ -1,6 +1,13 @@
 /**
- * PWA-12 — the mutation queue GATEWAY: the one place a Task edit becomes queued
+ * PWA-12 — the mutation queue GATEWAY: the one place an edit becomes queued
  * intent.
+ *
+ * MOBILE-03 widened it from Task edits to Task edits and Meeting captures. The
+ * gateway itself needed no new rule: it was already written against the kernel's
+ * operation vocabulary rather than against Tasks, so the serialisation, the
+ * bounds, the namespace stamp and the coalesce decision all apply unchanged.
+ * What changed is the NAME, because a function called `enqueueTaskMutation`
+ * that queues a meeting decision is a lie a future reader has to discover.
  *
  * ── Why this is not a React hook ─────────────────────────────────────────────
  * Task mutations are submitted from `task-inline-edit.ts`, which is a plain
@@ -109,8 +116,8 @@ export function announceReplayApplied(): void {
 /* Enqueueing                                                                 */
 /* -------------------------------------------------------------------------- */
 
-/** What a queued Task edit needs to say. */
-export interface TaskMutationIntent {
+/** What a queued edit or capture needs to say. */
+export interface OfflineMutationIntent {
   readonly entityId: string;
   /**
    * TASKS-13 — the sub-record within the entity, when the operation names one
@@ -128,7 +135,13 @@ export interface TaskMutationIntent {
    * reached, so the canonical value is what arrives here.
    */
   readonly value?: OfflineMutationValue;
-  /** The value the surface was showing when the owner acted. The conflict base. */
+  /**
+   * The value the surface was showing when the owner acted. The conflict base.
+   *
+   * MOBILE-03 — omitted for an APPEND, which replaces nothing and so has no
+   * base. `createMutationRecord` forces it to null for those operations anyway,
+   * so a caller that supplies one cannot make the server compare it.
+   */
   readonly baseValue?: OfflineMutationValue;
   readonly baseUpdatedAt?: string | null;
 }
@@ -152,7 +165,7 @@ const NO_STORAGE =
   "Reconnect and try again.";
 
 /**
- * Queue one Task edit as intent.
+ * Queue one edit or capture as intent.
  *
  * Bounds are checked BEFORE anything is written, and a refusal is returned rather
  * than thrown: the caller has an interface element in the owner's hand and needs
@@ -160,8 +173,8 @@ const NO_STORAGE =
  * is full DalyHub says so and declines the new change, because discarding the
  * OLDEST would discard the one the later changes were built on.
  */
-export async function enqueueTaskMutation(
-  intent: TaskMutationIntent,
+export async function enqueueOfflineMutation(
+  intent: OfflineMutationIntent,
   now: Date = new Date(),
 ): Promise<EnqueueResult> {
   // SERIALISED, and it has to be. Enqueueing reads the queue to choose the next
@@ -188,11 +201,11 @@ export async function enqueueTaskMutation(
   return run;
 }
 
-/** The serialisation point. See {@link enqueueTaskMutation}. */
+/** The serialisation point. See {@link enqueueOfflineMutation}. */
 let enqueueTail: Promise<void> = Promise.resolve();
 
 async function enqueueOne(
-  intent: TaskMutationIntent,
+  intent: OfflineMutationIntent,
   now: Date,
 ): Promise<EnqueueResult> {
   const namespace = activeNamespace;

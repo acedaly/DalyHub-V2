@@ -69,7 +69,8 @@ import { useTaskSurfaceActions } from "~/shared/task-record/use-task-surface-act
 import { loadTaskParentOptions } from "~/shared/task-record/task-parent-options.server";
 import { ownerCalendarIso } from "~/shared/datetime";
 import { utcToOwnerLocal } from "~/shared/datetime";
-import { MeetingCaptureBar } from "../MeetingCaptureBar";
+import { MeetingCaptureBar, defaultCaptureKind } from "../MeetingCaptureBar";
+import { captureMeetingItem } from "../meeting-offline-capture";
 import { attendeeCountLabel, MeetingContextRow } from "../MeetingContextRow";
 import { MeetingMarkdown } from "../MeetingMarkdown";
 import type { MeetingConflictResponse } from "./mutate";
@@ -915,8 +916,28 @@ function MeetingRecord({
         {active === "meeting" ? (
           <MeetingCaptureBar
             readOnly={readOnly}
-            onAddItem={(kind, body) => post({ intent: "add_item", kind, body })}
+            /*
+             * MOBILE-03 — the structured captures go through the offline-aware
+             * seam, not through `post`. It attempts the same request to the same
+             * canonical route and queues the intent only when the device cannot
+             * reach DalyHub, so the online path is byte-identical to what it was
+             * and a meeting held with no signal still records its decisions.
+             *
+             * `r.revalidate()` runs only on a confirmed save: a queued capture
+             * has changed nothing on the server, so re-reading the loader would
+             * repaint the same meeting and tell the owner their capture had
+             * vanished.
+             */
+            onAddItem={async (kind, body) => {
+              const outcome = await captureMeetingItem(m.id, kind, body);
+              if (outcome.kind === "saved") r.revalidate();
+              return outcome;
+            }}
             onAppendNote={appendNote}
+            initialKind={defaultCaptureKind({
+              heldAt: m.heldAt,
+              status: m.status,
+            })}
           />
         ) : null}
       </div>

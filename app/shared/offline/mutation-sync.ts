@@ -1,5 +1,5 @@
 /**
- * PWA-12 — the Task mutation replay engine.
+ * PWA-12 — the mutation replay engine.
  *
  * The mirror of `sync.ts`'s capture replay, for intents over existing records.
  * Same shape by design: read the queue first (an empty queue costs zero
@@ -7,14 +7,18 @@
  * the outcome, stop the pass the moment authentication is the problem.
  *
  * ── Replay goes through the real protected route ─────────────────────────────
- * There is no `/offline/mutate` endpoint and no second Task authority. Every
- * queued intent is POSTed to `/tasks/:taskId` — the canonical record route the
- * Drawer, the row and the quick-edit panel all post to — with the same
- * credentials, the same session cookie, the same Cloudflare Access posture and
- * the same server-side workspace resolution. The only fields replay adds are the
- * idempotency key, the declared operation and the base value. CAPTURE-01's
- * limited `dhcap_` credential is NOT used and must never be: it exists to bring
- * thoughts in, not to edit Tasks.
+ * There is no `/offline/mutate` endpoint and no second authority for anything.
+ * Every queued intent is POSTed to the CANONICAL route the online control posts
+ * to — `/tasks/:taskId` for a Task, `/meeting/:meetingId/mutate` for a Meeting
+ * (MOBILE-03) — with the same credentials, the same session cookie, the same
+ * Cloudflare Access posture and the same server-side workspace resolution. The
+ * route is chosen by `replayEndpointFor`, from the entity type the operation
+ * itself determines, so a queued record cannot be sent to a route that does not
+ * own it.
+ *
+ * The only fields replay adds are the idempotency key, the declared operation
+ * and the base value. CAPTURE-01's limited `dhcap_` credential is NOT used and
+ * must never be: it exists to bring thoughts in, not to edit records.
  *
  * ── The order of the checks matters ──────────────────────────────────────────
  * Before ANY replay: is there work, is the backend reachable, is the session
@@ -26,11 +30,14 @@
 
 import {
   OFFLINE_MUTATION_IN_PROGRESS,
+  appendItemKind,
   applyMutationOutcome,
   beginMutationAttempt,
   canReachBackend,
+  isAppendOperation,
   isStalledMutation,
   reclaimStalledMutation,
+  replayEndpointFor,
   selectReplayBatch,
   type OfflineConnectionState,
   type OfflineMutationConflict,
@@ -57,6 +64,8 @@ export const MUTATION_REPLAY_BATCH_SIZE = 12;
 function submissionFor(record: OfflineMutationRecord): {
   readonly intent: string;
   readonly field: string | null;
+  /** MOBILE-03 — the meeting item kind, for an append. Absent for a Task. */
+  readonly kind?: string;
 } {
   switch (record.operation) {
     case "complete":
@@ -82,6 +91,25 @@ function submissionFor(record: OfflineMutationRecord): {
       // The intent is the online control's own, and `targetId` travels as the
       // `itemId` the handler reads.
       return { intent: "checklist_set_completed", field: "completed" };
+    /*
+     * MOBILE-03 — the four Meeting appends.
+     *
+     * All four are the SAME canonical submission the meeting's own add field
+     * sends: `intent=add_item`, with `kind` naming which list it joins and
+     * `body` carrying the text. Replay invents no `add_decision` intent of its
+     * own, so a decision captured offline and one typed online reach
+     * `scope.meetings.addItem` by the identical path and produce the identical
+     * Activity.
+     */
+    case "add_agenda_item":
+    case "add_decision":
+    case "add_outcome":
+    case "add_action":
+      return {
+        intent: "add_item",
+        field: "body",
+        kind: appendItemKind(record.operation),
+      };
   }
 }
 
@@ -96,6 +124,11 @@ export function mutationFormData(record: OfflineMutationRecord): FormData {
     // same submission the online control produces.
     form.set(submission.field, record.value ?? "");
   }
+  // MOBILE-03 — which meeting list an append joins. Absent for every Task
+  // operation, so the ordinary Task submission is byte-identical to what it was.
+  if (submission.kind !== undefined) {
+    form.set("kind", submission.kind);
+  }
   // TASKS-13 — the sub-record the mutation addresses, when it has one. Absent for
   // every operation that changes the Task itself, so the ordinary submission is
   // byte-identical to what it was.
@@ -104,7 +137,17 @@ export function mutationFormData(record: OfflineMutationRecord): FormData {
   }
   form.set("offlineKey", record.id);
   form.set("offlineOperation", record.operation);
-  form.set("offlineBase", record.baseValue ?? "");
+  /*
+   * MOBILE-03 — an append sends no base, because it has none: it overwrites no
+   * value, so there is nothing for the server to compare. The field is still
+   * SENT (as the empty string) rather than omitted, so the server's reader sees
+   * one submission shape for every replay and a missing key never has to mean
+   * two different things.
+   */
+  form.set(
+    "offlineBase",
+    isAppendOperation(record.operation) ? "" : (record.baseValue ?? ""),
+  );
   return form;
 }
 
@@ -213,7 +256,9 @@ export async function replayMutation(
 ): Promise<OfflineMutationOutcome> {
   try {
     const response = await fetchImpl(
-      `/tasks/${encodeURIComponent(record.entityId)}`,
+      // MOBILE-03 — the canonical route for THIS record kind, from the one
+      // shared rule in the kernel.
+      replayEndpointFor(record),
       {
         method: "POST",
         body: mutationFormData(record),

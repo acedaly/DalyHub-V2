@@ -1,5 +1,5 @@
 /**
- * PWA-12 — the offline Task MUTATION queue model.
+ * PWA-12 — the offline MUTATION queue model.
  *
  * Pure data and pure transitions: no IndexedDB, no `fetch`, no React. The browser
  * store, the replay engine and the React provider are thin shells around the
@@ -16,12 +16,40 @@
  * the only truth that is ever written anywhere.
  *
  * ── Deliberately narrow ──────────────────────────────────────────────────────
- * Six operations, one entity type. Completion, reopen, and the three replace-style
- * field edits the daily driver actually needs (title, priority, due date, planned
- * date). Everything else — re-parenting, delegation, waiting, recurrence RULES,
- * bulk actions, delete/restore, and every other module — is online-only and stays
- * that way until this contract has proven itself. PWA-12 is the first offline
- * mutation slice, not "offline mode".
+ * Two entity types and eleven operations. For a Task: completion, reopen, the four
+ * replace-style field edits the daily driver actually needs (title, priority, due
+ * date, planned date) and one checklist tick. For a Meeting: the four APPEND
+ * operations that make up capturing during one — an agenda item, a decision, an
+ * outcome and an action.
+ *
+ * Everything else — re-parenting, delegation, waiting, recurrence RULES, bulk
+ * actions, delete/restore, editing or removing a meeting item, the meeting's
+ * notes body, and every other module — is online-only and stays that way until
+ * this contract has proven itself. This is an offline daily-driver slice, not
+ * "offline mode".
+ *
+ * ── Why MEETING APPENDS and not meeting EDITS (MOBILE-03) ────────────────────
+ * §35 of the 3.1 brief asks for the meeting operations that "can use clear
+ * idempotency and conflict semantics", and an append is the only shape of
+ * meeting write that has both for free:
+ *
+ *   - **Idempotency** is the receipt's, exactly as it is for a Task. One key is
+ *     minted when the item is queued, the server claims it before it writes, and
+ *     a retry of a claim that already settled writes nothing. That is what stops
+ *     a lost response turning one decision into two rows.
+ *   - **Conflict cannot arise**, because an append contends over nothing. It
+ *     adds a new row with a server-allocated position; it does not overwrite a
+ *     value some other device may have moved. `decideConflict` says so
+ *     explicitly rather than by omission (`offline-conflict.ts`).
+ *
+ * The meeting's NOTES body is deliberately excluded and the reason is the one
+ * `DALYHUB_MOBILE_FOUNDATION.md` §4.7 already wrote down: `notesMarkdown` is a
+ * single long string, the online editor saves it whole under an optimistic
+ * version precondition, and two devices appending to it offline would each send
+ * a whole document that discards the other's paragraph. An append to a LIST is
+ * commutative; an append to a STRING that travels as the whole string is not.
+ * Capturing a thought during a meeting with no signal is served by the note's
+ * nearest structured neighbours, which are safe.
  */
 
 import { newCaptureId } from "./offline-queue";
@@ -70,15 +98,46 @@ export const OFFLINE_LIFECYCLE_OPERATIONS = ["complete", "reopen"] as const;
 export type OfflineLifecycleOperation =
   (typeof OFFLINE_LIFECYCLE_OPERATIONS)[number];
 
+/**
+ * MOBILE-03 — the closed set of APPEND operations, which are Meeting-only.
+ *
+ * An append adds one new structured item to a meeting. It is a third shape
+ * alongside lifecycle and replace, not a variant of either, and every rule in
+ * this module branches on that distinction:
+ *
+ *   - it carries a VALUE (the item's body) but no BASE, because there is no
+ *     prior value it is replacing;
+ *   - it never coalesces — two agenda items are two items, and folding the
+ *     second into the first would silently discard one
+ *     ({@link findCoalesceTarget} already refuses every non-replace operation,
+ *     so this needs no new clause and gets no new exception);
+ *   - it can never CONFLICT, because it overwrites nothing
+ *     (`offline-conflict.ts`).
+ *
+ * One operation per `MeetingItemKind`, rather than one operation carrying a
+ * kind, so the kind is part of the closed vocabulary the receipt table's CHECK
+ * and the replay engine's exhaustive switch both police. A queued decision
+ * cannot be satisfied by a receipt for a queued action.
+ */
+export const OFFLINE_APPEND_OPERATIONS = [
+  "add_agenda_item",
+  "add_decision",
+  "add_outcome",
+  "add_action",
+] as const;
+
+export type OfflineAppendOperation = (typeof OFFLINE_APPEND_OPERATIONS)[number];
+
 export const OFFLINE_MUTATION_OPERATIONS = [
   ...OFFLINE_LIFECYCLE_OPERATIONS,
   ...OFFLINE_REPLACE_OPERATIONS,
+  ...OFFLINE_APPEND_OPERATIONS,
 ] as const;
 
 export type OfflineMutationOperation =
   (typeof OFFLINE_MUTATION_OPERATIONS)[number];
 
-/** True when a value names a supported offline Task operation. */
+/** True when a value names a supported offline operation. */
 export function isOfflineMutationOperation(
   value: unknown,
 ): value is OfflineMutationOperation {
@@ -93,6 +152,131 @@ export function isReplaceOperation(
   operation: OfflineMutationOperation,
 ): operation is OfflineReplaceOperation {
   return (OFFLINE_REPLACE_OPERATIONS as readonly string[]).includes(operation);
+}
+
+/** True for an append-style operation (one new item, contends over nothing). */
+export function isAppendOperation(
+  operation: OfflineMutationOperation,
+): operation is OfflineAppendOperation {
+  return (OFFLINE_APPEND_OPERATIONS as readonly string[]).includes(operation);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Entity types                                                               */
+/* -------------------------------------------------------------------------- */
+
+/** The record kinds that can be mutated offline. */
+export const OFFLINE_MUTATION_ENTITY_TYPES = ["task", "meeting"] as const;
+
+export type OfflineMutationEntityType =
+  (typeof OFFLINE_MUTATION_ENTITY_TYPES)[number];
+
+/**
+ * The entity type each operation addresses.
+ *
+ * MOBILE-03 — the queue holds two entity types now, and the way they stay
+ * apart is that an operation DETERMINES its entity type rather than travelling
+ * beside one. There is no code path that can queue `add_decision` against a
+ * Task or `set_priority` against a Meeting, because nothing chooses the pair:
+ * {@link createMutationRecord} reads it from here, and
+ * {@link replayEndpointFor}'s caller posts to the route this names. A mismatch
+ * is not validated away at the edges; it is unrepresentable.
+ */
+export const OFFLINE_MUTATION_ENTITY = {
+  complete: "task",
+  reopen: "task",
+  set_title: "task",
+  set_priority: "task",
+  set_due: "task",
+  set_planned: "task",
+  set_checklist_completed: "task",
+  add_agenda_item: "meeting",
+  add_decision: "meeting",
+  add_outcome: "meeting",
+  add_action: "meeting",
+} as const satisfies Record<
+  OfflineMutationOperation,
+  OfflineMutationEntityType
+>;
+
+/**
+ * The operations that address a TASK.
+ *
+ * MOBILE-03 — Task-side code (the Task record route's intent allowlist, the
+ * optimistic row patch) is typed against THIS rather than against the whole
+ * operation set. Without it, widening the vocabulary to Meetings would have
+ * quietly asked the Task route to grow four branches it must never have: a
+ * route that accepted `add_decision` would be a second Meeting authority
+ * reachable through a Task's URL. The narrowing means the compiler refuses
+ * that instead of a reviewer having to notice it.
+ */
+export const OFFLINE_TASK_OPERATIONS = [
+  ...OFFLINE_LIFECYCLE_OPERATIONS,
+  ...OFFLINE_REPLACE_OPERATIONS,
+] as const;
+
+export type OfflineTaskOperation = (typeof OFFLINE_TASK_OPERATIONS)[number];
+
+/** True for an operation the Task record route may accept. */
+export function isTaskOperation(
+  operation: OfflineMutationOperation,
+): operation is OfflineTaskOperation {
+  return (OFFLINE_TASK_OPERATIONS as readonly string[]).includes(operation);
+}
+
+/** The record kind one operation addresses. */
+export function entityTypeFor(
+  operation: OfflineMutationOperation,
+): OfflineMutationEntityType {
+  return OFFLINE_MUTATION_ENTITY[operation];
+}
+
+/**
+ * The `MeetingItemKind` an append operation creates.
+ *
+ * Kept here, beside the operation vocabulary, rather than imported from the
+ * Meetings kernel: `app/kernel/offline` is shared by the browser store, the
+ * replay engine and the server arbitrator, and none of them should have to pull
+ * in a module domain to read a four-value string. The Meetings kernel owns the
+ * TYPE; this owns the mapping from one closed set to the other, and
+ * `test/unit/offline/offline-mutation.test.ts` asserts the two agree.
+ */
+export const OFFLINE_APPEND_ITEM_KIND = {
+  add_agenda_item: "agenda",
+  add_decision: "decision",
+  add_outcome: "outcome",
+  add_action: "action",
+} as const satisfies Record<OfflineAppendOperation, string>;
+
+/** The meeting item kind an append operation creates. */
+export function appendItemKind(operation: OfflineAppendOperation): string {
+  return OFFLINE_APPEND_ITEM_KIND[operation];
+}
+
+/**
+ * The protected route a queued mutation replays to.
+ *
+ * MOBILE-03 — replay still goes through the CANONICAL route the online control
+ * posts to; what changed is that there is now more than one of them, so the
+ * choice is made here, once, from the entity type the operation already
+ * determines. There is still no `/offline/mutate` endpoint, no second Meeting
+ * authority and no replay-only handler: a queued agenda item reaches
+ * `scope.meetings.addItem` through the same `intent=add_item` submission the
+ * meeting's own add field sends.
+ *
+ * Pure and in the kernel so the client engine and its test read one rule.
+ */
+export function replayEndpointFor(record: {
+  readonly entityType: OfflineMutationEntityType;
+  readonly entityId: string;
+}): string {
+  const id = encodeURIComponent(record.entityId);
+  // The Meetings module's canonical mutation route is `/meeting/:id/mutate`
+  // (singular, and a dedicated action route); Tasks' is the record route
+  // itself. Both are declared in their module's own route manifest.
+  return record.entityType === "meeting"
+    ? `/meeting/${id}/mutate`
+    : `/tasks/${id}`;
 }
 
 /**
@@ -116,6 +300,22 @@ export const OFFLINE_MUTATION_FIELDS = {
   // two different Task fields do: the contended thing is (item, completed), not
   // "the checklist".
   set_checklist_completed: "checklistItemCompleted",
+  /*
+   * MOBILE-03 — an append contends over NOTHING, and these four entries say so
+   * in the one place a reader looks for the answer.
+   *
+   * The map is total over the operation set on purpose (`satisfies Record<…>`),
+   * so adding an operation without deciding what it contends over does not
+   * compile. `meetingItems` is not a field the server ever compares: the
+   * conflict rule short-circuits every append to `applied` before it reads one
+   * (`offline-conflict.ts`), and nothing constructs an
+   * `OfflineMutationConflict` for an append. It exists so the map stays total
+   * and so a diagnostic has a truthful noun for what the operation touched.
+   */
+  add_agenda_item: "meetingItems",
+  add_decision: "meetingItems",
+  add_outcome: "meetingItems",
+  add_action: "meetingItems",
 } as const satisfies Record<OfflineMutationOperation, string>;
 
 export type OfflineMutationField =
@@ -212,8 +412,16 @@ export interface OfflineMutationRecord {
   readonly id: string;
   /** The identity + workspace + schema digest this mutation belongs to. */
   readonly namespace: string;
-  /** The only entity type PWA-12 supports. Present so the shape can widen later. */
-  readonly entityType: "task";
+  /**
+   * The record kind this mutation addresses.
+   *
+   * PWA-12 shipped this as the literal `"task"` with a comment saying the shape
+   * could widen later; MOBILE-03 is that widening. It is DERIVED from the
+   * operation ({@link OFFLINE_MUTATION_ENTITY}) rather than supplied, so a
+   * stored record cannot disagree with its own operation, and a record written
+   * before MOBILE-03 reads back as `"task"` unchanged — which is what it was.
+   */
+  readonly entityType: OfflineMutationEntityType;
   readonly entityId: string;
   /**
    * TASKS-13 — the sub-record WITHIN the entity this mutation addresses, when the
@@ -293,6 +501,12 @@ export const OFFLINE_MAX_QUEUED_MUTATIONS = 200;
  * The Task domain bounds a title at 512 characters, so this is comfortably above
  * anything the domain will accept and exists only to stop a malformed or hostile
  * caller turning the queue into device storage.
+ *
+ * MOBILE-03 — a queued meeting item's body is carried by the same field and is
+ * bounded by the same number. That is the right bound for what the capture bar
+ * is: a one-line decision, action, outcome or agenda point typed on a phone
+ * during a meeting. A longer body is a Note, and this queue deliberately does
+ * not hold one.
  */
 export const OFFLINE_MAX_MUTATION_VALUE_LENGTH = 1_024;
 
@@ -349,14 +563,24 @@ export function createMutationRecord(input: {
   return {
     id: input.id ?? newCaptureId(),
     namespace: input.namespace,
-    entityType: "task",
+    entityType: entityTypeFor(input.operation),
     entityId: input.entityId,
     targetId: input.targetId ?? null,
     operation: input.operation,
     // A lifecycle operation carries no value: the operation IS the value, and
     // storing one would invite a caller to invent a second way to say "done".
-    value: isReplaceOperation(input.operation) ? (input.value ?? null) : null,
-    baseValue: input.baseValue ?? null,
+    // A replace carries the intended value; an APPEND carries the new item's
+    // body, which is a value in exactly the same sense — the thing to write.
+    value:
+      isReplaceOperation(input.operation) || isAppendOperation(input.operation)
+        ? (input.value ?? null)
+        : null,
+    // MOBILE-03 — an append has no base, because it replaces nothing. Forcing
+    // one to null here means a caller cannot accidentally give an append a base
+    // that the server would then be tempted to compare.
+    baseValue: isAppendOperation(input.operation)
+      ? null
+      : (input.baseValue ?? null),
     baseUpdatedAt: input.baseUpdatedAt ?? null,
     payloadVersion: OFFLINE_MUTATION_PAYLOAD_VERSION,
     createdAt: at,
@@ -840,6 +1064,16 @@ export function mutationOperationLabel(
       return "Planned date changed";
     case "set_checklist_completed":
       return "Checklist item changed";
+    // MOBILE-03 — the meeting appends. Worded as the thing that was CAPTURED,
+    // not as a field that changed, because that is what the owner did.
+    case "add_agenda_item":
+      return "Agenda item added";
+    case "add_decision":
+      return "Decision captured";
+    case "add_outcome":
+      return "Outcome captured";
+    case "add_action":
+      return "Action captured";
   }
 }
 

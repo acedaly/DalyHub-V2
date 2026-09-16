@@ -134,6 +134,49 @@ describe("what replay sends", () => {
     expect(form.get("intent")).toBe("update");
     expect(form.get("priority")).toBe("");
   });
+
+  /*
+   * MOBILE-03 — a Meeting capture replays through the Meetings module's OWN
+   * canonical submission. The point of these two is that replay invents no verb
+   * for Meetings either: what goes on the wire is byte-for-byte what the
+   * meeting's own add field sends, plus the three replay fields.
+   */
+  it("posts a meeting capture as the canonical add_item, with its kind", () => {
+    const form = mutationFormData(
+      queue({
+        entityId: "m-1",
+        operation: "add_decision",
+        value: "Ship on Friday",
+      }),
+    );
+    expect(form.get("intent")).toBe("add_item");
+    expect(form.get("kind")).toBe("decision");
+    expect(form.get("body")).toBe("Ship on Friday");
+    expect(form.get("offlineOperation")).toBe("add_decision");
+    // An append has no base, so it sends none. The field is still PRESENT, so
+    // the server's reader sees one submission shape for every replay.
+    expect(form.get("offlineBase")).toBe("");
+    // And no Task field rides along.
+    expect(form.get("title")).toBeNull();
+    expect(form.get("itemId")).toBeNull();
+  });
+
+  it("names the right list for each of the four capture types", () => {
+    const kinds = (
+      [
+        ["add_agenda_item", "agenda"],
+        ["add_decision", "decision"],
+        ["add_outcome", "outcome"],
+        ["add_action", "action"],
+      ] as const
+    ).map(([operation, kind]) => [
+      String(
+        mutationFormData(queue({ entityId: "m-1", operation })).get("kind"),
+      ),
+      kind,
+    ]);
+    for (const [sent, expected] of kinds) expect(sent).toBe(expected);
+  });
 });
 
 describe("classifying the route's answer", () => {
