@@ -73,14 +73,18 @@ One Worker, `workers/app.ts`, with four entry points:
 - **D1** is the only database. 58 migrations in `migrations/`, applied in
   **filename order** (two pairs share a number — `0013` and `0039` — which is
   fine because Wrangler sorts by name).
-- **R2** holds attachments and the automated database backups.
+- **R2** holds attachments, through the app Worker's `ATTACHMENTS` binding. The
+  scheduled database backup is a **separate** Worker with its own bucket,
+  provisioned and deployed by `scripts/backup-worker.mjs` — so a bad app deploy
+  cannot take the backup job with it.
 - **Authentication is Cloudflare Access.** The Worker validates the Access JWT at
   the request boundary; there is no password, no session table and no
   application-managed login. A dev-only authenticator (`.dev.vars`) exists for
   local work and E2E, and `build/server/.dev.vars` is stripped before any
   production-mode server runs — see the CI "Strip any local env file" step.
 - **Workspace isolation is a security boundary.** Every query is scoped to a
-  workspace id server-side. See [ADR-003].
+  workspace id server-side. See
+  [ADR-003](../decisions/ARCHITECTURE_DECISIONS.md#adr-003-workspace-isolation).
 
 ### 1.5 Deployment
 
@@ -591,6 +595,8 @@ Not what they are for — what they *do to the system*.
 | **Meetings** | The second offline-writable entity (appends only), and the source of follow-up Tasks — the clearest example of one module producing another's records through kernel contracts. |
 | **Notes** | The writing surface: CodeMirror, the Markdown pipeline, and `[[Wiki Links]]`. The most cascade-sensitive module in the product. |
 | **Diary** | Chronology. The only module whose ordering authority is `occurred_at` rather than `created_at`, which is why migration `0011`'s backfill used the entity's own `created_at` as the only truthful signal a legacy row had. |
+| **Areas** | The spine's root, and the only entity that never completes. Every rollup terminates here, so an Area's read path touches more of the kernel than any other. |
+| **People** | Woven through everything rather than a CRM bolted beside it: linked to Meetings, Projects, Tasks, Notes and Diary, and the accumulated timeline is the value. The most privacy-sensitive data in the product — People and Diary are never sent to an external model unless the owner opts in per action. |
 | **Goals** | Measurement and projection — the only place a target, a baseline and a direction combine, and the source of the chart layer's hardest requirements. |
 | **Habits** | Periodic adherence. Its arithmetic is the one most sensitive to the owner's timezone and week-start. |
 | **Finance** | The largest per-row dataset and the one with a cursor-paginated ledger; the AI categorisation feature's subject. |
