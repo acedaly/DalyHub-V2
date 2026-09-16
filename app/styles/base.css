@@ -483,6 +483,12 @@
 
   .dh-route-error__actions {
     margin-block-start: var(--app-space-4);
+    /* MOBILE-05 — the boundary offers two recoveries now (return to what you
+       were doing, or go to Today), and at 320px they must wrap rather than
+       overflow the page. */
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--app-space-3);
   }
 
   .page h2,

@@ -360,24 +360,78 @@ export default function App() {
  * for every other "nothing here" in the application.
  *
  * The stack stays development-only, so a deployed Worker never shows one (§42).
+ *
+ * ── MOBILE-05: the recovery is THIS page, not the home screen ───────────────
+ * The boundary used to offer exactly one action, "Go to Today", whatever had
+ * gone wrong. For a mistyped URL that is right. For the two failures a phone
+ * actually hits — a sign-in that expired between one tap and the next, and a
+ * data request that did not make it over a bad connection — it is the outcome
+ * the 3.1 brief (§43) names and forbids: the owner is dumped at a generic home
+ * screen having lost the thing they were doing.
+ *
+ * Both now recover to the URL the owner was already on ({@link currentHref}).
+ * For an expired sign-in that is the whole fix, and it needs no code of
+ * DalyHub's: a DOCUMENT request to a protected URL is what makes Cloudflare
+ * Access run its redirect, and Access returns the browser to the URL that was
+ * requested. So the control that says "Sign in and continue" genuinely does —
+ * it goes through Access and lands back on the same record.
+ *
+ * It is a CONTROL, and deliberately not an automatic reload. PWA-11 has exactly
+ * one `location.reload()` in the whole product, guarded to fire once per page
+ * lifecycle, because an unbounded self-navigation is how an installed PWA ends
+ * up in the restart loop WebKit terminates —
+ * `test/unit/pwa/offline-reload-guard.test.ts` names "an expired Cloudflare
+ * Access session" as one of the four cases that must NOT navigate on their own.
+ * A button the owner presses is not that.
  */
+
+/**
+ * The URL to come back to after signing in or retrying.
+ *
+ * `window.location.href` on the client, where this boundary is rendered for the
+ * failures that matter. During SSR there is no such thing, and `/today` is the
+ * honest fallback rather than a guess at the request URL — the boundary has no
+ * access to it, and a wrong destination is worse than a neutral one.
+ */
+function currentHref(): string {
+  return typeof window === "undefined" ? "/today" : window.location.href;
+}
+
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   let message = "We couldn’t find that page";
   let details =
     "The address may have changed, or the record may have been deleted.";
   let stack: string | undefined;
+  /*
+   * The recovery this failure deserves. `null` means the page itself is not
+   * worth returning to — a 404 has nothing to come back to — so only "Go to
+   * Today" is offered, exactly as before.
+   */
+  let recovery: { readonly label: string } | null = null;
 
   if (isRouteErrorResponse(error)) {
-    if (error.status !== 404) {
+    if (error.status === 401 || error.status === 403) {
+      // The Worker's own answer when the Access assertion is missing, expired or
+      // not the configured owner's (`buildUnauthenticatedResponse`). It is
+      // deliberately generic and says nothing about which of those it was; the
+      // recovery is the same for all three.
+      message = "Your DalyHub sign-in has expired";
+      details =
+        "Signing in again will bring you straight back to what you were doing. " +
+        "Anything this device is holding for you is safe and will send itself once you are back.";
+      recovery = { label: "Sign in and continue" };
+    } else if (error.status !== 404) {
       message = "Something went wrong";
       details =
         error.statusText ||
         "DalyHub could not complete that request. Your data is unaffected.";
+      recovery = { label: "Try again" };
     }
   } else {
     message = "Something went wrong";
     details =
       "DalyHub could not complete that request. Your data is unaffected.";
+    recovery = { label: "Try again" };
     if (import.meta.env.DEV && error && error instanceof Error) {
       details = error.message;
       stack = error.stack;
@@ -388,11 +442,27 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
     <main className="page dh-route-error">
       <h1>{message}</h1>
       <p>{details}</p>
-      {/* A real anchor, not a router `Link`: the boundary renders outside the
+      {/* Real anchors, not router `Link`s: the boundary renders outside the
           shell's route context, and a dead end that offers a broken control is
-          worse than one that offers none. */}
+          worse than one that offers none. The recovery anchor is additionally a
+          DOCUMENT navigation on purpose — that is what lets Cloudflare Access
+          run its sign-in redirect and return the owner here. */}
       <p className="dh-route-error__actions">
-        <a className={buttonClassName({ variant: "primary" })} href="/today">
+        {recovery ? (
+          <a
+            className={buttonClassName({ variant: "primary" })}
+            href={currentHref()}
+            data-testid="route-error-recover"
+          >
+            {recovery.label}
+          </a>
+        ) : null}
+        <a
+          className={buttonClassName({
+            variant: recovery ? "secondary" : "primary",
+          })}
+          href="/today"
+        >
           Go to Today
         </a>
       </p>
