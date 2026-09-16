@@ -307,7 +307,76 @@ Consistency is in the tokens and the grammar, not in the layout.
 
 ---
 
-## 13. Related
+## 13. The real-device checklist
+
+**Emulation is not enough for this class of thing, and nothing below may be
+ticked by a Playwright run.** A headless Chromium at 390×844 is a good model of
+layout and a poor model of iOS: it has no Safari view-transition behaviour, no
+real software keyboard, no Home Screen install, no WebKit service-worker
+lifetime, no low-power mode and no Cloudflare Access in front of it. Everything
+here needs a person with an iPhone.
+
+Do not mark an item verified unless someone actually performed it. An unticked
+box is information; a ticked one that nobody did is a lie the next person builds
+on.
+
+### Safari, then the installed app
+
+| # | Check | Done |
+| :-- | :--- | :--- |
+| 1 | DalyHub loads and is usable in mobile Safari | ⏳ |
+| 2 | Add to Home Screen works, and the icon and name are right | ⏳ |
+| 3 | Launched from the Home Screen it opens **standalone** — no Safari chrome | ⏳ |
+
+### Launch and lifecycle
+
+| # | Check | Done |
+| :-- | :--- | :--- |
+| 4 | Cold launch (after a reboot) reaches a useful Today in about two seconds | ⏳ |
+| 5 | Warm launch (reopened minutes later) feels immediate | ⏳ |
+| 6 | Switch to another app and back: the same screen, the same scroll position, no reload | ⏳ |
+| 7 | Lock and unlock: the same, and no sign-in | ⏳ |
+| 8 | Left for a day and reopened: still signed in (this is the §9 session question, answered by use) | ⏳ |
+| 9 | After a deploy, the service worker updates without the app getting stuck or looping | ⏳ |
+
+### Capture and keyboard
+
+| # | Check | Done |
+| :-- | :--- | :--- |
+| 10 | Tap **Add**: the keyboard comes up on its own and the field is ready | ⏳ |
+| 11 | Typing does not zoom the page | ⏳ |
+| 12 | Return saves, and the new Task is there | ⏳ |
+| 13 | In a Note or Diary entry, Return adds a line and does not submit | ⏳ |
+| 14 | With the keyboard up, the Save control and any error are visible — nothing is behind it | ⏳ |
+
+### Meeting, which is the one to do in a real meeting
+
+| # | Check | Done |
+| :-- | :--- | :--- |
+| 15 | The capture bar is reachable one-handed and sits above the keyboard | ⏳ |
+| 16 | Capture an agenda item, a decision and an action in a row without losing the keyboard | ⏳ |
+| 17 | Turn on Aeroplane Mode mid-meeting and keep capturing: it says "saved on this device" | ⏳ |
+| 18 | Turn it off: the items appear, exactly once each, with no toast | ⏳ |
+| 19 | Lock the phone with captures still queued, unlock later: they are still there | ⏳ |
+
+### Geometry
+
+| # | Check | Done |
+| :-- | :--- | :--- |
+| 20 | No control sits under the home indicator, on Today, Tasks, a Meeting and an open sheet | ⏳ |
+| 21 | Nothing scrolls sideways anywhere | ⏳ |
+| 22 | In landscape, the notch side does not clip content | ⏳ |
+| 23 | With system text at its largest, Today and a Task still read and nothing is cut off | ⏳ |
+
+### Where to record the answers
+
+In the pull request that changed the behaviour, or in
+[`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md) if an item fails and the fix is
+not immediate. Not here — this is the checklist, not its results.
+
+---
+
+## 14. Related
 
 - [`PWA_AND_OFFLINE.md`](../development/PWA_AND_OFFLINE.md) — the snapshot, queue, receipts and conflict protocol
 - [`APP_SHELL_AUTH.md`](../development/APP_SHELL_AUTH.md) — the request boundary, the phone bar's registry capability, and the session audit
