@@ -177,27 +177,49 @@ async function addTransaction(
 }
 
 /** The workspace's first live spending category. */
+/**
+ * The first two live spending categories, read ONCE per worker process.
+ *
+ * ── Why this is memoised, and what it was ───────────────────────────────────
+ *
+ * `spendingCategory()` and `secondSpendingCategory()` used to run this exact
+ * query in two separate `d1Query` calls, to take row 0 of one result and row 1
+ * of the other — and each `d1Query` spawns wrangler, which costs ~1.8 s of
+ * process startup before it reads a byte. Three calls across this file were
+ * therefore about five seconds of boot for one seven-row read, in a file whose
+ * heaviest journey already sits close to the 30 s test budget. Named as
+ * maintenance debt item 11, with this as its named next action.
+ *
+ * The cache is safe because the categories are SEED data and nothing in this
+ * suite creates, renames or archives one — `finance_categories` is not written
+ * by any E2E fixture, and the only statements touching it anywhere are the two
+ * reads this replaces. If a test ever does mutate it, this memo is the thing to
+ * remove, and the assertion below will still be checking a real row rather than
+ * a stale name.
+ */
+let spendingCategoriesCache: { id: string; name: string }[] | null = null;
+
+function spendingCategories(): { id: string; name: string }[] {
+  spendingCategoriesCache ??= [
+    ...d1Query<{ id: string; name: string }>(
+      `SELECT id, name FROM finance_categories
+        WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)}
+          AND kind = 'spending' AND archived_at IS NULL
+        ORDER BY sort_order LIMIT 2;`,
+    ),
+  ];
+  return spendingCategoriesCache;
+}
+
 function spendingCategory(): { id: string; name: string } {
-  const rows = d1Query<{ id: string; name: string }>(
-    `SELECT id, name FROM finance_categories
-      WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)}
-        AND kind = 'spending' AND archived_at IS NULL
-      ORDER BY sort_order LIMIT 2;`,
-  );
-  const row = rows[0];
+  const row = spendingCategories()[0];
   expect(row, "the workspace has no spending category").toBeTruthy();
   return row as { id: string; name: string };
 }
 
 /** The SECOND live spending category — a different one from the first. */
 function secondSpendingCategory(): { id: string; name: string } {
-  const rows = d1Query<{ id: string; name: string }>(
-    `SELECT id, name FROM finance_categories
-      WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)}
-        AND kind = 'spending' AND archived_at IS NULL
-      ORDER BY sort_order LIMIT 2;`,
-  );
-  const row = rows[1];
+  const row = spendingCategories()[1];
   expect(
     row,
     "the workspace has fewer than two spending categories",

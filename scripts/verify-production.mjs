@@ -44,6 +44,7 @@
  */
 
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -272,7 +273,12 @@ function checkWorkerSecrets({ runner = spawnSync, workerName, required } = {}) {
 /* 4. D1 migrations.                                                          */
 /* -------------------------------------------------------------------------- */
 
-function checkMigrations({ runner = spawnSync, pendingCheck } = {}) {
+function checkMigrations({
+  runner = spawnSync,
+  pendingCheck,
+  classify,
+  ledger,
+} = {}) {
   const outcome = pendingCheck({ runner });
   if (!outcome.ok) {
     return result(
@@ -283,14 +289,55 @@ function checkMigrations({ runner = spawnSync, pendingCheck } = {}) {
     );
   }
   if (outcome.pending.length > 0) {
+    const detail = [
+      `pending: ${outcome.pending.join(", ")}`,
+      "Apply them DELIBERATELY with `pnpm run db:production:apply` — this command never will.",
+    ];
+
+    /*
+     * DEPLOY-01 — say which KIND of window applying these opens.
+     *
+     * "Six migrations are pending" and "six are pending, one of which removes a
+     * column the running Worker reads" are different operational facts, and this
+     * sweep is what an operator runs to understand production. The boundary is
+     * derived by `scripts/migration-compatibility.mjs` and committed as
+     * `docs/development/migration-ledger.json`; the same classification runs in
+     * the deploy preflight, so the two cannot disagree.
+     */
+    const boundary = classify?.(outcome.pending, ledger);
+    if (boundary && !boundary.known) {
+      /*
+       * Never the additive all-clear when the ledger could not be read. This
+       * sweep reports SKIPPED rather than a pass for everything it cannot
+       * establish, and the rollback boundary is no different — "I could not read
+       * the file" and "nothing is one-way" produce the same empty list, and
+       * reporting the first as the second is a false all-clear on the question
+       * this line exists to answer. Raised by Codex review on #308.
+       */
+      detail.push(
+        "ROLLBACK BOUNDARY: UNKNOWN — docs/development/migration-ledger.json could not be read, so whether these migrations close the application-rollback window cannot be established here. Run `pnpm run db:compat` to derive it.",
+      );
+    } else if (boundary && boundary.oneWay.length > 0) {
+      detail.push(
+        `ROLLBACK BOUNDARY: ${boundary.oneWay.length} of them REMOVE something the running Worker may read, so once applied, rolling the application back is not a recovery.`,
+      );
+      for (const entry of boundary.oneWay) {
+        detail.push(`  ${entry.migration}: ${entry.reasons.join("; ")}`);
+      }
+      detail.push(
+        'Read docs/development/DEPLOYMENT.md → "When the migration succeeded and the deploy did not" before applying.',
+      );
+    } else if (boundary) {
+      detail.push(
+        "rollback boundary: all pending migrations are additive, so the running Worker keeps serving a migrated database.",
+      );
+    }
+
     return result(
       "D1 migrations",
       FAIL,
       `production has ${outcome.pending.length} unapplied migration(s), so the deployed application may be querying tables the database does not have.`,
-      [
-        `pending: ${outcome.pending.join(", ")}`,
-        "Apply them DELIBERATELY with `pnpm run db:production:apply` — this command never will.",
-      ],
+      detail,
     );
   }
   return result(
@@ -298,6 +345,20 @@ function checkMigrations({ runner = spawnSync, pendingCheck } = {}) {
     PASS,
     "production has no unapplied migrations.",
   );
+}
+
+/** Read the committed rollback ledger. `null` when it is absent or unreadable. */
+function readMigrationLedger() {
+  try {
+    return JSON.parse(
+      readFileSync(
+        join(ROOT, "docs", "development", "migration-ledger.json"),
+        "utf8",
+      ),
+    );
+  } catch {
+    return null;
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -387,6 +448,8 @@ export async function verifyProduction({
     checkMigrations({
       runner,
       pendingCheck: deploy.checkPendingProductionMigrations,
+      classify: deploy.classifyPendingMigrations,
+      ledger: readMigrationLedger(),
     }),
   );
   const healthUrl =

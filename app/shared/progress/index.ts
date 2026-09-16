@@ -24,6 +24,20 @@ export {
   type CategorySplitProps,
   type CategorySplitRow,
 } from "./CategorySplit";
+/**
+ * UIX-03 — the card-sized trend, moved here from `~/shared/charts`.
+ *
+ * It belongs beside `CategorySplit` for the same reason that one does: no axis,
+ * no plot area, no charting runtime — an inline SVG a card can afford. It left
+ * the charts barrel because everything in that barrel stands on Recharts, so
+ * importing this 2.3 KB drawing from there cost `/today` the whole 394.9 KB
+ * charting chunk. See that barrel's header for the measurement.
+ */
+export {
+  Sparkline,
+  type SparklineProps,
+  type SparklinePoint,
+} from "./Sparkline";
 export {
   METER_STATUSES,
   meterStatusAttribute,

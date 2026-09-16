@@ -12,9 +12,23 @@
  *
  * `computeTransformChange` is the pure core (view-free) so the "did it change /
  * where does the selection land" logic is unit tested against an `EditorState`.
+ *
+ * ── Why both CodeMirror imports here are TYPE-ONLY ──────────────────────────
+ * A `type` import is erased at build time; a value import is not. This module is
+ * reached statically from `LiveMarkdownEditor`, which is itself reached from the
+ * Task record — so a value import of `@codemirror/state` here put CodeMirror's
+ * 48 KB state package into the STATIC graph of `/today` and `/tasks`, on a
+ * surface where no editor has been opened. MEASURED: 48.1 KB raw / 15.9 KB gzip
+ * on both routes, for a selection object.
+ *
+ * The one value that was imported, `EditorSelection.range(anchor, head)`, has a
+ * plain-object equivalent that CodeMirror's own `TransactionSpec` accepts —
+ * `{ anchor, head }` — so the dependency was never needed at all. Held by
+ * `scripts/route-budget.mjs`, which fails if either route statically loads the
+ * editor runtime again.
  */
 
-import { EditorSelection, type EditorState } from "@codemirror/state";
+import type { EditorState } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 
 import type { MarkdownTransform } from "./markdown-transforms";
@@ -60,18 +74,12 @@ export function applyMarkdownTransform(
   if (change.changed) {
     view.dispatch({
       changes: { from: 0, to: view.state.doc.length, insert: change.value },
-      selection: EditorSelection.range(
-        change.selectionStart,
-        change.selectionEnd,
-      ),
+      selection: { anchor: change.selectionStart, head: change.selectionEnd },
       scrollIntoView: true,
     });
   } else {
     view.dispatch({
-      selection: EditorSelection.range(
-        change.selectionStart,
-        change.selectionEnd,
-      ),
+      selection: { anchor: change.selectionStart, head: change.selectionEnd },
     });
   }
   view.focus();

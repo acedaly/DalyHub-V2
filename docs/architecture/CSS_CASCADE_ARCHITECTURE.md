@@ -14,7 +14,7 @@ outranks layered CSS unconditionally and regardless of specificity — which mea
 one unlayered file quietly outranks the entire design system.
 
 **There is exactly one exception, and it is forced rather than chosen:
-`markdown-editor-codemirror.css` — eight rules.** See [The one exception](#the-one-exception) below. It is
+`markdown-editor-codemirror.css` — seven rules.** See [The one exception](#the-one-exception) below. It is
 not a loophole — `e2e/css-cascade-ownership.spec.ts` derives the permitted set
 from that file's own contents and fails on any other unlayered rule.
 
@@ -59,7 +59,7 @@ source import order:
 | **Unlayered style rules** (CSSOM, live page) | **2,932 of 4,602 (63.7%)** | **0 of 4,602** |
 | `!important` declarations | 15 | 15 |
 
-The remaining unlayered bytes are `markdown-editor-codemirror.css` (eight rules
+The remaining unlayered bytes are `markdown-editor-codemirror.css` (seven rules
 — the one forced exception, below), 84 Tailwind `@property` declarations and four
 `@keyframes`. Neither `@property` nor `@keyframes` is a cascade participant, and
 neither can be layered.
@@ -95,7 +95,7 @@ the probe above, and a CSSOM walk asserting no rule sits outside a layer.
 
 ## The one exception
 
-`markdown-editor-codemirror.css` — **eight rules** — is imported **without** a
+`markdown-editor-codemirror.css` — **seven rules** — is imported **without** a
 `layer()` keyword, and that is a consequence of how the cascade works rather than
 a preference.
 
@@ -129,19 +129,64 @@ cancelling the compact density cap, the guided Review's editor got its `50vh`
 ceiling back, `.cm-scroller` became scrollable, and axe reported a **serious**
 `scrollable-region-focusable` violation. E2E partition p07, red.
 
-**So the exception is now only what it has to be.** Six rules, contesting a
-property CodeMirror's own sheet sets on the same element — established by reading
-its 71 injected rules rather than by guessing:
+**So the exception is now only what it has to be.** Seven rules, each contesting
+a property CodeMirror's own sheet sets on the same element:
 
 | CodeMirror sets | on |
 | :-- | :-- |
 | `margin`, `padding`, `min-height`, `outline`, `display`, `box-sizing` | `.cm-content` |
 | `font-family`, `line-height`, `height`, `overflow-x`, `display` | `.cm-scroller` |
 | `outline` | `.cm-focused` |
+| `border-left-color` | `.cm-cursor`, `.cm-dropCursor` |
+| `color` | `.cm-placeholder` |
+| `background-color` | `.cm-selectionBackground` |
 
 CodeMirror sets **nothing** on `.cm-editor`, which is why the density caps stayed
 in `markdown-editor.css` — in `dh-product`, where product surfaces can still
 override them normally.
+
+### That table is no longer what decides — V3-CSS-02
+
+**The table above is documentation. It was written by hand three times and was
+wrong all three**, and each time the cost was a shipped defect:
+
+1. the whole editor stylesheet was un-layered, which handed it priority over the
+   five product surfaces that legitimately override it (the guided Review, a
+   serious axe violation, p07 red);
+2. the narrowing that followed was written from a probe that printed 60 of
+   CodeMirror's 320 selector/property pairs, so `.cm-cursor`'s
+   `border-left-color` and `.cm-placeholder`'s `color` stayed layered and lost —
+   the text caret rendered `rgb(0,0,0)` at **1.06:1** against the dark surface,
+   on every writing surface in the product;
+3. the fix for (2) wrote `background:` on `.cm-selectionBackground`, and a
+   shorthand is nine declarations — so eight longhands CodeMirror does not
+   declare at all left the cascade with it.
+
+`e2e/css-cascade-ownership.spec.ts` → *"the unlayered CodeMirror exception is
+exactly what CodeMirror contests"* now **derives** the answer instead, with the
+editor mounted, focused and showing its placeholder:
+
+- it walks the live CSSOM and partitions every rule that can reach a `.cm-*`
+  element into layered / unlayered and DalyHub's / CodeMirror's;
+- it compares **longhands**, as the browser's own parser expands them, which is
+  what makes (3) visible;
+- it matches selectors against **real elements** with `Element.matches`, with
+  dynamic pseudo-classes stripped, rather than comparing class names;
+- and it fails in **both** directions — a layered DalyHub declaration CodeMirror
+  also declares on the same element (it silently loses), and a declaration in the
+  unlayered file CodeMirror does not declare on anything it matches (it did not
+  need to leave the cascade).
+
+MEASURED when it was introduced: 72 CodeMirror rules, 34 DalyHub layered rules
+reaching a `.cm-*` element, 64 editor elements. Nothing layered was losing; one
+unlayered rule (`.dh-note-body … .cm-content`'s `font-family` and `font-size`)
+and eight background longhands were not contested and moved back into
+`dh-product`.
+
+It also carries sanity assertions that fail if CodeMirror did not inject, if no
+element was scanned, or if no unlayered DalyHub rule reached the editor — because
+the historical failure of this corner is an assertion that could not see the thing
+it was about.
 
 **The real fix, deliberately not taken here:** move the 49 `.cm-*` rules into
 CodeMirror's own `EditorView.theme()`, where they would participate in the same
@@ -178,7 +223,7 @@ Dialog surfaces. Progress. Avatars. Empty states. Dates. Focus treatment.
 `dh-legacy` is a **shrinking inventory, not a destination.** Nothing new goes in
 it. When the last rule leaves a file, the file goes.
 
-### The current `dh-legacy` inventory — 8 files, 1,966 lines
+### The current `dh-legacy` inventory — 7 files, 1,899 lines
 
 | File | Lines | What Untitled should be drawing |
 | :-- | --: | :-- |
@@ -189,7 +234,11 @@ it. When the last rule leaves a file, the file goes.
 | `tooltip.css` | 92 | tooltips |
 | `overflow-menu.css` | 91 | the overflow trigger |
 | `skeleton.css` | 82 | loading placeholders |
-| `progress.css` | 67 | progress bars |
+
+> **`progress.css` is gone** (67 lines). Its only rules were `.dh-ring*`, the
+> paint for `~/shared/charts/ProgressRing` — a component exported from the charts
+> barrel and imported by nobody, so `.dh-ring` appeared in no markup. Component
+> and stylesheet were deleted together, per CLAUDE.md rule 3.
 
 None of these produced a visual change when demoted below `utilities`. **The
 strength of that statement is not the same for all eight**, and a later audit of
@@ -209,14 +258,36 @@ Auditing which of these files' classes were actually rendered in it:
 | `overflow-menu.css` | 3, on 10 surfaces | Covered by the diff. |
 | `skeleton.css` | 1, on 2 surfaces | Thin, but covered. |
 | `floating.css` | **0** | **Live, and verified separately.** With the record overflow menu open: `.dh-floating` ×3 and `.dh-option` ×20, correct background, hairline, 12px radius and shadow in **both** appearances. Its elements carry **only `dh-*` classes and no Untitled utilities**, which is precisely why demoting it changes nothing — there is nothing on the element to contest it. |
-| `tooltip.css` | **0** | **Dead.** The shared Tooltip renders pure Untitled utilities (`rounded-lg bg-primary-*`, an `oklch` background); `dh-tooltip` appears **zero** times in the rendered DOM. 92 lines with no consumer. |
-| `progress.css` | **0** | **Inert.** It contains no `.dh-progress*` rules at all — UNTITLED-07 deleted them and the class names survive as markup hooks. Its only live rules are `.dh-ring*`, whose component `~/shared/charts/ProgressRing` is exported from the charts barrel and **imported by nobody**; `.dh-ring` appears in no markup. |
+| `tooltip.css` | **0** | ~~Dead.~~ **LIVE — this row was wrong, and the correction is below.** |
+| `progress.css` | **0** | **Inert, and now deleted.** It contained no `.dh-progress*` rules at all — UNTITLED-07 deleted them and the class names survive as markup hooks. Its only live rules were `.dh-ring*`, whose component `~/shared/charts/ProgressRing` was exported from the charts barrel and **imported by nobody**; `.dh-ring` appeared in no markup. Both are gone. |
 
-So `tooltip.css` and `progress.css` are deletable now on evidence stronger than
-the diff's — they have no consumer at all — and `floating.css` is live paint that
-is safe where it sits for a reason that was measured rather than assumed. The
-claim that the diff alone proved all eight inert was too strong, and this table
-replaces it.
+So `progress.css` was deletable on evidence stronger than the diff's — no
+consumer at all — and `floating.css` is live paint that is safe where it sits for
+a reason that was measured rather than assumed. The claim that the diff alone
+proved all eight inert was too strong, and this table replaces it.
+
+#### The `tooltip.css` row was wrong, and deleting the file would have been a regression
+
+**Corrected 2026-09-16.** There are TWO tooltips in DalyHub, and the audit above
+measured the wrong one.
+
+| | |
+| :-- | :--- |
+| `~/shared/ui/untitled/base/tooltip/tooltip.tsx` | Untitled's own, over React Aria. It draws pure Untitled utilities (`rounded-lg bg-primary-*`, an `oklch` background) and carries no `dh-` class. It is used **by Untitled's own components** — `input.tsx`, `label.tsx`, `button-utility.tsx`, `table.tsx`, `section-label.tsx`, `command-input.tsx`, `avatar-add-button.tsx`. |
+| `~/shared/tooltip/Tooltip.tsx` | **DalyHub's**, and the one the product's own chrome uses — `IconButton`, the editor toolbar, the overflow menu, the user menu, both top bars and the primary navigation: **9 importers.** It renders `className="dh-tooltip dh-motion-reveal"` with `.dh-tooltip__label` and `.dh-tooltip__shortcut` (`Tooltip.tsx:351`), and those elements carry **no Untitled utility at all**. |
+
+`tooltip.css` is the second one's entire appearance. Deleting it would have left
+every tooltip on the shell's navigation, top bars and menus as an unstyled
+`<div>` — and the file's `dh-legacy` placement would not have saved it, because
+there is nothing on the element to win the contest.
+
+What the register should have said, and now does, is that DalyHub runs a **second
+tooltip implementation** beside Untitled's. That is a design-system finding
+(CLAUDE.md rule 1) rather than a dead file: DalyHub's has behaviour Untitled's
+does not — a formatted keyboard-shortcut chip from the one shared notation
+formatter, so a tooltip reads `⌘B` on an Apple platform and `Ctrl+B` elsewhere,
+the same string the Command Palette shows. Converging the two means giving
+Untitled's tooltip that shortcut slot, not deleting a stylesheet.
 
 ### Three files that look generic and are not
 

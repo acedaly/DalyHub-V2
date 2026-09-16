@@ -5,18 +5,29 @@
  * service worker, and must never be imported by a Worker/loader path — the server
  * half lives in `~/platform/offline`, and the contracts both sides share live in
  * `~/kernel/offline`.
+ *
+ * ── This barrel is the RUNTIME, and deliberately not the SCREENS ────────────
+ *
+ * It exports the provider, the hooks, the queue and the storage/sync functions —
+ * the things a surface anywhere in the product legitimately needs. It exports no
+ * offline PANEL, and that is a bundling decision with a measurement behind it.
+ *
+ * `~/shared/task-record/usePendingTasks` imports `useOffline` from here, and
+ * `task-record` is reached by Today, Tasks, Projects, Meetings and Notes — so
+ * every one of those routes statically loaded whatever this file named. It named
+ * six screens: `OfflineSettingsPanel`, `OfflineSnapshotView`, `OfflineChangesPanel`,
+ * `OfflineSyncPanel`, `OfflineDiagnostics` and `OfflineCaptureForm`, ~44 KB of
+ * Settings and `/offline` UI, on five routes that render none of them.
+ *
+ * The panels are imported from their own modules by the three surfaces that draw
+ * them — `app/routes/offline.tsx`, Settings and the Tasks workspace — exactly as
+ * `AppShell` already imports `ConnectionStatus` and as the unit tests already
+ * import all of them. Their co-located helpers (`formatBytes`, `queueSummary`,
+ * `conflictFieldLabel` and the rest) were re-exported here for no consumer at
+ * all, and a re-export with no consumer is a load-bearing import waiting to
+ * happen. Held by `scripts/route-budget.mjs`.
  */
 
-export {
-  ConnectionStatus,
-  shouldShowStatus,
-  statusSummary,
-  type ConnectionStatusProps,
-} from "./ConnectionStatus";
-export {
-  OfflineCaptureForm,
-  type OfflineCaptureFormProps,
-} from "./OfflineCaptureForm";
 export {
   OfflineProvider,
   useOffline,
@@ -25,26 +36,6 @@ export {
   type OfflineProviderProps,
   type OfflineStorageEstimate,
 } from "./OfflineProvider";
-export { OfflineDiagnosticsPanel } from "./OfflineDiagnostics";
-export { OfflineSettingsPanel, formatBytes } from "./OfflineSettingsPanel";
-export {
-  OfflineSnapshotView,
-  type OfflineSnapshotViewProps,
-} from "./OfflineSnapshotView";
-export {
-  OfflineSyncPanel,
-  queueStatusLabel,
-  queueSummary,
-  type OfflineSyncPanelProps,
-} from "./OfflineSyncPanel";
-
-export {
-  OfflineChangesPanel,
-  conflictFieldLabel,
-  describeConflictValue,
-  type OfflineChangesPanelProps,
-} from "./OfflineChangesPanel";
-
 export {
   OFFLINE_REPLAY_APPLIED_EVENT,
   announceReplayApplied,

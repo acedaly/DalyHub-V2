@@ -112,12 +112,20 @@ export {
   type PeriodTotalsProps,
 } from "./untitled/PeriodTotals";
 
-/* ── The hand-drawn indicators ────────────────────────────────── */
-
-export { ProgressRing, type ProgressRingProps } from "./ProgressRing";
-/* UIX-03 — the card-sized trend, for surfaces a full chart cannot reach. */
-export {
-  Sparkline,
-  type SparklineProps,
-  type SparklinePoint,
-} from "./Sparkline";
+/* ── The hand-drawn indicators are NOT here, and that is now structural ────
+ *
+ * `ProgressRing` was deleted: it had no consumer in the product at all.
+ *
+ * `Sparkline` moved to `~/shared/progress`, for the reason the header above
+ * already gives — it has no axis, no tooltip, no legend and no plot area, so it
+ * is an indicator rather than a chart — and for a MEASURED one. Everything this
+ * barrel exports stands on Recharts, which is 394.9 KB raw / 111.6 KB gzip in
+ * one chunk. `/today` imported `Sparkline` from here to draw a 2.3 KB inline
+ * SVG and paid the whole charting runtime for it, on the product's default
+ * landing route.
+ *
+ * The rule that follows: this barrel is the RECHARTS layer. Anything that does
+ * not need Recharts does not belong in it, because importing one name from here
+ * loads all of it. `scripts/route-budget.mjs` fails the build if a daily-driver
+ * route statically reaches this chunk again.
+ */

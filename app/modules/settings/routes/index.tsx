@@ -45,7 +45,8 @@ import { getPrimaryNavigation } from "~/platform/modules/primary-navigation";
 import { readBackupSettings, type BackupServiceEnv } from "~/platform/backup";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
-import { OfflineChangesPanel, OfflineSettingsPanel } from "~/shared/offline";
+import { OfflineChangesPanel } from "~/shared/offline/OfflineChangesPanel";
+import { OfflineSettingsPanel } from "~/shared/offline/OfflineSettingsPanel";
 import {
   AI_MODEL_TIERS,
   budgetPeriodKeys,

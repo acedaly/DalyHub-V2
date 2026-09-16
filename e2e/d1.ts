@@ -27,9 +27,72 @@
  */
 
 import { execFileSync } from "node:child_process";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
 
 /** How many times a transient failure is re-attempted before it is a failure. */
 const ATTEMPTS = 5;
+
+/**
+ * Wrangler's own entry script, run directly by THIS Node process rather than
+ * through `pnpm exec`.
+ *
+ * ── Why, and what it is worth ───────────────────────────────────────────────
+ *
+ * `pnpm exec wrangler …` spawns pnpm, which resolves the workspace and the bin
+ * link and then spawns Node, which then loads wrangler. Only the last of those
+ * does any work. MEASURED locally against the same statement, four runs each:
+ *
+ *     pnpm exec wrangler …                       median 2303 ms
+ *     node <wrangler entry> …                    median 1842 ms
+ *
+ * — about 460 ms of pure process plumbing, on every fixture statement in the
+ * suite. There are 114 `d1Execute`, 51 `d1Query` and 4 `d1ExecuteFile` call
+ * sites and most sit in a `beforeEach`, so the suite pays it far more often than
+ * that count suggests.
+ *
+ * It changes nothing else: the same wrangler, the same arguments, the same
+ * environment, the same exit codes and the same stdout. What it does NOT address
+ * is the ~1.8 s wrangler itself costs to boot, which is the larger half and is
+ * discussed on {@link d1Query}.
+ *
+ * ── Resolution ──────────────────────────────────────────────────────────────
+ *
+ * Through `wrangler/package.json` and its `bin` field, not through a hardcoded
+ * path: pnpm's store puts the real file under a versioned directory
+ * (`node_modules/.pnpm/wrangler@x.y.z/…`) that changes with every upgrade, and
+ * `wrangler/bin/wrangler.js` is not reachable by `require.resolve` because the
+ * package's `exports` map does not name it.
+ */
+const WRANGLER_ENTRY = (() => {
+  try {
+    const require = createRequire(import.meta.url);
+    const packageJsonPath = require.resolve("wrangler/package.json");
+    const packageJson = require("wrangler/package.json") as {
+      bin: string | Record<string, string>;
+    };
+    const bin =
+      typeof packageJson.bin === "string"
+        ? packageJson.bin
+        : packageJson.bin.wrangler;
+    return join(dirname(packageJsonPath), bin);
+  } catch (error) {
+    /*
+     * This runs at MODULE LOAD, so a failure here is "the spec file will not
+     * load" rather than "one fixture statement failed" — and the default message
+     * for that says nothing about wrangler. Resolution depends on `wrangler`
+     * exposing `./package.json` in its `exports` map, which it does today and a
+     * major upgrade could change, so the message names the fix.
+     */
+    throw new Error(
+      "e2e/d1.ts could not resolve wrangler's entry script through " +
+        "`wrangler/package.json`. If a wrangler upgrade stopped exporting it, " +
+        "point WRANGLER_ENTRY at `node_modules/.bin/wrangler` instead — every " +
+        "fixture statement in the suite runs through it.",
+      { cause: error },
+    );
+  }
+})();
 
 /** SQL-escape a string for use as a single-quoted literal in a D1 command. */
 export function sqlLiteral(value: string): string {
@@ -72,10 +135,9 @@ function runOnce(
       ? ["--command", source.command]
       : ["--file", source.file];
   return execFileSync(
-    "pnpm",
+    process.execPath,
     [
-      "exec",
-      "wrangler",
+      WRANGLER_ENTRY,
       "d1",
       "execute",
       "DB",
@@ -182,8 +244,9 @@ export function d1ExecuteFile(path: string): void {
  * The reason that is disqualifying rather than merely annoying: **a reader that
  * can miss committed rows can make an assertion PASS that should fail.** Every
  * `toHaveLength(0)` after a delete, and every "replays without a second" that
- * counts one row where two exist, becomes a false green. Fifteen spec files use
- * this helper to check invariants the interface cannot show. Slow and correct
+ * counts one row where two exist, becomes a false green. Sixteen files use this
+ * helper — 11 spec files and 5 shared fixtures — to check invariants the
+ * interface cannot show. Slow and correct
  * beats fast and occasionally blind.
  *
  * The safe way to spend the 3.1s remains open and is not this: issue FEWER

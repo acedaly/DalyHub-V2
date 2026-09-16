@@ -82,7 +82,7 @@ import {
   postTaskRecordAction,
   postTaskRecordActionOffline,
 } from "~/shared/task-record/task-inline-edit";
-import { OfflineChangesPanel } from "~/shared/offline";
+import { OfflineChangesPanel } from "~/shared/offline/OfflineChangesPanel";
 import {
   usePendingTasks,
   useReplayRevalidation,

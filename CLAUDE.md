@@ -55,6 +55,13 @@ things, and the register says which each item is.
 The next major initiative is not a design-system one — see
 [`DALYHUB_MOBILE_FOUNDATION.md`](docs/architecture/DALYHUB_MOBILE_FOUNDATION.md).
 
+**If you are new to this repository, read
+[`DALYHUB_ENGINEERING_HANDOFF.md`](docs/architecture/DALYHUB_ENGINEERING_HANDOFF.md)
+first.** It is DalyHub as it actually exists — the architecture, the fragile
+areas with the defect each has already caused, the commands that matter, and a
+"before you change X, understand Y" list. What is left to do, in priority order,
+is [`DALYHUB_RESIDUAL_DEBT.md`](docs/architecture/DALYHUB_RESIDUAL_DEBT.md).
+
 **Phone behaviour has its own authority now.** DalyHub 3.1 treats the installed
 PWA as a mobile application rather than a responsive website, and
 [`MOBILE_WEB_EXPERIENCE.md`](docs/design/MOBILE_WEB_EXPERIENCE.md) is what holds
