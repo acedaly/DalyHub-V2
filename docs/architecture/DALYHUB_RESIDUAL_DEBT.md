@@ -240,12 +240,17 @@ rather than copied forward — §6.
   **dead** — see §6.
 - **Impact.** None today. It is a design-system defect under CLAUDE.md rule 1, not
   a defect on screen.
-- **Solution.** Give Untitled's tooltip the shortcut slot DalyHub's has (the
-  `⌘B` / `Ctrl+B` chip from the shared notation formatter), then retire DalyHub's
-  and `tooltip.css` together.
+- **Solution, checked against upstream in this pass.** Untitled's `base/tooltip`
+  takes `title`, `description`, `arrow` and `delay` and **has no shortcut slot** —
+  confirmed by reading the vendored source at revision `0b78cd49`. Both `title`
+  and `description` are `ReactNode`, so the convergence is either passing the
+  formatted chip as part of `description`, or adding a `shortcut` prop through
+  `~/shared/ui/untitled/overrides/`, which exists for exactly this and which
+  `scripts/vendor-untitled.mjs` preserves across a re-vendor. Then DalyHub's
+  tooltip and `tooltip.css` retire together.
 - **Why not done here.** It is a real component migration with a real behaviour to
-  preserve, and it was mis-recorded as a deletion. Correcting the record was the
-  urgent half.
+  preserve, across the whole shell chrome, and it was mis-recorded as a deletion.
+  Correcting the record was the urgent half.
 
 ### P2-6 · `forms.css` mixes generic paint with field geometry, and holds an accessibility floor
 
@@ -349,7 +354,7 @@ rather than copied forward — §6.
 | # | Item | Where |
 | :-- | :--- | :--- |
 | P3-1 | Nine bare native controls carry their own field paint instead of using `inputClassName()` | migration register item 1 |
-| P3-2 | `~/shared/ui/Card` (`.dh-surface`) paints from DalyHub tokens; Untitled ships no generic Card | item 2 |
+| P3-2 | `~/shared/ui/Card` (`.dh-surface`) paints from DalyHub tokens. **Re-checked through the Untitled connector in this pass: there is still no generic `base/card`** — every catalogue hit for "card" is a marketing SECTION (hero, pricing, CTA, testimonial). So nothing upstream is waiting to take this over, and the entry is a question about whether the box is needed rather than a migration | item 2 |
 | P3-3 | `TagChip` and `PanelHeading` are DalyHub's own where Untitled ships `base/tags` and `application/section-headers` | item 4 |
 | P3-4 | `application/file-upload`'s drop zone would replace ~370 lines DalyHub wrote | item 7 |
 | P3-5 | A Project inside a Goal record carries no health | item 8 |
@@ -362,8 +367,14 @@ rather than copied forward — §6.
 ## Later — genuinely optional
 
 - **`application/progress-steps`** for the guided Review's step rail. Blocked on
-  interactive Untitled Pro CLI access, not on design (migration register item 6).
-  The current implementation is retained and documented, never faked.
+  interactive Untitled Pro CLI access, not on design (migration register item 6),
+  and **re-checked through the Untitled connector in this pass**: the catalogue
+  reports `has_pro_access: true` and returns the component's METADATA (6 files,
+  `access: "pro"`), but source still comes from
+  `npx untitledui@latest add progress-steps`, which the tool's own instruction
+  says needs `npx untitledui@latest login` first. So the register's claim stands,
+  now with the boundary named — catalogue access is not source access. The
+  current implementation is retained and documented, never faked.
 - **Splitting `tokens.css` per colour scheme.** Measured at 2.4 kB brotli. Do not.
 - **A second E2E tier for WebKit.** Would need a real device to be meaningful; a
   WebKit run in CI is not an iPhone either.
