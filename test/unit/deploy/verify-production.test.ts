@@ -133,10 +133,27 @@ function run(options: Record<string, unknown> = {}) {
     deployModule: fakeDeploy(),
     ...options,
   }) as Promise<{
-    checks: { name: string; status: string; detail: string }[];
+    checks: {
+      name: string;
+      status: string;
+      detail: string;
+      notes: string[];
+    }[];
     exitCode: number;
     verdict: string;
   }>;
+}
+
+/**
+ * A check's supporting lines, joined.
+ *
+ * `result(name, status, detail, notes)` puts the one-line SUMMARY in `detail`
+ * and the supporting lines in `notes`. Reading `detail` as an array throws —
+ * which is how the first version of the two tests below passed review and
+ * asserted nothing at all. Found by Codex on #308.
+ */
+function noteLines(check: { notes?: string[] }): string {
+  return (check.notes ?? []).join("\n");
 }
 
 describe("verify:production — what it reads", () => {
@@ -296,14 +313,12 @@ describe("verify:production — what it calls a real failure", () => {
     });
     const migrations = outcome.checks.find((c) => c.name === "D1 migrations")!;
     expect(migrations.status).toBe("FAIL");
-    const detail = (migrations as unknown as { detail: string[] }).detail.join(
-      "\n",
-    );
-    expect(detail).toContain("ROLLBACK BOUNDARY");
-    expect(detail).toContain("0050_create_obligations.sql");
-    expect(detail).toContain("asset_obligations");
+    const notes = noteLines(migrations);
+    expect(notes).toContain("ROLLBACK BOUNDARY");
+    expect(notes).toContain("0050_create_obligations.sql");
+    expect(notes).toContain("asset_obligations");
     expect(
-      detail,
+      notes,
       "an operator told a window is one-way needs to be told where the runbook is",
     ).toContain("When the migration succeeded and the deploy did not");
   });
@@ -315,11 +330,9 @@ describe("verify:production — what it calls a real failure", () => {
       }),
     });
     const migrations = outcome.checks.find((c) => c.name === "D1 migrations")!;
-    const detail = (migrations as unknown as { detail: string[] }).detail.join(
-      "\n",
-    );
-    expect(detail).not.toContain("ROLLBACK BOUNDARY");
-    expect(detail).toContain("all pending migrations are additive");
+    const notes = noteLines(migrations);
+    expect(notes).not.toContain("ROLLBACK BOUNDARY");
+    expect(notes).toContain("all pending migrations are additive");
   });
 
   it("FAILS on an unhealthy application, carrying the reason through", async () => {

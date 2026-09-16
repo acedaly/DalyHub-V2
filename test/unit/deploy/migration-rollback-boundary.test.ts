@@ -58,13 +58,66 @@ const MODULE_URL = pathToFileURL(
   join(ROOT, "scripts", "deploy-production.mjs"),
 ).href;
 
+/**
+ * The compatibility derivation's PURE half. `diff` and `classify` decide what
+ * the ledger says, and the predicate behind them is the one Codex review on #308
+ * found two holes in — so they are tested directly against hand-built schema
+ * snapshots rather than only through the 58 real migrations, which happen not to
+ * contain either shape.
+ *
+ * This is `scripts/lib/schema-diff.mjs` and not the script that calls it because
+ * the script imports `node:sqlite` to build the snapshots, and Vitest's client
+ * environment refuses to bundle a Node built-in — importing it here failed to
+ * load this whole file. The split is on the line between producing the snapshots
+ * and deciding what they mean, which is the seam worth having regardless.
+ */
+const COMPAT_MODULE_URL = pathToFileURL(
+  join(ROOT, "scripts", "lib", "schema-diff.mjs"),
+).href;
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- untyped Node script under test.
 type DeployModule = any;
 let deploy: DeployModule;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- untyped Node script under test.
+type CompatModule = any;
+let compat: CompatModule;
+
 beforeAll(async () => {
   deploy = await import(/* @vite-ignore */ MODULE_URL);
+  compat = await import(/* @vite-ignore */ COMPAT_MODULE_URL);
 });
+
+/** One table's shape, in the form `snapshot()` produces. */
+function table(
+  columns: Record<
+    string,
+    { type?: string; notNull?: boolean; default?: string | null }
+  >,
+  sql = "",
+) {
+  return {
+    columns: Object.fromEntries(
+      Object.entries(columns).map(([name, c]) => [
+        name,
+        {
+          type: c.type ?? "TEXT",
+          notNull: c.notNull ?? false,
+          default: c.default ?? null,
+        },
+      ]),
+    ),
+    sql,
+  };
+}
+
+/** The breaking reasons `classify` derives from a before/after pair. */
+function breakingBetween(
+  before: Record<string, unknown>,
+  after: Record<string, unknown>,
+): string[] {
+  return compat.classify(compat.diff(before, after)).breaking;
+}
 
 /** The function under test, read off the runtime-imported module. */
 const classifyPendingMigrations = (
@@ -126,6 +179,91 @@ describe("DEPLOY-01 — the migration rollback boundary", () => {
     expect(ledger.head).toMatch(/^\d{4}_.+\.sql$/);
   });
 
+  /**
+   * The predicate, on both sides, for every column.
+   *
+   * The first version asked "did a NULLABLE column become NOT NULL with no
+   * default", which misses a table REBUILD that declares a new required column
+   * (that arrives as an ADDITION) and misses an already-required column LOSING
+   * its default (nullability never moves). In both, an older Worker's INSERT
+   * that never named the column starts failing, and the ledger called the
+   * migration additive.
+   */
+  describe("a column that stops accepting omission", () => {
+    it("accepts omission when the column is absent, nullable, or defaulted", () => {
+      expect(compat.acceptsOmission(undefined)).toBe(true);
+      expect(compat.acceptsOmission({ notNull: false, default: null })).toBe(
+        true,
+      );
+      expect(compat.acceptsOmission({ notNull: true, default: "'x'" })).toBe(
+        true,
+      );
+      expect(compat.acceptsOmission({ notNull: true, default: null })).toBe(
+        false,
+      );
+    });
+
+    it("catches a NULLABLE column becoming required", () => {
+      const reasons = breakingBetween(
+        { t: table({ a: {} }) },
+        { t: table({ a: { notNull: true } }) },
+      );
+      expect(reasons).toEqual([
+        "`t.a` became NOT NULL with no default — an insert omitting it now fails",
+      ]);
+    });
+
+    it("catches a REBUILD that adds a required column with no default", () => {
+      // The shape a bare `ALTER TABLE ADD COLUMN` cannot produce and a
+      // copy-and-rename rebuild can. It arrives as an ADDITION.
+      const reasons = breakingBetween(
+        { t: table({ a: {} }) },
+        { t: table({ a: {}, b: { notNull: true } }) },
+      );
+      expect(reasons).toEqual([
+        "`t.b` added as required with no default — an insert omitting it now fails",
+      ]);
+    });
+
+    it("catches an already-required column LOSING its default", () => {
+      const reasons = breakingBetween(
+        { t: table({ a: { notNull: true, default: "'x'" } }) },
+        { t: table({ a: { notNull: true } }) },
+      );
+      expect(reasons).toEqual([
+        "`t.a` lost its default while still NOT NULL — an insert omitting it now fails",
+      ]);
+    });
+
+    it("does NOT flag the additive shapes the sequence actually uses", () => {
+      // A new nullable column, and a new NOT NULL column WITH a default — which
+      // is every `ADD COLUMN` in the committed sequence.
+      expect(
+        breakingBetween(
+          { t: table({ a: {} }) },
+          {
+            t: table({
+              a: {},
+              nullable: {},
+              defaulted: { notNull: true, default: "'inbox'" },
+            }),
+          },
+        ),
+      ).toEqual([]);
+      // A column GAINING a default is a widening, not a narrowing.
+      expect(
+        breakingBetween(
+          { t: table({ a: { notNull: true } }) },
+          { t: table({ a: { notNull: true, default: "'x'" } }) },
+        ),
+      ).toEqual([]);
+      // An entirely new table is invisible to code that does not know it.
+      expect(
+        breakingBetween({}, { fresh: table({ a: { notNull: true } }) }),
+      ).toEqual([]);
+    });
+  });
+
   describe("classifyPendingMigrations", () => {
     it("separates a one-way migration from the additive ones around it", () => {
       const result = classifyPendingMigrations(
@@ -146,6 +284,7 @@ describe("DEPLOY-01 — the migration rollback boundary", () => {
         "0048_goal_condition.sql",
         "0052_create_attachments.sql",
       ]);
+      expect(result.known).toBe(true);
     });
 
     it("reports a wholly additive pending set as reversible", () => {
@@ -157,18 +296,31 @@ describe("DEPLOY-01 — the migration rollback boundary", () => {
       expect(result.reversible).toHaveLength(2);
     });
 
-    it("is safe when the ledger is missing rather than claiming safety", () => {
-      // A missing ledger must not read as "nothing is one-way". It reads as
-      // "nothing is KNOWN to be one-way", and the deploy preflight says so by
-      // printing the additive message only when it actually has a ledger — so
-      // the failure mode here is a missing warning, never a false all-clear on a
-      // migration the ledger listed.
-      const result = classifyPendingMigrations(
-        ["0050_create_obligations.sql"],
+    it("reports UNKNOWN rather than safe when the ledger cannot be read", () => {
+      /*
+       * "Nothing is one-way" and "I could not read the ledger" produce the same
+       * empty `oneWay`, and the first version of this reported the second as the
+       * first — a false all-clear on the one question this exists to answer.
+       * Found by Codex review on #308. `known` is what every caller branches on.
+       */
+      for (const ledgerless of [
         null,
-      );
-      expect(result.oneWay).toEqual([]);
-      expect(result.reversible).toEqual(["0050_create_obligations.sql"]);
+        undefined,
+        {},
+        { applicationRollbackUnsafe: null },
+      ]) {
+        const result = classifyPendingMigrations(
+          ["0050_create_obligations.sql"],
+          ledgerless,
+        );
+        expect(result.known, `ledger: ${JSON.stringify(ledgerless)}`).toBe(
+          false,
+        );
+      }
+      expect(
+        classifyPendingMigrations([], ledger).known,
+        "a real ledger is known even when nothing is pending",
+      ).toBe(true);
     });
 
     it("classifies nothing when nothing is pending", () => {

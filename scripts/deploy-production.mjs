@@ -688,16 +688,30 @@ export function checkPendingProductionMigrations({ runner = spawnSync } = {}) {
  * backup step 1 required. An operator should know which window they are in
  * BEFORE they open it, which is what this prints.
  *
- * It never blocks: whether to proceed is a judgement about a specific release,
- * and a refusal here would only teach an operator to pass an override. Pure, so
- * it is unit tested without a database.
+ * ── `known` is the third answer, and it is not optional ────────────────────
+ *
+ * "No pending migration is one-way" and "I could not read the ledger" produce
+ * the same empty `oneWay`, and reporting the second as the first is a FALSE
+ * ALL-CLEAR on the one question this exists to answer. So the result says which
+ * it is, and every caller is required to branch on it. Raised by Codex review on
+ * #308, which is exactly where the first version of this got it wrong: it
+ * printed "all pending migrations are additive, so rolling the application back
+ * stays a recovery" when the ledger was missing.
+ *
+ * The classification itself never blocks — whether to proceed is a judgement
+ * about a specific release, and a refusal here would only teach an operator to
+ * pass an override. An UNREADABLE LEDGER is different, and the caller decides:
+ * the deploy preflight treats it as a problem when migrations are pending
+ * (fail-closed, like every other input it cannot establish), and the read-only
+ * verify sweep reports it as unknown rather than inventing either answer.
+ *
+ * Pure, so it is unit tested without a database.
  */
 export function classifyPendingMigrations(pending, ledger) {
+  const entries = ledger?.applicationRollbackUnsafe;
+  const known = Array.isArray(entries);
   const unsafe = new Map(
-    (ledger?.applicationRollbackUnsafe ?? []).map((entry) => [
-      entry.migration,
-      entry.reasons,
-    ]),
+    (known ? entries : []).map((entry) => [entry.migration, entry.reasons]),
   );
   const oneWay = [];
   for (const migration of pending) {
@@ -705,6 +719,7 @@ export function classifyPendingMigrations(pending, ledger) {
     if (reasons) oneWay.push({ migration, reasons });
   }
   return {
+    known,
     oneWay,
     reversible: pending.filter((m) => !unsafe.has(m)),
   };
@@ -785,7 +800,17 @@ export async function runReleasePreflight({
       migrations.pending,
       readMigrationLedger(),
     );
-    if (boundary.oneWay.length > 0) {
+    if (!boundary.known) {
+      /*
+       * Fail closed. The ledger is a committed file that Static keeps in step
+       * with `migrations/`, so "cannot read it" means a broken checkout — and
+       * the one thing that must not happen is an operator being told the window
+       * is reversible because the file that would have said otherwise is absent.
+       */
+      problems.push(
+        "could not read docs/development/migration-ledger.json, so whether the pending migrations close the application-rollback window is UNKNOWN. Restore the file or run `pnpm run db:compat:generate`, then retry. This deploy will not guess.",
+      );
+    } else if (boundary.oneWay.length > 0) {
       log(
         `deploy:production — ROLLBACK BOUNDARY: ${boundary.oneWay.length} of the ${migrations.pending.length} pending migration(s) REMOVE something the running Worker may still read. Once applied, rolling the application back is NOT a recovery for this deploy — the recoveries are to complete the deploy, or to restore the database from the backup step 1 required.`,
       );

@@ -25,12 +25,22 @@
  *   - a dropped TABLE      → the old code's SELECT/INSERT errors
  *   - a dropped COLUMN     → the old code's INSERT naming it errors
  *   - a narrowed CHECK     → the old code's previously-valid value is rejected
- *   - a new NOT NULL with
- *     no DEFAULT           → the old code's INSERT omitting it errors
+ *   - a column that stops
+ *     accepting OMISSION   → the old code's INSERT that never named it errors
  *
  * Everything else — a new table, a new nullable column, a new NOT NULL column
  * WITH a default, a new or dropped index — is invisible to code that does not
  * know about it.
+ *
+ * ── Where the decision lives ────────────────────────────────────────────────
+ *
+ * Here: apply the migrations, snapshot the schema after each. Next door in
+ * `scripts/lib/schema-diff.mjs`: decide what moved between two snapshots and
+ * whether it breaks an older Worker. That module imports nothing and is unit
+ * tested against hand-built snapshots — including the two shapes Codex review on
+ * #308 found the first predicate missing, which the 58 real migrations happen
+ * not to contain. This file cannot be imported from a test, because `node:sqlite`
+ * is a Node built-in Vitest's client environment refuses to bundle.
  *
  * SQLite's `foreign_keys` is left OFF while applying, matching how Wrangler's D1
  * migration runner behaves and how a restored dump is loaded
@@ -56,6 +66,9 @@
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
+
+import { classify, diff } from "./lib/schema-diff.mjs";
 
 const ROOT = process.cwd();
 const MIGRATIONS = path.join(ROOT, "migrations");
@@ -97,122 +110,6 @@ function snapshot(db) {
     };
   }
   return out;
-}
-
-/**
- * Every CHECK constraint a table's DDL declares, normalised to one line each.
- *
- * Compared as a SET: a CHECK that disappears has widened what the table accepts
- * (safe for old code) and a CHECK that appears has narrowed it (not safe).
- */
-function checks(sql) {
-  if (!sql) return [];
-  return [...sql.matchAll(/CHECK\s*\(/gi)]
-    .map((match) => {
-      let depth = 1;
-      let i = match.index + match[0].length;
-      while (i < sql.length && depth > 0) {
-        if (sql[i] === "(") depth += 1;
-        else if (sql[i] === ")") depth -= 1;
-        i += 1;
-      }
-      return sql.slice(match.index, i).replace(/\s+/g, " ").trim();
-    })
-    .sort();
-}
-
-function diff(before, after) {
-  const result = {
-    tablesAdded: [],
-    tablesDropped: [],
-    columnsAdded: [],
-    columnsDropped: [],
-    columnsRetyped: [],
-    columnsNowRequired: [],
-    checksAdded: [],
-    checksRemoved: [],
-  };
-
-  for (const table of Object.keys(after)) {
-    if (!before[table]) {
-      result.tablesAdded.push(table);
-      continue;
-    }
-    const b = before[table];
-    const a = after[table];
-    for (const column of Object.keys(a.columns)) {
-      if (!b.columns[column]) {
-        result.columnsAdded.push({
-          table,
-          column,
-          notNull: a.columns[column].notNull,
-          default: a.columns[column].default,
-        });
-        continue;
-      }
-      const bc = b.columns[column];
-      const ac = a.columns[column];
-      if (bc.type !== ac.type) {
-        result.columnsRetyped.push({
-          table,
-          column,
-          from: bc.type,
-          to: ac.type,
-        });
-      }
-      if (!bc.notNull && ac.notNull && ac.default === null) {
-        result.columnsNowRequired.push({ table, column });
-      }
-    }
-    for (const column of Object.keys(b.columns)) {
-      if (!a.columns[column]) result.columnsDropped.push({ table, column });
-    }
-
-    const bChecks = new Set(checks(b.sql));
-    const aChecks = new Set(checks(a.sql));
-    for (const check of aChecks) {
-      if (!bChecks.has(check)) result.checksAdded.push({ table, check });
-    }
-    for (const check of bChecks) {
-      if (!aChecks.has(check)) result.checksRemoved.push({ table, check });
-    }
-  }
-  for (const table of Object.keys(before)) {
-    if (!after[table]) result.tablesDropped.push(table);
-  }
-  return result;
-}
-
-/**
- * Whether rolling the APPLICATION back across this migration is safe, and why
- * not when it is not.
- *
- * A narrowed CHECK is reported as a WARNING rather than a breakage: it only
- * rejects an old write if the old code can still produce a value the new CHECK
- * excludes, which the DDL alone cannot decide. The report names it so a human
- * can, rather than silently calling it safe or silently calling it fatal.
- */
-function classify(delta) {
-  const breaking = [];
-  const warnings = [];
-  for (const table of delta.tablesDropped) {
-    breaking.push(`table \`${table}\` no longer exists`);
-  }
-  for (const { table, column } of delta.columnsDropped) {
-    breaking.push(`\`${table}.${column}\` no longer exists`);
-  }
-  for (const { table, column, from, to } of delta.columnsRetyped) {
-    breaking.push(`\`${table}.${column}\` changed type ${from} → ${to}`);
-  }
-  for (const { table, column } of delta.columnsNowRequired) {
-    breaking.push(
-      `\`${table}.${column}\` became NOT NULL with no default — an insert omitting it now fails`,
-    );
-  }
-  for (const { table, check } of delta.checksAdded) {
-    warnings.push(`\`${table}\` gained ${check}`);
-  }
-  return { breaking, warnings };
 }
 
 function build() {
@@ -355,4 +252,14 @@ function main() {
   report(result);
 }
 
-main();
+/*
+ * Only when this file IS the command — importing it should not apply 58
+ * migrations as a side effect. The half worth importing is
+ * `scripts/lib/schema-diff.mjs`.
+ */
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
+  main();
+}

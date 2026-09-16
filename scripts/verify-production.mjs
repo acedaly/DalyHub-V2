@@ -305,7 +305,19 @@ function checkMigrations({
      * the deploy preflight, so the two cannot disagree.
      */
     const boundary = classify?.(outcome.pending, ledger);
-    if (boundary && boundary.oneWay.length > 0) {
+    if (boundary && !boundary.known) {
+      /*
+       * Never the additive all-clear when the ledger could not be read. This
+       * sweep reports SKIPPED rather than a pass for everything it cannot
+       * establish, and the rollback boundary is no different — "I could not read
+       * the file" and "nothing is one-way" produce the same empty list, and
+       * reporting the first as the second is a false all-clear on the question
+       * this line exists to answer. Raised by Codex review on #308.
+       */
+      detail.push(
+        "ROLLBACK BOUNDARY: UNKNOWN — docs/development/migration-ledger.json could not be read, so whether these migrations close the application-rollback window cannot be established here. Run `pnpm run db:compat` to derive it.",
+      );
+    } else if (boundary && boundary.oneWay.length > 0) {
       detail.push(
         `ROLLBACK BOUNDARY: ${boundary.oneWay.length} of them REMOVE something the running Worker may read, so once applied, rolling the application back is not a recovery.`,
       );
