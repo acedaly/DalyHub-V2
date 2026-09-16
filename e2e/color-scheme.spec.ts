@@ -288,15 +288,55 @@ test.describe("THEME-01 — choosing a colour scheme", () => {
           "data-color-scheme",
           SLUGS[label] as string,
         );
-        // Poll, because the repaint is a cascade re-evaluation after an attribute
-        // write rather than a navigation.
+        /*
+         * Poll, because the repaint is a cascade re-evaluation after an
+         * attribute write rather than a navigation — and RECORD THE VALUE THE
+         * POLL VALIDATED, not a second reading of it.
+         *
+         * MOBILE-03-FIX. This read the colour twice: once inside the predicate,
+         * to decide whether it was new, and again on the next line, to add it.
+         * Only the first read was guarded, so whatever the second returned went
+         * into the set unchecked — and if it returned a value already there, the
+         * set silently collapsed and the failure surfaced at `seen.size` with no
+         * indication of which read went wrong.
+         *
+         * MEASURED on CI run 35074722294 (p11), light appearance:
+         *
+         *     Light: #6326ff #004fe4 #0062a1 #595f67     size 4, expected 5
+         *
+         * Those are violet, electric, ocean and graphite. The missing one is
+         * PULSE (#ad009a) — the third of the five, and the one whose two reads
+         * disagreed. Nothing was wrong with the schemes: all five still resolve
+         * to five different primaries, which is what this test exists to prove.
+         *
+         * Why it surfaced now. `color-scheme.spec.ts` moved from p07 to p11 when
+         * the partition manifest was regenerated, and p11 holds the three
+         * heaviest specs in the suite (`reviews-guided` 2.9m, `finance` 2.5m,
+         * `editing-consistency` 1.8m). It now runs late in a long-lived browser
+         * at 13.0 minutes against a 13.6-minute budget, which is where a race
+         * this narrow finally loses. The partition move is the trigger; the two
+         * unguarded reads are the defect.
+         *
+         * The predicate now keeps the value it checked, so exactly one reading
+         * is both validated and recorded. An unresolved property (`""`, which
+         * `getPropertyValue` returns before the cascade has settled) is rejected
+         * explicitly rather than counting as "not seen yet" — it is not a
+         * colour, and admitting one would let an empty string occupy a slot.
+         *
+         * Nothing is weakened: five schemes that genuinely resolved to one
+         * primary still fail on `seen.size`, which is the assertion this test is
+         * for. This is the second timing defect found in this loop — the comment
+         * above records the first — and both were the same shape: the test
+         * checked one thing and then acted on another.
+         */
+        let primary = "";
         await expect
           .poll(async () => {
-            const primary = await primaryColor(page);
-            return seen.has(primary);
+            primary = await primaryColor(page);
+            return primary !== "" && !seen.has(primary);
           })
-          .toBe(false);
-        seen.add(await primaryColor(page));
+          .toBe(true);
+        seen.add(primary);
       }
       expect(seen.size, `${appearance}: ${[...seen].join(" ")}`).toBe(5);
     }
