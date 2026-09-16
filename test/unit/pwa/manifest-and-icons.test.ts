@@ -47,6 +47,7 @@ import {
   GENERATED_COLOR_SCHEMES,
   LIGHT_SCHEME,
 } from "~/shared/tokens";
+import { COLOR_SCHEME_THEME_COLORS } from "~/shared/tokens/theme-color";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..");
 
@@ -231,22 +232,46 @@ describe("the document metadata", () => {
   it("takes each scheme's chrome colour from the generated scheme data", () => {
     // `theme-color` is read before any stylesheet is parsed, so it cannot
     // reference a custom property. Rather than duplicating a hex in `root.tsx`
-    // and guarding the copy, the document imports the SAME generated module the
-    // stylesheet is written alongside — so there is nothing left to drift.
+    // and guarding the copy, the document imports a GENERATED module written in
+    // the same pass as the stylesheet — so there is nothing left to drift.
     //
-    // THEME-01 made that import the whole PALETTE TABLE rather than the default
+    // THEME-01 made that a lookup by the resolved scheme rather than the default
     // scheme's two maps: the installed window's chrome has to continue the page
-    // the owner actually chose, so it is looked up by the resolved scheme.
-    expect(rootTsx).toContain('from "./shared/tokens"');
-    expect(rootTsx).toContain("COLOR_SCHEME_PALETTES[colorScheme]");
-    expect(rootTsx).toContain('palette.light["app-surface-page"]');
-    expect(rootTsx).toContain('palette.dark["app-surface-page"]');
+    // the owner actually chose.
+    //
+    // It reads `theme-color.ts` and NOT `COLOR_SCHEME_PALETTES`, and that is a
+    // measured decision rather than a style one. The palette table is five
+    // schemes × two appearances × every role, it cannot be tree-shaken down to
+    // the one role this reads, and `root.tsx` is in the chunk every route loads
+    // and the service worker precaches: importing it there cost 78.4 KB of
+    // generated colour data on every document, to paint a browser chrome bar.
+    expect(rootTsx).toContain('from "./shared/tokens/theme-color"');
+    expect(rootTsx).toContain("COLOR_SCHEME_THEME_COLORS[colorScheme]");
+    expect(
+      rootTsx,
+      "root.tsx must not import the full palette table — see this test's comment",
+    ).not.toContain("COLOR_SCHEME_PALETTES");
+
+    // The split is only safe while the two generated files agree, so prove it
+    // rather than trusting the generator's ordering.
     for (const scheme of GENERATED_COLOR_SCHEMES) {
+      expect(
+        COLOR_SCHEME_THEME_COLORS[scheme].light,
+        `${scheme}: theme-color.ts light must equal the palette's app-surface-page`,
+      ).toBe(COLOR_SCHEME_PALETTES[scheme].light["app-surface-page"]);
+      expect(
+        COLOR_SCHEME_THEME_COLORS[scheme].dark,
+        `${scheme}: theme-color.ts dark must equal the palette's app-surface-page`,
+      ).toBe(COLOR_SCHEME_PALETTES[scheme].dark["app-surface-page"]);
       expect(
         COLOR_SCHEME_PALETTES[scheme].light["app-surface-page"],
         `${scheme}: the two appearances must not share a page colour`,
       ).not.toBe(COLOR_SCHEME_PALETTES[scheme].dark["app-surface-page"]);
     }
+    // Neither file may quietly lose a scheme.
+    expect(Object.keys(COLOR_SCHEME_THEME_COLORS).sort()).toEqual(
+      [...GENERATED_COLOR_SCHEMES].sort(),
+    );
     expect(LIGHT_SCHEME["app-surface-page"]).not.toBe(
       DARK_SCHEME["app-surface-page"],
     );

@@ -114,10 +114,9 @@ import {
 } from "~/shared/entity";
 import { withDrawerPushed, useDrawer } from "~/shared/drawer";
 import { useCapture, type CaptureType } from "~/shared/capture";
-import { Sparkline } from "~/shared/charts";
 import { HabitRow, useHabitCheckIn } from "~/shared/habits";
 import type { SerializedHabit } from "~/shared/habits";
-import { ProgressTrack } from "~/shared/progress";
+import { ProgressTrack, Sparkline } from "~/shared/progress";
 import {
   CheckCircleIcon,
   GoalIcon,

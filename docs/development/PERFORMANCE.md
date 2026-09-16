@@ -256,32 +256,106 @@ pages.
 
 ## 7. Code chunks
 
-Measured from `pnpm run build` at the head of PERF-01:
+> **The table this section used to carry measured the wrong thing, and PERF-02
+> replaced it.** It listed "largest route chunk (Today) — 78 kB raw / 22 kB
+> gzip", which is the size of Today's OWN chunk. A navigation does not fetch one
+> chunk; it fetches the route's module, every parent layout's module, and
+> everything any of them statically imports. Measured that way, `/today` was
+> **515.4 kB gzip across 92 chunks** — and 111.6 kB of it was Recharts, arriving
+> because Today imported a 2.3 kB inline-SVG sparkline from a barrel that also
+> exports the Recharts-backed charts. A per-chunk table cannot show that, which is
+> why it went unnoticed through a performance programme that was otherwise
+> thorough.
 
-| | raw | gzip |
+### 7.1 What a route actually costs
+
+Measured from `pnpm run build`, `scripts/route-budget.mjs`:
+
+| Route | chunks | raw | gzip | before PERF-02 (gzip) |
+|---|--:|--:|--:|--:|
+| root layout (paid by every route) | 10 | 393 kB | **112 kB** | 121 kB |
+| `/today` | 90 | 1,236 kB | **370 kB** | 515 kB |
+| `/tasks` | 100 | 1,269 kB | **381 kB** | 411 kB |
+| `/projects` | 76 | 1,080 kB | **321 kB** | 336 kB |
+| `/notes` | 55 | 858 kB | **254 kB** | 270 kB |
+| `/meetings` | 59 | 851 kB | **254 kB** | 272 kB |
+| `/offline` (precached shell) | 26 | 512 kB | **146 kB** | 156 kB |
+
+Three structural defects accounted for the difference, and all three were a
+barrel import:
+
+| | What it cost | Fix |
 |---|---|---|
-| `entry.client` | 183 kB | 58 kB |
-| `root` | 83 kB | 11 kB |
-| `errorBoundaries` | 110 kB | 36 kB |
-| `root.css` | 805 kB | **93 kB** |
-| largest route chunk (Today) | 78 kB | 22 kB |
-| median route chunk | 12 kB | 4 kB |
-| smallest route chunks | <1 kB | <1 kB |
+| `import { Sparkline } from "~/shared/charts"` in Today | 111.6 kB gzip of Recharts on the default landing route, for a drawing with no axis, tooltip or plot area | `Sparkline` moved to `~/shared/progress`, beside `CategorySplit`, which the charts barrel's own header already argued for |
+| `import { useOffline } from "~/shared/offline"` in `usePendingTasks` | ~44 kB raw of Settings and `/offline` panels on FIVE routes that render none of them, because `task-record` is reached by all of them | the barrel exports the runtime; the panels are imported from their own modules by the three surfaces that draw them |
+| `import { COLOR_SCHEME_PALETTES }` in `root.tsx` | 78.4 kB of generated colour data in the chunk EVERY route loads and the service worker precaches, to read ten strings for `<meta name="theme-color">` | a second generated file, `app/shared/tokens/theme-color.ts`, written by the same generator from the same numbers |
 
-308 client assets, 4.1 MB total — but a navigation fetches **one** route chunk,
-and the splitting is already the "sensible splitting + intelligent prefetch"
-shape this work was told to aim for. Nothing here argues for bundling the
-application into one chunk to remove route fetches; it argues for warming the one
-chunk that is about to be needed, which §5 does.
+A fourth was a value import rather than a barrel: `editor-commands.ts` imported
+`EditorSelection` from `@codemirror/state` to build a selection object, which put
+48 kB of CodeMirror's state package into the static graph of `/today` and
+`/tasks`, on surfaces where no editor is open. `{ anchor, head }` is what
+CodeMirror's own `TransactionSpec` accepts, so the import is now type-only.
 
-Repeat navigation does not pay the chunk cost again: `/assets/**` is hashed and
-served **cache-first** by the service worker (§8), so a route visited once is
-served from the cache on every later visit until a deployment changes its hash.
+### 7.2 The budget, and why the `forbid` list matters more than the ceiling
 
-**The single largest client asset is the stylesheet**, at 93 kB gzipped and
-render-blocking on first paint. It is one file for the whole design system, it is
-cached after first load, and splitting it is a design-system decision rather than
-a navigation one — recorded as [DEBT-249](../product/PRODUCT_DEBT.md).
+`pnpm run perf:budget` runs in CI's **Build** job, straight after `pnpm run
+build`, and asserts two things per route:
+
+1. a **gzip ceiling**, generated at 8% headroom by `pnpm run perf:budget:generate`;
+2. a **`forbid` list** of third-party runtimes that must not be in that route's
+   static graph at all — `recharts`, `@codemirror/view`, `@codemirror/state`.
+
+The second is the one with teeth. A ceiling invites "just raise the budget" and
+absorbs a real regression into legitimate growth; `forbid` names the defect
+rather than its size, so it survives a route growing honestly. A runtime is
+identified by a **content fingerprint its own source emits** (`recharts-wrapper`,
+`cm-content`), not by a chunk filename — chunk names come from whichever module
+rolldown named the chunk after, and move without anyone touching a dependency.
+
+Both assertions were verified to fail on exactly the change they exist to catch:
+restoring the Sparkline barrel import fails the ceiling AND the `recharts` entry;
+restoring the `EditorSelection` value import fails `codemirror-state` on both
+`/today` and `/tasks`.
+
+`scripts/route-budgets.json` says how to raise a ceiling and why re-generating is
+the wrong answer to a `forbid` failure.
+
+### 7.3 The stylesheet, measured properly
+
+351 client assets, 4.6 MB total — but a navigation fetches one route's graph, and
+`/assets/**` is hashed and served **cache-first** by the service worker (§8), so a
+route visited once is served from the cache until a deployment changes its hash.
+
+**The single largest client asset is the stylesheet**, and its raw size is
+misleading:
+
+| | |
+|---|--:|
+| raw | 796 kB |
+| gzip | 95 kB |
+| **brotli** (what Cloudflare serves) | **69 kB** |
+
+Read by cascade layer: `dh-product` 325 kB (40.9%), `dh-tokens` 224 kB (28.2%),
+`utilities` 130 kB (16.3%), `base` 46 kB, `dh-legacy` 22 kB, `theme` 21 kB,
+`components` 17 kB.
+
+**The obvious saving is not worth taking, and this is the measurement that
+settles it.** `tokens.css` carries five colour schemes × two appearances, and an
+owner uses one scheme at a time. Stripping the four non-default schemes from the
+built stylesheet:
+
+| | full | one scheme | saving |
+|---|--:|--:|--:|
+| raw | 796 kB | 642 kB | **154 kB** |
+| gzip | 95 kB | 88 kB | 7 kB |
+| **brotli** | **69 kB** | **66 kB** | **2.4 kB** |
+
+The blocks are near-identical generated token lists, so a compressor removes
+almost all of the apparent cost by itself. Splitting the stylesheet per scheme
+would trade a live feature, a second CSS entry point and a server-side decision
+about which sheet to emit for **2.4 kB on the wire**. Recorded here so the next
+reader does not re-derive the 154 kB and act on it; the underlying two-colour-engine
+question is named maintenance debt item 14 and is not a bundle-size question.
 
 ---
 
