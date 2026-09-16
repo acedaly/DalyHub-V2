@@ -252,15 +252,24 @@ Activity Feed and Timeline render everywhere.
 ### 4.3 Migrations
 
 - Forward-only. `migrations/NNNN_name.sql`, applied in filename order.
-- Additive by default: every `ADD COLUMN … NOT NULL` carries a `DEFAULT`, and no
-  column changes type.
+- Additive by default: no column changes type, and no column stops accepting
+  OMISSION — an INSERT that never names a column succeeds after every migration
+  as it did before. That is broader than "every `ADD COLUMN … NOT NULL` carries a
+  `DEFAULT`", which is only the form SQLite itself refuses; a table rebuild can
+  declare a required no-default column, and an already-`NOT NULL` column can lose
+  its default. Both are checked.
 - **Four migrations REMOVE something** (`0031`, `0049`, `0050`, `0051`). Each is
   deliberate and none loses data — the data moves into the structure that
   replaced it — but each closes the window in which rolling the *application*
   back is a recovery. This is derived, not remembered: `pnpm run db:compat`
-  applies every migration to a throwaway SQLite database and diffs the schema
-  after each one, and `pnpm run db:compat:check` fails in CI when the committed
+  applies every migration to a throwaway SQLite database and snapshots the schema
+  after each one, [`scripts/lib/schema-diff.mjs`](../../scripts/lib/schema-diff.mjs)
+  decides what the difference means, and `pnpm run db:compat:check` fails in CI
+  when the committed
   [`migration-ledger.json`](../development/migration-ledger.json) stops matching.
+  If you are changing what counts as breaking, change it in `schema-diff.mjs` —
+  it imports nothing and is unit tested against hand-built snapshots, which is
+  the only way to cover a shape the 58 real migrations do not contain.
 - Eleven migrations rebuild a table with SQLite's copy-and-rename pattern. In each
   one every surviving column keeps its name, type, default and constraint, and
   every row is copied by an **explicit column list** so a later `ALTER` that

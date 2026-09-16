@@ -557,14 +557,17 @@ an older Worker may still read:
 
 **That table is derived, not maintained.**
 [`scripts/migration-compatibility.mjs`](../../scripts/migration-compatibility.mjs)
-applies every migration in filename order to a throwaway SQLite database and diffs
-the schema after each one, so the answer is re-derived from the migrations rather
-than remembered. Its output is committed as
-[`migration-ledger.json`](migration-ledger.json), `pnpm run db:compat:check` fails
-in **Static** when the ledger stops matching the migrations, and
+applies every migration in filename order to a throwaway SQLite database and
+snapshots the schema after each one;
+[`scripts/lib/schema-diff.mjs`](../../scripts/lib/schema-diff.mjs) decides what
+moved between two snapshots and whether it breaks an older Worker. So the answer
+is re-derived from the migrations rather than remembered. The output is committed
+as [`migration-ledger.json`](migration-ledger.json), `pnpm run db:compat:check`
+fails in **Static** when the ledger stops matching the migrations, and
 [`test/unit/deploy/migration-rollback-boundary.test.ts`](../../test/unit/deploy/migration-rollback-boundary.test.ts)
 fails if the set of one-way migrations changes without this document changing with
-it.
+it — and tests the decision against hand-built snapshots, including shapes no
+migration in the sequence currently contains.
 
 ```bash
 pnpm run db:compat          # the full report, including every narrowed CHECK
@@ -575,9 +578,13 @@ pnpm run db:compat          # the full report, including every narrowed CHECK
 below. `pnpm run deploy:production:release-check` prints which kind of window a
 given deploy opens, from the same ledger, before the operator opens it.
 
-No column in the sequence changes type, and no `ADD COLUMN … NOT NULL` arrives
-without a `DEFAULT` — so no migration makes an older Worker's INSERT fail by
-omission. Fourteen migrations do narrow a `CHECK`; `pnpm run db:compat` lists every
+No column in the sequence changes type, and no column stops accepting OMISSION —
+so no migration makes an older Worker's INSERT fail by leaving a column out. That
+is a broader question than `ADD COLUMN … NOT NULL` with no `DEFAULT`, which is the
+only form SQLite itself refuses: a table REBUILD can declare a required
+no-default column, and a column that is already `NOT NULL` can lose its default.
+The derivation asks "could an INSERT that never names this column succeed?" on
+both sides of every migration, for every column, which covers all three. Fourteen migrations do narrow a `CHECK`; `pnpm run db:compat` lists every
 one, and none rejects a value the corresponding older Worker could produce. Eleven
 migrations rebuild a table with SQLite's copy-and-rename pattern (`0012`, `0015`,
 `0021`, `0026`, `0031`, `0045`, `0049`, `0051`, `0054`, `0055`, `0056`); in each,
