@@ -320,6 +320,26 @@ restoring the `EditorSelection` value import fails `codemirror-state` on both
 `scripts/route-budgets.json` says how to raise a ceiling and why re-generating is
 the wrong answer to a `forbid` failure.
 
+### 7.2a The precache, measured by the gate that holds it
+
+`e2e/pwa-budget.spec.ts` measures what a phone downloads to become
+offline-bootable, against the real production-mode server. Before → after
+PERF-02:
+
+| | before | after |
+|---|--:|--:|
+| precache, uncompressed | 1,604,768 B | **1,516,311 B** |
+| precache, over the wire (gzip −9) | 349,133 B | **341,098 B** |
+| assets | 31 | **34** |
+
+The bytes came off the root chunk and the shared offline chunk. The asset count
+went **up** by three because both fixes SPLIT a chunk — a smaller shell made of
+more pieces, each served independently by the cache-first handler.
+
+Both ceilings came down with the measurement, to the ~9% ratchet that file
+already sets: 1,655,000 B and 372,000 B. A ceiling left where it was after an
+improvement is not a ratchet, it is headroom the next regression gets for free.
+
 ### 7.3 The stylesheet, measured properly
 
 351 client assets, 4.6 MB total — but a navigation fetches one route's graph, and

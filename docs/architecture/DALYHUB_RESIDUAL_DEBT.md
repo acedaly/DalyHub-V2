@@ -154,14 +154,32 @@ rather than copied forward — §6.
   `theme` so DalyHub's values win where they collide.
 - **Evidence.** Named maintenance debt item 14. Measured in this pass: the
   `dh-tokens` layer is 224 kB of the 796 kB built stylesheet.
-- **Impact.** **Bundle size only, and less than it looks.** The four non-default
-  schemes cost 154 kB raw and **2.4 kB brotli** — see
-  [`PERFORMANCE.md` §7.3](../development/PERFORMANCE.md). Do not act on the raw
-  figure.
-- **Solution.** Decide between them, with evidence. It is a design-system
-  question, not a performance one.
-- **Why not done here.** Out of scope for a consolidation pass, and the
-  performance argument for it does not survive measurement.
+- **Impact.** **Maintainability, not bundle size — and the distinction is the
+  whole point.** Two measurements, both taken this pass:
+
+  | | raw | gzip | brotli |
+  | :-- | --: | --: | --: |
+  | the four non-default colour schemes | 154 kB | 7.1 kB | **2.4 kB** |
+  | 138 `--md-sys-color-*` roles with no `var()` consumer in `app/` (of 205 defined) | 82.6 kB | 5.4 kB | **2.2 kB** |
+
+  Brotli is what Cloudflare serves. **Neither is a performance problem**, because
+  both are near-identical generated token lists that a compressor removes almost
+  entirely by itself.
+
+  What they ARE is 8,453 lines of generated stylesheet of which roughly two
+  thirds of the colour section has no consumer, in a repository whose next
+  engineer has to decide which of two colour vocabularies to reach for. The 138
+  unconsumed roles were verified as unconsumed: `colorVar(role)` builds
+  `var(--md-sys-color-${role})` dynamically and has **zero** callers outside the
+  token module, so nothing reaches them at runtime either. `test/unit/tokens/`
+  asserts contrast over all 205, which is coverage of a palette rather than a
+  product consumer.
+- **Solution.** Decide between the two engines, with evidence. It is a
+  design-system question.
+- **Why not done here.** Out of scope for a consolidation pass, and — importantly
+  — the performance argument that would have justified rushing it **does not
+  survive measurement**. Anyone who reaches for the 154 kB or the 82.6 kB figure
+  as a bundle argument should read the brotli column first.
 
 ### P2-4 · Seven legacy control stylesheets, 1,899 lines, in `dh-legacy`
 
@@ -253,7 +271,35 @@ rather than copied forward — §6.
   `sheet` (tailwind-merge plus React Aria overlays). None is removable without
   removing the framework.
 
-### P2-10 · E2E specs assert against accumulated workspace state
+### P2-10 · Today ships up to 200 overdue rows to draw three
+
+- **Problem.** `/today`'s `.data` payload is 88 kB on a four-year-old workspace
+  and **78 kB of it is `day.overdue`** — 168 serialized Tasks, of which the
+  timeline draws three plus the day's completions.
+- **Evidence.** DEBT-248, measured by
+  `test/kernel/navigation-statement-budget.test.ts`'s payload instrument.
+  `OVERDUE_SHOWN` is 3; `PLANNING_SCHEDULED_LIMIT` is 200, so this is the shape
+  at scale rather than a fixture artefact.
+- **Impact.** The largest single item left in Today's cost, on the route the owner
+  opens every morning — and it is **larger than everything this pass removed from
+  Today's JavaScript** (78 kB serialized against 146 kB gzip of chunks). It is
+  data, not code, so no bundle change reaches it.
+- **Why it is sent.** `TodayScreen` re-buckets `[...overdue, ...today]` on every
+  render so an optimistic edit re-files a row immediately, and four figures are
+  derived from the full buckets — the canonical `todayCount`, `openTodayCount`,
+  the `+n more overdue` remainder and the completed run. The rows are a whole
+  collection standing in for four counts.
+- **Solution.** The loader sends the rows the surface can draw plus the counts it
+  derives, as counts — the "a count in SQL beside a page in SQL" pattern the
+  obligation page already uses.
+- **Why not done here.** Assessed and declined twice before, for the reason that
+  still holds: it changes Today's data contract across `day-view.ts`, the 96 kB
+  `TodayScreen.tsx` and their tests, and a mistake in that surgery makes Today
+  *wrong*, which is worse than making it 88 kB. It needs Today's whole journey
+  set re-proved, which a consolidation pass cannot honestly do. **It is the right
+  next performance change after P2-1.**
+
+### P2-11 · E2E specs assert against accumulated workspace state
 
 - **Problem.** One dev server, one SQLite file, and specs that read what earlier
   specs left behind — so re-ordering the suite can change what they see.
