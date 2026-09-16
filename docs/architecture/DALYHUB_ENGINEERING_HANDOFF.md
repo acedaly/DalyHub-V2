@@ -502,8 +502,12 @@ one class of real user-facing bug.
 ### 7.5 iOS, the PWA and the service worker
 
 - Chromium is **not** iPhone WebKit. Nothing automated here is evidence about
-  iOS Safari. Where the repository carries a real-device checklist, it is there
-  because automation cannot answer the question.
+  iOS Safari — no Safari view-transition behaviour, no real software keyboard, no
+  Home Screen install, no WebKit service-worker lifetime, no low-power mode.
+  [`MOBILE_WEB_EXPERIENCE.md` §13](../design/MOBILE_WEB_EXPERIENCE.md) is the
+  23-item real-device checklist, and **every box is still ⏳**. It says the rule
+  itself: an unticked box is information; a ticked one nobody did is a lie the
+  next person builds on.
 - There is **one** Visual Viewport listener, deliberately. Adding a second is how
   keyboard and safe-area handling starts fighting itself.
 - The service worker is the hardest thing here to roll back (§6.3).

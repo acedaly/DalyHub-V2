@@ -113,9 +113,15 @@ rather than copied forward — §6.
 - **Impact.** Safe-area insets, the Visual Viewport listener, keyboard behaviour,
   install flow and service-worker update behaviour are the places iOS diverges,
   and all five are 3.1 subject matter.
-- **Solution.** The real-device checklist, run on an iPhone by a person.
+- **Solution.** [`MOBILE_WEB_EXPERIENCE.md` §13](../design/MOBILE_WEB_EXPERIENCE.md) —
+  a 23-item checklist covering Safari and the installed app, launch and
+  lifecycle, capture and keyboard, a meeting captured in a real meeting, and
+  geometry. **All 23 are ⏳.** It was reviewed in this pass and needed no
+  improvement: it already says what a Playwright run cannot answer and why, and
+  where to record the results (the PR, or `PRODUCT_DEBT.md` when an item fails).
 - **Why not done here.** No device. **Owner action**, and it must not be recorded
-  as automated evidence.
+  as automated evidence — the checklist's own rule is that a ticked box nobody
+  did is a lie the next person builds on.
 
 ---
 
