@@ -247,10 +247,13 @@ describe("the document metadata", () => {
     // generated colour data on every document, to paint a browser chrome bar.
     expect(rootTsx).toContain('from "./shared/tokens/theme-color"');
     expect(rootTsx).toContain("COLOR_SCHEME_THEME_COLORS[colorScheme]");
+    // The IMPORT, not the string: `root.tsx` names `COLOR_SCHEME_PALETTES` in the
+    // comment that explains why it no longer imports it, and an assertion that
+    // cannot tell those apart would forbid the explanation.
     expect(
       rootTsx,
       "root.tsx must not import the full palette table — see this test's comment",
-    ).not.toContain("COLOR_SCHEME_PALETTES");
+    ).not.toMatch(/import[\s\S]{0,200}?COLOR_SCHEME_PALETTES[\s\S]{0,80}?from/);
 
     // The split is only safe while the two generated files agree, so prove it
     // rather than trusting the generator's ordering.

@@ -312,8 +312,16 @@ describe("the sixteen slots are sixteen identities", () => {
     }
     // …and the three consumers read that one property rather than a slot list.
     const charts = readCss("charts.css");
-    const progress = readCss("progress.css");
     const icons = readCss("icons.css");
+    /*
+     * The meter's source moved. `progress.css` is GONE — its only rules were the
+     * `.dh-ring*` paint for `~/shared/charts/ProgressRing`, a component with no
+     * consumer in the product, and both were deleted together (PERF-02). The
+     * linear bar had already left for Untitled's own `ProgressBarBase` in
+     * UNTITLED-07, so what draws a progress fill today is the COMPONENT, and
+     * that is what this assertion reads.
+     */
+    const progress = readAppFile("shared/progress/ProgressTrack.tsx");
     expect(icons).toContain("color: var(--dh-identity)");
     expect(charts).toContain("stroke: var(--dh-identity)");
     /*
@@ -321,11 +329,14 @@ describe("the sixteen slots are sixteen identities", () => {
      * progress fill onto the status ramp, and this is the assertion that would
      * fail if a future change pointed a bar back at the record's own colour.
      */
-    expect(progress).not.toContain("background: var(--dh-identity)");
+    expect(
+      progress,
+      "the progress fill must stay on the status ramp, not the record's own colour",
+    ).not.toContain("--dh-identity");
     // Nothing on an identity surface may reach for the retired container pairs.
     for (const [name, text] of [
       ["icons.css", icons],
-      ["progress.css", progress],
+      ["ProgressTrack.tsx", progress],
       ["charts.css", charts],
       ["pill.css", readCss("pill.css")],
     ] as const) {
