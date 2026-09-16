@@ -428,3 +428,15 @@ The three checks that would have caught them, and which this pass added:
 
 Each of those is a measurement that fails loudly when it is blind, which is the
 property the three wrong claims lacked.
+
+**And one the review round added.** Automated review found that the second of
+those had the same defect in miniature: `db:compat` derived the rollback boundary
+correctly for every shape the 58 migrations contain, and silently missed two they
+do not — a table rebuild declaring a required no-default column, and an
+already-`NOT NULL` column losing its default. Both let an older Worker's INSERT
+fail while the ledger reports the migration additive. The regenerated ledger was
+byte-identical before and after the fix, which is the whole point: **a derivation
+over real inputs can only be as complete as those inputs happen to be.** The
+decision now lives in `scripts/lib/schema-diff.mjs`, separate from the engine that
+feeds it, and is tested against hand-built snapshots covering the shapes the real
+migrations do not. If you add a check like these three, add the second test too.
