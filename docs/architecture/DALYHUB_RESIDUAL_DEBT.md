@@ -1,0 +1,323 @@
+# DALYHUB_RESIDUAL_DEBT.md — what is left, prioritised
+
+> **Status:** current as of 2026-09-16, after the final deep engineering pass.
+> **Scope:** this is the SHORT list — what a maintainer should actually act on,
+> in order. It is deliberately not a wishlist.
+
+## How this relates to the other registers
+
+DalyHub has three debt records and they answer different questions. This one does
+not replace them; it says which of their entries still matter.
+
+| Register | What it is | Status |
+| :-- | :--- | :--- |
+| [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md) | 266 numbered entries, each with its own evidence, decision history and resolution. The per-item HISTORICAL record. | **Keep.** Its anchors are referenced from ADRs, roadmaps and PRs, and its value is that a closed entry says why it closed. Do not prune it. |
+| [`UNTITLED_UI_MIGRATION.md` → named maintenance debt](../design/UNTITLED_UI_MIGRATION.md#named-maintenance-debt) | 16 rows of FRONTEND maintenance, each a specific file or count. | **Keep**, corrected by this pass. It is the authority for frontend items; this document points at it rather than restating it. |
+| **This file** | The prioritised current state across all of them. | The thing to read first. |
+
+**Every entry below was re-verified against the repository during this pass.** An
+item that a register claimed and the code contradicted is recorded as a correction
+rather than copied forward — §6.
+
+---
+
+## P0 — production and data safety
+
+### P0-1 · Nothing in this repository knows what production is running
+
+- **Problem.** The live release, the applied migration head and the secret names
+  set on the Worker are all unverified. The last direct observation on record is
+  the V2 upgrade in August 2026.
+- **Evidence.** `DEPLOYMENT.md` → *Current status*; `pnpm run verify:production`
+  reports `SKIPPED` rather than a pass without credentials.
+- **Impact.** A deploy is planned against an unknown starting state. That matters
+  more now than it used to, because the pending set decides whether the
+  migrate-then-deploy window is reversible (§P0-2).
+- **Solution.** The owner runs `pnpm run verify:production` and
+  `pnpm run db:production:list` with credentials, and records both in
+  `DEPLOYMENT.md` → *Current status* with a date.
+- **Why not done here.** It needs Cloudflare credentials this environment does not
+  and must not have. **Owner action.**
+
+### P0-2 · The migrate-then-deploy window is not reversible for this release
+
+- **Problem.** `DEPLOYMENT.md`'s order puts the migration before the deploy
+  because the previous Worker keeps serving a migrated database. That holds for an
+  additive migration and not for four of the 58 — `0031`, `0049`, `0050`, `0051`
+  each remove something an older Worker may read.
+- **Evidence.** `pnpm run db:compat`, derived by applying every migration to a
+  throwaway SQLite database and diffing the schema after each;
+  [`migration-ledger.json`](../development/migration-ledger.json).
+- **Impact.** If the deploy fails after the migration succeeds, rolling the Worker
+  back is not a recovery, and the alternative discards every write since the
+  backup.
+- **Solution (already delivered).** The ledger is committed and checked in CI;
+  `deploy:production:release-check` prints `ROLLBACK BOUNDARY` when the pending set
+  crosses one; the recovery runbook is
+  [`DEPLOYMENT.md` → When the migration succeeded and the deploy did not](../development/DEPLOYMENT.md#when-the-migration-succeeded-and-the-deploy-did-not).
+- **What remains.** Running the release-check against real production (P0-1), and
+  taking both backups at step 1. **Owner action.**
+
+### P0-3 · The off-Cloudflare encrypted backup has never been produced
+
+- **Problem.** The GitHub-artifact backup (AUDIT-11) is the only copy that is not
+  on Cloudflare, and it has never actually run, because the GitHub `production`
+  environment holds no secrets.
+- **Evidence.** `PRODUCT_DEBT.md` → DEBT-198, unchanged.
+- **Impact.** A Cloudflare-side incident would leave only Cloudflare-side copies.
+- **Solution.** Set the recovery key in the GitHub `production` environment and let
+  the workflow run once; verify the artifact decrypts.
+- **Why not done here.** Needs repository secrets. **Owner action.**
+
+---
+
+## P1 — user-facing reliability
+
+### P1-1 · The E2E gate carries latent timing races
+
+- **Problem.** "Green" is probabilistic rather than certain. Fifty-three
+  `waitForTimeout` calls remain across the suite, each a duration standing in for a
+  signal.
+- **Evidence.** DEBT-203, DEBT-125, and one **directly observed** instance during
+  this pass: `css-cascade-ownership.spec.ts` failed with
+  `page.evaluate: Execution context was destroyed, most likely because of a
+  navigation` — a fixed `waitForTimeout(2500)` racing the route's own hydration.
+- **Impact.** A red build that is not about the change that found it, which is the
+  most expensive kind of failure a gate can produce.
+- **Solution.** Replace each fixed wait with the signal it is standing in for.
+  This pass did that for the four in `css-cascade-ownership.spec.ts` (now
+  `data-editor-ready`, through one shared helper that fails with a sentence rather
+  than a raw locator timeout) — the pattern generalises, file by file.
+- **Why not completed.** 53 call sites across 30 files, each needing its own
+  reading of what the test is actually waiting for. Mechanical replacement would
+  be worse than the current state.
+
+### P1-2 · Chromium is not iPhone WebKit, and 3.1 is a phone release
+
+- **Problem.** Every automated result in this repository is Chromium. DalyHub 3.1
+  makes the installed PWA a mobile application.
+- **Evidence.** `MOBILE_WEB_EXPERIENCE.md`; the absence of any WebKit run.
+- **Impact.** Safe-area insets, the Visual Viewport listener, keyboard behaviour,
+  install flow and service-worker update behaviour are the places iOS diverges,
+  and all five are 3.1 subject matter.
+- **Solution.** The real-device checklist, run on an iPhone by a person.
+- **Why not done here.** No device. **Owner action**, and it must not be recorded
+  as automated evidence.
+
+---
+
+## P2 — engineering maintainability and performance
+
+### P2-1 · `~/shared/forms` puts a calendar on routes with no date picker
+
+- **Problem.** The shared forms barrel has 27 exports including
+  `CalendarDateField`, which pulls React Aria's Calendar and
+  `@internationalized/date`'s manipulation module.
+- **Evidence.** `forms-*.js` is 119.5 kB raw / 35.5 kB gzip, of which roughly
+  51 kB raw is calendar. It is in the static graph of `/today`, `/tasks`,
+  `/projects` and `/notes`. `/notes` reaches it **only** through the barrel — its
+  forms are text fields.
+- **Impact.** ~15 kB gzip on routes that render no date picker.
+- **Solution.** Split the barrel the way `~/shared/charts` and `~/shared/offline`
+  were split in this pass: the barrel keeps what every form needs; the calendar
+  field is imported from its own module by the surfaces that draw one.
+- **Why not done here.** It is the product's shared form system with call sites in
+  every module, and the payoff is a fifth of the Recharts fix. It is the right
+  next bundle change and it deserves its own careful pass rather than being
+  bundled into this one.
+
+### P2-2 · Every E2E fixture statement boots wrangler
+
+- **Problem.** `e2e/d1.ts` spawns wrangler per statement. This pass removed the
+  `pnpm exec` layer (median 2,275 ms → 2,019 ms locally, n=6) and memoised the one
+  query the register named as duplicated. The remaining ~1.8 s is wrangler itself.
+- **Evidence.** Named maintenance debt items 11 and 15; 114 `d1Execute`, 51
+  `d1Query` and 4 `d1ExecuteFile` call sites, most in a `beforeEach`.
+- **Impact.** Test-harness cost only. It is the largest single remaining lever on
+  E2E wall clock.
+- **Solution.** Fewer statements per invocation. `d1Execute` already accepts an
+  array and sends it to one process; the work is going call site by call site and
+  batching what is genuinely one sequence.
+- **Why not done here.** The obvious alternative — reading the SQLite file with
+  `node:sqlite` — was tried in an earlier pass and **reverted for cause**: a
+  `readOnly` connection cannot maintain the WAL index and silently returned stale
+  snapshots, which can turn a real failure into a false green. A read-WRITE
+  connection would not have that limitation, but proving it does not requires
+  reproducing a timing-dependent failure, and being wrong means false greens in
+  fifteen spec files that check invariants the interface cannot show. Not a change
+  to make without that proof.
+
+### P2-3 · Two colour engines ship side by side
+
+- **Problem.** `tokens.css` (8,453 generated lines, five schemes × two
+  appearances) and `untitled/theme.css` both define colour. `dh-tokens` sits after
+  `theme` so DalyHub's values win where they collide.
+- **Evidence.** Named maintenance debt item 14. Measured in this pass: the
+  `dh-tokens` layer is 224 kB of the 796 kB built stylesheet.
+- **Impact.** **Bundle size only, and less than it looks.** The four non-default
+  schemes cost 154 kB raw and **2.4 kB brotli** — see
+  [`PERFORMANCE.md` §7.3](../development/PERFORMANCE.md). Do not act on the raw
+  figure.
+- **Solution.** Decide between them, with evidence. It is a design-system
+  question, not a performance one.
+- **Why not done here.** Out of scope for a consolidation pass, and the
+  performance argument for it does not survive measurement.
+
+### P2-4 · Seven legacy control stylesheets, 1,899 lines, in `dh-legacy`
+
+- **Problem.** `floating.css` (593), `ui.css` (536), `filters.css` (380),
+  `pill.css` (125), `tooltip.css` (92), `overflow-menu.css` (91),
+  `skeleton.css` (82) paint generic controls Untitled owns.
+- **Evidence.** `CSS_CASCADE_ARCHITECTURE.md` → the `dh-legacy` inventory, and
+  named maintenance debt item 12. `progress.css` (67 lines) was deleted in this
+  pass with the component it painted.
+- **Impact.** None on screen — they sit in `dh-legacy` and lose to every Untitled
+  utility.
+- **Solution.** Delete file by file, replacing each with the Untitled component.
+- **Why not done here, and a warning.** Every class in all seven was checked and
+  **all are live**. A static grep initially reported six `ui.css` modifiers as
+  unused; all six are built at runtime (`` `dh-surface--${variant}` ``). Do not
+  delete on a grep.
+
+### P2-5 · A second tooltip implementation beside Untitled's
+
+- **Problem.** `~/shared/tooltip/Tooltip.tsx` is DalyHub's own, imported by 9
+  modules — `IconButton`, the editor toolbar, the overflow menu, the user menu,
+  both top bars, the primary navigation. Untitled's vendored `base/tooltip` is
+  used by Untitled's own components.
+- **Evidence.** Corrected in this pass; the register previously called this file
+  **dead** — see §6.
+- **Impact.** None today. It is a design-system defect under CLAUDE.md rule 1, not
+  a defect on screen.
+- **Solution.** Give Untitled's tooltip the shortcut slot DalyHub's has (the
+  `⌘B` / `Ctrl+B` chip from the shared notation formatter), then retire DalyHub's
+  and `tooltip.css` together.
+- **Why not done here.** It is a real component migration with a real behaviour to
+  preserve, and it was mis-recorded as a deletion. Correcting the record was the
+  urgent half.
+
+### P2-6 · `forms.css` mixes generic paint with field geometry, and holds an accessibility floor
+
+- **Problem.** 1,120 lines that are two things. Demoting the file to `dh-legacy`
+  correctly retires the paint and incorrectly retires the geometry with it.
+- **Evidence.** Named maintenance debt item 13. Measured: `.dh-combobox__input`
+  loses the `padding-inline-end: 32px` that reserves room for its own trailing
+  control.
+- **Impact.** None today; the file stays in `dh-product` until it is split.
+- **Solution.** Split rule by rule. **Whoever does it must keep the
+  `@media (hover: none)` `min-block-size` in `dh-product`** — it is the only thing
+  holding WCAG 2.2 §2.5.8 on a coarse pointer, and moving the file drops a shared
+  field to 38 px at 900 px under `hover: none`. Gated by
+  `e2e/touch-targets.spec.ts`.
+
+### P2-7 · Forty-nine `.cm-*` rules should live in `EditorView.theme()`
+
+- **Problem.** Seven rules cannot be layered while CodeMirror injects its CSS at
+  runtime. That is a consequence of where the rules live, not a law.
+- **Evidence.** Named maintenance debt item 16; `CSS_CASCADE_ARCHITECTURE.md` →
+  *The one exception*.
+- **Impact.** One unlayered file, now guarded automatically in both directions
+  (§6) rather than by a hand-written list.
+- **Solution.** Move the rules into CodeMirror's own `EditorView.theme()`, where
+  they share the StyleModule and precedence of the defaults they override. The
+  exception file then goes entirely.
+- **Why not done here.** It is a refactor of a working editor and belongs to its
+  own change. The automated guard makes the current state safe to leave.
+
+### P2-8 · `md-state-layer` has 36 usages across 23 component files
+
+- **Problem.** A working, tested, single-implementation hover/focus/pressed model
+  that predates Untitled's own hover treatments.
+- **Evidence.** Re-measured in this pass: 36 occurrences in 23 `.tsx`/`.ts` files,
+  plus 7 stylesheets. (The register said 34 across 23 — close, and the file count
+  was right.)
+- **Impact.** None. `base.css` declares it inside `@layer base`, the lowest
+  DalyHub layer, so a component that migrates to Untitled's hover treatment wins
+  automatically rather than having to out-specify it.
+- **Solution.** One pass, component by component.
+
+### P2-9 · The shell precache is 1,481 kB raw / 333 kB gzip
+
+- **Problem.** What a phone downloads at install time.
+- **Evidence.** Measured this pass. Down from 1,569 kB raw / 343 kB gzip before
+  it, via the root-chunk and offline-barrel fixes. DEBT-151 recorded 1,321 kB at
+  an earlier point, so it grew before it shrank.
+- **Composition.** CSS 795.5 kB raw / 94.6 kB gzip in one file; 27 JS chunks
+  646.9 kB raw / 201.8 kB gzip; 6 other assets 38.4 kB.
+- **Impact.** One install-time download, cached afterwards.
+- **Solution.** The CSS half is P2-3's subject and does not pay. The JS half is
+  the shell's real dependency graph and is already minimal enough that further
+  cuts would remove offline behaviour.
+- **Why not pursued further.** The largest remaining precached chunks are
+  `entry.client` (React DOM), `errorBoundaries` (the React Router runtime) and
+  `sheet` (tailwind-merge plus React Aria overlays). None is removable without
+  removing the framework.
+
+### P2-10 · E2E specs assert against accumulated workspace state
+
+- **Problem.** One dev server, one SQLite file, and specs that read what earlier
+  specs left behind — so re-ordering the suite can change what they see.
+- **Evidence.** DEBT-173, unchanged. `pnpm run e2e:order-proof` exists precisely
+  to compare two gate runs test by test.
+- **Impact.** A spec can pass for a reason its author did not intend.
+- **Solution.** Per-spec workspace isolation, which is a substantial change to how
+  every fixture is written.
+
+---
+
+## P3 — worthwhile, not urgent
+
+| # | Item | Where |
+| :-- | :--- | :--- |
+| P3-1 | Nine bare native controls carry their own field paint instead of using `inputClassName()` | migration register item 1 |
+| P3-2 | `~/shared/ui/Card` (`.dh-surface`) paints from DalyHub tokens; Untitled ships no generic Card | item 2 |
+| P3-3 | `TagChip` and `PanelHeading` are DalyHub's own where Untitled ships `base/tags` and `application/section-headers` | item 4 |
+| P3-4 | `application/file-upload`'s drop zone would replace ~370 lines DalyHub wrote | item 7 |
+| P3-5 | A Project inside a Goal record carries no health | item 8 |
+| P3-6 | The Diary week strip's focus order has never been measured | item 9 |
+| P3-7 | A bounded `people.getByIds` | item 10 |
+| P3-8 | 68 open P3 entries in `PRODUCT_DEBT.md`, each with its own evidence | that register |
+
+---
+
+## Later — genuinely optional
+
+- **`application/progress-steps`** for the guided Review's step rail. Blocked on
+  interactive Untitled Pro CLI access, not on design (migration register item 6).
+  The current implementation is retained and documented, never faked.
+- **Splitting `tokens.css` per colour scheme.** Measured at 2.4 kB brotli. Do not.
+- **A second E2E tier for WebKit.** Would need a real device to be meaningful; a
+  WebKit run in CI is not an iPhone either.
+
+---
+
+## 6. Corrections this pass made to the existing registers
+
+Recorded rather than silently fixed, because a register that was wrong once can be
+wrong again and the shape of the error is useful.
+
+| Claim | Where | What is actually true |
+| :-- | :--- | :--- |
+| "`tooltip.css` has NO CONSUMER … `dh-tooltip` appears **zero** times in the rendered DOM. 92 lines with no consumer." | migration register item 12a | **Wrong, and acting on it would have been a visible regression.** There are two tooltips; the audit measured Untitled's. DalyHub's renders `className="dh-tooltip dh-motion-reveal"` and carries no Untitled utility, so `tooltip.css` is its entire appearance. Corrected in place. |
+| "Every migration from `0006` onward is additive … no column … is dropped" | `DEPLOYMENT.md` | True of `0006`–`0025`, which is when it was written. Four later migrations drop a column or a table. Corrected, and now derived by `pnpm run db:compat` rather than asserted. |
+| "largest route chunk (Today) — 78 kB raw / 22 kB gzip" | `PERFORMANCE.md` §7 | Measured the route's own chunk. `/today`'s static graph was **515 kB gzip across 92 chunks**, 111.6 kB of it Recharts. Replaced with a per-route measurement and a CI budget. |
+| "`progress.css` … has no consumer" | migration register item 12a | **Right.** Component and stylesheet deleted. |
+| "`md-state-layer` — 34 usages across 23 files" | migration register item 5 | 36 across 23. Close enough that it was not misleading; restated for accuracy. |
+
+### A method note for whoever audits next
+
+Two of the three wrong claims above share a cause: **a measurement that could not
+see the thing it was about.** The tooltip audit rendered a matrix that never drew
+DalyHub's tooltip; the chunk table measured a number that cannot contain a
+transitive import. Both looked like evidence.
+
+The three checks that would have caught them, and which this pass added:
+
+1. `pnpm run perf:budget` — measures a route's **whole static graph**, not one chunk.
+2. `pnpm run db:compat` — **derives** the migration boundary rather than restating it.
+3. `e2e/css-cascade-ownership.spec.ts` → the CodeMirror contest test — derives the
+   exception from the **live** stylesheet, and carries sanity assertions that fail
+   when it has measured nothing.
+
+Each of those is a measurement that fails loudly when it is blind, which is the
+property the three wrong claims lacked.
