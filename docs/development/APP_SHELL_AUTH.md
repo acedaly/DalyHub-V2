@@ -657,3 +657,119 @@ provider is contacted and before any budget is reserved.
 AI responses are `private, no-store` and add no CORS header. No provider error,
 payload, endpoint, account id or credential crosses the route boundary — only a
 bounded error code and its calm sentence.
+
+
+## Session lifetime on a trusted personal phone (MOBILE-06, 2026-09-16)
+
+DalyHub 3.1's brief asks whether interactive sign-in on a trusted personal
+iPhone can safely happen on the order of days or weeks rather than every
+session, and to determine that against Cloudflare's real semantics rather than
+guess. This section is the audit. **No Cloudflare configuration was changed by
+this work**, and the reason is stated below rather than implied.
+
+### What the repository decides, and what it does not
+
+The Worker's authentication is **not** a session system, and 3.1 did not touch
+it. Every property below is unchanged:
+
+| Property | Where | Unchanged? |
+| :--- | :--- | :--- |
+| `Cf-Access-Jwt-Assertion` verified with `jose` against the team JWKS | `cloudflare-access-authenticator.ts` | ✅ |
+| RS256 only, issuer and audience checked, `exp`/`nbf` enforced | same | ✅ |
+| A service token is refused (`common_name`, empty `sub`) — a service token is not a person | same | ✅ |
+| `OWNER_EMAIL` independently enforced, so a broadened Access policy grants nothing | same | ✅ |
+| The raw JWT never reaches loader data, React context, HTML, logs, Activity or errors | ADR-016 §5.1 | ✅ |
+
+**DalyHub sets no session duration anywhere.** `expiresAt` on
+`AuthenticatedSession` is read from the token's own `exp` claim — it is
+Cloudflare's number, reported, never chosen. There is no configuration for it in
+`wrangler.jsonc`, in `.dev.vars.example`, or in any secret: `AUTH_MODE` is the
+only committed authentication switch, and the only Access values the deployment
+supplies are `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD` and `OWNER_EMAIL`. So the
+question "how often must the owner sign in?" has no answer in this repository,
+and any change to it is a dashboard change.
+
+### The four lifetimes, which are not one thing
+
+Reducing sign-in friction means knowing which of these is actually biting. They
+compose, and the shortest one wins:
+
+1. **The Access application's session duration** — set on the Access application
+   protecting the DalyHub hostname. This is what mints the `CF_Authorization`
+   cookie's life and therefore the JWT's `exp`.
+2. **The Access policy's session duration** — an optional per-policy override
+   that takes precedence over the application's for sessions matched by that
+   policy. A 30-day application duration with a 24-hour policy override behaves
+   as 24 hours, and the application setting will look like it is being ignored.
+3. **The global session duration** in the Zero Trust settings, which applies
+   where neither of the above is set.
+4. **The identity provider's own session.** Even a long Access session sends the
+   browser to the IdP when it expires; if the IdP re-prompts, the owner still
+   sees an interactive sign-in. This is the one a longer Access duration cannot
+   fix.
+
+### Reading the current value WITHOUT the dashboard
+
+DalyHub already surfaces enough to diagnose this from the phone, which is worth
+knowing before opening Cloudflare: **Settings → Account & security** shows the
+sign-in's issued-at, its expiry, and the time remaining, all read from the token
+this browser is presenting (`AccountSecuritySection.tsx`). The gap between
+issued-at and expiry IS the effective session duration currently in force,
+whichever of the four produced it. Checking it on the installed PWA, a day
+apart, answers "is it really 24 hours?" without any Cloudflare access at all.
+
+### ⏳ Owner action — the only way to change this
+
+This could not be done from an automated session and **was not done**. The
+Cloudflare MCP server available to the session requires an interactive OAuth
+authorisation that a non-interactive session cannot complete, so the live
+configuration was never read. Nothing below is a report of the current setting;
+it is the procedure for finding and changing it.
+
+| Step | Action |
+| :--- | :--- |
+| 1 | Zero Trust → Access → Applications → the application protecting the DalyHub hostname → **Session Duration**. Record the current value. |
+| 2 | Open that application's **policies** and check each one's own Session Duration. A policy value overrides the application's — check this before concluding the application setting is wrong. |
+| 3 | Settings → **WARP/Global session** duration, which applies where neither is set. |
+| 4 | Decide a value. **14 days is the recommendation** for a single-owner personal application on a trusted device; 30 days is defensible and is the point at which a lost, unlocked phone becomes the dominant risk rather than the token. Do not set "no expiry". |
+| 5 | Check the identity provider's own session length. If the IdP re-prompts daily, a 14-day Access session changes nothing the owner will notice, and the IdP is the setting to change. |
+
+**The trade-off, stated plainly.** A longer session means a stolen or unlocked
+phone stays signed in for that long, and Access's revocation is not instant —
+revoking a user ends the ability to get a NEW token, while an already-issued one
+remains valid until its `exp`. That is the real cost of 14 days, and it is why
+"no expiry" is not on the table. What it does not weaken: `OWNER_EMAIL` is
+enforced per request by the Worker, so a longer session grants no additional
+identity, and the device passcode remains the first control.
+
+**Rollback** is the same screen: set the duration back and sign out from the
+account menu (`/cdn-cgi/access/logout`), which clears the Access session so the
+next request mints a token under the new value. There is nothing to deploy and
+nothing in this repository to revert.
+
+**Testing it on the installed PWA**, which is the only test that counts: add
+DalyHub to the Home Screen, sign in, note the expiry in Settings → Account &
+security, then open it from the Home Screen daily without signing in. A Safari
+tab is not a valid test — an installed PWA has its own storage and cookie
+lifetime, and this is precisely the difference being measured.
+
+### What happens when it expires anyway (§42, §43)
+
+Two guarantees, both held by tests rather than by this document.
+
+**Local unsynced work survives.** A replay that meets `401`, `403` or an opaque
+redirect resolves as `blocked`, not as a failure: the pass stops after ONE
+request rather than one per record, the connection state becomes `authRequired`,
+and **nothing is discarded** — `offline-mutation-sync.test.ts`. Queued Task
+edits and queued Meeting captures alike wait for a valid session and send
+themselves when one exists. `offline-reload-guard.test.ts` additionally proves
+that none of this navigates the page, which is what keeps an installed PWA out
+of the restart loop WebKit terminates.
+
+**Re-authentication returns the owner to what they were doing.** The route error
+boundary answers a `401`/`403` by saying the sign-in expired, saying that
+anything held on the device is safe, and offering **"Sign in and continue"** — a
+document navigation to the current URL. That is what makes Cloudflare Access run
+its redirect, and Access returns the browser to the URL that was requested, so
+the owner lands back on the record rather than on a home screen. It is a control
+they press, never an automatic reload, for the PWA-11 reason above.

@@ -2241,7 +2241,7 @@ that required CI is a readable signal, because the suite has not finished.
   and an interrupted response. Parent reassignment stays online-only, by decision
   rather than omission — see
   [ADR-090](../decisions/ARCHITECTURE_DECISIONS.md#adr-090-offline-mutation-as-a-transport-concern--a-queue-of-intents-replayed-through-the-canonical-route-with-field-focused-conflict-arbitration)
-  and [`PWA_AND_OFFLINE.md` §15](../development/PWA_AND_OFFLINE.md#15-pwa-12--the-offline-task-mutation-slice).
+  and [`PWA_AND_OFFLINE.md` §15](../development/PWA_AND_OFFLINE.md#15-pwa-12--the-offline-mutation-slice).
 - **Status: raised 2026-08-09 by the [UX/Product audit](DALYHUB_UX_PRODUCT_AUDIT_2026_08.md).**
 - **Current issue.** DalyHub's offline architecture supports an append-only capture queue and database-level idempotency, but the high-frequency Task actions that make Tasks a daily driver - complete/reopen, reschedule, change priority, move parent and recurrence advancement - are still online-first. The current optimistic list contract improves perceived latency, but it is not an offline conflict/replay contract.
 - **Impact.** Medium, mostly on iPhone. A personal task manager becomes less trustworthy when capture works offline but the next most common action, completing or rescheduling a Task, cannot be queued with clear conflict semantics.

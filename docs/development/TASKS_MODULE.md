@@ -1852,7 +1852,7 @@ because it describes the list, so it belongs against it.
 Tasks is the first — and, for now, the only — module in which a record can be
 CHANGED without a connection. The full contract, including storage, ordering,
 idempotency and conflict rules, lives in
-[`PWA_AND_OFFLINE.md` §15](PWA_AND_OFFLINE.md#15-pwa-12--the-offline-task-mutation-slice);
+[`PWA_AND_OFFLINE.md` §15](PWA_AND_OFFLINE.md#15-pwa-12--the-offline-mutation-slice);
 what follows is what a Tasks implementer needs to know.
 
 ### What is offline-capable, and how a control becomes so

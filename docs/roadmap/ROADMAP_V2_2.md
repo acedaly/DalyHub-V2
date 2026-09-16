@@ -783,7 +783,7 @@ The first deliberate offline capability beyond capture. Not "offline mode": a
 bounded slice whose job is to prove that DalyHub's queue, replay, idempotency,
 recurrence handling and conflict model are trustworthy before offline editing is
 offered anywhere else. Full record:
-[`PWA_AND_OFFLINE.md` §15](../development/PWA_AND_OFFLINE.md#15-pwa-12--the-offline-task-mutation-slice).
+[`PWA_AND_OFFLINE.md` §15](../development/PWA_AND_OFFLINE.md#15-pwa-12--the-offline-mutation-slice).
 
 - **Six operations, one entity type.** Complete, reopen, rename, priority, due date,
   planned date - all through the SAME inline controls the owner already uses. There
