@@ -394,6 +394,23 @@ wrong again and the shape of the error is useful.
 | "`progress.css` … has no consumer" | migration register item 12a | **Right.** Component and stylesheet deleted. |
 | "`md-state-layer` — 34 usages across 23 files" | migration register item 5 | 36 across 23. Close enough that it was not misleading; restated for accuracy. |
 
+### Claims that were re-checked and ARE still true
+
+Recorded so the next audit does not spend the same time. All three are claims
+about a third party, checked against the third party rather than against memory
+(CLAUDE.md's rule), through the Untitled connector and the vendored source:
+
+| Claim | Still true because |
+| :-- | :--- |
+| Untitled ships no generic Card (item 2) | every catalogue hit for "card" is a marketing SECTION — hero, pricing, CTA, testimonial, login. There is no `base/card`. |
+| Untitled's tooltip has no shortcut slot (P2-5) | `base/tooltip` takes `title`, `description`, `arrow`, `delay`, read off the vendored source at revision `0b78cd49`. |
+| `application/progress-steps` is not retrievable (item 6) | the connector reports `has_pro_access: true` and returns the component's METADATA, which reads like access and is not. Source comes from `npx untitledui@latest add`, which needs `npx untitledui@latest login` first. **Catalogue access is not source access.** |
+
+Two numbers were also restated against the tool that produces them, both in this
+document's own direction of travel: `DEPLOYMENT.md` said fifteen migrations narrow
+a `CHECK` and `db:compat` says fourteen; `e2e/d1.ts` said "fifteen spec files" use
+`d1Query` and it is sixteen files — 11 spec files and 5 shared fixtures.
+
 ### A method note for whoever audits next
 
 Two of the three wrong claims above share a cause: **a measurement that could not
