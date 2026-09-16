@@ -14,7 +14,7 @@ import { expect, test, type Page } from "@playwright/test";
  * cost an axe violation on the guided Review. Pointing the allowlist at the
  * exception file is what keeps it the size it has to be — widen that file and
  * this test widens with it, deliberately; put a rule anywhere else unlayered
- * and it fails. It held six rules when it was first narrowed and holds eight
+ * and it fails. It held six rules when it was first narrowed and holds seven
  * now, the caret and the placeholder having been left behind in the layered
  * file where they lost to CodeMirror.
  */
@@ -201,6 +201,31 @@ async function contrastAgainstBackground(
   );
 }
 
+/**
+ * Wait for the editor to say it is ready, then hand back its content element.
+ *
+ * `.cm-content` becoming visible is a CONSEQUENCE of the editor mounting, and
+ * waiting on the consequence produces a bare `locator.waitFor: Test timeout` when
+ * the mount is merely slow — which says nothing about why. `data-editor-ready`
+ * is the signal `LiveMarkdownEditor` sets when CodeMirror has attached, so
+ * waiting on it first turns that case into a sentence.
+ *
+ * It matters here more than elsewhere: this file's assertions are all about the
+ * runtime-injected CodeMirror stylesheet, which does not exist until the editor
+ * mounts — so an assertion that runs before it is not merely early, it is
+ * measuring a document the test is not about.
+ */
+async function editorContent(page: Page) {
+  await expect(
+    page.locator('[data-editor-ready="true"]').first(),
+    "the Markdown editor never reported itself ready — CodeMirror did not mount, " +
+      "so its injected stylesheet does not exist and there is nothing to measure",
+  ).toBeAttached({ timeout: 20_000 });
+  const content = page.locator(".dh-md-editor__cm .cm-content").first();
+  await content.waitFor();
+  return content;
+}
+
 test.describe("V3-CSS-01 — cascade ownership", () => {
   test("Untitled owns the paint of a control a legacy rule also paints", async ({
     page,
@@ -255,17 +280,33 @@ test.describe("V3-CSS-01 — cascade ownership", () => {
    * allowing an empty set. An assertion that cannot see the thing it is about is
    * not a gate.
    */
-  for (const [label, path] of [
-    ["a surface with no runtime-injected CSS", "/design/record-layout"],
-    ["a surface that mounts the CodeMirror editor", "/notes/n-search-e2e"],
+  for (const [label, path, mountsEditor] of [
+    ["a surface with no runtime-injected CSS", "/design/record-layout", false],
+    [
+      "a surface that mounts the CodeMirror editor",
+      "/notes/n-search-e2e",
+      true,
+    ],
   ] as const) {
     test(`only the documented exceptions are unlayered — ${label}`, async ({
       page,
     }) => {
       await page.goto(path);
-      /* The editor mounts after hydration; the injected sheet does not exist
-       * until it does, which is the whole point of visiting this route. */
-      await page.waitForTimeout(2500);
+      /*
+       * The editor mounts after hydration and the injected sheet does not exist
+       * until it does, which is the whole point of visiting this route — so wait
+       * for the editor to SAY it is ready rather than for a duration.
+       *
+       * This was `waitForTimeout(2500)`, and the fixed wait was not merely slow:
+       * it raced the route's own hydration, and `page.evaluate` below then threw
+       * `Execution context was destroyed, most likely because of a navigation`.
+       * OBSERVED on a local full-spec run, 16 September 2026. A duration cannot
+       * express "after the thing I am measuring exists"; `data-editor-ready` can,
+       * and it is the same signal `editor-geometry.spec.ts` waits on.
+       */
+      if (mountsEditor) {
+        await editorContent(page);
+      }
 
       const unlayered = await page.evaluate(() => {
         const offenders: { selector: string; sheet: string }[] = [];
@@ -387,8 +428,7 @@ test.describe("V3-CSS-01 — cascade ownership", () => {
     page,
   }) => {
     await page.goto("/notes/n-search-e2e");
-    const content = page.locator(".dh-md-editor__cm .cm-content");
-    await content.waitFor();
+    const content = await editorContent(page);
 
     const padding = await content.evaluate((el) => {
       const s = getComputedStyle(el);
@@ -437,8 +477,7 @@ test.describe("V3-CSS-01 — cascade ownership", () => {
     }) => {
       await page.emulateMedia({ colorScheme: scheme });
       await page.goto("/notes/n-search-e2e");
-      const content = page.locator(".dh-md-editor__cm .cm-content").first();
-      await content.waitFor();
+      const content = await editorContent(page);
       // The caret only exists once the editor has focus.
       await content.click();
 
@@ -497,8 +536,7 @@ test.describe("V3-CSS-01 — cascade ownership", () => {
     }) => {
       await page.emulateMedia({ colorScheme: scheme });
       await page.goto("/notes/n-search-e2e");
-      const content = page.locator(".dh-md-editor__cm .cm-content").first();
-      await content.waitFor();
+      const content = await editorContent(page);
 
       await content.click();
       await page.keyboard.press("ControlOrMeta+a");
@@ -525,4 +563,301 @@ test.describe("V3-CSS-01 — cascade ownership", () => {
       ).toBeGreaterThanOrEqual(4.5);
     });
   }
+
+  /**
+   * V3-CSS-02 — the CodeMirror exception, DERIVED rather than written down.
+   *
+   * ── Why this test exists ────────────────────────────────────────────────────
+   *
+   * `markdown-editor-codemirror.css` is the architecture's one unlayered file,
+   * and which rules belong in it is decided by a fact about a third-party
+   * library: **which properties CodeMirror's runtime-injected stylesheet
+   * declares, on which elements.** That fact has been written down by hand three
+   * times and been wrong all three:
+   *
+   *   1. the whole editor stylesheet was un-layered, which handed it priority
+   *      over the five product surfaces that legitimately override it — the
+   *      guided Review lost its `50vh` cap and axe reported a serious
+   *      `scrollable-region-focusable`;
+   *   2. the narrowing that followed was written from a probe that printed 60 of
+   *      CodeMirror's 320 selector/property pairs, so `.cm-cursor`'s
+   *      `border-left-color` stayed layered and lost — the text caret rendered
+   *      `rgb(0,0,0)`, **1.06:1** against the dark surface, on every writing
+   *      surface in the product;
+   *   3. the fix for that used the `background` shorthand on
+   *      `.cm-selectionBackground`, which un-layered eight further longhands
+   *      CodeMirror does not declare at all.
+   *
+   * Each was found by a person noticing a defect. This test finds them instead,
+   * and it does so by asking the browser rather than by matching text.
+   *
+   * ── What it does ────────────────────────────────────────────────────────────
+   *
+   * With the editor mounted, focused and showing its placeholder — the three
+   * states CodeMirror paints differently, and without all three a contested rule
+   * reads as uncontested because neither side has an element — it walks the live
+   * CSSOM and, for every element in the editor, computes two sets:
+   *
+   *   · what CODEMIRROR declares on it, from its unlayered injected sheet;
+   *   · what DALYHUB declares on it, and from which side of the layer boundary.
+   *
+   * Properties are the LONGHANDS the browser expands each declaration into, so
+   * `padding: X` is compared as four properties and `background: X` as nine —
+   * which is how (3) above was found. Selectors are matched against actual
+   * ELEMENTS with `Element.matches`, not compared as text, so a rule that
+   * addresses the same element by a different route is still caught.
+   *
+   * ── The two failures, and why both matter ───────────────────────────────────
+   *
+   * **A layered DalyHub declaration that CodeMirror also declares on the same
+   * element.** Unlayered beats layered unconditionally, so this declaration does
+   * nothing — silently, and regardless of specificity. This is defect (2).
+   *
+   * **A declaration in the unlayered file that CodeMirror does not declare on
+   * any element it matches.** It did not need to leave the cascade, and while it
+   * is outside it no product surface can compose with it. This is defect (3),
+   * and it is the direction a test that only looked for losses would miss.
+   *
+   * ── What it deliberately does not police ────────────────────────────────────
+   *
+   * An `!important` DalyHub declaration is not reported as losing, because it
+   * does not lose: for important declarations the layer order is inverted and a
+   * layered important beats an unlayered one. AGENTS.md forbids `!important`
+   * anyway, and `e2e/css-cascade-ownership.spec.ts`'s sibling assertions are
+   * where that is argued — this test simply must not report a false loss.
+   */
+  test("the unlayered CodeMirror exception is exactly what CodeMirror contests", async ({
+    page,
+  }) => {
+    await page.goto("/notes/n-search-e2e");
+    const content = await editorContent(page);
+
+    /*
+     * Produce the states CodeMirror only paints in. `.cm-focused` needs focus
+     * and `.cm-placeholder` exists only on an empty document — and this matters
+     * more than it looks: run without them and THREE of the exception's rules
+     * report as unnecessary, because neither side has an element to contest.
+     * An earlier draft of this test did exactly that and would have argued for
+     * deleting the caret override that took two releases to get right.
+     */
+    await content.click();
+    await page.keyboard.press("ControlOrMeta+a");
+    await page.keyboard.press("Backspace");
+    await expect(page.locator(".cm-placeholder").first()).toBeVisible();
+    await expect(page.locator(".cm-focused").first()).toBeAttached();
+
+    const report = await page.evaluate(() => {
+      /*
+       * Dynamic pseudo-classes are stripped before matching, and pseudo-elements
+       * with them. `Element.matches` cannot evaluate either against a static
+       * DOM, and the question here is "could these two rules ever address the
+       * same element", not "do they right now" — a DalyHub rule that loses only
+       * on `:hover` still loses.
+       */
+      const DYNAMIC_PSEUDO =
+        /:(hover|focus|focus-visible|focus-within|active|target|checked|disabled|enabled|placeholder-shown|user-invalid|user-valid|invalid|valid|read-only|read-write|default|indeterminate)\b/g;
+
+      type Declaration = { readonly name: string; readonly important: boolean };
+      type Rule = {
+        readonly selector: string;
+        readonly declarations: Declaration[];
+        readonly layered: boolean;
+        readonly dalyhub: boolean;
+      };
+
+      const rules: Rule[] = [];
+
+      const walk = (list: CSSRuleList, insideLayer: boolean) => {
+        for (const rule of Array.from(list)) {
+          const type = rule.constructor.name;
+          if (type === "CSSLayerBlockRule") {
+            walk((rule as CSSGroupingRule).cssRules, true);
+            continue;
+          }
+          if (
+            type === "CSSMediaRule" ||
+            type === "CSSSupportsRule" ||
+            type === "CSSContainerRule" ||
+            type === "CSSScopeRule" ||
+            type === "CSSStartingStyleRule"
+          ) {
+            walk((rule as CSSGroupingRule).cssRules, insideLayer);
+            continue;
+          }
+          if (type !== "CSSStyleRule") continue;
+
+          const styleRule = rule as CSSStyleRule;
+          const selector = styleRule.selectorText ?? "";
+          /* Only rules that can reach a CodeMirror element are in scope. */
+          if (!selector.includes(".cm-") && !selector.includes("ͼ")) continue;
+
+          const declarations: Declaration[] = [];
+          for (let i = 0; i < styleRule.style.length; i += 1) {
+            const name = styleRule.style.item(i);
+            declarations.push({
+              name,
+              important:
+                styleRule.style.getPropertyPriority(name) === "important",
+            });
+          }
+          if (declarations.length === 0) continue;
+
+          rules.push({
+            selector,
+            declarations,
+            layered: insideLayer,
+            /* Every DalyHub class carries the `dh-` prefix; CodeMirror's carry
+             * `cm-` or are `style-mod`'s generated `ͼ*`. The sanity assertions
+             * below fail loudly if that ever stops separating the two. */
+            dalyhub: selector.includes(".dh-"),
+          });
+        }
+      };
+
+      for (const sheet of Array.from(document.styleSheets)) {
+        try {
+          walk(sheet.cssRules, false);
+        } catch {
+          /* Cross-origin sheets are not ours to police. */
+        }
+      }
+
+      const elements = Array.from(
+        document.querySelectorAll(".dh-md-editor, .dh-md-editor *"),
+      );
+
+      const matches = (element: Element, selector: string) => {
+        for (const part of selector.split(",")) {
+          const statik = part
+            .replace(/::[a-z-]+(\([^)]*\))?/g, "")
+            .replace(DYNAMIC_PSEUDO, "")
+            .trim();
+          if (!statik) continue;
+          try {
+            if (element.matches(statik)) return true;
+          } catch {
+            /* An unmatchable selector contests nothing we can prove. */
+          }
+        }
+        return false;
+      };
+
+      /** Selector → the properties of it that lose to CodeMirror. */
+      const losing: Record<string, string[]> = {};
+      /** Selector → the properties of it CodeMirror actually contests. */
+      const contested: Record<string, string[]> = {};
+      const add = (
+        bag: Record<string, string[]>,
+        key: string,
+        value: string,
+      ) => {
+        bag[key] ??= [];
+        if (!bag[key].includes(value)) bag[key].push(value);
+      };
+
+      for (const element of elements) {
+        const codemirror = new Set<string>();
+        for (const rule of rules) {
+          if (rule.dalyhub || rule.layered) continue;
+          if (!matches(element, rule.selector)) continue;
+          for (const declaration of rule.declarations) {
+            codemirror.add(declaration.name);
+          }
+        }
+        if (codemirror.size === 0) continue;
+
+        for (const rule of rules) {
+          if (!rule.dalyhub) continue;
+          if (!matches(element, rule.selector)) continue;
+          for (const declaration of rule.declarations) {
+            if (!codemirror.has(declaration.name)) continue;
+            if (rule.layered) {
+              if (!declaration.important) {
+                add(losing, rule.selector, declaration.name);
+              }
+            } else {
+              add(contested, rule.selector, declaration.name);
+            }
+          }
+        }
+      }
+
+      const unlayered = rules
+        .filter((rule) => rule.dalyhub && !rule.layered)
+        .map((rule) => ({
+          selector: rule.selector,
+          declarations: rule.declarations.map((d) => d.name),
+        }));
+
+      return {
+        codemirrorRules: rules.filter((r) => !r.dalyhub && !r.layered).length,
+        dalyhubLayeredRules: rules.filter((r) => r.dalyhub && r.layered).length,
+        elementsScanned: elements.length,
+        losing,
+        unlayered: unlayered.map((rule) => ({
+          ...rule,
+          uncontested: rule.declarations.filter(
+            (name) => !(contested[rule.selector] ?? []).includes(name),
+          ),
+        })),
+      };
+    });
+
+    /*
+     * Sanity first, and this is not ceremony: the historical failure of this
+     * corner is an assertion that could not see the thing it was about. If
+     * CodeMirror has not injected, or nothing was scanned, or the `dh-`/`cm-`
+     * split has stopped separating the two authors, every assertion below passes
+     * for the wrong reason.
+     */
+    expect(
+      report.codemirrorRules,
+      "CodeMirror injected no unlayered rules — the editor did not mount, and this test measured nothing",
+    ).toBeGreaterThan(20);
+    expect(
+      report.elementsScanned,
+      "no editor elements were scanned — this test measured nothing",
+    ).toBeGreaterThan(10);
+    expect(
+      report.unlayered.length,
+      "no unlayered DalyHub rule reached the editor — either the exception file is gone or it stopped matching, and this test measured nothing",
+    ).toBeGreaterThan(0);
+
+    /*
+     * Direction 1 — a layered DalyHub declaration that CodeMirror also declares
+     * on the same element. It does nothing, silently.
+     */
+    expect(
+      report.losing,
+      "a LAYERED DalyHub declaration contests a property CodeMirror's own " +
+        "injected stylesheet declares on the same element. Unlayered beats " +
+        "layered unconditionally, so that declaration silently does nothing — " +
+        "this is how the text caret came to render black on a dark page. Move " +
+        "the contested declaration into `app/styles/markdown-editor-codemirror.css`.",
+    ).toEqual({});
+
+    /*
+     * Direction 2 — a declaration in the unlayered file that CodeMirror does not
+     * declare on anything it matches. It never had to leave the cascade, and
+     * while it is outside it no product surface can compose with it.
+     */
+    const unnecessary = report.unlayered
+      .filter((rule) => rule.uncontested.length > 0)
+      .map((rule) => ({
+        selector: rule.selector,
+        uncontested: rule.uncontested,
+      }));
+
+    expect(
+      unnecessary,
+      "`app/styles/markdown-editor-codemirror.css` declares something " +
+        "CodeMirror does not declare on any element the rule matches. That " +
+        "declaration did not need to leave the cascade, and while it is outside " +
+        "it the rest of the product cannot compose with it. Move it to " +
+        "`markdown-editor.css` (layer `dh-product`). Note that a SHORTHAND is " +
+        "compared as the longhands the browser expands it into — `background` " +
+        "is nine declarations, of which CodeMirror contests only " +
+        "`background-color`.",
+    ).toEqual([]);
+  });
 });
