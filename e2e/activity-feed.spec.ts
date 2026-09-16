@@ -119,14 +119,37 @@ test.describe("DS-05 — desktop", () => {
     await gotoFixture(page);
     const feed = page.getByTestId("af-feed").getByRole("group");
 
-    // Load a few pages so many events are loaded.
+    /*
+     * Load a few pages so many events are loaded.
+     *
+     * Each pass waits for `aria-setsize` to GROW rather than for 150 ms. The
+     * duration was standing in for "the page has arrived", and on a loaded
+     * runner it is not: a slow page would leave the next click hitting a button
+     * whose previous fetch had not landed, and the windowing assertion below
+     * would then measure a feed that had loaded fewer pages than the loop
+     * thinks. `aria-setsize` is the count the component itself publishes, which
+     * is the thing that actually changes when a page lands.
+     */
+    const loadedCount = async () =>
+      Number(
+        (await feed
+          .getByRole("article")
+          .first()
+          .getAttribute("aria-setsize")) ?? "0",
+      );
+
     for (let i = 0; i < 3; i += 1) {
+      const before = await loadedCount();
       const loadMore = page
         .getByTestId("af-feed")
         .getByRole("button", { name: /load more/i });
       // Click without scrolling the container (footer is always in the DOM).
       await loadMore.evaluate((el) => (el as HTMLElement).click());
-      await page.waitForTimeout(150);
+      await expect
+        .poll(loadedCount, {
+          message: `load-more pass ${i + 1} added no events (aria-setsize stayed at ${before})`,
+        })
+        .toBeGreaterThan(before);
     }
 
     const setSize = Number(
@@ -145,11 +168,33 @@ test.describe("DS-05 — desktop", () => {
     await viewport.evaluate((el) => el.scrollTo(0, 500));
     const before = await viewport.evaluate((el) => el.scrollTop);
 
+    const feed = page.getByTestId("af-feed").getByRole("group");
+    const loadedCount = async () =>
+      Number(
+        (await feed
+          .getByRole("article")
+          .first()
+          .getAttribute("aria-setsize")) ?? "0",
+      );
+    const loadedBefore = await loadedCount();
+
     await page
       .getByTestId("af-feed")
       .getByRole("button", { name: /load more/i })
       .evaluate((el) => (el as HTMLElement).click());
-    await page.waitForTimeout(200);
+
+    /*
+     * Wait for the page to LAND, not for 200 ms. This test's subject is what the
+     * scroll position does when new rows are inserted above the fold, so
+     * asserting before they are inserted passes for the wrong reason — and on a
+     * loaded runner that is the likely outcome rather than the unlikely one.
+     */
+    await expect
+      .poll(loadedCount, {
+        message:
+          "load-more added no events, so the scroll assertion below would prove nothing",
+      })
+      .toBeGreaterThan(loadedBefore);
 
     const after = await viewport.evaluate((el) => el.scrollTop);
     expect(Math.abs(after - before)).toBeLessThan(8);

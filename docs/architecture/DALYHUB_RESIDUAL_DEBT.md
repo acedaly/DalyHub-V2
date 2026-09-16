@@ -75,22 +75,35 @@ rather than copied forward — §6.
 
 ### P1-1 · The E2E gate carries latent timing races
 
-- **Problem.** "Green" is probabilistic rather than certain. Fifty-three
-  `waitForTimeout` calls remain across the suite, each a duration standing in for a
-  signal.
+- **Problem.** "Green" is probabilistic rather than certain.
 - **Evidence.** DEBT-203, DEBT-125, and one **directly observed** instance during
   this pass: `css-cascade-ownership.spec.ts` failed with
   `page.evaluate: Execution context was destroyed, most likely because of a
   navigation` — a fixed `waitForTimeout(2500)` racing the route's own hydration.
 - **Impact.** A red build that is not about the change that found it, which is the
   most expensive kind of failure a gate can produce.
-- **Solution.** Replace each fixed wait with the signal it is standing in for.
-  This pass did that for the four in `css-cascade-ownership.spec.ts` (now
-  `data-editor-ready`, through one shared helper that fails with a sentence rather
-  than a raw locator timeout) — the pattern generalises, file by file.
-- **Why not completed.** 53 call sites across 30 files, each needing its own
-  reading of what the test is actually waiting for. Mechanical replacement would
-  be worse than the current state.
+- **The scale of it, corrected.** The suite has 53 `waitForTimeout` calls, and a
+  first reading of that number overstates the gate's exposure by about four to
+  one. **Forty-one are in `*-screenshots.spec.ts`**, which `playwright.config.ts`
+  `testIgnore`s unless `CAPTURE_SCREENSHOTS=1`, so the required gate never runs
+  them. Of the twelve that remain, four are documented, correct uses — proving
+  that something does NOT happen requires letting time pass, and a poll for
+  "still equal" succeeds on its first sample whether or not the thing was about
+  to happen (`csp.spec.ts`, `interaction-consistency.spec.ts`,
+  `life-admin.spec.ts`, `pwa-offline.spec.ts`'s deliberate ten-second
+  observation window). Three more sit after a viewport resize with a retrying
+  assertion behind them, where the wait is redundant rather than racy.
+- **What this pass fixed.** The four in `css-cascade-ownership.spec.ts`, which
+  now wait on `data-editor-ready` through one shared helper that fails with a
+  sentence rather than a raw locator timeout; and the two in
+  `activity-feed.spec.ts`, which clicked "load more" and then waited 150 ms /
+  200 ms before asserting — those now poll `aria-setsize`, the count the
+  component itself publishes, so the assertion cannot run before the page it is
+  about has landed.
+- **What remains.** A genuinely small number of judgement calls, plus the deeper
+  problem the duration was never the whole of: a node can be detached by
+  revalidation between locating it and interacting with it, which no wait fixes.
+  That is P2-11's territory.
 
 ### P1-2 · Chromium is not iPhone WebKit, and 3.1 is a phone release
 
