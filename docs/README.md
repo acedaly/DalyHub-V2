@@ -185,6 +185,8 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
     │   ├── UNTITLED_UI_MIGRATION.md
     │   └── DESIGN_SYSTEM.md
     ├── architecture/
+    │   ├── DALYHUB_ENGINEERING_HANDOFF.md  (start here if you are new)
+    │   ├── DALYHUB_RESIDUAL_DEBT.md        (what is left, prioritised)
     │   ├── ARCHITECTURE_OVERVIEW.md
     │   └── PRODUCT_MAP.md          (the five questions and the shared machinery)
     ├── decisions/

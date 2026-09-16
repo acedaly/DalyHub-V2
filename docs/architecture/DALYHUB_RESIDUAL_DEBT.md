@@ -55,6 +55,12 @@ rather than copied forward — §6.
   `deploy:production:release-check` prints `ROLLBACK BOUNDARY` when the pending set
   crosses one; the recovery runbook is
   [`DEPLOYMENT.md` → When the migration succeeded and the deploy did not](../development/DEPLOYMENT.md#when-the-migration-succeeded-and-the-deploy-did-not).
+- **Credit where it is due, and why it still needed fixing.** The V3.0.0 release
+  checklist's §1.2 already said "there is no rollback after `0050`" — worked out
+  by hand, for that release. What was wrong was the STANDING procedure:
+  `DEPLOYMENT.md` said the opposite in general terms, so the next release would
+  have started from the wrong premise. The ledger generalises what one release
+  team already knew into something every release gets for free.
 - **What remains.** Running the release-check against real production (P0-1), and
   taking both backups at step 1. **Owner action.**
 

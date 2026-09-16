@@ -65,16 +65,33 @@ const ATTEMPTS = 5;
  * package's `exports` map does not name it.
  */
 const WRANGLER_ENTRY = (() => {
-  const require = createRequire(import.meta.url);
-  const packageJsonPath = require.resolve("wrangler/package.json");
-  const packageJson = require("wrangler/package.json") as {
-    bin: string | Record<string, string>;
-  };
-  const bin =
-    typeof packageJson.bin === "string"
-      ? packageJson.bin
-      : packageJson.bin.wrangler;
-  return join(dirname(packageJsonPath), bin);
+  try {
+    const require = createRequire(import.meta.url);
+    const packageJsonPath = require.resolve("wrangler/package.json");
+    const packageJson = require("wrangler/package.json") as {
+      bin: string | Record<string, string>;
+    };
+    const bin =
+      typeof packageJson.bin === "string"
+        ? packageJson.bin
+        : packageJson.bin.wrangler;
+    return join(dirname(packageJsonPath), bin);
+  } catch (error) {
+    /*
+     * This runs at MODULE LOAD, so a failure here is "the spec file will not
+     * load" rather than "one fixture statement failed" — and the default message
+     * for that says nothing about wrangler. Resolution depends on `wrangler`
+     * exposing `./package.json` in its `exports` map, which it does today and a
+     * major upgrade could change, so the message names the fix.
+     */
+    throw new Error(
+      "e2e/d1.ts could not resolve wrangler's entry script through " +
+        "`wrangler/package.json`. If a wrangler upgrade stopped exporting it, " +
+        "point WRANGLER_ENTRY at `node_modules/.bin/wrangler` instead — every " +
+        "fixture statement in the suite runs through it.",
+      { cause: error },
+    );
+  }
 })();
 
 /** SQL-escape a string for use as a single-quoted literal in a D1 command. */

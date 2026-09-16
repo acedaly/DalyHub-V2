@@ -226,6 +226,54 @@ async function editorContent(page: Page) {
   return content;
 }
 
+/**
+ * Empty the editor's document so `.cm-placeholder` exists, and hand back a
+ * function that puts it back.
+ *
+ * ── Why the restore matters more than it looks ──────────────────────────────
+ *
+ * `n-search-e2e` is a SHARED fixture. `editing-consistency.spec.ts`,
+ * `tooltip.spec.ts` and both matrix sweeps visit the same Note, and the editor
+ * AUTOSAVES on a debounce — so a test that empties the document and then spends a
+ * second or two measuring has left a window the autosave can land in, where one
+ * that navigated away immediately did not. That is DEBT-173's shape exactly: a
+ * spec's result decided by what an earlier spec left behind.
+ *
+ * The delete is ONE CodeMirror transaction (select-all then Backspace), so one
+ * undo is an exact restore rather than a retype that could differ.
+ */
+async function withEmptiedDocument(
+  page: Page,
+  content: ReturnType<Page["locator"]>,
+): Promise<() => Promise<void>> {
+  /*
+   * Whether there was anything to delete decides whether there is anything to
+   * restore. A previous spec may already have left this Note empty, and an undo
+   * that has nothing to undo would then leave the placeholder on screen and fail
+   * the restore for a fixture reason rather than a cascade one — which is the
+   * same order-dependence this function exists to remove, reintroduced from the
+   * other end.
+   */
+  const hadContent = await content.evaluate(
+    (element) => element.textContent !== null && element.textContent.length > 0,
+  );
+
+  await content.click();
+  await page.keyboard.press("ControlOrMeta+a");
+  await page.keyboard.press("Backspace");
+  await expect(page.locator(".cm-placeholder").first()).toBeVisible();
+
+  return async () => {
+    if (!hadContent) return;
+    await content.click();
+    await page.keyboard.press("ControlOrMeta+z");
+    await expect(
+      page.locator(".cm-placeholder"),
+      "the emptied fixture Note was not restored — every later spec that reads it now sees an empty document",
+    ).toHaveCount(0);
+  };
+}
+
 test.describe("V3-CSS-01 — cascade ownership", () => {
   test("Untitled owns the paint of a control a legacy rule also paints", async ({
     page,
@@ -537,17 +585,14 @@ test.describe("V3-CSS-01 — cascade ownership", () => {
       await page.emulateMedia({ colorScheme: scheme });
       await page.goto("/notes/n-search-e2e");
       const content = await editorContent(page);
-
-      await content.click();
-      await page.keyboard.press("ControlOrMeta+a");
-      await page.keyboard.press("Backspace");
-      await expect(page.locator(".cm-placeholder")).toBeVisible();
+      const restore = await withEmptiedDocument(page, content);
 
       const measured = await contrastAgainstBackground(
         page,
         ".dh-md-editor__cm .cm-placeholder",
         "color",
       );
+      await restore();
 
       expect(
         measured,
@@ -640,10 +685,7 @@ test.describe("V3-CSS-01 — cascade ownership", () => {
      * An earlier draft of this test did exactly that and would have argued for
      * deleting the caret override that took two releases to get right.
      */
-    await content.click();
-    await page.keyboard.press("ControlOrMeta+a");
-    await page.keyboard.press("Backspace");
-    await expect(page.locator(".cm-placeholder").first()).toBeVisible();
+    const restore = await withEmptiedDocument(page, content);
     await expect(page.locator(".cm-focused").first()).toBeAttached();
 
     const report = await page.evaluate(() => {
@@ -802,6 +844,10 @@ test.describe("V3-CSS-01 — cascade ownership", () => {
         })),
       };
     });
+
+    // The document goes back before anything is asserted, so a failure below
+    // still leaves the shared fixture as this test found it.
+    await restore();
 
     /*
      * Sanity first, and this is not ceremony: the historical failure of this
