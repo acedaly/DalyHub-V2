@@ -447,9 +447,37 @@ test.describe("MOBILE-01 the live Meeting workspace", () => {
     const input = page.getByTestId("meeting-capture-input");
 
     // Every control on the bar is a comfortable thumb target.
-    for (const kind of ["note", "action", "decision", "outcome"]) {
+    for (const kind of ["agenda", "note", "action", "decision", "outcome"]) {
       await expectMinTouchTarget(page.getByTestId(`meeting-capture-${kind}`));
     }
+
+    /*
+     * MOBILE-03 — the bar opens on AGENDA for a meeting that has not been held.
+     *
+     * Asserted before anything is typed, because the claim is that the common
+     * case costs NO tap: a meeting just created is one being prepared, and an
+     * agenda point is what the owner is about to write. Once it is under way the
+     * default is Note, which `MeetingCaptureBar.test.tsx` holds directly.
+     */
+    await expect(page.getByTestId("meeting-capture-agenda")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    /*
+     * The bar does NOT focus its field on mount, deliberately: a workspace that
+     * pops the keyboard the moment it opens has decided for the owner that they
+     * came here to type, and it covers half the meeting to do it. Choosing a type
+     * focuses — which is the one tap this journey is about, and is the same tap
+     * whichever of the five types the bar happens to be showing.
+     */
+    await page.getByTestId("meeting-capture-agenda").click();
+    await expect(input).toBeFocused();
+    await input.fill("Phone-captured agenda item");
+    await input.press("Enter");
+    await expect(input).toHaveValue("", { timeout: 15_000 });
+    await expect(page.getByText("Phone-captured agenda item")).toBeVisible({
+      timeout: 15_000,
+    });
 
     // An Action, through the canonical structured-item authority.
     await page.getByTestId("meeting-capture-action").click();

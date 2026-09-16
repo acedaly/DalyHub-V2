@@ -1,6 +1,12 @@
 /**
  * PWA-12 — server-side idempotency and conflict arbitration for replayed offline
- * Task mutations.
+ * mutations.
+ *
+ * MOBILE-03 widened this from Tasks to Tasks and Meetings. Nothing about the
+ * protocol changed: an append claims, decides and settles through exactly the
+ * same four steps a field edit does, and the only difference is that
+ * `decideConflict` answers `applied` for it without a comparison (see
+ * `offline-conflict.ts` for why that is sound rather than a shortcut).
  *
  * The PWA-05 capture protocol (`capture-receipts.server.ts`), applied to intents
  * over EXISTING records rather than to creations. Same shape, same reasoning,
@@ -45,10 +51,12 @@
 
 import {
   OFFLINE_MUTATION_IN_PROGRESS,
-  OFFLINE_TARGET_GONE,
   decideConflict,
+  entityTypeFor,
+  isAppendOperation,
   isOfflineMutationOperation,
   isReplaceOperation,
+  targetGoneMessage,
   type OfflineMutationOperation,
   type OfflineMutationValue,
   type OfflineReplayReport,
@@ -96,12 +104,21 @@ export function isMutationKey(value: unknown): value is string {
 /* -------------------------------------------------------------------------- */
 
 /** The offline-replay fields a queued mutation adds to an ordinary submission. */
-export interface TaskReplayRequest {
+export interface OfflineReplayRequest {
   readonly idempotencyKey: string;
   readonly operation: OfflineMutationOperation;
-  /** The value this device believed the field held when the owner acted. */
+  /**
+   * The value this device believed the field held when the owner acted.
+   *
+   * MOBILE-03 — always null for an APPEND, which replaces no value and
+   * therefore has no base. The field still arrives on the wire so every replay
+   * submission has one shape; it is normalised away here.
+   */
   readonly baseValue: OfflineMutationValue;
-  /** The value the owner intends. Null for `complete`/`reopen`. */
+  /**
+   * The value the owner intends: the field's new value for a replace, the new
+   * item's body for an append (MOBILE-03), null for `complete`/`reopen`.
+   */
   readonly intendedValue: OfflineMutationValue;
 }
 
@@ -124,10 +141,10 @@ export const OFFLINE_REPLAY_FIELDS = {
  * refuses rather than silently applying an unguarded write under an intent it
  * could not verify.
  */
-export function readTaskReplayRequest(
+export function readOfflineReplayRequest(
   form: FormData,
   intendedValue: OfflineMutationValue,
-): TaskReplayRequest | null | "malformed" {
+): OfflineReplayRequest | null | "malformed" {
   const raw = form.get(OFFLINE_REPLAY_FIELDS.key);
   if (typeof raw !== "string" || raw.trim().length === 0) return null;
   const idempotencyKey = raw.trim();
@@ -140,8 +157,14 @@ export function readTaskReplayRequest(
   return {
     idempotencyKey,
     operation,
-    baseValue,
-    intendedValue: isReplaceOperation(operation) ? intendedValue : null,
+    // MOBILE-03 — an append carries no base. Normalised here rather than
+    // trusted from the wire, so a hand-made submission cannot give an append a
+    // base value that some later reader might be tempted to compare.
+    baseValue: isAppendOperation(operation) ? null : baseValue,
+    intendedValue:
+      isReplaceOperation(operation) || isAppendOperation(operation)
+        ? intendedValue
+        : null,
   };
 }
 
@@ -349,7 +372,7 @@ export async function releaseMutation(
 /* -------------------------------------------------------------------------- */
 
 /** What the guard concluded, and the route's own result when it applied. */
-export type TaskReplayOutcome<TResult> =
+export type OfflineReplayOutcome<TResult> =
   | {
       readonly applied: true;
       readonly result: TResult;
@@ -358,20 +381,30 @@ export type TaskReplayOutcome<TResult> =
   | { readonly applied: false; readonly report: OfflineReplayReport };
 
 /**
- * Run one replayed Task mutation idempotently, arbitrating conflict first.
+ * Run one replayed mutation idempotently, arbitrating conflict first.
  *
  * `currentValue` is the value the CURRENT server record holds for the field this
- * operation writes, or `undefined` when the Task no longer exists. `apply` is the
- * route's ordinary handler for the intent — the same one an online submission
- * runs — and it is invoked AT MOST ONCE per key per workspace.
+ * operation writes, or `undefined` when the record no longer exists. `apply` is
+ * the route's ordinary handler for the intent — the same one an online
+ * submission runs — and it is invoked AT MOST ONCE per key per workspace.
  *
  * The order is deliberate. The claim comes first (so two concurrent replays
  * cannot both proceed), the conflict decision second (so a contended field is
  * never written), and the application last.
+ *
+ * ── MOBILE-03: what an APPEND passes ─────────────────────────────────────────
+ * A Meeting append has no field, so it has no current value to supply. It
+ * passes `null` for "the meeting is there" and `undefined` for "the meeting is
+ * gone" — the same two-state signal a Task gives, read against the record
+ * rather than against a field. Everything after that is identical:
+ * `decideConflict` returns `applied` for every append without comparing
+ * anything, so the claim/apply/settle sequence, the release-on-throw and the
+ * release-on-domain-refusal all behave exactly as they do for a Task. The
+ * append gets no separate code path and no second protocol.
  */
-export async function withTaskMutationReplay<TResult>(
+export async function withOfflineMutationReplay<TResult>(
   context: MutationReceiptContext,
-  replay: TaskReplayRequest,
+  replay: OfflineReplayRequest,
   currentValue: OfflineMutationValue | undefined,
   apply: () => Promise<TResult>,
   /**
@@ -388,7 +421,11 @@ export async function withTaskMutationReplay<TResult>(
   didApply: (result: TResult) => boolean,
   /** The refusal's own wording, for the report. */
   refusalReason: (result: TResult) => string,
-): Promise<TaskReplayOutcome<TResult>> {
+): Promise<OfflineReplayOutcome<TResult>> {
+  // MOBILE-03 — the record kind decides how a missing target is worded, and the
+  // kind comes from the operation rather than from a parameter a caller could
+  // get wrong.
+  const goneMessage = targetGoneMessage(entityTypeFor(replay.operation));
   const claim = await claimMutation(context, replay.idempotencyKey);
   if (claim.kind === "settled") {
     // An earlier attempt already settled this exact intent. Report ITS outcome —
@@ -397,7 +434,7 @@ export async function withTaskMutationReplay<TResult>(
       applied: false,
       report:
         claim.outcome === OUTCOME_GONE
-          ? { kind: "gone", message: OFFLINE_TARGET_GONE }
+          ? { kind: "gone", message: goneMessage }
           : { kind: "applied", replayed: true },
     };
   }
@@ -415,13 +452,13 @@ export async function withTaskMutationReplay<TResult>(
   }
 
   if (currentValue === undefined) {
-    // The Task is gone. Settle terminally: no later replay of this key should
+    // The record is gone. Settle terminally: no later replay of this key should
     // reach the domain, and the owner is told plainly rather than watching a
     // change retry against a record that no longer exists.
     await settleMutation(context, replay.idempotencyKey, OUTCOME_GONE);
     return {
       applied: false,
-      report: { kind: "gone", message: OFFLINE_TARGET_GONE },
+      report: { kind: "gone", message: goneMessage },
     };
   }
 

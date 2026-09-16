@@ -30,8 +30,8 @@
 import type { OfflineMutationOperation } from "~/kernel/offline";
 import type { InlineSaveOutcome } from "~/shared/inline-edit";
 import {
-  enqueueTaskMutation,
-  type TaskMutationIntent,
+  enqueueOfflineMutation,
+  type OfflineMutationIntent,
 } from "~/shared/offline/mutation-queue";
 
 import type { TaskActionData } from "./contract";
@@ -110,7 +110,7 @@ async function queueUnsent(
   taskId: string,
   offline: TaskOfflineIntent,
 ): Promise<TaskSaveOutcome> {
-  const intent: TaskMutationIntent = {
+  const intent: OfflineMutationIntent = {
     entityId: taskId,
     targetId: offline.targetId ?? null,
     operation: offline.operation,
@@ -118,7 +118,7 @@ async function queueUnsent(
     baseValue: offline.baseValue ?? null,
     baseUpdatedAt: offline.baseUpdatedAt ?? null,
   };
-  const result = await enqueueTaskMutation(intent);
+  const result = await enqueueOfflineMutation(intent);
   return result.ok
     ? { ok: true, queued: true }
     : { ok: false, message: result.reason };

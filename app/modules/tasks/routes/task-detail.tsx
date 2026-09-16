@@ -57,9 +57,10 @@ import {
 } from "~/kernel/tasks";
 import {
   OFFLINE_TARGET_GONE,
-  type OfflineMutationOperation,
+  isTaskOperation,
   type OfflineMutationValue,
   type OfflineReplayEnvelope,
+  type OfflineTaskOperation,
 } from "~/kernel/offline";
 import {
   createLinkWithPolicy,
@@ -70,9 +71,9 @@ import {
 } from "~/platform/entity-links";
 import {
   OFFLINE_REPLAY_FIELDS,
-  readTaskReplayRequest,
-  withTaskMutationReplay,
-  type TaskReplayRequest,
+  readOfflineReplayRequest,
+  withOfflineMutationReplay,
+  type OfflineReplayRequest,
 } from "~/platform/offline";
 import { requireAuthenticatedSession } from "~/platform/request";
 import {
@@ -254,7 +255,7 @@ export async function action({ request, params, context }: Route.ActionArgs) {
         404,
       );
     }
-    const outcome = await withTaskMutationReplay(
+    const outcome = await withOfflineMutationReplay(
       {
         db: env.DB,
         workspaceId: scope.context.workspaceId,
@@ -394,7 +395,19 @@ const REPLAY_INTENTS = {
   // posts, carrying the same `itemId` + `completed` pair. Replay gets no verb of
   // its own here either.
   set_checklist_completed: ["checklist_set_completed"],
-} as const satisfies Record<OfflineMutationOperation, readonly string[]>;
+  /*
+   * MOBILE-03 — typed against `OfflineTaskOperation`, not the whole operation
+   * vocabulary, and that narrowing is the point.
+   *
+   * The queue now also carries Meeting appends. This route must never accept
+   * one: a `/tasks/:id` submission that could apply `add_decision` would be a
+   * second Meeting authority reachable through a Task's URL. Naming the Task
+   * subset here means the compiler refuses that at the table rather than the
+   * guard below having to notice it — and a Meeting operation arriving with a
+   * `offlineKey` still falls out as `malformed` at the lookup, because there is
+   * no entry for it.
+   */
+} as const satisfies Record<OfflineTaskOperation, readonly string[]>;
 
 /** The form key each replace-style operation writes, per intent. */
 const REPLAY_FORM_KEYS: Readonly<Record<string, string>> = {
@@ -424,7 +437,17 @@ const REPLAY_UPDATE_KEYS = {
 function readTaskReplay(
   form: FormData,
   intent: string,
-): TaskReplayRequest | null | "malformed" {
+  /*
+   * MOBILE-03 — the returned request is narrowed to a TASK operation, so the
+   * caller's `currentFieldValue` and the replay guard are typed over the fields
+   * a Task has rather than over the whole two-entity vocabulary. The narrowing
+   * is produced by the `isTaskOperation` check below, which is also the runtime
+   * refusal of a Meeting operation replayed at a Task's URL.
+   */
+):
+  | (OfflineReplayRequest & { readonly operation: OfflineTaskOperation })
+  | null
+  | "malformed" {
   // The value this submission actually carries, read from the key the INTENT
   // owns. Reading it from the declared operation instead would let a request
   // name one operation and carry another's field.
@@ -438,18 +461,24 @@ function readTaskReplay(
       : (REPLAY_FORM_KEYS[intent] ?? "");
   const intended = valueKey === "" ? null : nullable(form.get(valueKey));
 
-  const replay = readTaskReplayRequest(form, intended);
+  const replay = readOfflineReplayRequest(form, intended);
   if (replay === null || replay === "malformed") return replay;
 
   // The declared operation must be one this intent actually performs, and it must
   // carry ITS field and no other. Both are checked here, before a claim is
   // written, so a hand-made `offlineKey` cannot be attached to an intent it was
   // never issued for.
-  const allowed: readonly string[] = REPLAY_INTENTS[replay.operation];
+  // MOBILE-03 — a Meeting operation replayed against a Task is malformed, and
+  // is refused here before a claim is written. The table above holds only Task
+  // operations, so this narrowing is what makes the lookup total rather than a
+  // lookup that could return `undefined` and be read as "no restriction".
+  const operation = replay.operation;
+  if (!isTaskOperation(operation)) return "malformed";
+  const allowed: readonly string[] = REPLAY_INTENTS[operation];
   if (!allowed.includes(intent)) return "malformed";
   if (valueKey !== "" && !form.has(valueKey)) return "malformed";
   if (intent === "plan" && intended === null) return "malformed";
-  return replay;
+  return { ...replay, operation };
 }
 
 /**
@@ -527,7 +556,9 @@ function malformedReplay(): TaskActionData & OfflineReplayEnvelope {
 /** The CURRENT server value of the field an operation contends over. */
 function currentFieldValue(
   task: TaskView,
-  operation: OfflineMutationOperation,
+  // MOBILE-03 — Task operations only, so the switch below stays exhaustive over
+  // the fields a Task actually has.
+  operation: OfflineTaskOperation,
   /** TASKS-13 — the addressed checklist item, when the operation names one. */
   item: TaskChecklistItem | null = null,
 ): OfflineMutationValue {

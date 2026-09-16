@@ -97,6 +97,21 @@ function patchFor(record: OfflineMutationRecord): TaskListItemPatch {
        * STATE below is keyed on the Task whatever the operation touched.
        */
       return {};
+    /*
+     * MOBILE-03 — a Meeting append never reaches here.
+     *
+     * This module patches TASK rows, and `pendingTaskStates` below skips every
+     * record whose `entityType` is not `task` before it asks for a patch. The
+     * branch exists so the switch stays exhaustive over the widened
+     * vocabulary: an empty patch is the truthful answer for "what does this
+     * change make a Task row draw differently?" — nothing, because it is not
+     * about a Task.
+     */
+    case "add_agenda_item":
+    case "add_decision":
+    case "add_outcome":
+    case "add_action":
+      return {};
   }
 }
 
@@ -117,6 +132,17 @@ export function pendingTaskStates(
   const loudest = new Map<string, OfflineMutationStatus>();
   for (const record of orderMutations(records)) {
     if (record.status === "synced") continue;
+    /*
+     * MOBILE-03 — the queue holds Meetings too, and a Meeting's unsent change
+     * is not a Task's.
+     *
+     * This map is keyed by entity ID and read by Task rows. Without this
+     * filter, a queued meeting item would put an entry under the meeting's ID,
+     * and while no Task can share that ID today, the map would still be
+     * answering a question about a record kind it does not describe. Filtering
+     * at the fold keeps the key space one kind wide.
+     */
+    if (record.entityType !== "task") continue;
     patches.set(record.entityId, {
       ...patches.get(record.entityId),
       ...patchFor(record),

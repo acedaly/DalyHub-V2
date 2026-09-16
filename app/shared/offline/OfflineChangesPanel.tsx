@@ -50,6 +50,15 @@ export function conflictFieldLabel(field: OfflineMutationField): string {
       return "Completion";
     case "checklistItemCompleted":
       return "Checklist item";
+    /*
+     * MOBILE-03 — an append contends over nothing, so no conflict is ever
+     * constructed for one and this label cannot reach a screen. It is here to
+     * keep the switch exhaustive, and it is worded truthfully rather than as a
+     * throw: a noun in a status row is a better failure mode than an exception
+     * inside the panel that exists to explain failures.
+     */
+    case "meetingItems":
+      return "Meeting items";
   }
 }
 

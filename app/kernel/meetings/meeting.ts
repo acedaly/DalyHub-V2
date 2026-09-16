@@ -80,10 +80,28 @@ export type MeetingStatus = "planned" | "completed" | "cancelled";
 export type MeetingMode = "in_person" | "phone" | "online";
 export type MeetingView = "upcoming" | "recent" | "archived";
 export type MeetingSort = "start" | "updated" | "title";
-// UX-01 keeps preparation/capture notes separate from explicit follow-through work:
-// action items are the only structured item kind considered unfinished follow-up by
-// default, though any item may still be converted into a canonical Task.
-export type MeetingItemKind = "agenda" | "decision" | "outcome" | "action";
+/**
+ * The structured item kinds a meeting holds, in the order a meeting goes
+ * through them.
+ *
+ * UX-01 keeps preparation/capture notes separate from explicit follow-through
+ * work: action items are the only structured item kind considered unfinished
+ * follow-up by default, though any item may still be converted into a canonical
+ * Task.
+ *
+ * MOBILE-03 made this a runtime constant as well as a type. It was a bare union
+ * until the offline queue needed to prove that EVERY kind is capturable without
+ * a connection — an assertion you cannot write against a type that has been
+ * erased. The type is derived from the constant, so the two cannot disagree.
+ */
+export const MEETING_ITEM_KINDS = [
+  "agenda",
+  "decision",
+  "outcome",
+  "action",
+] as const;
+
+export type MeetingItemKind = (typeof MEETING_ITEM_KINDS)[number];
 
 export interface MeetingItem {
   readonly id: string;

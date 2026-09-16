@@ -15,9 +15,76 @@ by `/health` from one authority (`app/lib/version.ts`). Entries before that rele
 are grouped by date and by the roadmap item that delivered them, because there was
 no version number to group them under.
 
-## Unreleased
+## Unreleased — DalyHub 3.1, the mobile daily driver
 
-_Nothing yet._
+> **This is 3.1 work and it carries no version number yet, deliberately.**
+> `3.0.0` was cut from `main` @ `713fc87` and **has never been deployed** — see
+> the note under that heading. `app/lib/version.ts` still says `3.0.0`, and its
+> own doctrine is why: a version constant exists to answer "which build is
+> live", and a number that never was a build cannot answer it. So nothing here
+> renames, re-dates or reorders the `3.0.0` entry, and the number this work
+> eventually ships under is the owner's to decide once `3.0.0`'s deployment
+> sequence has run. **3.0 = the rebuilt web foundation. 3.1 = the phone.**
+
+### Added
+
+- **A meeting can be captured with no signal.** Agenda items, decisions,
+  outcomes and actions now save to the phone when DalyHub cannot be reached, and
+  send themselves when it can. A meeting room and a train are exactly where the
+  connection is worst and the notes are least replaceable, and until now every
+  meeting write needed the network.
+
+  It says where the capture is rather than pretending: **"Decision saved on this
+  device — it will sync when connected"**. The field clears so the next one can
+  be typed straight away, because a queued capture is a success — the words are
+  kept — and telling you to try again would invite typing it twice. Reconnecting
+  is silent: no toast, no celebration, the items simply appear.
+
+  Nothing can be captured twice, even if the reply to the first attempt is lost
+  on a flaky connection. Each capture carries a key the server claims before it
+  writes anything, so a retry of one it already applied writes nothing at all.
+
+  **Meeting NOTES still need a connection**, and that is a decision rather than
+  a gap. The notes body is one long document saved whole, so two devices writing
+  to it offline would each overwrite the other's paragraph. An agenda item or a
+  decision is a separate line that can safely be added from anywhere; a shared
+  document is not. Offline, the four structured types are there and carry the
+  same thought into the same meeting.
+
+- **Agenda joined the meeting capture bar**, which had Note, Action, Decision
+  and Outcome and left it out on the grounds that an agenda is written before a
+  meeting rather than during one. True about when, wrong about where: writing
+  the agenda is itself a phone-in-hand job, on the walk to the room or the train
+  the evening before, and the only way to add one was to scroll past the whole
+  workspace to the Agenda section's own control. The bar now opens on **Agenda**
+  for a meeting that has not happened yet and **Note** for one under way, so the
+  common case costs no decision either way.
+
+### Fixed
+
+- **Closing a task no longer sends you back to the top of the list.** Scrolling
+  down Tasks, opening a row and closing it again lost your place four times out
+  of five on a phone — measured, not estimated. The page was briefly collapsing
+  while the record opened, DalyHub was reading that as "you were at the top",
+  and then putting you there. It now restores your position five times out of
+  five.
+
+- **An expired sign-in brings you back to what you were doing.** DalyHub used to
+  show a generic "something went wrong" with one way out: Today. It now says the
+  sign-in expired, says that anything the phone is holding for you is safe, and
+  offers **"Sign in and continue"** — which signs you in and returns you to the
+  record you were on, rather than to the home screen.
+
+### Changed
+
+- **Nothing about how DalyHub checks who you are.** Every request still carries
+  a signed Cloudflare Access assertion that the Worker verifies itself and
+  checks against the configured owner. No phone exception, no stored token, no
+  shortcut. How OFTEN you have to sign in is a Cloudflare setting that lives
+  outside DalyHub entirely — **Settings → Account & security** shows what it
+  currently is, and
+  [`APP_SHELL_AUTH.md`](docs/development/APP_SHELL_AUTH.md#session-lifetime-on-a-trusted-personal-phone-mobile-06-2026-09-16)
+  has the audit and the exact change to make if it is shorter than you want.
 
 ## 3.0.0 — the interface has one system, and the cascade has an owner (2026-09-15)
 

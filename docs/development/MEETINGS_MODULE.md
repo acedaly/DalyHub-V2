@@ -413,22 +413,71 @@ several times a meeting, while trying to listen.
 While the **Meeting tab** is open, a sticky bar pins one row to the bottom of the
 workspace:
 
-> Note · Action · Decision · Outcome
+> Agenda · Note · Action · Decision · Outcome
 
 Choosing a type focuses a single input; submitting saves and leaves the user
 exactly where they were, with the input cleared and still focused. No drawer
-opens, no tab changes, nothing nests.
+opens, no tab changes, nothing nests. MEASURED at 390×844: **one tap to a focused
+field for each of the five types.**
+
+**Agenda joined the bar in MOBILE-03, and which type the bar OPENS on follows the
+meeting.** The first version left Agenda out on the reasoning that an agenda is
+written before a meeting rather than during one. The reasoning is right about
+*when* and wrong about *where*: writing the agenda is itself a phone-in-hand job —
+on the walk to the room, on the train the evening before — and the section's own
+"+Add agenda item" control sits at y=904 in a 2967px page on an 844px viewport,
+so the old path was a scroll plus a tap. The bar now opens on **Agenda** for a
+meeting that has not been held and **Note** for one under way or behind us
+(`defaultCaptureKind`), which hides nothing and spends no tap either way.
 
 Every write uses the canonical authority — there is no capture-only path:
 
 | Type | Authority |
 | --- | --- |
-| Action / Decision / Outcome | `intent=add_item` with the item's kind — the same structured-item authority the section's own add field uses |
+| Agenda / Action / Decision / Outcome | `intent=add_item` with the item's kind — the same structured-item authority the section's own add field uses |
 | Note | Appended to the meeting's canonical `notesMarkdown` through the same `intent=update` the Notes editor autosaves through — one field, one Markdown source, one Activity trail |
 
 A note is **appended**, never overwritten, so a capture during a meeting can never
 destroy notes already written. A failed capture keeps the text on screen. Saves
 and failures are announced through a live region.
+
+### Capturing without a connection (MOBILE-03)
+
+The four **structured** types work offline. A meeting room and a train are where
+DalyHub is most in use and least connected, and
+[`DALYHUB_MOBILE_FOUNDATION.md`](../architecture/DALYHUB_MOBILE_FOUNDATION.md)
+§3.3 named Meetings the most valuable extension to the offline slice for exactly
+that reason.
+
+`captureMeetingItem` (`meeting-offline-capture.ts`) is the Meeting half of the
+seam `task-inline-edit.ts` holds for Tasks, and it is the same shape: **attempt,
+then queue.** The request goes out first and only a transport failure queues, so
+the online path is byte-identical to what it was — no probe, no storage read, no
+queue bookkeeping before the `fetch`. Nothing consults `navigator.onLine`, for
+the reason `offline-connection.ts` gives at length.
+
+A queued capture is reported as **"saved on this device — it will sync when
+connected"**, and the field clears so the next one can be typed. That is a
+success from the owner's side: the words are kept and replay will send them, and
+"try again" would invite typing it twice.
+
+Replay posts `intent=add_item` to this module's own `/meeting/:id/mutate` — the
+same submission the bar sends online, so a decision captured on a train and one
+typed at a desk produce the same item and the same Activity. The route wraps it
+in the existing receipt guard, so a replay whose first response was lost writes
+nothing the second time.
+
+**Note is online-only, deliberately.** It writes `notesMarkdown`, a single long
+string saved whole under a version precondition; two devices appending to it
+offline would each send a complete document that discards the other's paragraph —
+the §4.7 problem the mobile foundation says not to solve by accident. An append to
+a LIST is commutative; an append to a STRING that travels as the whole string is
+not. Offline, the structured types remain available and carry the same thought to
+the same meeting.
+
+One honest limitation: this works from a workspace already **open** — the meeting
+you are in when the signal drops. Navigating to a meeting while offline reaches
+the read-only snapshot, because the route's loader needs the network.
 
 **The append quotes the version it read, and RETRIES on refusal** (HARDEN-06B).
 An append is the one whole-document write that HAS a deterministic safe merge —

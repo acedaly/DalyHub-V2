@@ -34,8 +34,10 @@
 
 import {
   fieldFor,
+  isAppendOperation,
   isReplaceOperation,
   type OfflineMutationConflict,
+  type OfflineMutationEntityType,
   type OfflineMutationOperation,
   type OfflineMutationValue,
 } from "./offline-mutation";
@@ -79,6 +81,19 @@ export function sameValue(
  */
 export function conflictMessage(operation: OfflineMutationOperation): string {
   switch (operation) {
+    /*
+     * MOBILE-03 — the four appends are here only to keep the switch exhaustive.
+     * An append cannot reach this function: `decideConflict` returns `applied`
+     * for it before any comparison happens, and nothing else constructs an
+     * `OfflineMutationConflict`. The wording is written as a truthful fallback
+     * rather than as a `never` throw, because a sentence a person can read is a
+     * better failure mode inside a status surface than an exception.
+     */
+    case "add_agenda_item":
+    case "add_decision":
+    case "add_outcome":
+    case "add_action":
+      return "This meeting changed on another device while you were offline.";
     case "set_title":
       return "This task was renamed on another device while you were offline.";
     case "set_priority":
@@ -165,6 +180,30 @@ export function decideConflict(input: {
   readonly current: OfflineMutationValue;
   readonly intended: OfflineMutationValue;
 }): OfflineConflictDecision {
+  /*
+   * MOBILE-03 — an APPEND is always applicable, and this is the whole reason
+   * appends were the meeting operations chosen for offline (§35).
+   *
+   * The rule above compares a field's CURRENT value against the value this
+   * device last saw. An append has no such field: it adds a new meeting item
+   * with a server-allocated position and changes no existing value, so there is
+   * nothing for another device to have moved underneath it. Two devices each
+   * capturing a decision offline produce two decisions, which is exactly what
+   * happened in the room.
+   *
+   * What still protects it is the RECEIPT, not this rule: the idempotency key
+   * minted when the item was queued means a replay whose first response was lost
+   * writes nothing the second time. Duplicate suppression is an identity
+   * question, and answering it here — by comparing bodies, say — would be wrong
+   * as well as unnecessary, because two genuinely identical actions
+   * ("Follow up with Lena") captured twice in one meeting are two actions.
+   *
+   * Never `satisfied`: that outcome means "the record already holds your
+   * intent", and no reading of the meeting can establish that for an append.
+   */
+  if (isAppendOperation(input.operation)) {
+    return { kind: "applied" };
+  }
   if (isReplaceOperation(input.operation)) {
     return decideReplaceConflict(input);
   }
@@ -212,6 +251,25 @@ export interface OfflineReplayEnvelope {
 /** The wording for a mutation whose Task no longer exists. */
 export const OFFLINE_TARGET_GONE =
   "This task was deleted on another device, so this change could not be applied.";
+
+/** The wording for a capture whose Meeting no longer exists (MOBILE-03). */
+export const OFFLINE_MEETING_GONE =
+  "This meeting was deleted on another device, so this capture could not be saved.";
+
+/**
+ * The "target gone" sentence for a record kind.
+ *
+ * MOBILE-03 — the queue holds two kinds now, and telling the owner "this task
+ * was deleted" about a meeting capture would be a plainly false sentence in the
+ * one place they are already being told something went wrong. Named by kind
+ * rather than branched at each call site so there is one place to add the
+ * third.
+ */
+export function targetGoneMessage(
+  entityType: OfflineMutationEntityType,
+): string {
+  return entityType === "meeting" ? OFFLINE_MEETING_GONE : OFFLINE_TARGET_GONE;
+}
 
 /**
  * The wording for a replay that arrives while an earlier attempt at the SAME

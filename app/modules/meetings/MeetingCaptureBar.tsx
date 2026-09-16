@@ -8,7 +8,7 @@
  *
  * The capture bar pins one row to the bottom of the Meeting workspace:
  *
- *     Note · Action · Decision · Outcome
+ *     Agenda · Note · Action · Decision · Outcome
  *
  * Choosing a type focuses a single input; submitting saves through the CANONICAL
  * authority for that type and leaves you exactly where you were, with the input
@@ -16,12 +16,41 @@
  * changes, and nothing nests.
  *
  * Authorities (there is no capture-only write path):
- *   - Action / Decision / Outcome → `intent=add_item` with the item's kind, the
- *     same structured-item authority the section's own add field uses;
+ *   - Agenda / Action / Decision / Outcome → `intent=add_item` with the item's
+ *     kind, the same structured-item authority the section's own add field uses;
  *   - Note → appended to the meeting's canonical `notesMarkdown` through the same
  *     `intent=update` the Notes editor autosaves through, so a note captured here
  *     and a note typed in the editor are the same field, the same Markdown source
  *     and the same Activity.
+ *
+ * ── MOBILE-03: Agenda is here now, and which type LEADS depends on the meeting ─
+ * The first version of this bar deliberately left Agenda out, on the reasoning
+ * that "an agenda is written BEFORE a meeting, not captured during one". The
+ * reasoning is sound about WHEN and wrong about WHERE: writing the agenda is
+ * itself a phone-in-hand job — on the walk to the room, on the train the evening
+ * before — and sending the owner to a different surface for the one meeting item
+ * that has a deadline was the friction, not a safeguard. The 3.1 brief (§19,
+ * §20) asks for one add-to-meeting surface covering all of them.
+ *
+ * So the bar offers five types, and the one it OPENS on follows the meeting's
+ * own state ({@link defaultCaptureKind}): Agenda for a meeting that has not been
+ * held, Note for one in progress or behind us. Nothing is hidden either way —
+ * every type is one tap from every other — and the default simply matches what
+ * the owner is overwhelmingly about to do.
+ *
+ * ── MOBILE-03: the four structured types work OFFLINE ────────────────────────
+ * A meeting room is where a connection is least reliable and the notes are least
+ * replaceable. Agenda, Action, Decision and Outcome go through
+ * `captureMeetingItem`, which attempts the request and queues the intent on a
+ * transport failure; the owner is told "Saved on this device" rather than being
+ * told it failed, and replay sends it when DalyHub is reachable again.
+ *
+ * Note is ONLINE-ONLY and says so when it cannot be sent. It writes the
+ * meeting's `notesMarkdown`, a single long string saved whole under a version
+ * precondition — two offline devices appending to it would each send a complete
+ * document that discards the other's paragraph. That is the one conflict shape
+ * `DALYHUB_MOBILE_FOUNDATION.md` §4.7 says not to take on by accident, so the
+ * bar declines it honestly and the structured types remain available.
  *
  * Keyboard and safe-area behaviour come from tokens: the bar sits above the phone
  * keyboard (`--app-keyboard-inset`) and above the bottom navigation
@@ -33,6 +62,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { MeetingItemKind } from "~/kernel/meetings";
+import type { MeetingCaptureOutcome } from "./meeting-offline-capture";
 import { toggleOptionClassName } from "~/shared/forms";
 import { Button, Input } from "~/shared/ui";
 import { cx } from "~/shared/ui/untitled/utils/cx";
@@ -47,23 +77,61 @@ type CaptureOption = {
 };
 
 /**
- * The four types, in the order they occur in a real meeting: you take notes
- * throughout, actions and decisions emerge, outcomes are named at the end.
- * `agenda` is deliberately absent — an agenda is written BEFORE a meeting, not
- * captured during one.
+ * The five types, in the order a meeting goes through them: the agenda is
+ * written first, notes run throughout, actions and decisions emerge, outcomes
+ * are named at the end.
+ *
+ * MOBILE-03 added `agenda`, which the first version of this bar left out. See
+ * this file's header for why that reasoning was reversed.
  */
 const OPTIONS: readonly CaptureOption[] = [
+  { kind: "agenda", label: "Agenda", placeholder: "What should we cover?" },
   { kind: "note", label: "Note", placeholder: "Capture a note…" },
   { kind: "action", label: "Action", placeholder: "What needs doing?" },
   { kind: "decision", label: "Decision", placeholder: "What was decided?" },
   { kind: "outcome", label: "Outcome", placeholder: "What came of it?" },
 ];
 
+/**
+ * The type the bar opens on, from the meeting's own state.
+ *
+ * MOBILE-03 — before a meeting has been held, the thing an owner is
+ * overwhelmingly about to type is an agenda point; once it is under way or
+ * behind them, it is a note. This spends no tap either way (every type is one
+ * tap from every other) and removes one in the common case.
+ *
+ * Pure and exported so the rule is unit-tested without a DOM, and so the
+ * default cannot drift from what the bar renders.
+ */
+export function defaultCaptureKind(input: {
+  /** When the meeting was recorded as held, if it has been. */
+  readonly heldAt: Date | string | null;
+  /** The meeting's lifecycle status. */
+  readonly status: string;
+}): MeetingCaptureKind {
+  const held = input.heldAt !== null;
+  // `completed` and `cancelled` are both behind us; only a `planned` meeting
+  // that has not been held is still being prepared.
+  const finished = input.status === "completed" || input.status === "cancelled";
+  return held || finished ? "note" : "agenda";
+}
+
 export type MeetingCaptureBarProps = {
-  /** Append a structured item through the canonical `add_item` authority. */
-  readonly onAddItem: (kind: MeetingItemKind, body: string) => Promise<boolean>;
-  /** Append a line to the meeting's canonical notes Markdown. */
+  /**
+   * Append a structured item through the canonical `add_item` authority.
+   *
+   * MOBILE-03 — this returns a three-state outcome rather than a boolean,
+   * because "we could not reach DalyHub and have kept this on the device" is
+   * neither a success nor a failure and must not be reported as either.
+   */
+  readonly onAddItem: (
+    kind: MeetingItemKind,
+    body: string,
+  ) => Promise<MeetingCaptureOutcome>;
+  /** Append a line to the meeting's canonical notes Markdown. Online only. */
   readonly onAppendNote: (line: string) => Promise<boolean>;
+  /** The type to open on — see {@link defaultCaptureKind}. */
+  readonly initialKind?: MeetingCaptureKind;
   /** Hidden entirely for an archived/read-only meeting. */
   readonly readOnly?: boolean;
 };
@@ -71,9 +139,10 @@ export type MeetingCaptureBarProps = {
 export function MeetingCaptureBar({
   onAddItem,
   onAppendNote,
+  initialKind = "note",
   readOnly = false,
 }: MeetingCaptureBarProps) {
-  const [kind, setKind] = useState<MeetingCaptureKind>("note");
+  const [kind, setKind] = useState<MeetingCaptureKind>(initialKind);
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
@@ -113,21 +182,43 @@ export function MeetingCaptureBar({
     }
     setBusy(true);
     setStatus(null);
-    const ok =
-      kind === "note" ? await onAppendNote(body) : await onAddItem(kind, body);
+    /*
+     * MOBILE-03 — three outcomes, not two.
+     *
+     * `note` writes the meeting's Markdown body and is online-only (see the
+     * header), so it still answers with a boolean and its failure is a failure.
+     * The four structured types answer with `queued` when the device could not
+     * reach DalyHub, which is a SUCCESS from the owner's side: the words are
+     * kept, replay will send them, and telling them to "try again" would invite
+     * them to type it twice.
+     */
+    const outcome: MeetingCaptureOutcome =
+      kind === "note"
+        ? (await onAppendNote(body))
+          ? { kind: "saved" }
+          : {
+              kind: "refused",
+              message: "That note couldn’t be saved. Try again.",
+            }
+        : await onAddItem(kind, body);
     setBusy(false);
     // Either way the user stays in the workspace with the field focused — ready
     // for the next capture, or to correct and retry the one that failed.
     refocusAfterSave.current = true;
-    if (ok) {
-      setValue("");
-      setStatus(`${active.label} captured`);
-    } else {
+    if (outcome.kind === "refused") {
       // The text stays on screen: a failed capture must never cost the words.
-      setStatus(
-        `That ${active.label.toLowerCase()} couldn’t be saved. Try again.`,
-      );
+      setStatus(outcome.message);
+      return;
     }
+    setValue("");
+    setStatus(
+      outcome.kind === "queued"
+        ? // §36 — subtle and factual. Not "sync failed", not a warning icon:
+          // the capture is safe, and the only thing the owner needs to know is
+          // that it has not left the phone yet.
+          `${active.label} saved on this device — it will sync when connected`
+        : `${active.label} captured`,
+    );
   }, [value, busy, kind, onAppendNote, onAddItem, active.label]);
 
   if (readOnly) {
@@ -141,8 +232,15 @@ export function MeetingCaptureBar({
       aria-label="Capture during this meeting"
       data-testid="meeting-capture-bar"
     >
+      {/*
+       * MOBILE-03 — a `dh-scroll-strip`, so five types on a 320px phone announce
+       * that they continue rather than being cut off or wrapping onto a second
+       * row the pinned bar has no space for. The same affordance every other
+       * horizontally-constrained strip in the product uses, including the shared
+       * capture sheet's own type row.
+       */}
       <div
-        className="dh-meeting-capturebar__types"
+        className="dh-meeting-capturebar__types dh-scroll-strip"
         role="group"
         aria-label="What are you capturing?"
       >

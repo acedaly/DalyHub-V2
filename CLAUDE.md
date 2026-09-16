@@ -55,6 +55,17 @@ things, and the register says which each item is.
 The next major initiative is not a design-system one — see
 [`DALYHUB_MOBILE_FOUNDATION.md`](docs/architecture/DALYHUB_MOBILE_FOUNDATION.md).
 
+**Phone behaviour has its own authority now.** DalyHub 3.1 treats the installed
+PWA as a mobile application rather than a responsive website, and
+[`MOBILE_WEB_EXPERIENCE.md`](docs/design/MOBILE_WEB_EXPERIENCE.md) is what holds
+that: the bottom-bar budget, the capture contract, what is writable offline and
+the rule for adding to it, the one Visual Viewport listener, keyboard and
+safe-area rules, and the refusals (no fake iOS theme, no second offline model, no
+quietly making a phone surface "consistent with desktop" by giving it desktop's
+composition). Read it before changing anything a phone touches; it does not
+override Untitled UI as the implementation source, it says how phone composition
+uses it.
+
 **V3-CSS-01 and V3-E2E-01 are also finished**, and are likewise not invitations
 to a next phase. The cascade has one explicit ownership model
 ([`CSS_CASCADE_ARCHITECTURE.md`](docs/architecture/CSS_CASCADE_ARCHITECTURE.md))

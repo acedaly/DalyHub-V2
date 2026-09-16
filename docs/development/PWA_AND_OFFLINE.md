@@ -29,21 +29,27 @@
 | Rename a Task (PWA-12) | ✅ queued, syncs later |
 | Change a Task's priority (PWA-12) | ✅ queued, syncs later |
 | Change a Task's due or planned date (PWA-12) | ✅ queued, syncs later |
+| Add an agenda item, decision, outcome or action to a Meeting you have open (MOBILE-03) | ✅ queued, syncs later |
+| Write a Meeting's NOTES body | ❌ needs a connection — one long string, saved whole ([§15.6](#156-meeting-capture-mobile-03-2026-09-16)) |
 | Move a Task to another Project or Area | ❌ needs a connection |
 | Edit a Task's description, delegation, waiting or recurrence RULE | ❌ needs a connection |
-| Edit any record that is not a Task | ❌ needs a connection |
+| Edit a record that is not a Task, beyond the four Meeting appends above | ❌ needs a connection |
 | Delete, restore or archive anything | ❌ needs a connection |
 | Bulk actions, attachments, export, AI | ❌ needs a connection |
 
 Unsupported actions are not merely disabled: the offline surface **does not render
 them at all**, so there is no control that silently fails.
 
-**PWA-12 is the first offline MUTATION slice, not "full offline mode".** It exists
-to prove that DalyHub's queue, replay, idempotency, recurrence handling and
-conflict model are trustworthy over one bounded set of Task operations before
-offline editing is offered anywhere else. Every other module — Projects, Goals,
-Areas, Notes, Diary, Meetings, Assets, Reviews — remains online-only, by decision
-rather than by omission. See [§15](#15-pwa-12--the-offline-task-mutation-slice).
+**This is a bounded offline MUTATION slice, not "full offline mode".** PWA-12
+existed to prove that DalyHub's queue, replay, idempotency, recurrence handling
+and conflict model are trustworthy over one set of Task operations before offline
+editing was offered anywhere else. MOBILE-03 (DalyHub 3.1) is the first extension
+that claim earned: four Meeting APPENDS, chosen because an append has clear
+idempotency and cannot conflict at all — not because Meetings were next in a
+queue of modules. Projects, Goals, Areas, Notes, Diary, Assets and Reviews remain
+online-only, by decision rather than by omission, and so does the Meeting notes
+body. See [§15](#15-pwa-12--the-offline-mutation-slice) and
+[§15.6](#156-meeting-capture-mobile-03-2026-09-16).
 
 ---
 
@@ -1302,7 +1308,11 @@ replay were all driven under the enforcing policy with no violation.
 
 ---
 
-## 15. PWA-12 — the offline Task mutation slice
+## 15. PWA-12 — the offline mutation slice
+
+> **MOBILE-03 (DalyHub 3.1) widened this from Tasks to Tasks and Meetings.** The
+> protocol did not change — §15.6 is the whole of the addition, and everything
+> else in this section holds unaltered for both record kinds.
 
 The first deliberate offline capability beyond capture. Its objective is not "make
 DalyHub fully offline"; it is to let the owner keep doing the most important Task
@@ -1321,7 +1331,9 @@ The design principle, in four lines:
 
 ### 15.1 What may be changed offline
 
-Seven operations, one entity type (TASKS-13 added the seventh):
+**Eleven operations across two entity types.** Seven address a Task (TASKS-13
+added the seventh) and four append to a Meeting (MOBILE-03, §15.6). The Task
+seven:
 
 | Operation | Canonical intent replay uses | Field it contends over |
 |---|---|---|
@@ -1357,6 +1369,73 @@ The value crosses the wire as the ordinary `1` / empty flag every DalyHub form
 uses, so the online control and a replayed tick send the same body. An item
 deleted on another device is TERMINAL and says which thing went — the Task is
 still there, so `OFFLINE_TARGET_GONE`'s wording would have been untrue.
+
+### 15.6 Meeting capture (MOBILE-03, 2026-09-16)
+
+Four more operations, and a second entity type:
+
+| Operation | Canonical intent replay uses | What it contends over |
+|---|---|---|
+| Add an agenda item | `intent=add_item` + `kind=agenda` | nothing |
+| Add a decision | `intent=add_item` + `kind=decision` | nothing |
+| Add an outcome | `intent=add_item` + `kind=outcome` | nothing |
+| Add an action | `intent=add_item` + `kind=action` | nothing |
+
+**Why these four and not "Meetings".** The 3.1 brief asked for the meeting
+operations that "can use clear idempotency and conflict semantics", and an append
+is the only shape of meeting write that has both for free:
+
+- **Idempotency is the receipt's**, exactly as it is for a Task. One key is minted
+  when the item is queued, the server claims it before it writes, and a retry of a
+  settled claim writes nothing. That is what stops a lost response turning one
+  decision into two rows.
+- **Conflict cannot arise.** An append adds a row with a server-allocated position
+  and overwrites no value another device could have moved. `decideConflict`
+  returns `applied` for every append without comparing anything, and never
+  `satisfied` — "the record already holds your intent" is not something any
+  reading of a meeting establishes, because two identical actions captured in one
+  meeting are two actions.
+
+Three consequences follow from "an append is not a field edit", and each is
+enforced rather than assumed:
+
+  - **No coalescing.** `findCoalesceTarget` already refuses every non-replace
+    operation, which is what keeps two decisions captured back to back as two
+    decisions rather than one overwriting the other.
+  - **No base value.** `createMutationRecord` forces it to null for an append,
+    so a caller cannot supply one the server might be tempted to compare. The
+    `offlineBase` field is still SENT (empty) so every replay submission has one
+    shape.
+  - **The entity type is DERIVED from the operation**
+    (`OFFLINE_MUTATION_ENTITY`), never supplied beside it. There is no code path
+    that can queue `add_decision` against a Task, and the Task record route is
+    typed against a Task-only subset (`OfflineTaskOperation`) so it cannot grow a
+    branch that would make it a second Meeting authority. A Meeting operation
+    arriving at `/tasks/:id` with an `offlineKey` is refused as malformed before a
+    claim is written.
+
+Replay chooses its route from that entity type (`replayEndpointFor`): a Task still
+posts to `/tasks/:taskId`, a Meeting to `/meeting/:meetingId/mutate`. Still no
+`/offline/mutate`, still no replay-only handler.
+
+**What is NOT offline, and why it is a decision rather than an omission.** The
+meeting's `notesMarkdown` body. It is a single long string saved WHOLE under an
+optimistic version precondition, so two devices appending to it offline would each
+send a complete document that discards the other's paragraph — the problem
+[`DALYHUB_MOBILE_FOUNDATION.md`](../architecture/DALYHUB_MOBILE_FOUNDATION.md)
+§4.7 says deserves its own ADR rather than being solved by accident. An append to
+a LIST is commutative; an append to a STRING that travels as the whole string is
+not.
+
+**The rule this establishes for the next extension.** An operation may join the
+queue when it has a clear idempotency key AND either one comparable field or no
+field at all. If answering "did this conflict?" needs a merge, it is not a queue
+change — it is an ADR.
+
+Migration `0056` widens the receipt table's `operation` CHECK to the eleven, and
+`test/unit/pwa/offline-meeting-capture.test.ts` holds that CHECK and the kernel's
+closed set to each other by reading the migration — the guarantee 0040 and 0045
+both claimed in prose and neither actually held.
 
 **The other four checklist operations are online-only, deliberately.** Adding
 needs a server-assigned id and position; renaming and deleting address an item
