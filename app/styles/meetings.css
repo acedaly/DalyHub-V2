@@ -154,9 +154,29 @@
 
 /* The four types WRAP rather than scroll: a capture type the user has to swipe
  * to find is not reachable mid-meeting. */
+/*
+ * MOBILE-03 — ONE row, and it says when it continues.
+ *
+ * The row wrapped while it held four types, which was fine because four fit. A
+ * fifth (Agenda) does not: MEASURED at 390px the chips' natural widths total
+ * more than the bar, so `flex-wrap` put four on one line and left Outcome alone
+ * on a second, where `flex: 1 1 auto` stretched it to the full 358px — a
+ * full-width pill under four small ones, which reads as a mistake rather than as
+ * a choice. Two rows also cost vertical space the bar cannot spare: it is pinned
+ * over the meeting during the meeting, and every pixel it grows is a line of
+ * notes it covers.
+ *
+ * So it is the shared `.dh-scroll-strip` instead — the product's ONE horizontal
+ * scroll affordance, the same one the capture sheet's own type row uses, which
+ * paints a travelling cue at whichever end genuinely has more to show and
+ * disappears entirely when the strip fits. Each chip keeps its natural width and
+ * its 44px floor, and nothing has to know how many types there are.
+ *
+ * The caller owns the layout and must not restate `overflow-x` (see
+ * `scroll-strip.css`).
+ */
 .dh-meeting-capturebar__types {
   display: flex;
-  flex-wrap: wrap;
   gap: var(--app-space-2);
 }
 
@@ -166,11 +186,15 @@
  * Its border, radius, ground, weight, pressed fill and 44px floor all come from
  * the shared `toggleOptionClassName` recipe now (Untitled's pill geometry), and
  * `aria-pressed` still carries the state so meaning is never colour alone. What
- * is left here is the one thing the recipe has no opinion about: on a phone the
- * four types GROW to fill the row, so each is a comfortable thumb target.
+ * is left here is the one thing the recipe has no opinion about: the types GROW
+ * to fill the row when there is room, so each is a comfortable thumb target.
+ *
+ * MOBILE-03 — `flex-shrink: 0` joins it, because the row is a scroll strip now
+ * and a chip that shrinks inside one gets squeezed to nothing instead of
+ * scrolling. Growth is kept: on a wide enough phone the five still fill the bar.
  */
 .dh-meeting-capturebar__type {
-  flex: 1 1 auto;
+  flex: 1 0 auto;
 }
 
 .dh-meeting-capturebar__form {

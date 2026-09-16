@@ -232,8 +232,15 @@ export function MeetingCaptureBar({
       aria-label="Capture during this meeting"
       data-testid="meeting-capture-bar"
     >
+      {/*
+       * MOBILE-03 — a `dh-scroll-strip`, so five types on a 320px phone announce
+       * that they continue rather than being cut off or wrapping onto a second
+       * row the pinned bar has no space for. The same affordance every other
+       * horizontally-constrained strip in the product uses, including the shared
+       * capture sheet's own type row.
+       */}
       <div
-        className="dh-meeting-capturebar__types"
+        className="dh-meeting-capturebar__types dh-scroll-strip"
         role="group"
         aria-label="What are you capturing?"
       >
