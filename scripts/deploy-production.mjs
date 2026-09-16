@@ -664,6 +664,67 @@ export function checkPendingProductionMigrations({ runner = spawnSync } = {}) {
 }
 
 /**
+ * DEPLOY-01 — split the pending migrations by whether applying them keeps the
+ * CURRENTLY RUNNING Worker able to serve.
+ *
+ * ── The operational fact this exists to surface ─────────────────────────────
+ *
+ * `DEPLOYMENT.md`'s required order is migrate (step 4) then deploy (step 6), and
+ * the reason that order is safe is that the previous Worker keeps working
+ * against a migrated database — which is what makes the deploy independently
+ * reversible by rolling the *application* back and leaving the schema alone.
+ *
+ * That holds for an additive migration and NOT for one that removes something.
+ * Four in the committed sequence remove something, and they were written
+ * deliberately (the data moves into a new structure; the old column would
+ * otherwise be a second place to write it). MEASURED by applying every migration
+ * to a throwaway SQLite database and diffing the schema after each one —
+ * `scripts/migration-compatibility.mjs`, whose output is committed as
+ * `docs/development/migration-ledger.json` and checked on every push.
+ *
+ * So between step 4 and step 6, if the pending set crosses one of those four,
+ * **there is a window in which rolling the Worker back is not a recovery** and
+ * the recoveries are: complete the deploy, or restore the database from the
+ * backup step 1 required. An operator should know which window they are in
+ * BEFORE they open it, which is what this prints.
+ *
+ * It never blocks: whether to proceed is a judgement about a specific release,
+ * and a refusal here would only teach an operator to pass an override. Pure, so
+ * it is unit tested without a database.
+ */
+export function classifyPendingMigrations(pending, ledger) {
+  const unsafe = new Map(
+    (ledger?.applicationRollbackUnsafe ?? []).map((entry) => [
+      entry.migration,
+      entry.reasons,
+    ]),
+  );
+  const oneWay = [];
+  for (const migration of pending) {
+    const reasons = unsafe.get(migration);
+    if (reasons) oneWay.push({ migration, reasons });
+  }
+  return {
+    oneWay,
+    reversible: pending.filter((m) => !unsafe.has(m)),
+  };
+}
+
+/** Read the committed ledger. Returns `null` when it is absent or unreadable. */
+function readMigrationLedger() {
+  try {
+    return JSON.parse(
+      readFileSync(
+        join(ROOT, "docs", "development", "migration-ledger.json"),
+        "utf8",
+      ),
+    );
+  } catch {
+    return null;
+  }
+}
+
+/**
  * The V2.0.1 release preflight: refuse to continue when the repository or
  * production state is not what a release should ship — a dirty tree, a branch
  * other than pushed `main`, a missing/red/pending CI Gate, or unacknowledged
@@ -715,6 +776,33 @@ export async function runReleasePreflight({
   if (migrations.ok && migrations.pending.length === 0) {
     log("deploy:production — release check: no pending production migrations.");
   } else if (migrations.ok && migrations.pending.length > 0) {
+    /*
+     * Say which KIND of window applying these opens, before the operator opens
+     * it. See `classifyPendingMigrations` for why this is a statement and not a
+     * refusal.
+     */
+    const boundary = classifyPendingMigrations(
+      migrations.pending,
+      readMigrationLedger(),
+    );
+    if (boundary.oneWay.length > 0) {
+      log(
+        `deploy:production — ROLLBACK BOUNDARY: ${boundary.oneWay.length} of the ${migrations.pending.length} pending migration(s) REMOVE something the running Worker may still read. Once applied, rolling the application back is NOT a recovery for this deploy — the recoveries are to complete the deploy, or to restore the database from the backup step 1 required.`,
+      );
+      for (const entry of boundary.oneWay) {
+        log(`deploy:production —   ${entry.migration}`);
+        for (const reason of entry.reasons) {
+          log(`deploy:production —     · ${reason}`);
+        }
+      }
+      log(
+        'deploy:production —   The recovery runbook is docs/development/DEPLOYMENT.md → "When the migration succeeded and the deploy did not".',
+      );
+    } else {
+      log(
+        `deploy:production — rollback boundary: all ${migrations.pending.length} pending migration(s) are additive, so the running Worker keeps serving a migrated database and rolling the application back stays a recovery.`,
+      );
+    }
     if (overrides.acknowledgePendingMigrations) {
       log(
         `deploy:production — OVERRIDE ${RELEASE_OVERRIDE_FLAGS.acknowledgePendingMigrations}: ${migrations.pending.length} pending migration(s) acknowledged as reviewed (${migrations.pending.join(", ")}). This deploy does NOT apply them — run \`pnpm run db:production:apply\` deliberately.`,

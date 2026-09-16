@@ -534,13 +534,57 @@ The last direct observation on record is `0001`–`0005` at the first deployment
 [Current status](#current-status). Neither is a substitute for running the
 command.
 
-**Every migration from `0006` onward is additive and existing-data-safe.** No
-column
-changes type, gains a narrowing constraint, or is dropped; no row of any table that
-exists at `0005` is rewritten. Three migrations (`0012`, `0015`, `0021`) do rebuild a
-table with SQLite's copy-and-rename pattern, but only `task_details` and
-`meeting_items` — tables that do not exist at the `0005` baseline and are therefore
-empty at that point in the sequence.
+**Every migration in the sequence is existing-data-safe, and FOUR of them are not
+application-rollback-safe.** Those are different claims, and this document used to
+make only the first in words that also asserted the second.
+
+*Existing-data-safe* means applying the sequence loses no owner data and rewrites
+none of it wrongly. That is true of all 58 migrations and is proven by
+[`test/kernel/migration-production-baseline.test.ts`](../../test/kernel/migration-production-baseline.test.ts),
+described below.
+
+*Application-rollback-safe* means the PREVIOUS Worker keeps serving once the
+migration is applied. That is what justifies migrating before deploying, and it
+holds for every migration **except** these four, each of which removes something
+an older Worker may still read:
+
+| Migration | What it removes | Where the data went |
+| :-- | :-- | :-- |
+| `0031_remove_theme_preference` | `owner_app_preferences.theme` | Discarded deliberately — ADR-074 removed the theme feature and the stored values named palettes with no CSS behind them. Recoverable from the step-1 export. |
+| `0049_create_tag_vocabulary` | `tags` from `asset_details`, `note_details` and `person_details` | `workspace_tags` and `entity_tags`, populated by the same migration |
+| `0050_create_obligations` | the `asset_obligations` **table** | the `obligation` entity and its `obligation.subject` EntityLinks, written by the same migration |
+| `0051_obligation_notifications` | `notification_settings.asset_obligations_enabled` | `notification_settings.obligations_enabled` |
+
+**That table is derived, not maintained.**
+[`scripts/migration-compatibility.mjs`](../../scripts/migration-compatibility.mjs)
+applies every migration in filename order to a throwaway SQLite database and diffs
+the schema after each one, so the answer is re-derived from the migrations rather
+than remembered. Its output is committed as
+[`migration-ledger.json`](migration-ledger.json), `pnpm run db:compat:check` fails
+in **Static** when the ledger stops matching the migrations, and
+[`test/unit/deploy/migration-rollback-boundary.test.ts`](../../test/unit/deploy/migration-rollback-boundary.test.ts)
+fails if the set of one-way migrations changes without this document changing with
+it.
+
+```bash
+pnpm run db:compat          # the full report, including every narrowed CHECK
+```
+
+**What the four mean in practice** is
+[When the migration succeeded and the deploy did not](#when-the-migration-succeeded-and-the-deploy-did-not),
+below. `pnpm run deploy:production:release-check` prints which kind of window a
+given deploy opens, from the same ledger, before the operator opens it.
+
+No column in the sequence changes type, and no `ADD COLUMN … NOT NULL` arrives
+without a `DEFAULT` — so no migration makes an older Worker's INSERT fail by
+omission. Fifteen migrations do narrow a `CHECK`; `pnpm run db:compat` lists every
+one, and none rejects a value the corresponding older Worker could produce. Eleven
+migrations rebuild a table with SQLite's copy-and-rename pattern (`0012`, `0015`,
+`0021`, `0026`, `0031`, `0045`, `0049`, `0051`, `0054`, `0055`, `0056`); in each,
+every surviving column keeps its name, type, default and constraint, and every row
+is copied by an explicit column list. `0012`, `0015` and `0021` rebuild
+`task_details` and `meeting_items`, which do not exist at the `0005` baseline and
+are therefore empty at that point in the sequence.
 
 **Exactly two migrations in the range backfill anything, and they behave
 differently:**
@@ -666,15 +710,101 @@ Verified by `test/unit/deploy/production-d1.test.ts`.
 unconditionally (`project_details`, `goal_details`, `task_details`, `note_details`,
 `person_details`, `meeting_details`, `asset_details`, `review_details`,
 `owner_app_preferences`, `task_saved_views` and the ASSET-02 child tables), so a V2
-Worker against a `0005` database errors. The reverse order is safe: the previous
-Worker ignores every table and column `0006`–`0025` adds, so a migrated database
-serving the old code keeps working — which is what makes step 3 independently
-reversible by rolling the *application* back.
+Worker against a `0005` database errors. The reverse order is safe for an
+**additive** migration: the previous Worker ignores every table and column it
+adds, so a migrated database serving the old code keeps working — which is what
+makes the deploy independently reversible by rolling the *application* back.
+
+**That reversibility is not universal, and the pending set decides which deploys
+have it.** Four migrations remove something (`0031`, `0049`, `0050`, `0051` — the
+table above). If the pending set crosses one of them, the window between step 4
+and step 6 is one in which rolling the Worker back is **not** a recovery.
+`pnpm run deploy:production:release-check` says which window a given deploy opens,
+and the runbook for being caught in one is
+[below](#when-the-migration-succeeded-and-the-deploy-did-not).
 
 **Do not roll a migration back.** The sequence is forward-only. Dropping
 `0023`'s `theme` column would discard the owner's theme choice, and the older code
 does not need it gone. If the application must be rolled back, roll back the Worker
-and leave the schema where it is.
+and leave the schema where it is — subject to the four migrations above.
+
+### When the migration succeeded and the deploy did not
+
+This is the state the ordered procedure can leave you in, and the time to know the
+answer is before you need it: **step 4 applied and step 6 did not** — production
+is running the PREVIOUS Worker against the NEW schema.
+
+A Workers deploy is atomic: a version is uploaded and traffic switches, so there
+is no half-deployed CODE. What fails halfway is the SEQUENCE.
+
+**First establish which of two situations you are in**, because the recoveries
+differ and the wrong one discards data.
+
+```bash
+pnpm run verify:production   # read-only: latest deployment, secret NAMES, migration state, /health class
+```
+
+Then sign in and read `/about`, which is the only authority on which release is
+actually serving. `verify:production` reports `SKIPPED` rather than a pass for
+anything it cannot reach, and no statement in this repository is evidence about
+production.
+
+**Situation A — the pending set was entirely additive.** The previous Worker is
+serving correctly against a schema carrying columns it does not know about. There
+is no incident: the owner sees the previous release, nothing is broken, and the
+recovery is to run step 6 again once the cause of its failure is fixed. Leave the
+schema alone.
+
+**Situation B — the pending set crossed one of the four one-way migrations.** The
+previous Worker is now running against a schema missing something it reads, and
+the damage is confined to whatever reads it:
+
+| Crossed | What the previous Worker does now |
+| :-- | :-- |
+| `0031` | Reading or writing owner preferences errors — Settings, and any request resolving the owner's timezone or landing destination |
+| `0049` | Reading or writing tags on a Person, Asset or Note errors |
+| `0050` | Anything touching Life Admin obligations errors |
+| `0051` | Reading or writing notification settings errors |
+
+There are exactly **two** recoveries, and "roll the Worker back further" is not
+one of them — an older Worker is strictly worse against this schema.
+
+1. **Roll FORWARD, and prefer this.** Fix whatever failed step 6 and deploy the
+   new Worker. The schema is already what it expects, so a successful deploy ends
+   the incident with no data decision to make. This is precisely why the ordered
+   procedure migrates first: the forward path is always available.
+
+2. **Restore the database to its pre-migration state**, from the export step 1
+   required — only when the deploy cannot be made to succeed and the product must
+   keep serving on the previous release. This DISCARDS every write made since that
+   backup, so take a second export first: you need both the "before" state and the
+   writes you are about to drop.
+
+   ```bash
+   # Capture the CURRENT state before overwriting it. This copy holds everything
+   # written since step 1.
+   pnpm run db:production:export -- --output ./incident-current.sql
+
+   # Then restore the step-1 export, following BACKUP_AND_RESTORE.md § 5.0b —
+   # a raw D1 export CANNOT be imported as-is, and the reorder is not optional.
+   ```
+
+   Read [`BACKUP_AND_RESTORE.md` § 5.0a and § 5.0b](BACKUP_AND_RESTORE.md#50a-a-d1-dump-will-not-load-with-foreign-keys-enforced--measured)
+   before doing this. A restore also resets the migration ledger, so the sequence
+   re-applies from wherever the restored database sits.
+
+**Which situation you are in is decided before you start, not after.** Step 3
+(`pnpm run db:production:list`) names the pending set and
+`pnpm run deploy:production:release-check` classifies it against the ledger,
+printing `ROLLBACK BOUNDARY` when the set contains a one-way migration. When it
+does, the operational answer is to make the deploy as likely to succeed as
+possible before opening the window — run `pnpm run deploy:dry-run`, confirm CI is
+green for the exact commit, have the credentials to hand — because once the window
+is open, forward is the cheap direction and backward is not.
+
+**What no deploy can undo is the service worker.** A previous release's service
+worker outlives a Worker rollback in every browser that has it installed; see
+[`PWA_AND_OFFLINE.md` → Rollback](PWA_AND_OFFLINE.md#rollback).
 
 
 ### Verifying a deployment
