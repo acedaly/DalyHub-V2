@@ -28,12 +28,29 @@ const MODULE_URL = pathToFileURL(
   join(ROOT, "scripts", "verify-production.mjs"),
 ).href;
 
+/*
+ * `classifyPendingMigrations` lives in the deploy orchestrator and is PURE, so
+ * the fake deploy module below hands the real one through rather than a stub:
+ * the property worth asserting is that this read-only sweep and the deploy
+ * preflight cannot disagree about which migrations are one-way.
+ */
+const DEPLOY_MODULE_URL = pathToFileURL(
+  join(ROOT, "scripts", "deploy-production.mjs"),
+).href;
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type VerifyModule = any;
 let verify: VerifyModule;
+let classifyPendingMigrations: (
+  pending: readonly string[],
+  ledger: unknown,
+) => unknown;
 
 beforeAll(async () => {
   verify = await import(/* @vite-ignore */ MODULE_URL);
+  ({ classifyPendingMigrations } = await import(
+    /* @vite-ignore */ DEPLOY_MODULE_URL
+  ));
 });
 
 const FULL_ENV = {
@@ -97,6 +114,13 @@ function fakeDeploy({
       pending,
       problems: migrationsOk ? [] : ["no credentials"],
     }),
+    /*
+     * The REAL classifier, not a fake. It is pure — a pending list and the
+     * committed ledger in, a partition out — so faking it would only test the
+     * fake, and the thing worth asserting is that this sweep and the deploy
+     * preflight cannot disagree about which migrations are one-way.
+     */
+    classifyPendingMigrations,
     assertProductionHealth: async () => health,
   };
 }
@@ -255,6 +279,47 @@ describe("verify:production — what it calls a real failure", () => {
     const migrations = outcome.checks.find((c) => c.name === "D1 migrations")!;
     expect(migrations.status).toBe("FAIL");
     expect(outcome.exitCode).toBe(1);
+  });
+
+  /*
+   * DEPLOY-01 — "six migrations are pending" and "six are pending, one of which
+   * removes a column the running Worker reads" are different operational facts,
+   * and this sweep is what an operator runs to understand production. The
+   * boundary comes from the committed ledger, which CI keeps in step with
+   * `migrations/`.
+   */
+  it("names the ROLLBACK BOUNDARY when a pending migration removes something", async () => {
+    const outcome = await run({
+      deployModule: fakeDeploy({
+        pending: ["0050_create_obligations.sql", "0052_create_attachments.sql"],
+      }),
+    });
+    const migrations = outcome.checks.find((c) => c.name === "D1 migrations")!;
+    expect(migrations.status).toBe("FAIL");
+    const detail = (migrations as unknown as { detail: string[] }).detail.join(
+      "\n",
+    );
+    expect(detail).toContain("ROLLBACK BOUNDARY");
+    expect(detail).toContain("0050_create_obligations.sql");
+    expect(detail).toContain("asset_obligations");
+    expect(
+      detail,
+      "an operator told a window is one-way needs to be told where the runbook is",
+    ).toContain("When the migration succeeded and the deploy did not");
+  });
+
+  it("says so when every pending migration is additive", async () => {
+    const outcome = await run({
+      deployModule: fakeDeploy({
+        pending: ["0052_create_attachments.sql", "0053_create_finance.sql"],
+      }),
+    });
+    const migrations = outcome.checks.find((c) => c.name === "D1 migrations")!;
+    const detail = (migrations as unknown as { detail: string[] }).detail.join(
+      "\n",
+    );
+    expect(detail).not.toContain("ROLLBACK BOUNDARY");
+    expect(detail).toContain("all pending migrations are additive");
   });
 
   it("FAILS on an unhealthy application, carrying the reason through", async () => {

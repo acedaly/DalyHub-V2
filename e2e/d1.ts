@@ -244,8 +244,9 @@ export function d1ExecuteFile(path: string): void {
  * The reason that is disqualifying rather than merely annoying: **a reader that
  * can miss committed rows can make an assertion PASS that should fail.** Every
  * `toHaveLength(0)` after a delete, and every "replays without a second" that
- * counts one row where two exist, becomes a false green. Fifteen spec files use
- * this helper to check invariants the interface cannot show. Slow and correct
+ * counts one row where two exist, becomes a false green. Sixteen files use this
+ * helper — 11 spec files and 5 shared fixtures — to check invariants the
+ * interface cannot show. Slow and correct
  * beats fast and occasionally blind.
  *
  * The safe way to spend the 3.1s remains open and is not this: issue FEWER

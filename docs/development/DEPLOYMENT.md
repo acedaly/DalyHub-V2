@@ -577,7 +577,7 @@ given deploy opens, from the same ledger, before the operator opens it.
 
 No column in the sequence changes type, and no `ADD COLUMN … NOT NULL` arrives
 without a `DEFAULT` — so no migration makes an older Worker's INSERT fail by
-omission. Fifteen migrations do narrow a `CHECK`; `pnpm run db:compat` lists every
+omission. Fourteen migrations do narrow a `CHECK`; `pnpm run db:compat` lists every
 one, and none rejects a value the corresponding older Worker could produce. Eleven
 migrations rebuild a table with SQLite's copy-and-rename pattern (`0012`, `0015`,
 `0021`, `0026`, `0031`, `0045`, `0049`, `0051`, `0054`, `0055`, `0056`); in each,
@@ -816,8 +816,10 @@ pnpm run verify:production
 ```
 
 It checks configuration presence (names, never values), the Worker's most recent
-deployment, the secret NAMES set on the Worker, the D1 migration state and the
-`/health` response class — and it **never** deploys, migrates, writes a secret,
+deployment, the secret NAMES set on the Worker, the D1 migration state — **and,
+when a migration is pending, which KIND of window applying it would open**, from
+the same committed ledger the deploy preflight reads — and the `/health` response
+class — and it **never** deploys, migrates, writes a secret,
 prints a secret value or bypasses Cloudflare Access. A check it cannot run
 reports `SKIPPED`, never a pass, and the summary line says `VERIFIED`,
 `PARTIALLY VERIFIED` or `NOT VERIFIED` so an operator reads the state rather

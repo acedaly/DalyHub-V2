@@ -177,8 +177,8 @@ rather than copied forward — §6.
   snapshots, which can turn a real failure into a false green. A read-WRITE
   connection would not have that limitation, but proving it does not requires
   reproducing a timing-dependent failure, and being wrong means false greens in
-  fifteen spec files that check invariants the interface cannot show. Not a change
-  to make without that proof.
+  the 16 files that use it — 11 spec files and 5 shared fixtures — to check
+  invariants the interface cannot show. Not a change to make without that proof.
 
 ### P2-3 · Two colour engines ship side by side
 
