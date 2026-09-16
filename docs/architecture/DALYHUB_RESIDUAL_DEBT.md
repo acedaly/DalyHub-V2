@@ -127,9 +127,17 @@ rather than copied forward — §6.
   `CalendarDateField`, which pulls React Aria's Calendar and
   `@internationalized/date`'s manipulation module.
 - **Evidence.** `forms-*.js` is 119.5 kB raw / 35.5 kB gzip, of which roughly
-  51 kB raw is calendar. It is in the static graph of `/today`, `/tasks`,
-  `/projects` and `/notes`. `/notes` reaches it **only** through the barrel — its
-  forms are text fields.
+  51 kB raw is calendar (`useCalendarState` 12.7, `@internationalized/date`'s
+  manipulation module 12.3, `Calendar.mjs` 10.3, `useCalendarCell` 8.3,
+  `CalendarGrid.tsx` 7.5). The chunk is in the static graph of `/today`,
+  `/tasks`, `/projects` and `/notes`. Notes' three forms — `NewNoteForm`,
+  `NoteContentForm`, `NoteTagsForm` — import from the barrel and **none of them
+  uses a date field**; `app/modules/notes` contains no reference to `DateField`
+  or `CalendarDateField` at all.
+
+  Whether the barrel is the ONLY route by which `/notes` reaches the calendar is
+  not established here, and is the first thing to measure before doing the work:
+  `pnpm run perf:budget` after the split is what answers it.
 - **Impact.** ~15 kB gzip on routes that render no date picker.
 - **Solution.** Split the barrel the way `~/shared/charts` and `~/shared/offline`
   were split in this pass: the barrel keeps what every form needs; the calendar

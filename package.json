@@ -34,7 +34,7 @@
     "perf:budget:generate": "node scripts/route-budget.mjs --generate",
     "workspace:purge:plan": "node scripts/workspace-purge-plan.mjs",
     "e2e:order-proof": "node scripts/e2e-order-proof.mjs",
-    "verify": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run dhds:check && pnpm run scheme:check && pnpm run untitled:theme:check && pnpm run docs:links:check && pnpm run db:compat:check && pnpm run test && pnpm run build && pnpm run test:e2e",
+    "verify": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run dhds:check && pnpm run scheme:check && pnpm run untitled:theme:check && pnpm run docs:links:check && pnpm run db:compat:check && pnpm run test && pnpm run build && pnpm run perf:budget && pnpm run test:e2e",
     "deploy:dry-run": "pnpm run build && wrangler deploy --dry-run --config build/server/wrangler.json",
     "deploy:production:preflight": "node scripts/deploy-production.mjs --preflight-only",
     "deploy:production:release-check": "node scripts/deploy-production.mjs --release-check-only",
