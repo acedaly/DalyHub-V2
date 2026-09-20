@@ -1095,6 +1095,33 @@ export async function setSwitch(toggle: Locator, on: boolean): Promise<void> {
  * does — and it is the same act, not an approximation of one: `TaskRow` reads
  * `event.shiftKey` off the control's `keydown` for Space and Enter exactly as it
  * reads it off `pointerdown`, so the product treats the two identically.
+ *
+ * ── One press was unrecoverable, and a lost press is silent ──────────────────
+ *
+ * `TaskRow`'s SELECT is a CONTROLLED React Aria checkbox: `checked` comes from
+ * state and the browser's own toggle is never what moves it. So a Space that
+ * arrives while the row is being replaced — a revalidation landing, a re-render
+ * swapping the input — changes nothing and leaves no trace, and the version of
+ * this helper that pressed exactly once could only then watch an assertion it
+ * had already lost. MEASURED on run 35518227035, partition p03,
+ * `tasks-v22-daily-driver.spec.ts:395` (`selectTask` in the DELETED view): the
+ * locator resolved fourteen times over the 5s budget, "unexpected value
+ * unchecked" every time. The Deleted view is where it surfaced because it is the
+ * one selection path with nothing between arriving and pressing — elsewhere
+ * `selectTask` finds no checkbox and clicks "Select" first, and that click
+ * absorbs the window.
+ *
+ * So a lost press is now retried ONCE, and the retry is safe rather than
+ * hopeful:
+ *
+ *   - each press gets its own full settle before being judged, so the retry
+ *     cannot race the first press's own state update and untoggle it;
+ *   - `shift` presses exactly once, because a second Shift+Space would extend
+ *     the range a second time — a retry there would change what the test means;
+ *   - the final assertion is unchanged and un-swallowed, on the same 5s budget.
+ *     A control that is genuinely broken fails BOTH attempts, so this cannot
+ *     turn a product defect green. That is the whole difference between pressing
+ *     again and raising a timeout.
  */
 export async function setCheckbox(
   checkbox: Locator,
@@ -1105,6 +1132,22 @@ export async function setCheckbox(
   if (!options.shift && (await checkbox.isChecked()) === checked) return;
   await checkbox.focus();
   await checkbox.press(options.shift ? "Shift+ " : " ");
+
+  if (options.shift) {
+    await expect(checkbox).toBeChecked({ checked });
+    return;
+  }
+
+  const took = await expect(checkbox)
+    .toBeChecked({ checked })
+    .then(
+      () => true,
+      () => false,
+    );
+  if (took) return;
+
+  await checkbox.focus();
+  await checkbox.press(" ");
   await expect(checkbox).toBeChecked({ checked });
 }
 
