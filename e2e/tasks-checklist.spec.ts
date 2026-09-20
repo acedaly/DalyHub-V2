@@ -153,12 +153,39 @@ test.describe("TASKS-13 — building a checklist on the Task record", () => {
     }
     await composer.press("Escape");
 
-    await expect(steps(page)).toHaveCount(3);
-    expect(await stepTitles(page)).toEqual([
-      "Check tyre pressures",
-      "Fill water tanks",
-      "Charge batteries",
-    ]);
+    /*
+     * Poll the TITLES, rather than gating on the row count and then reading the
+     * titles once.
+     *
+     * MOBILE-03-FIX. `steps()` locates the row (`checklist-item`) and
+     * `stepTitles()` reads the check control INSIDE it (`checklist-toggle`)
+     * through `evaluateAll`, which takes a single non-retrying snapshot. So the
+     * retrying assertion waited for three rows and the next line asked a
+     * different question, with no wait of its own — and if the rows had
+     * committed but their controls had not, it answered honestly with nothing.
+     *
+     * MEASURED on CI run 35081299695 (p16): three rows, and
+     *
+     *     Expected: ["Check tyre pressures", "Fill water tanks", "Charge batteries"]
+     *     Received: []
+     *
+     * The EMPTY array is the tell. An ordering or content problem returns three
+     * wrong strings; zero toggles beside three rows is a read that landed in the
+     * window between the two renders.
+     *
+     * Polling the titles asserts the thing this test is about and retries the
+     * whole read, so there is no second unguarded question. It also subsumes the
+     * count — three titles are three toggles. This is the pattern four other
+     * sites in this file already use; these three were the ones that had not
+     * adopted it.
+     */
+    await expect
+      .poll(async () => stepTitles(page))
+      .toEqual([
+        "Check tyre pressures",
+        "Fill water tanks",
+        "Charge batteries",
+      ]);
     // Written as ROWS, densely ordered — not as text in a description.
     expect(storedChecklist(TASK_ID)).toEqual([
       { title: "Check tyre pressures", position: 0, completed: 0 },
@@ -299,12 +326,12 @@ test.describe("TASKS-13 — editing an existing checklist", () => {
       .click();
     await page.getByRole("menuitem", { name: "Delete item" }).click();
 
-    await expect(steps(page)).toHaveCount(3);
-    expect(await stepTitles(page)).toEqual([
-      "Check tyre pressures",
-      "Charge batteries",
-      "Pack the fridge",
-    ]);
+    // Polled, not gated-then-read — see the keyboard journey above for the
+    // measured reason. A delete re-renders the whole list, so the window
+    // between the rows and their controls is if anything wider here.
+    await expect
+      .poll(async () => stepTitles(page))
+      .toEqual(["Check tyre pressures", "Charge batteries", "Pack the fridge"]);
     // Focus lands on the step that took its place, never on the document body.
     await expect(
       checklist(page).getByRole("checkbox", { name: "Charge batteries" }),
@@ -332,12 +359,20 @@ test.describe("TASKS-13 — editing an existing checklist", () => {
 
     await page.reload();
     await expect(checklist(page)).toBeVisible();
-    expect(await stepTitles(page)).toEqual([
-      "Check tyre pressures",
-      "Fill water tanks",
-      "Pack the fridge",
-      "Charge batteries",
-    ]);
+    /*
+     * The weakest of the three, and the reason all of them are polled now:
+     * `toBeVisible()` on the CONTAINER says nothing about whether the toggles
+     * inside it have rendered, so this read had no meaningful gate at all — it
+     * was one paint away from the same empty array, immediately after a reload.
+     */
+    await expect
+      .poll(async () => stepTitles(page))
+      .toEqual([
+        "Check tyre pressures",
+        "Fill water tanks",
+        "Pack the fridge",
+        "Charge batteries",
+      ]);
     await expect(
       checklist(page).getByRole("checkbox", { name: "Pack the fridge" }),
     ).toBeChecked();

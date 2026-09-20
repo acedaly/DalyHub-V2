@@ -1095,7 +1095,38 @@ export async function setSwitch(toggle: Locator, on: boolean): Promise<void> {
  * does — and it is the same act, not an approximation of one: `TaskRow` reads
  * `event.shiftKey` off the control's `keydown` for Space and Enter exactly as it
  * reads it off `pointerdown`, so the product treats the two identically.
+ *
+ * ── MOBILE-03-FIX: the PLAIN press is retried, the SHIFT press is not ───────
+ * MEASURED on CI run 35083444685 (p03):
+ *
+ *     e2e/tasks-v22-daily-driver.spec.ts:335 › bulk delete is reversible …
+ *     Expected: checked   Received: unchecked
+ *     14 × locator resolved to <input … aria-label="Select E2E delete …-del 0"/>
+ *
+ * The control resolved fourteen times over the five-second budget, so it existed
+ * and was focusable the whole time. The PRESS was dropped — most likely in the
+ * window {@link waitForInteractive} already documents, where server-rendered
+ * markup is present and visible before React has attached its handlers, so the
+ * act succeeds and nothing happens. This helper retried the ASSERTION but not
+ * the ACT, so one lost keypress was unrecoverable and the wait could only expire.
+ *
+ * The retry re-reads the state before every press and stops the moment it
+ * matches, so it cannot overshoot: a press that lands ends the loop, and a press
+ * that is dropped leaves the state wrong and is simply made again. The final
+ * assertion is unchanged, so a control that genuinely refuses still fails with
+ * the same message rather than looping to a timeout.
+ *
+ * **The `shift` path deliberately does NOT retry.** Shift+Space extends a range
+ * from the last selected row rather than toggling one box, so a second one is a
+ * DIFFERENT act, not a repeat of the first — re-issuing it would silently
+ * rewrite the selection this helper was asked to make. A dropped Shift press
+ * therefore still fails, which is the honest outcome: the alternative is a
+ * helper that quietly produces a selection nobody asked for.
  */
+
+/** How many times a plain toggle is re-pressed before the assertion decides. */
+const CHECKBOX_PRESS_ATTEMPTS = 4;
+
 export async function setCheckbox(
   checkbox: Locator,
   checked = true,
@@ -1103,8 +1134,26 @@ export async function setCheckbox(
 ): Promise<void> {
   await checkbox.scrollIntoViewIfNeeded();
   if (!options.shift && (await checkbox.isChecked()) === checked) return;
-  await checkbox.focus();
-  await checkbox.press(options.shift ? "Shift+ " : " ");
+
+  if (options.shift) {
+    await checkbox.focus();
+    await checkbox.press("Shift+ ");
+    await expect(checkbox).toBeChecked({ checked });
+    return;
+  }
+
+  for (let attempt = 0; attempt < CHECKBOX_PRESS_ATTEMPTS; attempt += 1) {
+    // Re-read before every press: the loop presses only while the state is
+    // wrong, which is what makes repeating a TOGGLE safe.
+    if ((await checkbox.isChecked()) === checked) break;
+    await checkbox.focus();
+    await checkbox.press(" ");
+    // A short settle, so a press that DID land is observed before the next
+    // attempt rather than being toggled straight back off.
+    await expect(checkbox)
+      .toBeChecked({ checked, timeout: 1_000 })
+      .catch(() => undefined);
+  }
   await expect(checkbox).toBeChecked({ checked });
 }
 
