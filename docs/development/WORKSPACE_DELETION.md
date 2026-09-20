@@ -32,7 +32,7 @@ bucket is deliberately unreachable from the application Worker
 A button that says "deleted" while bytes remain in two buckets is a lie with a
 progress spinner.
 
-**3. The blast radius is wrong for the guarantee.** Sixty tables, two object
+**3. The blast radius is wrong for the guarantee.** Sixty-one tables, two object
 stores and a service binding, orchestrated from a request that can be
 interrupted, with no cross-store transaction.
 
@@ -42,7 +42,7 @@ interrupted, with no cross-store transaction.
 
 | | |
 | --- | --- |
-| **Live D1 rows** | Gone. Every one of the sixty tables, verified by a query you run. |
+| **Live D1 rows** | Gone. Every one of the sixty-one tables, verified by a query you run. |
 | **Live R2 attachment objects** | Gone. Every object under the workspace's own key prefix. |
 | **`dalyhub-v2-backups`** | **Not touched.** Its lifecycle rules ARE the retention policy: 90 days for `production/daily/`, 365 for `production/manual/` ([§7](BACKUP_AND_RESTORE.md#7-retention)). Those copies expire on their own schedule. |
 | **The GitHub artifact copy** | **Not touched.** 30-day artifact retention, expired by GitHub. |
@@ -132,7 +132,7 @@ pnpm run workspace:purge:plan --workspace=<id> > purge.sql
 
 The plan is derived from
 [`workspace-data-map.ts`](../../app/platform/storage/d1/workspace-data-map.ts) —
-sixty tables, each with its foreign-key parents, topologically sorted so children
+sixty-one tables, each with its foreign-key parents, topologically sorted so children
 precede parents — and
 [`workspace-data-map.test.ts`](../../test/kernel/workspace-data-map.test.ts)
 checks that map against the REAL schema (`sqlite_master`,
@@ -160,7 +160,7 @@ Then:
    > Wrangler executes against the LOCAL database — and then step 4's
    > verification block dutifully returns zero for every table, because the
    > local database is empty, while every production row is still there. An
-   > operator would read sixty zeroes and believe they were finished. This is
+   > operator would read sixty-one zeroes and believe they were finished. This is
    > the same reason `scripts/production-d1.mjs` passes `--remote` on every
    > production command, and the flag is asserted here by
    > [`workspace-deletion-procedure.test.ts`](../../test/unit/architecture/workspace-deletion-procedure.test.ts).
@@ -235,7 +235,7 @@ Then:
 
 ## Verification
 
-The plan's own verification block is the check: sixty `SELECT COUNT(*)`
+The plan's own verification block is the check: sixty-one `SELECT COUNT(*)`
 statements, one per table, all of which must return `0`.
 
 The same procedure is **executed** on every kernel test run, against an isolated

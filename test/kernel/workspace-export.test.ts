@@ -386,9 +386,13 @@ describe("workspace export (D1)", () => {
     // one collection an owner could not back up, which is the opposite of what
     // this release is gated on.
     //
+    // The Chief of Staff MCP milestone adds ONE — first-class Decision details
+    // — for 46. The entity itself already travels in the shared entities page;
+    // this bounded read preserves its rationale, dates, status and relation.
+    //
     // The second half of this test is what actually holds the bound, by proving
     // that twenty more records add none at all.
-    expect(statements).toBeLessThanOrEqual(45);
+    expect(statements).toBeLessThanOrEqual(46);
     expect(statements).toBeGreaterThan(20);
 
     // Growing the workspace must not grow the statement count while the data

@@ -878,6 +878,7 @@ export async function resetTables(workspaceIds: string[] = []): Promise<void> {
   await env.DB.prepare("DELETE FROM entity_links").run();
   await env.DB.prepare("DELETE FROM spine_records").run();
   await env.DB.prepare("DELETE FROM task_details").run();
+  await env.DB.prepare("DELETE FROM decision_details").run();
   await env.DB.prepare("DELETE FROM project_details").run();
   // GOAL-02 children first: both reference entities ON DELETE RESTRICT.
   await env.DB.prepare("DELETE FROM goal_measurements").run();

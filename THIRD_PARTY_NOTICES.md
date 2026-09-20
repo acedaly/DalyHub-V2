@@ -69,6 +69,21 @@ licensed (allowed by default per the Open Source Policy).
 | `isbot`        | 5.2.1   | MIT     |
 | `jose`         | 6.2.3   | MIT     |
 
+### Chief of Staff MCP transport
+
+These direct runtime dependencies implement the Cloudflare remote MCP transport
+and its strict tool schemas. Their installed package metadata was verified on
+**2026-09-20**; exact resolved versions are pinned in `pnpm-lock.yaml`.
+
+| Package | Version | Licence | Source |
+| --- | ---: | --- | --- |
+| `agents` | 0.24.0 | MIT | [Cloudflare Agents](https://github.com/cloudflare/agents) |
+| `@modelcontextprotocol/server` | 2.0.0 | MIT | [Model Context Protocol TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk) |
+| `zod` | 4.6.5 | MIT | [Zod](https://github.com/colinhacks/zod) |
+
+No source was copied or adapted from these projects; DalyHub consumes their
+published package APIs.
+
 ### Untitled UI / React Aria implementation stack (UNTITLED-01 through UNTITLED-04)
 
 These direct dependencies were introduced or adopted by the Untitled UI

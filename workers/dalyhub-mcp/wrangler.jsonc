@@ -1,0 +1,47 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "dalyhub-mcp",
+  "main": "./index.ts",
+  "compatibility_date": "2026-09-20",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+  },
+  "upload_source_maps": true,
+  "vars": {
+    "ENVIRONMENT": "development",
+    "AUTH_MODE": "development",
+  },
+  "secrets": {
+    "required": ["DEV_MCP_TOKEN"],
+  },
+  "services": [
+    {
+      "binding": "DALYHUB",
+      "service": "dalyhub-v2",
+      "entrypoint": "ChiefOfStaffEntrypoint",
+    },
+  ],
+  "env": {
+    "production": {
+      "name": "dalyhub-mcp",
+      "workers_dev": false,
+      "preview_urls": false,
+      "vars": {
+        "ENVIRONMENT": "production",
+        "AUTH_MODE": "cloudflare-access",
+      },
+      "secrets": {
+        "required": ["TEAM_DOMAIN", "POLICY_AUD"],
+      },
+      "services": [
+        {
+          "binding": "DALYHUB",
+          "service": "dalyhub-v2-production",
+          "entrypoint": "ChiefOfStaffEntrypoint",
+        },
+      ],
+    },
+  },
+}

@@ -225,6 +225,7 @@ describe("WORKSPACE_DELETION — what the operator is told about the data", () =
     const words: Record<number, string> = {
       50: "fifty",
       60: "sixty",
+      61: "sixty-one",
       70: "seventy",
       80: "eighty",
     };
@@ -268,16 +269,15 @@ describe("WORKSPACE_DELETION — what the operator is told about the data", () =
       );
       const wrong = claims.filter(
         (claim) =>
-          /^(fifty|sixty|seventy|eighty)$/.test(claim) && claim !== word,
+          /^(fifty|sixty|sixty-one|seventy|eighty)$/.test(claim) &&
+          claim !== word,
       );
       expect(wrong, `${file} states a stale table count`).toEqual([]);
     }
   });
 
   it("promises a verification block with one count per table", () => {
-    expect(DOC).toMatch(
-      new RegExp(`${"sixty"} \`SELECT COUNT\\(\\*\\)\``, "i"),
-    );
+    expect(DOC).toMatch(/sixty-one `SELECT COUNT\(\*\)`/i);
     const plan = execFileSync(
       process.execPath,
       [path.join(ROOT, "scripts/workspace-purge-plan.mjs")],

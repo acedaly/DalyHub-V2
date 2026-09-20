@@ -7429,7 +7429,7 @@ until the off-Cloudflare copy exists and has been restored from once.
      ([ADR-119](#adr-119-evidence--an-attachment-is-a-child-record-with-one-required-owner-bytes-in-a-private-bucket-the-application-worker-owns-a-compensated-write-and-an-archive-that-carries-the-bytes),
      `wrangler.jsonc`). A button that says "deleted" while bytes remain in two
      buckets is a lie with a progress spinner.
-  3. **The blast radius is wrong for the guarantee.** Sixty tables, two object
+  3. **The blast radius is wrong for the guarantee.** Sixty-one tables, two object
      stores and a service binding, orchestrated from a request that can be
      interrupted, with no cross-store transaction. ADR-046's precedent is a
      *bounded* purge of one record family; generalising it to the whole workspace
@@ -7449,7 +7449,7 @@ until the off-Cloudflare copy exists and has been restored from once.
      `pnpm run workspace:purge:plan` emits it as reviewable, parameterised SQL,
      and `test/kernel/whole-product-rehearsal.test.ts` EXECUTES it against a
      seeded synthetic workspace over real D1 and real R2, proving zero rows in
-     all sixty tables, zero objects under the workspace prefix, and a second
+     all sixty-one tables, zero objects under the workspace prefix, and a second
      populated workspace beside it untouched.
 
   3. **The plan is generated, never written down.** MOST foreign keys in DalyHub
@@ -7504,7 +7504,7 @@ until the off-Cloudflare copy exists and has been restored from once.
 
 - **Alternatives considered.** *A guarded in-product purge on the ADR-046
   pattern* (rejected: decisions 1–3 — it would destroy its own application, could
-  not honestly complete, and would orchestrate sixty tables and two stores from
+  not honestly complete, and would orchestrate sixty-one tables and two stores from
   an interruptible request). *An "erase all my data" button that keeps the
   workspace row* (rejected: it is a new destructive capability in a release whose
   first rule is that it adds none, and `replace`-mode restore already overwrites
@@ -7712,3 +7712,79 @@ deleted design programme files are not authority; git history is the archive.
   correctness risk wearing a new coat — they are debt with a named owner
   instead). *Leaving the Goal chart half-migrated* (rejected outright: a surface
   with one migrated band and one legacy band is worse than either end state).
+
+## ADR-127: Claude Chief of Staff is a small authenticated MCP capability boundary over private Worker RPC
+
+- **Status.** Accepted (2026-09-20, Chief of Staff MCP milestone). Builds on
+  [ADR-010](#adr-010-server-side-workspace-context),
+  [ADR-012](#adr-012-activity-persistence-and-atomic-mutation-recording),
+  [ADR-016](#adr-016-cloudflare-access-identity-app-shell-and-registry-driven-routing)
+  and [ADR-111](#adr-111-steering--owner-judgement-is-stored-beside-derived-signals-never-merged--one-next-action-rule-one-goal-story-and-a-collection-order-that-answers-a-recorded-question).
+
+- **Context.** Claude needs enough structured DalyHub context to act as the
+  owner's Chief of Staff and enough mutation capability to capture and maintain
+  ordinary work. Giving it D1, SQL, a mirrored application API or a public
+  internal endpoint would erase the repository and workspace boundaries the
+  product already relies on. The current Cloudflare stack provides a narrower
+  path: an Access-protected MCP Worker can call a named application-Worker
+  entrypoint through a private Service Binding.
+
+- **Decision.** A separate `dalyhub-mcp` Worker owns only Access assertion
+  validation, MCP Streamable HTTP, strict tool schemas and compact response
+  shaping. It has no D1 binding. It calls the named
+  `ChiefOfStaffEntrypoint` on `dalyhub-v2-production` through Worker RPC. That
+  entrypoint accepts one closed discriminated request union and delegates to a
+  Chief-of-Staff service composed from the existing workspace-scoped
+  repositories. There is no public internal API.
+
+  The MCP surface is capability-shaped rather than repository-shaped: seven read
+  tools and eleven ordinary write tools, covering Tasks, Projects, Notes,
+  Decisions and waiting. No delete, merge, bulk-mutation, SQL, export,
+  authentication, configuration, secret, file-execution or arbitrary-network
+  capability exists. The only reversal-shaped capability is ARCHIVING one
+  Project or one Note, which is reversible through the same tool and retains
+  every relationship and Activity row. Broad daily and weekly contexts are
+  assembled server-side, deterministically and with hard caps, rather than
+  reconstructed by dozens of model calls.
+
+  Projects and Notes add NO model of their own. A Project is created, renamed,
+  moved and completed through `SpineRepository` and restatused/archived through
+  `ProjectSettingsRepository`; a Note is the generic `EntityRepository`'s
+  identity plus `NoteDetailsRepository`'s body, tags and archive state; and a
+  Note is filed against a Project, Area or Goal through the existing PROJ-03
+  `link.related` EntityLink — the same relationship the shared Linked Items
+  surface shows — rather than a second, MCP-only association type.
+
+  Production authentication is a Cloudflare Access MCP server application with
+  Managed OAuth. Access owns the interactive OAuth exchange and applies the
+  owner-only policy; the Worker independently verifies the signed
+  `Cf-Access-Jwt-Assertion` issuer, audience, algorithm and subject. Local auth
+  is a separate bearer mode gated by both development mode variables and cannot
+  activate in production.
+
+  Decisions become first-class `decision` entities with an additive STRICT
+  detail table. Waiting remains the existing canonical Task
+  delegation/waiting/follow-up model. Every meaningful MCP mutation carries an
+  `mcp` Activity actor and appends a bounded `mcp.mutation` audit event; an
+  idempotent no-op appends none.
+
+- **Consequences.** Claude can reason over compact facts and make ordinary,
+  attributable changes without database or platform authority. The domain logic
+  stays reusable and testable inside DalyHub rather than drifting into prompts
+  or the transport Worker. The application Worker gains a named RPC surface,
+  but only the configured service binding can reach it. Production activation
+  still requires the owner to provision the custom domain, Access application,
+  secrets and Claude connector; repository code cannot honestly perform those
+  account actions.
+
+- **Alternatives considered.** *Bind D1 directly to the MCP Worker* (rejected:
+  duplicates domain logic and makes SQL/database capability part of the trust
+  boundary). *Expose an internal HTTP API on the DalyHub hostname* (rejected:
+  creates a public route solely for server-to-server traffic). *Convert the
+  entire application Worker to RPC* (rejected: a named entrypoint is additive
+  and avoids a risky application-handler refactor). *Model decisions and
+  waiting as generic Tasks* (rejected for decisions because an outcome and its
+  rationale are not an action; rejected for waiting because the canonical Task
+  waiting state already expresses it without a duplicate store). *Use the
+  legacy SSE/McpAgent path* (rejected: the current supported stateless path is
+  `createMcpHandler()` over Streamable HTTP).

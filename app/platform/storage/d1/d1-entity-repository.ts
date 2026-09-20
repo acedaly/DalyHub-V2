@@ -31,6 +31,7 @@ import {
 } from "~/kernel/activity";
 import { isReservedAssetEntityType } from "~/kernel/assets";
 import { isReservedDiaryEntityType } from "~/kernel/diary";
+import { DECISION_ENTITY_TYPE } from "~/kernel/decisions";
 import { isReservedFinanceEntityType } from "~/kernel/finance";
 import { MEETING_ENTITY_TYPE } from "~/kernel/meetings";
 import { isReservedObligationEntityType } from "~/kernel/obligations";
@@ -177,6 +178,7 @@ export class D1EntityRepository implements EntityRepository {
     if (
       RESERVED_SPINE_ENTITY_TYPES.has(type) ||
       isReservedDiaryEntityType(type) ||
+      type === DECISION_ENTITY_TYPE ||
       isReservedPersonEntityType(type) ||
       // The `habit` type is reserved for the HabitRepository, which writes the
       // Habit's detail slice AND its first effective-dated schedule version
