@@ -100,6 +100,48 @@ export class D1ActivityRecorder {
   }
 
   /**
+   * Append a validated event that is itself the domain fact (for example the
+   * MCP audit event written after a successful tool mutation). Unlike
+   * `buildAppendStatements`, this insert is unconditional because there is no
+   * preceding domain statement whose `changes()` it should mirror.
+   */
+  buildStandaloneAppendStatements(
+    workspaceId: string,
+    model: ActivityWriteModel,
+  ): D1PreparedStatement[] {
+    const payloadJson = serializeActivityPayload(model.payload);
+    const occurredAt = toStorageTimestamp(model.occurredAt);
+    const statements: D1PreparedStatement[] = [
+      this.#db
+        .prepare(
+          `INSERT INTO activities
+             (id, workspace_id, type, actor_type, actor_id, occurred_at, payload_json)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .bind(
+          model.id,
+          workspaceId,
+          model.type,
+          model.actor.type,
+          model.actor.id,
+          occurredAt,
+          payloadJson,
+        ),
+    ];
+    for (const subject of model.subjects) {
+      statements.push(
+        this.#db
+          .prepare(
+            `INSERT INTO activity_subjects (workspace_id, activity_id, entity_id, role)
+             VALUES (?, ?, ?, ?)`,
+          )
+          .bind(workspaceId, model.id, subject.entityId, subject.role),
+      );
+    }
+    return statements;
+  }
+
+  /**
    * GOAL-02 — the append statements for a COMPANION event in the same batch.
    *
    * A single domain write occasionally produces two genuinely distinct facts:

@@ -1080,6 +1080,7 @@ export class D1TaskRepository implements TaskRepository {
       input.description === undefined || input.description === null
         ? null
         : validateTaskDescription(input.description);
+    const delegation = validateDelegationInput(input.delegation);
     // V2.6 FIND-03: tags too, through the ONE tag validator, so a Task created
     // from a `#tag` capture can never carry a tag a Person could not.
     const tags = input.tags === undefined ? [] : validateTaskTagSet(input.tags);
@@ -1169,7 +1170,8 @@ export class D1TaskRepository implements TaskRepository {
       dueDate !== null ||
       scheduledDate !== null ||
       status !== "todo" ||
-      description !== null;
+      description !== null ||
+      delegation !== null;
 
     const statements: D1PreparedStatement[] = [
       entityStmt,
@@ -1190,6 +1192,7 @@ export class D1TaskRepository implements TaskRepository {
             commitmentState,
             status,
             description,
+            delegation,
           },
           nowTs,
         ),
@@ -1784,7 +1787,8 @@ export class D1TaskRepository implements TaskRepository {
   /**
    * The `task_details` insert for an atomic create: write the initial planning slice
    * for the just-created task, gated on the entity existing (so it commits only with
-   * the create). Delegation is never set at creation. The column literals are trusted.
+   * the create). This also makes an MCP waiting capture's delegation atomic with Task
+   * creation; activation of the waiting state remains its canonical follow-up mutation.
    */
   #createDetailsStatement(
     entityId: string,
@@ -1796,6 +1800,7 @@ export class D1TaskRepository implements TaskRepository {
       readonly commitmentState: string;
       readonly status: string;
       readonly description: string | null;
+      readonly delegation: TaskDelegation | null;
     },
     nowTs: string,
   ): D1PreparedStatement {
@@ -1806,7 +1811,7 @@ export class D1TaskRepository implements TaskRepository {
             due_date, scheduled_date, time_sector, commitment_state,
             delegate_to, delegated_on, follow_up_on, delegate_note,
             description, updated_at)
-         SELECT ?, ?, '${TASK}', ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, ?, ?
+         SELECT ?, ?, '${TASK}', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
          WHERE EXISTS (
                  SELECT 1 FROM entities
                  WHERE workspace_id = ? AND id = ? AND type = '${TASK}'
@@ -1822,6 +1827,10 @@ export class D1TaskRepository implements TaskRepository {
         fields.scheduledDate,
         fields.timeSector,
         fields.commitmentState,
+        fields.delegation?.to ?? null,
+        fields.delegation?.delegatedOn ?? null,
+        fields.delegation?.followUpOn ?? null,
+        fields.delegation?.note ?? null,
         fields.description === null ? null : String(fields.description),
         nowTs,
         this.#workspaceId,

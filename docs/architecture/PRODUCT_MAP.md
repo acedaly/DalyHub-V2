@@ -84,7 +84,7 @@ failure a set of individually-satisfiable registries otherwise invites.
 
 | | |
 |---|---|
-| **D1** | Sixty tables, every one workspace-scoped except `workspaces` itself. Classified in [`workspace-data-map.ts`](../../app/platform/storage/d1/workspace-data-map.ts): 45 `exported`, 13 `operational`, 2 `ephemeral`. |
+| **D1** | Sixty-one tables, every one workspace-scoped except `workspaces` itself. Classified in [`workspace-data-map.ts`](../../app/platform/storage/d1/workspace-data-map.ts): 46 `exported`, 13 `operational`, 2 `ephemeral`. |
 | **R2 — `dalyhub-v2-attachments`** | The owner's live evidence, under a derived per-workspace prefix. Bound to the application Worker; no public URL, no signed URL. |
 | **R2 — `dalyhub-v2-backups`** | The nightly D1 dump, in a separate trust boundary. The application Worker deliberately **cannot reach it**. |
 | **GitHub artifact** | The encrypted off-Cloudflare copy. Owner-gated ([DEBT-198](../product/PRODUCT_DEBT.md)). |

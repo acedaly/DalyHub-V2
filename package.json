@@ -9,6 +9,10 @@
   },
   "scripts": {
     "dev": "react-router dev",
+    "mcp:dev": "wrangler dev --config workers/dalyhub-mcp/wrangler.jsonc",
+    "mcp:typegen": "wrangler types workers/dalyhub-mcp/worker-configuration.d.ts --config workers/dalyhub-mcp/wrangler.jsonc --env-interface McpEnv --include-runtime false",
+    "mcp:deploy:dry-run": "wrangler deploy --dry-run --config workers/dalyhub-mcp/wrangler.jsonc --env production",
+    "mcp:deploy:production": "wrangler deploy --config workers/dalyhub-mcp/wrangler.jsonc --env production",
     "build": "react-router build",
     "preview": "vite preview --port 4173 --strictPort",
     "lint": "eslint .",
@@ -76,12 +80,14 @@
     "@lezer/common": "1.5.2",
     "@lezer/highlight": "1.2.3",
     "@lezer/markdown": "1.7.2",
+    "@modelcontextprotocol/server": "2.0.0",
     "@react-stately/utils": "3.12.1",
     "@react-types/overlays": "3.10.0",
     "@react-types/shared": "3.36.1",
     "@tailwindcss/vite": "4.3.3",
     "@untitledui/file-icons": "0.0.9",
     "@untitledui/icons": "0.0.22",
+    "agents": "0.24.0",
     "ical.js": "2.2.1",
     "isbot": "5.2.1",
     "jose": "6.2.3",
@@ -101,7 +107,8 @@
     "tailwindcss": "4.3.3",
     "tailwindcss-animate": "1.0.7",
     "tailwindcss-react-aria-components": "2.2.0",
-    "unified": "11.0.5"
+    "unified": "11.0.5",
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.12.1",

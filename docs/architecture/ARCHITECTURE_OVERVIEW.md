@@ -35,6 +35,15 @@
 └─────────────────────────────────────────────────────────────┘
 ```
 
+The Chief of Staff integration adds a deliberately narrow second Worker at the
+platform boundary: Claude reaches `dalyhub-mcp` through Cloudflare Access
+Managed OAuth and stateless Streamable HTTP; that Worker has no database binding
+and calls the application Worker's named `ChiefOfStaffEntrypoint` through a
+private Service Binding. The entrypoint composes the same workspace-scoped
+repositories as the UI, so there is still one domain and one source of truth.
+See [`CHIEF_OF_STAFF_MCP.md`](../CHIEF_OF_STAFF_MCP.md) and
+[ADR-127](../decisions/ARCHITECTURE_DECISIONS.md#adr-127-claude-chief-of-staff-is-a-small-authenticated-mcp-capability-boundary-over-private-worker-rpc).
+
 **Reading the stack:** dependencies point downward. Modules depend on the Design System and Kernel; the Kernel depends only on the Platform. Nothing lower reaches up; modules never reach sideways into each other — they compose through kernel contracts and the module registry. This is the "small kernel, modular userland" principle from [`AGENTS.md §9.1`](../../AGENTS.md#91-small-kernel-modular-userland).
 
 ---

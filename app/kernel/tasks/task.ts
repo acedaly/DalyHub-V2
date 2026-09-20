@@ -1415,6 +1415,8 @@ export type NewTaskInput = {
    * for the same reason as `status`. Validated as Markdown source at the boundary.
    */
   readonly description?: string | null;
+  /** Optional delegation/follow-up context written atomically at creation. */
+  readonly delegation?: TaskDelegationInput | null;
   /**
    * V2.6 FIND-03 — the Task's tags, written in the SAME create batch as the
    * Task itself, for the same reason `status`, `description` and `recurrence`

@@ -246,6 +246,19 @@ const TABLES: Readonly<Record<string, TableDescriptor>> = {
       "updated_at",
     ],
   },
+  decisionDetails: {
+    table: "decision_details",
+    columns: [
+      "entity_id",
+      "status",
+      "rationale",
+      "decision_date",
+      "review_date",
+      "related_entity_id",
+      "related_entity_type",
+      "updated_at",
+    ],
+  },
   taskRecurrenceRules: {
     table: "task_recurrence_rules",
     columns: [
@@ -1222,6 +1235,19 @@ function stageRows(
           updated_at: row.updatedAt,
         }),
       );
+    case "decisionDetails":
+      return (
+        rows as readonly SnapshotCollectionRowMap["decisionDetails"][]
+      ).map((row) => ({
+        entity_id: row.entityId,
+        status: row.status,
+        rationale: row.rationale,
+        decision_date: row.decisionDate,
+        review_date: row.reviewDate,
+        related_entity_id: row.relatedEntityId,
+        related_entity_type: row.relatedEntityType,
+        updated_at: row.updatedAt,
+      }));
     /*
      * V2.6 FIND-02 — the tag vocabulary and its attachments.
      *

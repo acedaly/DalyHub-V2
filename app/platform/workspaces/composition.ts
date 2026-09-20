@@ -58,6 +58,7 @@ import type { ObligationRepository } from "~/kernel/obligations";
 import type { AreaRepository } from "~/kernel/areas";
 import type { AreaSettingsRepository } from "~/kernel/area-settings";
 import type { DiaryRepository } from "~/kernel/diary";
+import type { DecisionRepository } from "~/kernel/decisions";
 import type { EntityRepository } from "~/kernel/entities";
 import type { HabitRepository } from "~/kernel/habits";
 import type { EntityLinkRepository } from "~/kernel/entity-links";
@@ -127,6 +128,7 @@ import {
   createAssetRepository,
   createAreaSettingsRepository,
   createDiaryRepository,
+  createDecisionRepository,
   createEntityLinkRepository,
   createEntityRepository,
   createGoalDetailsRepository,
@@ -287,6 +289,8 @@ export interface WorkspaceScope {
    * with the same trusted actor as the other mutation repositories.
    */
   readonly diary: DiaryRepository;
+  /** First-class choices and pending decisions used by Chief of Staff reads. */
+  readonly decisions: DecisionRepository;
   /**
    * The PEOPLE-01 authoritative Person repository: the People collection/record
    * read model AND capture surface. It creates `person` entities with their
@@ -805,6 +809,7 @@ export function bindWorkspaceRepositories(
   });
   const notes = createNoteRepository(env.DB, context);
   const diary = createDiaryRepository(env.DB, context, { actorContext });
+  const decisions = createDecisionRepository(env.DB, context, { actorContext });
   const people = createPersonRepository(env.DB, context, { actorContext });
   const meetings = createMeetingRepository(env.DB, context, { actorContext });
   const meetingTaskConversions = createMeetingTaskConversionRepository(env.DB, {
@@ -993,6 +998,7 @@ export function bindWorkspaceRepositories(
     noteDetails,
     notes,
     diary,
+    decisions,
     people,
     meetings,
     meetingTaskConversions,

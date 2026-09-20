@@ -169,10 +169,15 @@ describe("PRODUCT_MAP — the data figures are measured, not remembered", () => 
         .length,
     };
     const stated = map.match(
-      /(\w+) tables, every one workspace-scoped except `workspaces` itself\. Classified in \[`workspace-data-map\.ts`\]\([^)]+\): (\d+) `exported`, (\d+) `operational`, (\d+) `ephemeral`/,
+      /([A-Za-z-]+) tables, every one workspace-scoped except `workspaces` itself\. Classified in \[`workspace-data-map\.ts`\]\([^)]+\): (\d+) `exported`, (\d+) `operational`, (\d+) `ephemeral`/,
     );
     expect(stated, "the D1 row of PRODUCT_MAP's data table").not.toBeNull();
-    const words: Record<string, number> = { Sixty: 60, Fifty: 50, Seventy: 70 };
+    const words: Record<string, number> = {
+      "Sixty-one": 61,
+      Sixty: 60,
+      Fifty: 50,
+      Seventy: 70,
+    };
     expect(words[stated?.[1] ?? ""] ?? Number(stated?.[1]), "table count").toBe(
       counts.total,
     );

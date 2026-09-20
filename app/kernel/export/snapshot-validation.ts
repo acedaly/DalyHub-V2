@@ -154,6 +154,7 @@ export const SNAPSHOT_ORDER_KEYS: Readonly<
     `${row.habitId}:${row.completedOn}`,
   projectDetails: (row: { entityId: string }) => row.entityId,
   taskDetails: (row: { entityId: string }) => row.entityId,
+  decisionDetails: (row: { entityId: string }) => row.entityId,
   taskRecurrenceRules: (row: { entityId: string }) => row.entityId,
   taskChecklistItems: (row: { id: string }) => row.id,
   projectTemplateDetails: (row: { entityId: string }) => row.entityId,
@@ -206,6 +207,7 @@ const ENTITY_SCOPED_COLLECTIONS: readonly SnapshotCollection[] = [
   "goalDetails",
   "projectDetails",
   "taskDetails",
+  "decisionDetails",
   "taskRecurrenceRules",
   // PROJECT-02 — a template's detail slice hangs off its `project_template`
   // entity exactly as `projectDetails` hangs off a Project.
@@ -451,6 +453,31 @@ export function validateWorkspaceSnapshot(
     requireDate(c, `${path}.dueDate`, row.dueDate);
     requireDate(c, `${path}.scheduledDate`, row.scheduledDate);
     requireInstant(c, `${path}.updatedAt`, row.updatedAt);
+  });
+  records.decisionDetails.forEach((row, index) => {
+    const path = `records.decisionDetails[${index}]`;
+    if (row.status !== "open" && row.status !== "decided") {
+      c.add(`${path}.status`, "must be open or decided");
+    }
+    if (row.status === "decided" && row.decisionDate === null) {
+      c.add(`${path}.decisionDate`, "is required when status is decided");
+    }
+    requireDate(c, `${path}.decisionDate`, row.decisionDate);
+    requireDate(c, `${path}.reviewDate`, row.reviewDate);
+    requireInstant(c, `${path}.updatedAt`, row.updatedAt);
+    if ((row.relatedEntityId === null) !== (row.relatedEntityType === null)) {
+      c.add(
+        path,
+        "relatedEntityId and relatedEntityType must both be null or both be present",
+      );
+    }
+    if (
+      row.relatedEntityType !== null &&
+      row.relatedEntityType !== "project" &&
+      row.relatedEntityType !== "area"
+    ) {
+      c.add(`${path}.relatedEntityType`, "must be project or area");
+    }
   });
   records.reviewDetails.forEach((row, index) => {
     const path = `records.reviewDetails[${index}]`;
