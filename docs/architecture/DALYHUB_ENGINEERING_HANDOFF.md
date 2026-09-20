@@ -70,7 +70,7 @@ One Worker, `workers/app.ts`, with four entry points:
 
 ### 1.4 D1, R2, auth
 
-- **D1** is the only database. 58 migrations in `migrations/`, applied in
+- **D1** is the only database. Migrations live in `migrations/` and are applied in
   **filename order** (two pairs share a number — `0013` and `0039` — which is
   fine because Wrangler sorts by name).
 - **R2** holds attachments, through the app Worker's `ATTACHMENTS` binding. The

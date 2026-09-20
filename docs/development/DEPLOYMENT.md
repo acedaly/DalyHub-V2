@@ -539,7 +539,7 @@ application-rollback-safe.** Those are different claims, and this document used 
 make only the first in words that also asserted the second.
 
 *Existing-data-safe* means applying the sequence loses no owner data and rewrites
-none of it wrongly. That is true of all 58 migrations and is proven by
+none of it wrongly. That is true of every migration in the sequence and is proven by
 [`test/kernel/migration-production-baseline.test.ts`](../../test/kernel/migration-production-baseline.test.ts),
 described below.
 

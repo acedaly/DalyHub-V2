@@ -9,7 +9,7 @@
  * ── Why this is its own module ──────────────────────────────────────────────
  *
  * It was inside `scripts/migration-compatibility.mjs`, which imports
- * `node:sqlite` to build those snapshots by applying all 58 migrations. That is
+ * `node:sqlite` to build those snapshots by applying every migration in order. That is
  * the right engine for the script and the wrong dependency for a unit test:
  * Vitest's client environment cannot bundle a Node built-in, so importing the
  * script to reach the predicate failed to load the whole suite. Splitting on the

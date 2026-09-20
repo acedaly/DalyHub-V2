@@ -13,7 +13,7 @@
  *   > keeps working — which is what makes step 3 independently reversible by
  *   > rolling the *application* back.
  *
- * That was true of `0006`–`0025`. The sequence now ends at `0056`, and FOUR
+ * That was true of `0006`–`0025`. The sequence has grown well past it, and FOUR
  * migrations in between REMOVE something:
  *
  *   0031  drops `owner_app_preferences.theme`          (the theme feature went)

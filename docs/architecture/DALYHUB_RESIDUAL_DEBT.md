@@ -431,7 +431,7 @@ property the three wrong claims lacked.
 
 **And one the review round added.** Automated review found that the second of
 those had the same defect in miniature: `db:compat` derived the rollback boundary
-correctly for every shape the 58 migrations contain, and silently missed two they
+correctly for every shape the real migrations contain, and silently missed two they
 do not — a table rebuild declaring a required no-default column, and an
 already-`NOT NULL` column losing its default. Both let an older Worker's INSERT
 fail while the ledger reports the migration additive. The regenerated ledger was
