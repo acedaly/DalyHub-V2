@@ -354,6 +354,22 @@ const COLLECTIONS: CollectionDescriptors = {
       updatedAt: requiredText(row.updated_at),
     }),
   },
+  decisionDetails: {
+    table: "decision_details",
+    columns:
+      "entity_id, status, rationale, decision_date, review_date, related_entity_id, related_entity_type, updated_at",
+    order: ["entity_id"],
+    map: (row) => ({
+      entityId: requiredText(row.entity_id),
+      status: requiredText(row.status),
+      rationale: text(row.rationale),
+      decisionDate: text(row.decision_date),
+      reviewDate: text(row.review_date),
+      relatedEntityId: text(row.related_entity_id),
+      relatedEntityType: text(row.related_entity_type),
+      updatedAt: requiredText(row.updated_at),
+    }),
+  },
   taskRecurrenceRules: {
     table: "task_recurrence_rules",
     columns: [

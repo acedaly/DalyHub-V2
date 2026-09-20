@@ -221,6 +221,15 @@ export const WORKSPACE_TABLES: readonly WorkspaceTable[] = [
     references: ["entities"],
   },
   {
+    table: "decision_details",
+    scope: "workspace",
+    dataClass: "exported",
+    collection: "decisionDetails",
+    reason:
+      "A Chief-of-Staff decision's status, rationale, dates and optional project or area context.",
+    references: ["entities"],
+  },
+  {
     table: "task_recurrence_rules",
     scope: "workspace",
     dataClass: "exported",

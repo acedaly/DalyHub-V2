@@ -470,6 +470,18 @@ export interface SnapshotTaskDetail {
   readonly updatedAt: IsoInstant;
 }
 
+/** Chief-of-Staff decision-owned state. */
+export interface SnapshotDecisionDetail {
+  readonly entityId: string;
+  readonly status: string;
+  readonly rationale: string | null;
+  readonly decisionDate: IsoDate | null;
+  readonly reviewDate: IsoDate | null;
+  readonly relatedEntityId: string | null;
+  readonly relatedEntityType: string | null;
+  readonly updatedAt: IsoInstant;
+}
+
 /** A Task's structured recurrence rule and its series identity (TASKS-04). */
 export interface SnapshotTaskRecurrenceRule {
   readonly entityId: string;
@@ -1167,6 +1179,7 @@ export interface SnapshotCollectionRowMap {
   readonly habitCompletions: SnapshotHabitCompletion;
   readonly projectDetails: SnapshotProjectDetail;
   readonly taskDetails: SnapshotTaskDetail;
+  readonly decisionDetails: SnapshotDecisionDetail;
   readonly taskRecurrenceRules: SnapshotTaskRecurrenceRule;
   readonly taskChecklistItems: SnapshotTaskChecklistItem;
   readonly projectTemplateDetails: SnapshotProjectTemplateDetail;
@@ -1311,6 +1324,8 @@ export const SNAPSHOT_OPTIONAL_ON_READ_COLLECTIONS: readonly SnapshotCollection[
     "financeImports",
     "financeTransactions",
     "financeBudgets",
+    // CHIEF-01 — decisions became first-class owner data in migration 0057.
+    "decisionDetails",
   ];
 
 export const SNAPSHOT_COLLECTION_ORDER: readonly SnapshotCollection[] = [
@@ -1334,6 +1349,7 @@ export const SNAPSHOT_COLLECTION_ORDER: readonly SnapshotCollection[] = [
   "habitCompletions",
   "projectDetails",
   "taskDetails",
+  "decisionDetails",
   "taskRecurrenceRules",
   // TASKS-13 — after `taskDetails`, because a checklist item references the Task
   // it belongs to. A restore inserts in this order and deletes in its exact

@@ -45,6 +45,7 @@ import { findBuiltInReport, parseReportDefinition } from "~/kernel/reports";
 import { uploadAttachment, createR2ObjectStore } from "~/platform/attachments";
 import {
   createAttachmentRepository,
+  createDecisionRepository,
   createWorkspaceMemberRepository,
 } from "~/platform/storage/d1";
 
@@ -268,6 +269,22 @@ export async function seedWholeProductWorkspace(): Promise<WholeProductSeeded> {
     subject: FIXTURE_OWNER,
     email: "owner@example.invalid",
     displayName: "The owner",
+  });
+
+  // A first-class Decision, including its Project relation and review date.
+  // This proves the Chief of Staff table through the same whole-product
+  // export/destroy/restore rehearsal as every other owner-data collection.
+  await createDecisionRepository(env.DB, context, {
+    clock: clock(),
+    idGenerator: sequentialIds("decision"),
+  }).create({
+    decision: "Keep the rehearsal synthetic and complete",
+    status: "decided",
+    rationale:
+      "A restore is only proved when every exported table is non-empty.",
+    decisionDate: "2026-10-05",
+    reviewDate: "2026-11-05",
+    related: { kind: "project", id: base.projectId },
   });
 
   /* ---- Habits: a chain with TWO versions, and check-ins ------------------ */

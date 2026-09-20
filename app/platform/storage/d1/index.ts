@@ -48,6 +48,7 @@ import type { AssetHistoryRepository, AssetRepository } from "~/kernel/assets";
 import type { AreaRepository } from "~/kernel/areas";
 import type { AreaSettingsRepository } from "~/kernel/area-settings";
 import type { DiaryRepository } from "~/kernel/diary";
+import type { DecisionRepository } from "~/kernel/decisions";
 import type { EntityRepository } from "~/kernel/entities";
 import type { EntityLinkRepository } from "~/kernel/entity-links";
 import type {
@@ -142,6 +143,10 @@ import {
   type D1DiaryRepositoryOptions,
 } from "./d1-diary-repository";
 import {
+  D1DecisionRepository,
+  type D1DecisionRepositoryOptions,
+} from "./d1-decision-repository";
+import {
   D1EntityRepository,
   type D1EntityRepositoryOptions,
 } from "./d1-entity-repository";
@@ -214,6 +219,7 @@ import {
 } from "./d1-workspace-repository";
 
 export { D1EntityRepository, type D1EntityRepositoryOptions };
+export { D1DecisionRepository, type D1DecisionRepositoryOptions };
 export { D1EntityLinkRepository, type D1EntityLinkRepositoryOptions };
 export {
   D1SpineRepository,
@@ -405,6 +411,15 @@ export function createTaskRepository(
   options?: D1TaskRepositoryOptions,
 ): D1TaskAdapter {
   return new D1TaskRepository(db, context, options);
+}
+
+/** Chief of Staff first-class Decision store, bound to one workspace and actor. */
+export function createDecisionRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+  options?: D1DecisionRepositoryOptions,
+): DecisionRepository {
+  return new D1DecisionRepository(db, context, options);
 }
 
 /**

@@ -21,6 +21,7 @@
 // once, so it is inert in the ordinary case (one bounded read finds an empty
 // ledger and stops) and it never needs a cron of its own.
 import { createRequestHandler } from "react-router";
+import { WorkerEntrypoint } from "cloudflare:workers";
 
 import {
   runScheduledCalendarRefresh,
@@ -39,6 +40,21 @@ import {
   type EmailCaptureEnv,
 } from "~/platform/capture/email-capture.server";
 import { handleAuthenticatedRequest } from "~/platform/request";
+import { invokeChiefOfStaff } from "~/platform/chief-of-staff/chief-of-staff-service.server";
+import type {
+  ChiefOfStaffRequest,
+  ChiefOfStaffResult,
+} from "~/kernel/chief-of-staff";
+
+/**
+ * Private named RPC entrypoint for the separately deployed MCP Worker. It has no
+ * fetch route and is reachable only by a same-account Service Binding.
+ */
+export class ChiefOfStaffEntrypoint extends WorkerEntrypoint<Env> {
+  async invoke(request: ChiefOfStaffRequest): Promise<ChiefOfStaffResult> {
+    return invokeChiefOfStaff(this.env, request);
+  }
+}
 
 const requestHandler = createRequestHandler(
   () => import("virtual:react-router/server-build"),

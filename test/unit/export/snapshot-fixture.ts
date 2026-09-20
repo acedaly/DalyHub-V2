@@ -429,6 +429,7 @@ export function makeSnapshot(
         updatedAt: T(2),
       },
     ],
+    decisionDetails: [],
     taskRecurrenceRules: [
       {
         entityId: IDS.taskRecurring,

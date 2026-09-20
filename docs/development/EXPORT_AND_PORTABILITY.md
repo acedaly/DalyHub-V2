@@ -251,7 +251,7 @@ is never exported by accident.
 **And since V2.16 CONSOL-02, the omissions are CHECKED rather than described.**
 `EXPORT_EXCLUSIONS` is prose for a human reading the archive they downloaded;
 [`workspace-data-map.ts`](../../app/platform/storage/d1/workspace-data-map.ts)
-is the machine-readable half — every one of the sixty tables in the schema
+is the machine-readable half — every one of the sixty-one tables in the schema
 classified `exported` (naming its collection), `operational` (naming what it
 holds that must not leave), or `ephemeral` (naming the operation it stages) —
 and `test/kernel/workspace-data-map.test.ts` reads the table list out of

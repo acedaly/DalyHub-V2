@@ -1,0 +1,3 @@
+# Copy to .dev.vars in this directory. Never use this token in production.
+# At least 32 characters; pass it as Authorization: Bearer <value> locally.
+DEV_MCP_TOKEN=replace-with-a-random-local-token-at-least-32-characters
