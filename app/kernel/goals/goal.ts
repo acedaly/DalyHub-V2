@@ -142,6 +142,8 @@ export type GoalListItem = {
 export type GoalListInput = {
   readonly limit?: number;
   readonly cursor?: string;
+  /** Applied in the repository before the page boundary. */
+  readonly completionState?: "open" | "completed" | "all";
 };
 
 export type GoalSearchInput = {

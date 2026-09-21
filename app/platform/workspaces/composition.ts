@@ -93,6 +93,10 @@ import type { SpineRepository } from "~/kernel/spine";
 import type { TaskRepository } from "~/kernel/tasks";
 import { ownerCalendarIso } from "~/shared/datetime";
 import type { TaskViewRepository } from "~/kernel/task-views";
+import {
+  D1ReferenceCandidateRepository,
+  type ReferenceCandidateRepository,
+} from "~/platform/chief-of-staff/d1-reference-candidate-repository";
 import type {
   CrossViewConfig,
   CrossViewQueryRepository,
@@ -198,6 +202,8 @@ export interface WorkspaceScopeEnv {
  */
 export interface WorkspaceScope {
   readonly context: WorkspaceContext;
+  /** Bounded title/explicit-alias lookup for human-readable record references. */
+  readonly referenceCandidates: ReferenceCandidateRepository;
   readonly entities: EntityRepository;
   readonly entityLinks: EntityLinkRepository;
   readonly spine: SpineRepository;
@@ -779,6 +785,10 @@ export function bindWorkspaceRepositories(
     ownerCalendarIso(now, await ownerTimeZone());
 
   const entities = createEntityRepository(env.DB, context, { actorContext });
+  const referenceCandidates = new D1ReferenceCandidateRepository(
+    env.DB,
+    context,
+  );
   const entityLinks = createEntityLinkRepository(env.DB, context, {
     actorContext,
   });
@@ -984,6 +994,7 @@ export function bindWorkspaceRepositories(
   const restore = createWorkspaceRestoreRepository(env.DB, context);
   return {
     context,
+    referenceCandidates,
     entities,
     entityLinks,
     spine,

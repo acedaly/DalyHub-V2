@@ -9,7 +9,7 @@
 
 import { InvalidSpineCursorError } from "~/kernel/spine";
 
-export const AREA_CURSOR_VERSION = 1;
+export const AREA_CURSOR_VERSION = 2;
 
 export type AreaCursorKind = "areas" | "goals" | "projects";
 
@@ -22,6 +22,8 @@ export type AreaCursorScope = {
   readonly workspaceId: string;
   readonly kind: AreaCursorKind;
   readonly areaId: string | null;
+  readonly completionState?: "open" | "completed" | "all";
+  readonly query?: string;
 };
 
 const AREA_CURSOR_KINDS: readonly AreaCursorKind[] = [
@@ -67,6 +69,8 @@ export function encodeAreaCursor(
     scope.workspaceId,
     scope.kind,
     scope.areaId,
+    scope.completionState ?? "all",
+    scope.query ?? "",
     position.createdAt,
     position.id,
   ]);
@@ -97,11 +101,20 @@ export function decodeAreaCursor(cursor: string): DecodedAreaCursor {
     throw new InvalidSpineCursorError();
   }
 
-  if (!Array.isArray(parsed) || parsed.length !== 6) {
+  if (!Array.isArray(parsed) || parsed.length !== 8) {
     throw new InvalidSpineCursorError();
   }
 
-  const [version, workspaceId, kind, areaId, createdAt, id] = parsed;
+  const [
+    version,
+    workspaceId,
+    kind,
+    areaId,
+    completionState,
+    query,
+    createdAt,
+    id,
+  ] = parsed;
   if (
     version !== AREA_CURSOR_VERSION ||
     typeof workspaceId !== "string" ||
@@ -109,6 +122,10 @@ export function decodeAreaCursor(cursor: string): DecodedAreaCursor {
     typeof kind !== "string" ||
     !AREA_CURSOR_KINDS.includes(kind as AreaCursorKind) ||
     (areaId !== null && (typeof areaId !== "string" || areaId.length === 0)) ||
+    (completionState !== "open" &&
+      completionState !== "completed" &&
+      completionState !== "all") ||
+    typeof query !== "string" ||
     typeof createdAt !== "string" ||
     createdAt.length === 0 ||
     typeof id !== "string" ||
@@ -122,6 +139,8 @@ export function decodeAreaCursor(cursor: string): DecodedAreaCursor {
       workspaceId,
       kind: kind as AreaCursorKind,
       areaId,
+      completionState,
+      query,
     },
     position: { createdAt, id },
   };
@@ -134,7 +153,9 @@ export function areaCursorScopeMatches(
   return (
     a.workspaceId === b.workspaceId &&
     a.kind === b.kind &&
-    a.areaId === b.areaId
+    a.areaId === b.areaId &&
+    (a.completionState ?? "all") === (b.completionState ?? "all") &&
+    (a.query ?? "") === (b.query ?? "")
   );
 }
 

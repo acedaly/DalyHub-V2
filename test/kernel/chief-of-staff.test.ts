@@ -312,7 +312,7 @@ describe("Chief of Staff Projects and Notes", () => {
         actor,
         input: { projectId: "does-not-exist", title: "Nope" },
       }),
-    ).rejects.toThrow(/not found/i);
+    ).rejects.toThrow(/no project in dalyhub matches/i);
 
     // Nothing was written by any refused call.
     const projects = await env.DB.prepare(
@@ -339,14 +339,14 @@ describe("Chief of Staff Projects and Notes", () => {
         actor,
         input: { projectId: otherProject.id, title: "Renamed" },
       }),
-    ).rejects.toThrow(/not found/i);
+    ).rejects.toThrow(/no project in dalyhub matches/i);
     await expect(
       invokeChiefOfStaff(serviceEnv(), {
         action: "create_note",
         actor,
         input: { title: "Cross-workspace", projectId: otherProject.id },
       }),
-    ).rejects.toThrow(/no project exists/i);
+    ).rejects.toThrow(/no project in dalyhub matches/i);
 
     const still = await otherSpine.getById(otherProject.id);
     expect(still?.title).toBe("Not yours");
@@ -469,21 +469,21 @@ describe("Chief of Staff Projects and Notes", () => {
         actor,
         input: { title: "Mis-filed", areaId: project.id },
       }),
-    ).rejects.toThrow(/no area exists/i);
+    ).rejects.toThrow(/no area in dalyhub matches/i);
     await expect(
       invokeChiefOfStaff(serviceEnv(), {
         action: "create_note",
         actor,
         input: { title: "Missing goal", goalId: "does-not-exist" },
       }),
-    ).rejects.toThrow(/no goal exists/i);
+    ).rejects.toThrow(/no goal in dalyhub matches/i);
     await expect(
       invokeChiefOfStaff(serviceEnv(), {
         action: "update_note",
         actor,
         input: { noteId: project.id, title: "Not a note" },
       }),
-    ).rejects.toThrow(/not found/i);
+    ).rejects.toThrow(/no note in dalyhub matches/i);
 
     const notes = await env.DB.prepare(
       "SELECT COUNT(*) AS n FROM entities WHERE workspace_id = ? AND type = 'note' AND deleted_at IS NULL",

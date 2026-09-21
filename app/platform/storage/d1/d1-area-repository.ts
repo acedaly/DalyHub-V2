@@ -326,14 +326,19 @@ export class D1AreaRepository implements AreaRepository {
   }
 
   async listAreas(
-    input: { limit?: number; cursor?: string } = {},
+    input: { limit?: number; cursor?: string; query?: string } = {},
   ): Promise<AreaListPage> {
     const limit = validateSpineLimit(input.limit);
+    const query = input.query?.trim().toLocaleLowerCase() ?? "";
     const scope: AreaCursorScope = {
       workspaceId: this.#workspaceId,
       kind: "areas",
       areaId: null,
+      query,
     };
+    const queryClause =
+      query.length > 0 ? " AND lower(e.title) LIKE ? ESCAPE '\\'" : "";
+    const queryParams = query.length > 0 ? [likeContains(query)] : [];
     const cursorParams: string[] = [];
     const cursorClause =
       input.cursor !== undefined
@@ -523,7 +528,7 @@ export class D1AreaRepository implements AreaRepository {
            LEFT JOIN area_details ad
              ON ad.workspace_id = e.workspace_id AND ad.entity_id = e.id
            WHERE e.workspace_id = ? AND e.type = '${AREA}' AND e.deleted_at IS NULL
-                 AND ad.archived_at IS NULL${cursorClause}
+                 AND ad.archived_at IS NULL${queryClause}${cursorClause}
            ORDER BY e.created_at ASC, e.id ASC
            LIMIT ?`,
         )
@@ -549,6 +554,7 @@ export class D1AreaRepository implements AreaRepository {
           this.#workspaceId,
           this.#workspaceId,
           this.#workspaceId,
+          ...queryParams,
           ...cursorParams,
           fetchLimit,
         ),
@@ -694,6 +700,7 @@ export class D1AreaRepository implements AreaRepository {
     areaId: string;
     limit?: number;
     cursor?: string;
+    completionState?: "open" | "completed" | "all";
   }): Promise<AreaGoalPage> {
     const areaId = validateSpineId(input.areaId, "id");
     const limit = validateSpineLimit(input.limit);
@@ -701,7 +708,14 @@ export class D1AreaRepository implements AreaRepository {
       workspaceId: this.#workspaceId,
       kind: "goals",
       areaId,
+      completionState: input.completionState ?? "all",
     };
+    const completionClause =
+      input.completionState === "open"
+        ? " AND gsr.completed_at IS NULL"
+        : input.completionState === "completed"
+          ? " AND gsr.completed_at IS NOT NULL"
+          : "";
     const cursorParams: string[] = [];
     const cursorClause =
       input.cursor !== undefined
@@ -773,7 +787,7 @@ export class D1AreaRepository implements AreaRepository {
            LEFT JOIN goal_details gd
              ON gd.workspace_id = ge.workspace_id AND gd.entity_id = ge.id
            WHERE gl.workspace_id = ? AND gl.type = '${GOAL_BELONGS_TO_AREA}'
-                 AND gl.deleted_at IS NULL AND gl.target_entity_id = ?${cursorClause}
+                 AND gl.deleted_at IS NULL AND gl.target_entity_id = ?${completionClause}${cursorClause}
            ORDER BY ge.created_at ASC, ge.id ASC
            LIMIT ?`,
         )
