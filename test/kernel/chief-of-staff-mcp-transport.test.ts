@@ -245,7 +245,12 @@ describe("Chief of Staff MCP Streamable HTTP boundary", () => {
     );
 
     for (const name of MCP_TOOL_NAMES) {
-      const invoke = vi.fn(async () => ({ ok: true }));
+      let received:
+        (ChiefOfStaffRequest & { actor?: { subject?: string } }) | undefined;
+      const invoke = vi.fn(async (request: ChiefOfStaffRequest) => {
+        received = request;
+        return { ok: true };
+      });
       const response = await worker.fetch(
         post({
           jsonrpc: "2.0",
@@ -263,8 +268,7 @@ describe("Chief of Staff MCP Streamable HTTP boundary", () => {
       ).toHaveBeenCalledWith(expect.objectContaining({ action: name }));
       // A write carries the verified Access subject; a read carries no actor
       // at all, so a read can never be attributed as if it had changed data.
-      const request = invoke.mock.calls[0]?.[0] as
-        (ChiefOfStaffRequest & { actor?: { subject?: string } }) | undefined;
+      const request = received;
       const isWrite =
         name.startsWith("create_") ||
         name.startsWith("update_") ||

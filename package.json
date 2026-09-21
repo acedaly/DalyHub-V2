@@ -68,7 +68,7 @@
     "identity:repair:local": "node scripts/repair-activity-identity.mjs --local --apply",
     "identity:report:production": "node scripts/repair-activity-identity.mjs",
     "identity:repair:production": "node scripts/repair-activity-identity.mjs --apply",
-    "postinstall": "wrangler types"
+    "postinstall": "wrangler types && pnpm run mcp:typegen"
   },
   "dependencies": {
     "@codemirror/commands": "6.10.4",
