@@ -55,6 +55,15 @@ describe("Chief of Staff reference resolution rules", () => {
     });
   });
 
+  it("rejects a candidate whose title and explicit aliases do not match", () => {
+    // Repository full-text search may have found this record through a body,
+    // checklist, role, organisation or tag. None of those makes the phrase a
+    // legitimate name reference.
+    expect(
+      chooseCandidate("task", "tyre pressures", [area("t1", "Prepare camper")]),
+    ).toEqual({ status: "not_found" });
+  });
+
   it("refuses to choose between two people with the same name", () => {
     const resolution = chooseCandidate("person", "John", [
       { id: "pe1", title: "John", subtitle: "Finance" },

@@ -86,14 +86,6 @@ function chiefGoalCondition(stored: string | null): ChiefGoalCondition {
   return stored === "set_aside" ? "set_aside" : "pursuing";
 }
 
-function matchesGoalState(
-  completedAt: Date | null,
-  state: "open" | "completed" | "all",
-): boolean {
-  if (state === "all") return true;
-  return state === "completed" ? completedAt !== null : completedAt === null;
-}
-
 function compactTask(
   task: TaskListItem | TaskView | WaitingTaskListItem,
 ): CompactTask {
@@ -538,10 +530,14 @@ export class DalyHubChiefOfStaffService {
     };
   }
 
-  async #projectSummaries(limit = READ_LIMIT) {
+  async #projectSummaries(
+    limit = READ_LIMIT,
+    workflowStatus?: "active" | "planned" | "on_hold",
+  ) {
     const { todayIso, timezone } = await this.#dateContext();
     const page = await this.#scope.projects.listProjects({
       state: "open",
+      workflowStatus,
       limit,
     });
     const facts = await this.#scope.projectHealth.listProjectHealthFacts(
@@ -623,7 +619,7 @@ export class DalyHubChiefOfStaffService {
       this.#scope.tasks.listWaitingTasks({ todayIso, limit: READ_LIMIT }),
       this.#scope.decisions.list({ status: "open", limit: 25 }),
       this.#projectSummaries(),
-      this.#scope.goals.listGoals({ limit: 25 }),
+      this.#scope.goals.listGoals({ limit: 25, completionState: "open" }),
       this.#scope.tasks.listWorkspaceTasks({
         view: "completed",
         filters: { completedWithin: "7d" },
@@ -693,14 +689,12 @@ export class DalyHubChiefOfStaffService {
         .filter((task) => task.dueDate !== null)
         .slice(0, 30)
         .map(compactTask),
-      relevantGoals: goals.items
-        .filter((goal) => goal.completedAt === null)
-        .map((goal) => ({
-          id: goal.id,
-          title: goal.title,
-          area: goal.area,
-          updatedAt: goal.updatedAt.toISOString(),
-        })),
+      relevantGoals: goals.items.map((goal) => ({
+        id: goal.id,
+        title: goal.title,
+        area: goal.area,
+        updatedAt: goal.updatedAt.toISOString(),
+      })),
     };
   }
 
@@ -790,12 +784,11 @@ export class DalyHubChiefOfStaffService {
     readonly status?: "active" | "planned" | "on_hold";
     readonly limit?: number;
   }) {
-    const projects = await this.#projectSummaries(boundedLimit(input?.limit));
-    return {
-      projects: input?.status
-        ? projects.filter((project) => project.status === input.status)
-        : projects,
-    };
+    const projects = await this.#projectSummaries(
+      boundedLimit(input?.limit),
+      input?.status,
+    );
+    return { projects };
   }
 
   async getProject(reference: string): Promise<ChiefOfStaffResult> {
@@ -1012,6 +1005,20 @@ export class DalyHubChiefOfStaffService {
       "taskId",
       input.taskId,
     );
+    // Resolve every supplied relationship before the first write. In
+    // particular, a missing/ambiguous Person must not let the ordinary Task
+    // patch persist and then escape without the relationship or MCP audit.
+    const parentSpecified =
+      input.projectId !== undefined || input.areaId !== undefined;
+    const parent = parentSpecified ? await this.#relation(input) : null;
+    const person = input.personId
+      ? await requireReference(
+          this.#scope,
+          "person",
+          "personId",
+          input.personId,
+        )
+      : null;
     const result = await this.#scope.tasks.updateTask(taskId, {
       title: input.title,
       description: input.notes,
@@ -1020,23 +1027,12 @@ export class DalyHubChiefOfStaffService {
       priority: input.priority,
       status: input.status,
     });
-    const parentSpecified =
-      input.projectId !== undefined || input.areaId !== undefined;
     const parentResult = parentSpecified
-      ? await this.#scope.tasks.setTaskParent(
-          taskId,
-          await this.#relation(input),
-        )
+      ? await this.#scope.tasks.setTaskParent(taskId, parent)
       : null;
     const task = parentResult?.task ?? result.task;
     let changed = result.changed || (parentResult?.changed ?? false);
-    if (input.personId) {
-      const person = await requireReference(
-        this.#scope,
-        "person",
-        "personId",
-        input.personId,
-      );
+    if (person !== null) {
       changed = (await this.#relatePerson(task.id, person.id)) || changed;
     }
     if (changed) {
@@ -1892,16 +1888,11 @@ export class DalyHubChiefOfStaffService {
     readonly limit?: number;
   }): Promise<ChiefOfStaffResult> {
     const limit = boundedLimit(input?.limit);
-    const page = await this.#scope.areas.listAreas({ limit });
-    const wanted = input?.query?.trim().toLocaleLowerCase();
-    const areas = page.items
-      .filter(
-        (area) =>
-          wanted === undefined ||
-          wanted.length === 0 ||
-          area.title.toLocaleLowerCase().includes(wanted),
-      )
-      .map(compactArea);
+    const page = await this.#scope.areas.listAreas({
+      limit,
+      query: input?.query,
+    });
+    const areas = page.items.map(compactArea);
     return { areas, truncated: page.nextCursor !== null };
   }
 
@@ -2087,29 +2078,29 @@ export class DalyHubChiefOfStaffService {
       const page = await this.#scope.areas.listAreaGoals({
         areaId: match.id,
         limit,
+        completionState: state,
       });
       return {
         area: { id: match.id, title: match.title },
-        goals: page.items
-          .filter((goal) => matchesGoalState(goal.completedAt, state))
-          .map((goal) => ({
-            id: goal.id,
-            title: goal.title,
-            area: { id: match.id, title: match.title },
-            targetDate: goal.targetDate,
-            completedAt: goal.completedAt?.toISOString() ?? null,
-            projects: {
-              total: goal.projectTotal,
-              completed: goal.projectCompleted,
-            },
-          })),
+        goals: page.items.map((goal) => ({
+          id: goal.id,
+          title: goal.title,
+          area: { id: match.id, title: match.title },
+          targetDate: goal.targetDate,
+          completedAt: goal.completedAt?.toISOString() ?? null,
+          projects: {
+            total: goal.projectTotal,
+            completed: goal.projectCompleted,
+          },
+        })),
         truncated: page.nextCursor !== null,
       };
     }
-    const page = await this.#scope.goals.listGoals({ limit });
-    const wanted = page.items.filter((goal) =>
-      matchesGoalState(goal.completedAt, state),
-    );
+    const page = await this.#scope.goals.listGoals({
+      limit,
+      completionState: state,
+    });
+    const wanted = page.items;
     const details = await this.#scope.goalDetails.listMany(
       wanted.map((goal) => goal.id),
     );
@@ -2437,7 +2428,7 @@ export class DalyHubChiefOfStaffService {
         // waiting read does, so narrowing by person or project does not
         // quietly drop the filter the caller asked for.
         ...(input?.followUp === undefined ? {} : { followUp: input.followUp }),
-        ...(person === null ? {} : { delegatedTo: person.title }),
+        ...(person === null ? {} : { waitingOnEntityId: person.id }),
         ...(related?.kind === "project" ? { projectId: related.id } : {}),
         ...(related?.kind === "area" ? { areaId: related.id } : {}),
       },

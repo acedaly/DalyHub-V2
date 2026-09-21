@@ -315,12 +315,20 @@ Worker, and the rules are in order:
 5. a **missing record is never created implicitly**. Only a `create_*` tool
    creates.
 
-Each lookup is a bounded, workspace-scoped query through the same search the
-application uses, and it is type-scoped: asking for an Area can only return
-Areas, so a Project id supplied as `areaId` is still a failure rather than a
-mis-filed record. Archived Areas and Projects are excluded, as they are from
-the application's own pickers; archived People are NOT, because archiving is
-the only put-away this interface has and "restore Kate" has to work.
+Each lookup is a bounded, deterministic, workspace-scoped identity projection
+over the canonical entity/detail tables, and it is type-scoped: asking for an
+Area can only return Areas, so a Project id supplied as `areaId` is still a
+failure rather than a mis-filed record. Candidate retrieval and final comparison
+use the same normalised key, so punctuation, spacing, case and accents work
+end-to-end rather than only after a raw search happened to find the row. Only a
+record's title/name and explicit aliases (currently a Person's preferred name
+and email) participate. Description/body/checklist text, tags, organisation,
+role and other full-text fields remain searchable through `search_dalyhub` but
+can never become an entity reference. The identity projection is hard-capped at
+1,000 rows per entity kind and returns at most ten candidates. Archived Areas,
+Projects and Notes are excluded, as they are from the application's own pickers;
+archived People are NOT, because archiving is the only put-away this interface
+has and "restore Kate" has to work.
 
 ### Ambiguity
 

@@ -140,6 +140,68 @@ describe("Chief of Staff People", () => {
     );
   });
 
+  it("retrieves and deduplicates names through punctuation, spacing, case and accents", async () => {
+    await invokeChiefOfStaff(serviceEnv(), {
+      action: "create_area",
+      actor,
+      input: { title: "Career Development" },
+    });
+
+    for (const reference of [
+      "Career Development",
+      "career  development",
+      "Career-Development",
+    ]) {
+      const result = await invokeChiefOfStaff(serviceEnv(), {
+        action: "get_area",
+        input: { areaId: reference },
+      });
+      expect(record<{ title: string }>(result, "area").title).toBe(
+        "Career Development",
+      );
+    }
+
+    await invokeChiefOfStaff(serviceEnv(), {
+      action: "create_person",
+      actor,
+      input: { name: "Renée O'Brien" },
+    });
+    const accentFolded = await invokeChiefOfStaff(serviceEnv(), {
+      action: "get_person",
+      input: { personId: "renee obrien" },
+    });
+    expect(record<{ name: string }>(accentFolded, "person").name).toBe(
+      "Renée O'Brien",
+    );
+
+    const duplicate = await invokeChiefOfStaff(serviceEnv(), {
+      action: "create_area",
+      actor,
+      input: { title: "career-development" },
+    });
+    expect(duplicate.status).toBe("possible_duplicate");
+  });
+
+  it("returns ambiguity when distinct records normalise to the same name", async () => {
+    await invokeChiefOfStaff(serviceEnv(), {
+      action: "create_area",
+      actor,
+      input: { title: "Career Development" },
+    });
+    await invokeChiefOfStaff(serviceEnv(), {
+      action: "create_area",
+      actor,
+      input: { title: "Career-Development", allowDuplicate: true },
+    });
+
+    const result = await invokeChiefOfStaff(serviceEnv(), {
+      action: "get_area",
+      input: { areaId: "career  development" },
+    });
+    expect(result.status).toBe("ambiguous_reference");
+    expect(rows(result, "matches")).toHaveLength(2);
+  });
+
   it("refuses to guess which John, and writes nothing while it asks", async () => {
     for (const organisation of ["Finance", "Orana"]) {
       await invokeChiefOfStaff(serviceEnv(), {
@@ -506,6 +568,40 @@ describe("Chief of Staff workspace scoping for the new domains", () => {
 });
 
 describe("Chief of Staff Areas and Goals", () => {
+  it("applies Area text and Project workflow filters before the limit", async () => {
+    const spine = makeSpineRepository(makeContext(WS));
+    await spine.createArea({ title: "Earlier unrelated area" });
+    const work = await spine.createArea({ title: "Later Work Area" });
+
+    const areas = await invokeChiefOfStaff(serviceEnv(), {
+      action: "get_areas",
+      input: { query: "Work", limit: 1 },
+    });
+    expect(
+      rows<{ title: string }>(areas, "areas").map((area) => area.title),
+    ).toEqual(["Later Work Area"]);
+
+    await invokeChiefOfStaff(serviceEnv(), {
+      action: "create_project",
+      actor,
+      input: { title: "Earlier planned", areaId: work.id, status: "planned" },
+    });
+    await invokeChiefOfStaff(serviceEnv(), {
+      action: "create_project",
+      actor,
+      input: { title: "Later active", areaId: work.id, status: "active" },
+    });
+    const projects = await invokeChiefOfStaff(serviceEnv(), {
+      action: "get_projects",
+      input: { status: "active", limit: 1 },
+    });
+    expect(
+      rows<{ title: string }>(projects, "projects").map(
+        (project) => project.title,
+      ),
+    ).toEqual(["Later active"]);
+  });
+
   it("creates an Area, a Project under it and a Task on that Project, all by name", async () => {
     const area = await invokeChiefOfStaff(serviceEnv(), {
       action: "create_area",
@@ -700,6 +796,33 @@ describe("Chief of Staff Areas and Goals", () => {
     });
     expect(again.status).toBe("possible_duplicate");
   });
+
+  it("filters Goal lifecycle before applying the requested limit", async () => {
+    const spine = makeSpineRepository(makeContext(WS));
+    const area = await spine.createArea({ title: "Career" });
+    const completed = await spine.createGoal({
+      title: "Earlier completed goal",
+      areaId: area.id,
+    });
+    await spine.complete(completed.id);
+    await spine.createGoal({ title: "Later open goal", areaId: area.id });
+
+    const workspace = await invokeChiefOfStaff(serviceEnv(), {
+      action: "get_goals",
+      input: { state: "open", limit: 1 },
+    });
+    expect(
+      rows<{ title: string }>(workspace, "goals").map((goal) => goal.title),
+    ).toEqual(["Later open goal"]);
+
+    const inArea = await invokeChiefOfStaff(serviceEnv(), {
+      action: "get_goals",
+      input: { areaId: area.id, state: "open", limit: 1 },
+    });
+    expect(
+      rows<{ title: string }>(inArea, "goals").map((goal) => goal.title),
+    ).toEqual(["Later open goal"]);
+  });
 });
 
 describe("Chief of Staff waiting, task lifecycle and audit", () => {
@@ -752,6 +875,19 @@ describe("Chief of Staff waiting, task lifecycle and audit", () => {
       input: { projectId: "OpO Program" },
     });
     expect(rows(project, "waitingFor")).toHaveLength(1);
+
+    // The relationship is the canonical task.waiting_on link, not a comparison
+    // against the historical free-text delegation label.
+    await invokeChiefOfStaff(serviceEnv(), {
+      action: "update_person",
+      actor,
+      input: { personId, name: "Jonathan Reid" },
+    });
+    const afterRename = await invokeChiefOfStaff(serviceEnv(), {
+      action: "get_waiting_for",
+      input: { personId: "Jonathan Reid" },
+    });
+    expect(rows(afterRename, "waitingFor")).toHaveLength(1);
   });
 
   it("still accepts a waiting item for a party with no DalyHub record", async () => {
@@ -855,6 +991,96 @@ describe("Chief of Staff waiting, task lifecycle and audit", () => {
     expect(
       rows<{ id: string }>(context, "openTasks").map((task) => task.id),
     ).toEqual([taskId]);
+  });
+
+  it("changes nothing when update_task cannot resolve its supplied Person", async () => {
+    const spine = makeSpineRepository(makeContext(WS));
+    const area = await spine.createArea({ title: "Work" });
+    const created = await invokeChiefOfStaff(serviceEnv(), {
+      action: "create_task",
+      actor,
+      input: { title: "Original task", areaId: area.id, dueDate: "2026-10-01" },
+    });
+    const taskId = record<{ id: string }>(created, "task").id;
+    for (const organisation of ["Finance", "Orana"]) {
+      await invokeChiefOfStaff(serviceEnv(), {
+        action: "create_person",
+        actor,
+        input: { name: "John Smith", organisation, allowDuplicate: true },
+      });
+    }
+    const auditsBefore = await auditActions();
+
+    const ambiguous = await invokeChiefOfStaff(serviceEnv(), {
+      action: "update_task",
+      actor,
+      input: {
+        taskId,
+        title: "Should never persist",
+        dueDate: "2026-12-31",
+        personId: "John",
+      },
+    });
+    expect(ambiguous.status).toBe("ambiguous_reference");
+
+    const stored = await env.DB.prepare(
+      `SELECT e.title, td.due_date
+       FROM entities e
+       LEFT JOIN task_details td
+         ON td.workspace_id = e.workspace_id AND td.entity_id = e.id
+       WHERE e.workspace_id = ? AND e.id = ?`,
+    )
+      .bind(WS, taskId)
+      .first<{ title: string; due_date: string | null }>();
+    expect(stored).toEqual({ title: "Original task", due_date: "2026-10-01" });
+    expect(await auditActions()).toEqual(auditsBefore);
+
+    await expect(
+      invokeChiefOfStaff(serviceEnv(), {
+        action: "update_task",
+        actor,
+        input: {
+          taskId,
+          title: "Still must not persist",
+          personId: "Nobody in DalyHub",
+        },
+      }),
+    ).rejects.toThrow(/No person/i);
+    const title = await env.DB.prepare(
+      "SELECT title FROM entities WHERE workspace_id = ? AND id = ?",
+    )
+      .bind(WS, taskId)
+      .first<{ title: string }>();
+    expect(title?.title).toBe("Original task");
+  });
+
+  it("does not turn a body/checklist-only full-text hit into a Task reference", async () => {
+    const spine = makeSpineRepository(makeContext(WS));
+    const area = await spine.createArea({ title: "Home" });
+    const created = await invokeChiefOfStaff(serviceEnv(), {
+      action: "create_task",
+      actor,
+      input: {
+        title: "Prepare camper",
+        areaId: area.id,
+        notes: "Check tyre pressures before leaving.",
+      },
+    });
+    const taskId = record<{ id: string }>(created, "task").id;
+
+    await expect(
+      invokeChiefOfStaff(serviceEnv(), {
+        action: "complete_task",
+        actor,
+        input: { taskId: "tyre pressures" },
+      }),
+    ).rejects.toThrow(/No task/i);
+    const stored = await env.DB.prepare(
+      "SELECT completed_at FROM spine_records WHERE workspace_id = ? AND entity_id = ?",
+    )
+      .bind(WS, taskId)
+      .first<{ completed_at: string | null }>();
+    expect(stored?.completed_at).toBeNull();
   });
 
   it("reads Decisions and Notes back, narrowed by the record they belong to", async () => {

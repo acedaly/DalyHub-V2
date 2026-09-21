@@ -465,7 +465,17 @@ export class D1GoalRepository implements GoalRepository {
 
   async listGoals(input: GoalListInput = {}): Promise<GoalListPage> {
     const limit = validateSpineLimit(input.limit);
-    const scope: GoalListCursorScope = { workspaceId: this.#workspaceId };
+    const completionState = input.completionState ?? "all";
+    const scope: GoalListCursorScope = {
+      workspaceId: this.#workspaceId,
+      completionState,
+    };
+    const completionClause =
+      completionState === "open"
+        ? " AND gsr.completed_at IS NULL"
+        : completionState === "completed"
+          ? " AND gsr.completed_at IS NOT NULL"
+          : "";
     const cursorParams: string[] = [];
     const cursorClause =
       input.cursor !== undefined
@@ -497,7 +507,7 @@ export class D1GoalRepository implements GoalRepository {
              ON ae.workspace_id = gl.workspace_id AND ae.id = gl.target_entity_id
                 AND ae.type = '${AREA}' AND ae.deleted_at IS NULL${AREA_IDENTITY_JOINS}
            WHERE gl.workspace_id = ? AND gl.type = '${GOAL_BELONGS_TO_AREA}'
-                 AND gl.deleted_at IS NULL${cursorClause}
+                 AND gl.deleted_at IS NULL${completionClause}${cursorClause}
            ORDER BY ge.created_at ASC, ge.id ASC
            LIMIT ?`,
         )

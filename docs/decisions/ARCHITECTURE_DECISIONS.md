@@ -7783,8 +7783,14 @@ deleted design programme files are not authority; git history is the archive.
   in the application layer, never in the MCP Worker: an exact id wins, then an
   exact normalised name, then a single unambiguous partial match, and anything
   else returns a structured `ambiguous_reference` result carrying the
-  candidates while writing nothing. A missing record is never created
-  implicitly. Creation tools additionally return `possible_duplicate` — with
+  candidates while writing nothing. Candidate retrieval is a bounded,
+  workspace- and type-scoped identity projection over canonical titles/names
+  and explicit aliases; full-text body, description, checklist, tag,
+  organisation and role matches cannot become references. The retrieval key
+  and comparison key are the same case/accent/punctuation/spacing fold, so the
+  documented normalisation works before as well as after retrieval. A missing
+  record is never created implicitly. Creation tools additionally return
+  `possible_duplicate` — with
   the matching records and an `allowDuplicate` override — when an exact
   normalised name, or a Person's email, already exists. Both are RESULTS rather
   than errors, because the next step is a question to the owner and the

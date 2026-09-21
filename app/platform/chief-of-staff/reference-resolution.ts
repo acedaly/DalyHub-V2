@@ -18,10 +18,11 @@
  *   5. an absent record is never created implicitly — only a `create_*` tool
  *      creates, and it says so in its name.
  *
- * Every lookup is a bounded, workspace-scoped query through the SAME repository
- * the application uses. There is no second index, no cache and no fuzzy scoring
- * model: "one match or ask" is the whole heuristic, because a Chief of Staff
- * that quietly picks a John is worse than one that asks which John.
+ * Every lookup uses a bounded, workspace-scoped identity projection over the
+ * canonical entity/detail tables. Full-text fields are deliberately absent.
+ * There is no second index, no cache and no fuzzy scoring model: "one match or
+ * ask" is the whole heuristic, because a Chief of Staff that quietly picks a
+ * John is worse than one that asks which John.
  */
 
 import type {
@@ -31,6 +32,11 @@ import type {
   ReferenceMatch,
 } from "~/kernel/chief-of-staff";
 import type { WorkspaceScope } from "~/platform/workspaces/composition";
+
+import type { ReferenceCandidate } from "./d1-reference-candidate-repository";
+import { normaliseReferenceKey } from "./d1-reference-candidate-repository";
+
+export type { ReferenceCandidate } from "./d1-reference-candidate-repository";
 
 /** The most candidates a resolution or duplicate check ever considers. */
 const CANDIDATE_LIMIT = 10;
@@ -48,34 +54,8 @@ const CANDIDATE_LIMIT = 10;
  * Deliberately NOT a similarity score. This either matches or it does not.
  */
 export function normaliseReference(value: string): string {
-  return value
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .toLocaleLowerCase()
-    .replace(/[^a-z0-9]+/g, "");
+  return normaliseReferenceKey(value);
 }
-
-/**
- * The first word of a name, for a SECOND, looser candidate query.
- *
- * A contains-match on the whole string cannot find "Sarah Beale" when the
- * owner typed "sarah  beale", so a duplicate check that only searched the full
- * text would happily create the second Sarah. Searching the first word as well
- * finds her, and the exact normalised comparison above still decides.
- */
-function firstWord(value: string): string | null {
-  const word = value.trim().match(/[\p{L}\p{N}]{2,}/u)?.[0];
-  return word === undefined ? null : word;
-}
-
-/** One candidate record a reference or a duplicate check is weighed against. */
-export type ReferenceCandidate = {
-  readonly id: string;
-  readonly title: string;
-  readonly subtitle?: string | null;
-  /** Extra strings that also identify the record — a Person's email, say. */
-  readonly aliases?: readonly string[];
-};
 
 /** What a resolution attempt concluded. Nothing is written on a non-`resolved`. */
 export type ReferenceResolution =
@@ -138,112 +118,48 @@ export function chooseCandidate(
     };
   }
 
-  if (candidates.length === 0) return { status: "not_found" };
-  if (candidates.length === 1) {
+  const partial = candidates.filter((candidate) => {
+    if (normaliseReference(candidate.title).includes(wanted)) return true;
+    return (candidate.aliases ?? []).some((alias) =>
+      normaliseReference(alias).includes(wanted),
+    );
+  });
+  if (partial.length === 0) return { status: "not_found" };
+  if (partial.length === 1) {
     return {
       status: "resolved",
-      match: toMatch(kind, candidates[0]!, "partial_name"),
+      match: toMatch(kind, partial[0]!, "partial_name"),
     };
   }
   return {
     status: "ambiguous",
-    matches: candidates.map((candidate) =>
+    matches: partial.map((candidate) =>
       toMatch(kind, candidate, "partial_name"),
     ),
   };
 }
 
 /**
- * Candidate records of one kind whose title contains `text`, bounded.
+ * Candidate records of one kind whose title/explicit alias contains `text`
+ * after canonical normalisation, bounded.
  *
- * Every branch is an existing workspace-scoped search: no new query, no new
- * index and no cross-kind lookup — asking for an Area can only ever return
- * Areas, which is what makes a Project id supplied as `areaId` a failure.
+ * This is intentionally NOT global/full-text search: body, description,
+ * checklist, tag, organisation and role matches cannot become references.
+ * Asking for an Area can only ever return Areas, which is what makes a Project
+ * id supplied as `areaId` a failure.
  */
 async function findCandidates(
   scope: WorkspaceScope,
   kind: ReferenceKind,
   text: string,
 ): Promise<readonly ReferenceCandidate[]> {
-  switch (kind) {
-    case "area": {
-      const hits = await scope.areas.searchAreas({
-        text,
-        limit: CANDIDATE_LIMIT,
-      });
-      return hits.map((hit) => ({
-        id: hit.id,
-        title: hit.title,
-        subtitle: `${hit.activeProjectCount} active project(s)`,
-      }));
-    }
-    case "goal": {
-      const hits = await scope.goals.searchGoals({
-        text,
-        limit: CANDIDATE_LIMIT,
-      });
-      return hits.map((hit) => ({
-        id: hit.id,
-        title: hit.title,
-        subtitle: hit.area.title,
-      }));
-    }
-    case "project": {
-      const hits = await scope.projects.searchProjects({
-        text,
-        limit: CANDIDATE_LIMIT,
-      });
-      return hits.map((hit) => ({
-        id: hit.id,
-        title: hit.title,
-        subtitle: hit.goal?.title ?? hit.area?.title ?? null,
-      }));
-    }
-    case "person": {
-      // ARCHIVED People are candidates here, unlike archived Areas and
-      // Projects, because archive is the only "put away" this interface has
-      // and a name has to keep working afterwards: "restore Kate" and "what do
-      // I have on Kate?" are the two things an owner asks about an archived
-      // contact, and both need her name to resolve. The compact Person shape
-      // carries `archived`, so a resolved one is never silently presented as
-      // active.
-      const page = await scope.people.list({
-        query: text,
-        status: "all",
-        limit: CANDIDATE_LIMIT,
-      });
-      return page.items.map((person) => ({
-        id: person.id,
-        title: person.title,
-        subtitle: person.organisation ?? person.role ?? null,
-        aliases: [person.preferredName, person.email].filter(
-          (value): value is string => typeof value === "string",
-        ),
-      }));
-    }
-    case "task": {
-      const hits = await scope.tasks.searchTasks({
-        text,
-        limit: CANDIDATE_LIMIT,
-      });
-      return hits.map((hit) => ({
-        id: hit.id,
-        title: hit.title,
-        subtitle: hit.parent?.title ?? null,
-      }));
-    }
-    case "note": {
-      const hits = await scope.notes.search({
-        text,
-        limit: CANDIDATE_LIMIT,
-      });
-      return hits.map((hit) => ({
-        id: hit.id,
-        title: hit.title,
-        subtitle: null,
-      }));
-    }
-  }
+  const normalisedReference = normaliseReference(text);
+  if (normalisedReference.length === 0) return [];
+  return scope.referenceCandidates.find({
+    kind,
+    normalisedReference,
+    limit: CANDIDATE_LIMIT,
+  });
 }
 
 /**
@@ -407,25 +323,14 @@ export function guardDuplicate(
 /**
  * The bounded candidate set a creation's duplicate check is weighed against.
  *
- * Two bounded queries rather than one: the whole name, and its first word. The
- * second is what makes the check survive the way people actually retype a name
- * — extra spaces, a missing one, different punctuation. Widening the CANDIDATES
- * cannot widen what is blocked, because {@link guardDuplicate} still demands an
- * exact normalised match.
+ * Retrieval and comparison use the same canonical fold, so retyped names with
+ * different spacing or punctuation enter the candidate set before the exact
+ * duplicate rule is applied.
  */
 export async function duplicateCandidates(
   scope: WorkspaceScope,
   kind: ReferenceKind,
   title: string,
 ): Promise<readonly ReferenceCandidate[]> {
-  const whole = await findCandidates(scope, kind, title);
-  const word = firstWord(title);
-  if (
-    word === null ||
-    word.toLocaleLowerCase() === title.trim().toLocaleLowerCase()
-  )
-    return whole;
-  const byWord = await findCandidates(scope, kind, word);
-  const seen = new Set(whole.map((candidate) => candidate.id));
-  return [...whole, ...byWord.filter((candidate) => !seen.has(candidate.id))];
+  return findCandidates(scope, kind, title);
 }

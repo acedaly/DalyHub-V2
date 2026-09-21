@@ -1050,6 +1050,12 @@ export type WorkspaceTaskFilters = {
   readonly delegatedOnly?: boolean;
   /** Only waiting tasks. */
   readonly waitingOnly?: boolean;
+  /**
+   * Restrict waiting tasks to the canonical `task.waiting_on` entity target.
+   * Distinct from `delegatedTo`, which is retained free text for parties that
+   * do not have a Person record.
+   */
+  readonly waitingOnEntityId?: string;
 
   /* ---- TASKS-03 additions. Every one is resolved SERVER-side and bound into --
      the cursor signature, so a page-two cursor can never survive a filter change. */

@@ -16,6 +16,8 @@ import type { WorkspaceId } from "~/kernel/workspaces";
 export type AreaListInput = {
   readonly limit?: number;
   readonly cursor?: string;
+  /** Case-insensitive title predicate, applied before pagination. */
+  readonly query?: string;
 };
 
 export type AreaSearchInput = {
@@ -27,6 +29,8 @@ export type AreaChildrenInput = {
   readonly areaId: string;
   readonly limit?: number;
   readonly cursor?: string;
+  /** Goal-only lifecycle predicate, applied before pagination. */
+  readonly completionState?: "open" | "completed" | "all";
 };
 
 export type AreaListItem = {
