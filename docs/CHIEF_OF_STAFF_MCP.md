@@ -58,41 +58,84 @@ Claude cannot execute SQL, access D1 credentials, delete records, merge or bulk
 mutate them, modify auth or settings, administer Workers/Cloudflare, read
 secrets, export the database, execute files, proxy arbitrary HTTP, or make
 arbitrary network calls. The only "put it away" operation it has is ARCHIVING a
-single Project or Note, which is reversible through the same tool and leaves
-every relationship and every Activity row intact.
+single Project, Note, Person or Area, which is reversible through the same tool
+and leaves every relationship, child record and Activity row intact.
+
+**People are reachable; Diary is not.** AGENTS.md §8 and §17 keep People and
+Diary out of external model context "unless the user explicitly opts in for a
+specific action". Connecting this owner-only connector and calling a People
+tool is that opt-in — the Access policy admits one identity, every call is
+attributable to it, and nothing is sent anywhere DalyHub was not already asked
+to send it. Diary has no tool here at all, and `get_person` returns the shape
+of a shared history (counts, first and last interaction) rather than the diary
+entries behind it.
 
 ## Tools
+
+Thirty-four bounded tools. Read tools never write; write tools never delete.
 
 | Tool | Mode | Purpose |
 |---|---|---|
 | `get_chief_of_staff_context` | read | Bounded daily briefing: today/overdue/upcoming work, projects and next actions, stale projects, waiting, open decisions, captures, completions, deadlines and goals |
 | `get_weekly_review_context` | read | Seven-day creates/completions, open commitments, overdue/waiting/decisions, project health, carry-over and the next 14 days |
 | `get_today` | read | Today's tasks, overdue work and waiting follow-ups due in the owner timezone |
+| `search_dalyhub` | read | Bounded text search across tasks, projects, goals, areas, people, notes and decisions |
 | `get_projects` | read | Active projects with concise progress, health and canonical next action |
 | `get_project` | read | One project's context, tasks, waiting, decisions, linked notes, deadlines and recent activity |
+| `get_areas` | read | The owner's Areas with goal/project/task roll-ups |
+| `get_area` | read | One Area's goals, projects, open tasks, waiting, people, notes and decisions |
+| `get_goals` | read | Goals with their Area, target date, condition and completion state |
+| `get_goal` | read | One Goal's target, definition of done, exact project contribution, people and notes |
+| `get_people` | read | People, filtered by text, lifecycle status, or the Project/Area they relate to |
+| `get_person` | read | One Person, their details, related records, open tasks, waiting items and shared history |
+| `get_notes` | read | Notes with bounded excerpts, filtered by text, tag, Project or Area |
 | `get_note` | read | One Note in full: title, bounded Markdown body, tags and archive state |
-| `search_dalyhub` | read | Bounded text search across tasks, projects, goals, areas, notes and decisions |
+| `get_decisions` | read | Recorded and open Decisions, narrowed by status or related Project/Area |
+| `get_waiting_for` | read | What the owner is waiting on, narrowed by follow-up state or Person/Project/Area |
 | `capture_item` | write | Quick intake of a task, reminder, note, idea, open decision or waiting item |
-| `create_task` | write | Create a normal task under an exact existing Project or Area when supplied |
-| `update_task` | write | Non-destructive task edits and parent movement |
+| `create_task` | write | Create one actionable Task, optionally under a Project/Area and related to a Person |
+| `update_task` | write | Non-destructive task edits, parent movement and Person relationship |
 | `complete_task` | write | Idempotently complete a task |
-| `create_project` | write | Create a Project for a multi-step outcome under an exact existing Area or Goal |
-| `update_project` | write | Rename, restatus, move, complete/reopen or archive/restore one Project |
-| `create_note` | write | Create a Note holding retained context, filed under exact existing records |
+| `reopen_task` | write | Idempotently reopen a completed task |
+| `create_project` | write | Create a finite outcome under an Area or a Goal |
+| `update_project` | write | Rename, restatus, move, relate people, complete/reopen or archive/restore one Project |
+| `create_area` | write | Create a long-running area of responsibility |
+| `update_area` | write | Rename, or archive/restore, one Area |
+| `create_goal` | write | Create a desired outcome under an Area, with a target date and contributing Projects |
+| `update_goal` | write | Rename, move, retarget, set aside/resume, or complete/reopen one Goal |
+| `create_person` | write | Create a person/contact, with their details and relationships |
+| `update_person` | write | Patch a Person's details, tags, relationships, or archive/restore them |
+| `create_note` | write | Create a Note filed under a Project, Area, Goal and/or Person |
 | `update_note` | write | Retitle, replace body/tags, file further, or archive/restore one Note |
 | `record_decision` | write | Record a decided outcome, rationale and optional review/relationship |
 | `create_waiting_for` | write | Create a task in DalyHub's canonical waiting/delegation state |
 | `resolve_waiting_for` | write | Idempotently clear waiting state without deleting history |
 
-IDs are opaque DalyHub entity IDs. Claude should call a read/search tool before
-linking a write and must not infer an ID from a title. The write tools never
-create a parent record implicitly: `create_task` and `create_note` will not
-invent a Project, and `create_project` will not invent an Area or Goal.
+Every field named `*Id` or `*Ids` takes either an exact DalyHub id **or** a
+human-readable name (see [Entity reference
+resolution](#entity-reference-resolution)). The write tools never create a
+parent record implicitly: `create_task` and `create_note` will not invent a
+Project, and `create_project` will not invent an Area or Goal.
 
 There is deliberately no delete, merge, bulk-mutation, SQL, database-export,
-auth-modification, filesystem or arbitrary-HTTP tool. Archiving a Project or a
-Note is the reversible "put it away" operation and is the closest this interface
-comes to removal.
+auth-modification, filesystem or arbitrary-HTTP tool. Archiving a Project,
+Note, Area or Person is the reversible "put it away" operation and is the
+closest this interface comes to removal.
+
+### Names the first release published
+
+`get_chief_of_staff_context`, `get_weekly_review_context`, `get_today`,
+`get_projects`, `get_project`, `get_note`, `search_dalyhub`, `capture_item`,
+`create_task`, `update_task`, `complete_task`, `create_project`,
+`update_project`, `create_note`, `update_note`, `record_decision`,
+`create_waiting_for` and `resolve_waiting_for` all keep their names, their
+existing fields and their existing behaviour. Nothing was renamed for
+consistency, and `test/unit/chief-of-staff-mcp.test.ts` asserts that.
+
+The additions to existing tools are all optional: `personId` on `create_task`,
+`update_task`, `create_note`, `update_note` and `create_waiting_for`;
+`personIds` and `allowDuplicate` on `create_project`; and a name being
+acceptable everywhere an id already was.
 
 ## What each domain means
 
@@ -101,15 +144,29 @@ decides which record an input becomes:
 
 | Input | Record | Tool |
 |---|---|---|
+| An ongoing responsibility with no end state | **Area** | `create_area` |
+| A desired outcome work contributes toward | **Goal** | `create_goal` |
+| A finite outcome needing several actions | **Project** | `create_project` |
 | An action someone must do | **Task** | `create_task` |
-| An outcome needing several actions | **Project** | `create_project` |
+| A human the owner wants to remember | **Person** | `create_person` |
 | Context or reference worth keeping | **Note** | `create_note` |
 | A choice and why it was made | **Decision** | `record_decision` |
 | A dependency on another person or event | **Waiting** | `create_waiting_for` |
 | Unclassified quick input | **Capture** | `capture_item` |
 
+The Area/Project line is the one that matters most, and it has a test: *if the
+thing can be completed, it is not an Area.* "Wedding" is an Area if it is a
+standing part of the owner's life this year and a Project if it is a thing that
+finishes. The tool descriptions say so, because the description is what Claude
+actually reads when it chooses.
+
+"Create a person called Sarah" is `create_person`, not `capture_item` — and
+the same goes for an explicitly named Area, Project, Goal, Task or Note.
+`capture_item` is for input that genuinely has no typed destination yet.
+
 The structural hierarchy is DalyHub's existing FND-07 spine — Area → Goal →
-Project → Task. Notes and Decisions hang off it rather than sitting inside it:
+Project → Task. People, Notes and Decisions hang off it rather than sitting
+inside it:
 
 ```text
 Area
@@ -117,6 +174,7 @@ Area
      └─ Project
          ├─ Tasks          (structural spine children)
          ├─ Notes          (link.related, many-to-many)
+         ├─ People         (link.related, many-to-many)
          ├─ Decisions      (decision_details.related_entity_id)
          └─ Waiting        (Tasks in the canonical waiting state)
 ```
@@ -171,6 +229,197 @@ like one written in DalyHub.
 `update_note` REPLACES the body and the tag set rather than appending, so Claude
 is told to read the Note with `get_note` first when it means to extend it.
 
+### Areas
+
+An Area is the top of DalyHub's hierarchy and has no parent. `create_area` and
+`update_area` reuse `SpineRepository` for identity and rename and
+`AreaSettingsRepository` for the reversible archive, exactly as the Areas module
+does; they add no model and no schema.
+
+**A DalyHub Area carries no description, purpose, status, review cadence or
+parent category.** The kernel models a title, an identity icon/colour and a
+nullable `archived_at`, and nothing else — so the tool exposes a title and an
+archive flag, and says in its own description where the purpose statement
+belongs instead (a Note filed under the Area). Inventing a `description`
+parameter the domain cannot store would be a worse failure than not having
+one: Claude would report success and the text would be gone.
+
+There is no Area deletion here. DalyHub can hard-delete an empty Area
+(`spine.permanentlyDeleteArea`, guarded by a typed-title confirmation in the
+app); that capability is deliberately absent from this interface.
+
+### Goals
+
+`create_goal` and `update_goal` compose `SpineRepository` (create, rename,
+move, complete, reopen) with `GoalDetailsRepository` (target date, definition
+of done, condition) — the same two authorities the Goals module uses.
+
+A Goal belongs to exactly one Area. A Project *contributes to* a Goal by
+being under it, which is the spine's own `project.advances_goal` parentage, so
+`create_goal(projectIds: [...])` and `update_project(goalId: …)` are the same
+relationship approached from either end; there is no second association.
+
+`condition` is STEER-02's owner-set intent, and the interface uses its two
+honest values: `pursuing` (DalyHub's stored `null` — the default) and
+`set_aside`. It is not a verdict on progress, which DalyHub derives with
+evidence, and it is not archiving.
+
+A Goal's measurement configuration (GOAL-02: baseline, target value, unit,
+milestones) is **not** exposed. It is a configuration surface with its own
+vocabulary and its own readings, and a text interface that half-set it would
+produce a Goal that measures the wrong thing.
+
+### People
+
+People are first-class in DalyHub (AGENTS.md §5) and, for the first time, they
+are reachable by Claude. That is a deliberate change to the boundary, recorded
+in [ADR-127](decisions/ARCHITECTURE_DECISIONS.md#adr-127-claude-chief-of-staff-is-a-small-authenticated-mcp-capability-boundary-over-private-worker-rpc):
+AGENTS.md §8/§17 exclude People and Diary from external model context "unless
+the user explicitly opts in for a specific action", and connecting this
+owner-only, Access-protected connector and calling a People tool **is** that
+opt-in, per action and per conversation. **Diary stays out entirely** — there
+is no Diary tool, and there is not going to be one.
+
+`create_person` and `update_person` use the PEOPLE-01 `PersonRepository` for
+the detail slice and the archive lifecycle, and the generic `EntityRepository`
+for the display name — the split the kernel already enforces. Relationships to
+Areas, Projects and Goals are `link.related` EntityLinks, the same
+relationship the shared Linked Items surface draws on both records and the same
+one PEOPLE-03's relationship facts already count.
+
+`get_person` returns the Person, their related Areas/Goals/Projects/Notes/
+Meetings, their open tasks, what the owner is waiting on them for, and the
+SHAPE of the shared history (counts and first/last interaction) — not the
+history itself. Every list is bounded.
+
+A waiting item names its Person as a real entity subject when `personId` is
+given (`task.waiting_on`), so it appears on their record and survives a rename;
+free text stays available for a party with no DalyHub record.
+
+## Entity reference resolution
+
+Every `*Id`/`*Ids` field accepts an exact DalyHub id **or** a human-readable
+name. Resolution happens in the application layer
+(`app/platform/chief-of-staff/reference-resolution.ts`), never in the MCP
+Worker, and the rules are in order:
+
+1. an **exact id** of the named kind always wins;
+2. an **exact normalised name** resolves, when exactly one active record of
+   that kind has it. Normalising folds case, accents, punctuation and spacing,
+   so `Career Development`, `career  development` and `Career-Development` are
+   one name — and `Career` is still not `Career Development`;
+3. a **single partial match** resolves, because there is nothing to confuse it
+   with;
+4. **several plausible matches** resolve to nothing and return an
+   `ambiguous_reference` result;
+5. a **missing record is never created implicitly**. Only a `create_*` tool
+   creates.
+
+Each lookup is a bounded, workspace-scoped query through the same search the
+application uses, and it is type-scoped: asking for an Area can only return
+Areas, so a Project id supplied as `areaId` is still a failure rather than a
+mis-filed record. Archived Areas and Projects are excluded, as they are from
+the application's own pickers; archived People are NOT, because archiving is
+the only put-away this interface has and "restore Kate" has to work.
+
+### Ambiguity
+
+An ambiguous reference comes back as an ordinary tool RESULT, not an error,
+because Claude's next move is to ask the owner and it needs the candidates:
+
+```json
+{
+  "status": "ambiguous_reference",
+  "field": "personId",
+  "expected": "person",
+  "reference": "John",
+  "matches": [
+    { "type": "person", "id": "…", "title": "John Smith", "subtitle": "Finance", "matchedOn": "name" },
+    { "type": "person", "id": "…", "title": "John Smith", "subtitle": "Orana",   "matchedOn": "name" }
+  ],
+  "message": "… Nothing was changed."
+}
+```
+
+**Nothing is written while the question is outstanding.** A reference that
+names nothing is an error instead, because there is nothing to choose between.
+
+## Duplicate protection
+
+`create_person`, `create_area`, `create_project` and `create_goal` check for a
+record that is effectively what they were about to create, and return a result
+rather than a second copy:
+
+```json
+{
+  "status": "possible_duplicate",
+  "entityType": "area",
+  "title": "Career Development",
+  "matches": [{ "type": "area", "id": "…", "title": "Career Development" }],
+  "message": "… Nothing was created."
+}
+```
+
+The check is deliberately narrow — an **exact normalised name**, or, for a
+Person, a shared email address. A merely similar name creates normally, because
+refusing "Career Development 2027" because "Career Development" exists would
+make the tool useless. It is a pause, not a uniqueness constraint: two people
+genuinely can share a name, and `allowDuplicate: true` is how the owner says so
+after being asked. A refusal writes nothing and audits nothing.
+
+## Patch semantics
+
+Every `update_*` tool is a PATCH. An omitted field means *leave it exactly as
+it is*; it never means *set it to null*. Clearing a nullable field is done by
+sending an explicit `null`.
+
+Two fields are deliberately wholesale rather than additive, and say so in their
+descriptions: a Note's `content` REPLACES the body (read it with `get_note`
+first when extending it), and `tags` REPLACES the whole tag set.
+
+Relationship lists (`personIds`, `areaIds`, `projectIds`, `goalIds`) ADD
+relationships. This interface has no unlink capability at all, so a list that
+omits an existing relationship never removes it.
+
+## Archive, never delete
+
+There is no hard delete on this interface for any entity. Projects, Notes,
+People and Areas each have a reversible `archived` flag, reachable in both
+directions through the same tool, that preserves every relationship, child
+record and Activity row. Tasks are completed and reopened, never deleted;
+waiting state is resolved, never deleted. DalyHub's own irreversible operations
+— permanent Area deletion, task deletion, workspace purge — stay in the
+application, behind the owner's own typed confirmations.
+
+## What this interface deliberately cannot do
+
+Not every gap is an oversight, so the ones that are decisions are written down:
+
+- **There is no separate relationship tool.** People are related to Areas,
+  Projects and Goals through `create_person`/`update_person` (and
+  `create_project`/`update_project` from the other end), because the domain
+  already models it as one `link.related` EntityLink and a `link_person` tool
+  would be a second way to write the same row. There is also no UNLINK: this
+  interface adds relationships and never removes one.
+- **Captures have no inbox state to process.** DalyHub has no capture entity —
+  `capture_item` creates a real Task, Note or Decision immediately, which is
+  why there is nothing to "mark processed". Recent MCP captures are surfaced in
+  `get_chief_of_staff_context.recentCaptures`, and the records themselves are
+  read through the ordinary task/note/decision tools.
+- **An Area carries no description, purpose, status or review cadence**, and a
+  Goal's GOAL-02 measurement configuration is not exposed. Both are stated
+  above; neither is worth a migration to satisfy a tool parameter.
+- **`get_notes` answers one lifecycle bucket at a time** (`active` or
+  `archived`), because that is what the Notes collection answers. There is no
+  "all", rather than an "all" that quietly means "active".
+- **An archived Area or Project cannot be named.** Area and Project search
+  excludes archived records, so restoring one needs its exact id (People are
+  the exception — see above — because the name has to survive the archive).
+- **`peopleWaitingOnMe` is still empty.** The kernel models outbound waiting
+  and delegation, not inbound assignment; an empty answer is more truthful than
+  reversing the relationship.
+- **Diary is absent entirely**, by decision rather than by omission.
+
 ## Chief-of-Staff semantics
 
 - All reads are workspace-scoped and hard-capped (50 items per major task list,
@@ -200,16 +449,25 @@ Access subject. It also appends an `mcp.mutation` event with:
 - a bounded summary;
 - a bounded request/correlation ID.
 
-This covers every write: Task create/update/complete, Project create/update,
+This covers every write: Task create/update/complete/reopen, Project
+create/update, Area create/update, Goal create/update, Person create/update,
 Note create/update, decision recording, waiting creation and resolution, and
 capture. The domain repositories underneath append their own canonical events
 too (`entity.created`, `project.status_changed`, `note.content_updated`, …), so
 an MCP write is legible on the record's own Timeline as well as in the MCP audit
 trail.
 
-Idempotent no-ops do not append duplicate MCP audit events: an `update_project`
-or `update_note` that changes nothing returns `changed: false` and writes no
-`mcp.mutation` row, matching `complete_task` and `resolve_waiting_for`. Access tokens,
+Idempotent no-ops do not append duplicate MCP audit events: an `update_project`,
+`update_note`, `update_person`, `update_area` or `update_goal` that changes
+nothing returns `changed: false` and writes no `mcp.mutation` row, matching
+`complete_task` and `resolve_waiting_for`. Neither does a refusal — an
+ambiguous reference and a possible duplicate both write nothing, so they audit
+nothing.
+
+The payload is identification, not content: the action, the entity type, the
+entity id (as the Activity subject), a bounded title-level summary and the
+request id. A Person's contact details, a Note's body and a Decision's
+rationale are never copied into it. Access tokens,
 cookies and JWTs are not event payloads. The existing Activity/Timeline system
 can surface these events in a later UI pass without a second audit store.
 
@@ -223,10 +481,13 @@ states in the database the same rule `validateCreateDecision` and
 `validateWorkspaceSnapshot` enforce in the domain and in import/restore.
 Decisions are included in workspace export, restore and purge classification.
 
-Nothing else needs a table. Waiting items reuse canonical Tasks; MCP audit
-events reuse Activity; Projects reuse `spine_records` + `project_details`; Notes
-reuse `entities` + `note_details`; and a Note's relationship to a Project, Area
-or Goal reuses `entity_links` with the existing `link.related` type.
+Nothing else needs a table, and the People/Areas/Goals expansion adds no
+migration of its own. Waiting items reuse canonical Tasks; MCP audit events
+reuse Activity; Projects reuse `spine_records` + `project_details`; Areas reuse
+`spine_records` + `area_details`; Goals reuse `spine_records` + `goal_details`;
+People reuse `entities` + `person_details`; Notes reuse `entities` +
+`note_details`; and every relationship — a Note to a Project, a Person to an
+Area — reuses `entity_links` with the existing `link.related` type.
 
 ## Local development
 
@@ -380,6 +641,16 @@ Example prompts:
 - “Save this as a note under the OpO project — it is context, not a task.”
 - “What context have I already captured about Control 2? Read the note.”
 - “That project is finished; mark it complete and archive it.”
+- “Add Vaughn as a person. He's relevant to the OpO3 finance sessions.”
+- “Create John Smith, District Manager at Orana.”
+- “Create an area called Career Development, then a project under it called
+  Capability 10/11 Application Preparation, then a task to update my resume.”
+- “Create a goal to secure a Capability 10/11 role, targeting March next year.”
+- “Waiting on Andrew to confirm the OpO3 finance presenter.”
+- “Add a note to John's record that we discussed OpO3 finance delivery.”
+- “What am I waiting on John for?”
+- “What's going on in the Wedding area?”
+- “I marked that done too early — reopen it.”
 
 ## Troubleshooting
 
@@ -398,8 +669,19 @@ Example prompts:
   taking the required backup.
 - **Inspector receives 401 locally:** use the development token from the MCP
   Worker's own `.dev.vars`, not the application's development auth token.
-- **A title cannot be linked:** search first and pass the exact returned ID;
-  writes intentionally reject fuzzy/unknown parents.
+- **A title cannot be linked:** the name matched nothing. Search first and pass
+  the exact returned ID; writes intentionally reject unknown parents and never
+  invent one.
+- **A tool answers `ambiguous_reference` instead of writing:** the name matched
+  several records. That is the design — answer with the exact id from
+  `matches`, and nothing was changed in the meantime.
+- **A creation answers `possible_duplicate`:** DalyHub already holds a record
+  with effectively that name (or, for a Person, that email). Use the existing
+  record, or resend with `allowDuplicate: true` once the owner confirms.
+- **An `update_*` cleared a field nobody mentioned:** it should not, and a
+  regression test covers it. Omitted means unchanged; only an explicit `null`
+  clears. The exceptions are documented: a Note's `content` and any `tags` set
+  are replaced wholesale.
 
 ## Current official references
 

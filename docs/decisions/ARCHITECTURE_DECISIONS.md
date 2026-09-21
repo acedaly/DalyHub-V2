@@ -7715,7 +7715,9 @@ deleted design programme files are not authority; git history is the archive.
 
 ## ADR-127: Claude Chief of Staff is a small authenticated MCP capability boundary over private Worker RPC
 
-- **Status.** Accepted (2026-09-20, Chief of Staff MCP milestone). Builds on
+- **Status.** Accepted (2026-09-20, Chief of Staff MCP milestone); amended
+  2026-09-21 to cover Areas, Goals and People, human-readable entity
+  references, duplicate protection and the People-vs-Diary boundary. Builds on
   [ADR-010](#adr-010-server-side-workspace-context),
   [ADR-012](#adr-012-activity-persistence-and-atomic-mutation-recording),
   [ADR-016](#adr-016-cloudflare-access-identity-app-shell-and-registry-driven-routing)
@@ -7737,23 +7739,57 @@ deleted design programme files are not authority; git history is the archive.
   Chief-of-Staff service composed from the existing workspace-scoped
   repositories. There is no public internal API.
 
-  The MCP surface is capability-shaped rather than repository-shaped: seven read
-  tools and eleven ordinary write tools, covering Tasks, Projects, Notes,
-  Decisions and waiting. No delete, merge, bulk-mutation, SQL, export,
+  The MCP surface is capability-shaped rather than repository-shaped: sixteen
+  read tools and eighteen ordinary write tools, covering Areas, Goals,
+  Projects, Tasks, People, Notes, Decisions and waiting — the objects the owner
+  maintains by hand. No delete, merge, bulk-mutation, SQL, export,
   authentication, configuration, secret, file-execution or arbitrary-network
   capability exists. The only reversal-shaped capability is ARCHIVING one
-  Project or one Note, which is reversible through the same tool and retains
-  every relationship and Activity row. Broad daily and weekly contexts are
-  assembled server-side, deterministically and with hard caps, rather than
-  reconstructed by dozens of model calls.
+  Project, Note, Person or Area, which is reversible through the same tool and
+  retains every relationship, child record and Activity row. Broad daily and
+  weekly contexts are assembled server-side, deterministically and with hard
+  caps, rather than reconstructed by dozens of model calls.
 
-  Projects and Notes add NO model of their own. A Project is created, renamed,
-  moved and completed through `SpineRepository` and restatused/archived through
-  `ProjectSettingsRepository`; a Note is the generic `EntityRepository`'s
-  identity plus `NoteDetailsRepository`'s body, tags and archive state; and a
-  Note is filed against a Project, Area or Goal through the existing PROJ-03
-  `link.related` EntityLink — the same relationship the shared Linked Items
-  surface shows — rather than a second, MCP-only association type.
+  No domain adds a model of its own, and none adds a migration. A Project is
+  created, renamed, moved and completed through `SpineRepository` and
+  restatused/archived through `ProjectSettingsRepository`; an Area is
+  `SpineRepository` plus `AreaSettingsRepository`'s reversible archive; a Goal
+  is `SpineRepository` plus `GoalDetailsRepository`'s target date, definition
+  of done and STEER-02 condition; a Person is `PersonRepository`'s PEOPLE-01
+  detail slice and archive lifecycle plus the generic `EntityRepository`'s
+  display name; a Note is that same generic identity plus
+  `NoteDetailsRepository`'s body, tags and archive state. Every relationship —
+  a Note filed under a Project, a Person attached to an Area — is the existing
+  `link.related` EntityLink the shared Linked Items surface shows, rather than
+  a second, MCP-only association type. Where the domain has no field, the tool
+  has no parameter: an Area has no description, purpose, status or review
+  cadence, and the tool says where that context belongs instead rather than
+  accepting text it would silently drop.
+
+  **People are exposed to Claude through this boundary; Diary is not.**
+  AGENTS.md §8 and §17 exclude both from external model context "unless the
+  user explicitly opts in for a specific action". Connecting this connector —
+  owner-only by Access policy, attributable to one verified subject, and
+  invoked per tool call in a conversation the owner started — IS that opt-in,
+  and a Chief of Staff that cannot name the people the work involves is not one.
+  Diary is excluded outright: it has no tool, no read and no mention in any
+  context assembly. `get_person` returns the SHAPE of a shared history —
+  interaction counts and first/last instants — rather than the entries behind
+  it, and MCP audit payloads carry identification (action, entity type, entity
+  id, a title-level summary) rather than contact details, note bodies or
+  rationale.
+
+  Tools accept a human-readable reference wherever they accept an id, resolved
+  in the application layer, never in the MCP Worker: an exact id wins, then an
+  exact normalised name, then a single unambiguous partial match, and anything
+  else returns a structured `ambiguous_reference` result carrying the
+  candidates while writing nothing. A missing record is never created
+  implicitly. Creation tools additionally return `possible_duplicate` — with
+  the matching records and an `allowDuplicate` override — when an exact
+  normalised name, or a Person's email, already exists. Both are RESULTS rather
+  than errors, because the next step is a question to the owner and the
+  candidates are what make it answerable. Every `update_*` tool is a PATCH: an
+  omitted field is unchanged and only an explicit null clears one.
 
   Production authentication is a Cloudflare Access MCP server application with
   Managed OAuth. Access owns the interactive OAuth exchange and applies the
@@ -7769,7 +7805,9 @@ deleted design programme files are not authority; git history is the archive.
   idempotent no-op appends none.
 
 - **Consequences.** Claude can reason over compact facts and make ordinary,
-  attributable changes without database or platform authority. The domain logic
+  attributable changes without database or platform authority — including the
+  administrative maintenance the owner would otherwise do by hand, and without
+  first being handed an id for every record it touches. The domain logic
   stays reusable and testable inside DalyHub rather than drifting into prompts
   or the transport Worker. The application Worker gains a named RPC surface,
   but only the configured service binding can reach it. Production activation
@@ -7787,4 +7825,17 @@ deleted design programme files are not authority; git history is the archive.
   rationale are not an action; rejected for waiting because the canonical Task
   waiting state already expresses it without a duplicate store). *Use the
   legacy SSE/McpAgent path* (rejected: the current supported stateless path is
-  `createMcpHandler()` over Streamable HTTP).
+  `createMcpHandler()` over Streamable HTTP). *Keep People out of the MCP
+  surface* (rejected: DalyHub's own constitution calls People first-class and
+  woven through the system, and the §17 exclusion is written as an opt-in
+  rather than a prohibition — an owner-only connector the owner chose to
+  connect is the opt-in it describes; Diary, which has no comparable
+  operational need, stays excluded). *Add a `description` to Areas so the tool
+  could accept one* (rejected: a schema change to satisfy a tool parameter is
+  the interface driving the domain, which is the direction this ADR exists to
+  prevent). *Expose a generic `link` tool for arbitrary relationships*
+  (rejected: relationships set through the creation and update tools stay
+  legible and bounded; a generic mutation mechanism is the thing "bounded
+  tools" rules out). *Resolve names in the MCP Worker* (rejected: resolution
+  needs workspace-scoped queries, and the Worker has, and must keep, no data
+  access at all).
