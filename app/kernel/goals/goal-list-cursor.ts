@@ -13,7 +13,7 @@
 
 import { InvalidSpineCursorError } from "~/kernel/spine";
 
-export const GOAL_LIST_CURSOR_VERSION = 1;
+export const GOAL_LIST_CURSOR_VERSION = 2;
 
 export type GoalListCursorPosition = {
   readonly createdAt: string;
@@ -22,6 +22,7 @@ export type GoalListCursorPosition = {
 
 export type GoalListCursorScope = {
   readonly workspaceId: string;
+  readonly completionState?: "open" | "completed" | "all";
 };
 
 const textEncoder = new TextEncoder();
@@ -59,6 +60,7 @@ export function encodeGoalListCursor(
   const json = JSON.stringify([
     GOAL_LIST_CURSOR_VERSION,
     scope.workspaceId,
+    scope.completionState ?? "all",
     position.createdAt,
     position.id,
   ]);
@@ -86,14 +88,17 @@ export function decodeGoalListCursor(cursor: string): DecodedGoalListCursor {
   } catch {
     throw new InvalidSpineCursorError();
   }
-  if (!Array.isArray(parsed) || parsed.length !== 4) {
+  if (!Array.isArray(parsed) || parsed.length !== 5) {
     throw new InvalidSpineCursorError();
   }
-  const [version, workspaceId, createdAt, id] = parsed;
+  const [version, workspaceId, completionState, createdAt, id] = parsed;
   if (
     version !== GOAL_LIST_CURSOR_VERSION ||
     typeof workspaceId !== "string" ||
     workspaceId.length === 0 ||
+    (completionState !== "open" &&
+      completionState !== "completed" &&
+      completionState !== "all") ||
     typeof createdAt !== "string" ||
     createdAt.length === 0 ||
     typeof id !== "string" ||
@@ -101,14 +106,20 @@ export function decodeGoalListCursor(cursor: string): DecodedGoalListCursor {
   ) {
     throw new InvalidSpineCursorError();
   }
-  return { scope: { workspaceId }, position: { createdAt, id } };
+  return {
+    scope: { workspaceId, completionState },
+    position: { createdAt, id },
+  };
 }
 
 export function goalListCursorScopeMatches(
   a: GoalListCursorScope,
   b: GoalListCursorScope,
 ): boolean {
-  return a.workspaceId === b.workspaceId;
+  return (
+    a.workspaceId === b.workspaceId &&
+    (a.completionState ?? "all") === (b.completionState ?? "all")
+  );
 }
 
 export function decodeGoalListCursorForScope(

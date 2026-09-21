@@ -93,6 +93,8 @@ export function workspaceTaskFiltersSignature(
   if (filters.areaId != null) parts.push(`a=${filters.areaId}`);
   if (filters.delegatedOnly) parts.push("dg=1");
   if (filters.waitingOnly) parts.push("wt=1");
+  if (filters.waitingOnEntityId != null)
+    parts.push(`we=${filters.waitingOnEntityId}`);
   // TASKS-03 filters. Additive: a query that applies none of them produces exactly
   // the signature it produced before, so existing links keep working.
   if (filters.dueState != null) parts.push(`du=${filters.dueState}`);

@@ -2427,6 +2427,10 @@ export class D1TaskRepository implements TaskRepository {
       filters.goalId === undefined ? undefined : validateTaskId(filters.goalId);
     const filterAreaId =
       filters.areaId === undefined ? undefined : validateTaskId(filters.areaId);
+    const filterWaitingOnEntityId =
+      filters.waitingOnEntityId === undefined
+        ? undefined
+        : validateTaskId(filters.waitingOnEntityId);
     const filterDueState = validateTaskDueState(filters.dueState);
     const filterPlannedState = validateTaskPlannedState(filters.plannedState);
     const filterParentKind = validateTaskParentKind(filters.parentKind);
@@ -2527,6 +2531,17 @@ export class D1TaskRepository implements TaskRepository {
     }
     if (filters.waitingOnly) {
       whereParts.push("td.waiting_since IS NOT NULL");
+    }
+    if (filterWaitingOnEntityId !== undefined) {
+      whereParts.push(
+        `EXISTS (SELECT 1 FROM entity_links twl
+                 WHERE twl.workspace_id = e.workspace_id
+                   AND twl.source_entity_id = e.id
+                   AND twl.target_entity_id = ?
+                   AND twl.type = '${TASK_WAITING_ON}'
+                   AND twl.deleted_at IS NULL)`,
+      );
+      params.push(filterWaitingOnEntityId);
     }
     if (filterProjectId !== undefined) {
       whereParts.push(
