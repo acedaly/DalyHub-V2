@@ -1,0 +1,61 @@
+{
+  "about": "PERF-02 — the per-route static JavaScript budget. Read by scripts/route-budget.mjs against the real production build; run by CI's Build job right after `pnpm run build`. A route's cost is its own module plus every parent layout plus everything they statically IMPORT — dynamic imports are excluded on purpose, because lazily loading something heavy is the fix rather than the defect.",
+  "why": "MEASURED on main @ 482ddd6: three one-line barrel imports were costing /today 111.6 KB gzip of Recharts (for a 2.3 KB inline SVG), five routes ~44 KB raw of Settings/offline panels, and EVERY route 78.4 KB of generated colour data in the root chunk. None of it was visible in review, in a type, or in a lint. It is visible here.",
+  "howToRaise": "`node scripts/route-budget.mjs --generate` re-derives every gzipBudgetBytes from the current build at 8% headroom, and does NOT touch the `forbid` lists. Re-generate when a route legitimately grew. Do not re-generate to answer a `forbid` failure: the ceiling is not what failed, and clearing it hides the thing that did.",
+  "fingerprints": {
+    "about": "A runtime is identified by a string its OWN source emits, not by a chunk filename — chunk names come from whichever module rolldown named the chunk after and move without anyone touching a dependency.",
+    "recharts": "recharts-wrapper",
+    "codemirror-view": "cm-content",
+    "codemirror-state": "@codemirror/state"
+  },
+  "measuredFrom": "2026-09-16",
+  "routes": {
+    "root": {
+      "path": "/ (the root layout every route inherits)",
+      "note": "The one chunk set every route in the product pays for. Nothing route-specific belongs in it.",
+      "forbid": ["recharts", "codemirror-view", "codemirror-state"],
+      "measuredGzipBytes": 114528,
+      "gzipBudgetBytes": 123691
+    },
+    "today.index": {
+      "path": "/today",
+      "note": "The default landing destination, so this is the first paint of the product for most sessions. Its Sparkline is an inline SVG in ~/shared/progress and must stay one: it must never reach the charting runtime again.",
+      "forbid": ["recharts", "codemirror-view", "codemirror-state"],
+      "measuredGzipBytes": 378645,
+      "gzipBudgetBytes": 408937
+    },
+    "tasks.index": {
+      "path": "/tasks",
+      "note": "The Task record drawer embeds the Markdown editor, which is lazily loaded — so the editor VIEW runtime must not be static here. @codemirror/state was, through a value import in editor-commands.ts, until that import became type-only.",
+      "forbid": ["recharts", "codemirror-view", "codemirror-state"],
+      "measuredGzipBytes": 390443,
+      "gzipBudgetBytes": 421679
+    },
+    "projects.index": {
+      "path": "/projects",
+      "forbid": ["recharts", "codemirror-view", "codemirror-state"],
+      "measuredGzipBytes": 328939,
+      "gzipBudgetBytes": 355255
+    },
+    "meetings.index": {
+      "path": "/meetings",
+      "forbid": ["recharts", "codemirror-view", "codemirror-state"],
+      "measuredGzipBytes": 259583,
+      "gzipBudgetBytes": 280350
+    },
+    "notes.index": {
+      "path": "/notes",
+      "note": "Notes is the writing module, and even here the editor is opened rather than loaded with the collection.",
+      "forbid": ["recharts", "codemirror-view", "codemirror-state"],
+      "measuredGzipBytes": 260519,
+      "gzipBudgetBytes": 281361
+    },
+    "routes/offline": {
+      "path": "/offline",
+      "note": "The offline shell: precached by the service worker and rendered with no network at all, so its weight is paid at install time on a phone.",
+      "forbid": ["recharts", "codemirror-view", "codemirror-state"],
+      "measuredGzipBytes": 149664,
+      "gzipBudgetBytes": 161638
+    }
+  }
+}

@@ -297,7 +297,7 @@
 }
 
 /* ------------------------------------------------------------------------- *
- * V3-CSS-01 — eight rules MOVED OUT of this file, to
+ * V3-CSS-01 — seven rules MOVED OUT of this file, to
  * `markdown-editor-codemirror.css`.
  *
  * They are the only declarations here that contest CodeMirror's OWN injected
@@ -743,4 +743,30 @@
   font-family: var(--md-ref-typeface-plain);
   font-size: var(--dh-text-lead-size);
   line-height: var(--dh-text-lead-line-height);
+}
+
+/*
+ * The Note's WRITING type, and why it is here rather than in
+ * `markdown-editor-codemirror.css` with the rest of the editor's CodeMirror
+ * overrides.
+ *
+ * Because CodeMirror declares neither of these on `.cm-content`. It sets
+ * `font-family` on `.cm-scroller`, which `.cm-content` INHERITS — and an
+ * inherited value loses to a declared one from any layer, so this rule wins
+ * from `dh-product` without needing to leave the cascade. It sets no
+ * `font-size` anywhere.
+ *
+ * It lived in the unlayered exception file until `e2e/css-cascade-ownership.spec.ts`
+ * began deriving the contested set from CodeMirror's own injected stylesheet and
+ * reported it as the one rule there with nothing to contest. Moving it back is
+ * what keeps `.dh-note-body`'s writing type composable: a product surface can
+ * now adjust it normally, which an unlayered rule would not allow.
+ *
+ * `line-height` is the matching case in the other direction and stays in the
+ * exception file: CodeMirror DOES declare it, on `.cm-scroller`, which is where
+ * DalyHub sets it too.
+ */
+.dh-note-body .dh-md-editor__cm .cm-content {
+  font-family: var(--md-ref-typeface-plain);
+  font-size: var(--dh-text-lead-size);
 }

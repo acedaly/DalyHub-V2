@@ -31,10 +31,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   MeasurementTrend,
-  Sparkline,
   niceDomain,
   type MeasurementTrendPoint,
 } from "~/shared/charts";
+import { Sparkline } from "~/shared/progress";
 
 /** The brief's acceptance series: down from 85, with an honest backslide. */
 const WEIGHT: MeasurementTrendPoint[] = [

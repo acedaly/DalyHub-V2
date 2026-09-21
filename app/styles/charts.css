@@ -1,19 +1,22 @@
 /*
  * GOAL-02 — the shared chart primitives added for measurable Goals.
  *
- * `TrendLine` (a dated series with an optional target reference) and
- * `ComparisonBars` (two series over a handful of periods) live in
- * `~/shared/charts` beside `ProgressRing` and `TrendBars`. Their styles are here
- * rather than in a module stylesheet because they are design-system components:
- * every surface that draws a Goal trend or a workload comparison must get the
- * same chart, and there is exactly one place to change it.
+ * The shared chart primitives' styles are here rather than in a module
+ * stylesheet because they are design-system components: every surface that
+ * draws a Goal trend or a workload comparison must get the same chart, and
+ * there is exactly one place to change it.
  *
  * (DEBT-114 — `TrendBars`' rules are here too now. They lived in
  * `insights.css`, a MODULE stylesheet for the Reviews insight panel, which
  * meant the next surface to use a shared chart had to import a Reviews
- * stylesheet to get it. `ProgressRing` stays in `progress.css` as the
- * deliberate exception, stated rather than moved: it shares its tokens with the
- * linear progress track it must match, and belongs beside it.)
+ * stylesheet to get it.)
+ *
+ * `ProgressRing` and its `progress.css` are GONE: the component had no consumer
+ * in the product, so the stylesheet had nothing on screen to paint. The
+ * `.dh-spark*` rules below stay here even though `Sparkline` now lives in
+ * `~/shared/progress` — this file is where the shared drawings are painted, and
+ * the component moved for a BUNDLING reason (it must not sit behind a barrel
+ * that loads Recharts), not because it stopped being one of them.
  *
  * Rules every chart here follows:
  *   - colour is never the only signal. Each series is named in a legend and its
@@ -203,5 +206,7 @@
  *     a track, a fill, a radius or a forced-colours rule in any stylesheet.
  *
  * What is left in this file is the Untitled-backed chart layer's own two rules
- * and the two genuine indicators (`Sparkline`, `ProgressRing`).
+ * and the one genuine indicator that survives, `Sparkline` — which now lives in
+ * `~/shared/progress` rather than `~/shared/charts`, for the reason that
+ * barrel's header records.
  */

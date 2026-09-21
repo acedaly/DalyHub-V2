@@ -121,12 +121,33 @@ const SUBSTITUTION_SLACK_BYTES = 4_000;
  * one of them coming back turns this red again. The transfer ceiling is the one
  * that describes a metered connection, and it is the tighter of the two.
  */
-const PRECACHE_MAX_BYTES = 1_750_000;
+/*
+ * ── PERF-02 brought the measurement down, so the ceilings come down with it ──
+ *
+ * The paragraphs above set the ratchet at ~9% over the measured value, and a
+ * ceiling left where it was after the measurement improved is not a ratchet — it
+ * is 15% of silent headroom the next regression gets for free.
+ *
+ * MEASURED by this spec, before → after PERF-02:
+ *
+ *   precache   1,604,768 B → 1,516,311 B   (−88,457, −5.5%)
+ *   transfer     349,133 B →   341,098 B   (−8,035,  −2.3%)
+ *   assets              31 →          34
+ *
+ * The bytes came off the root chunk and the shared offline chunk: `root.tsx`
+ * stopped importing the whole generated palette table to read ten strings for
+ * `<meta name="theme-color">`, and `~/shared/offline` stopped exporting six
+ * Settings and `/offline` PANELS beside the runtime every surface needs. The
+ * asset count went UP by three because both fixes SPLIT a chunk — a smaller
+ * shell made of more pieces, each of which the cache-first handler serves
+ * independently. See PERFORMANCE.md §7.
+ */
+const PRECACHE_MAX_BYTES = 1_655_000;
 
-/** Measured: 349 kB over the wire (gzip -9, the transfer encoding a phone gets). */
-const PRECACHE_MAX_TRANSFER_BYTES = 380_000;
+/** Measured: 341 kB over the wire (gzip -9, the transfer encoding a phone gets). */
+const PRECACHE_MAX_TRANSFER_BYTES = 372_000;
 
-/** Measured: 31. React Router marks every route an entry; this is the shell. */
+/** Measured: 34. React Router marks every route an entry; this is the shell. */
 const PRECACHE_MAX_ASSETS = 40;
 
 /**

@@ -43,7 +43,15 @@ import {
 } from "./kernel/preferences/color-scheme";
 import { AriaRouterProvider } from "./shared/router/AriaRouterProvider";
 import { isSameDocumentParameterChange } from "./shared/router/revalidation";
-import { COLOR_SCHEME_PALETTES } from "./shared/tokens";
+/*
+ * The ten strings the document needs, NOT the whole generated palette table.
+ * `COLOR_SCHEME_PALETTES` is five schemes × two appearances × 224 roles and
+ * cannot be tree-shaken to the one role read below, so importing it here put
+ * 78.4 KB into the root chunk — the one chunk every route loads and the service
+ * worker precaches. `theme-color.ts` is generated in the same pass from the same
+ * numbers; `pnpm run scheme:check` byte-compares both.
+ */
+import { COLOR_SCHEME_THEME_COLORS } from "./shared/tokens/theme-color";
 import "./app.css";
 import { buttonClassName } from "~/shared/ui";
 
@@ -114,19 +122,19 @@ function ThemeColor({
   readonly appearance: AppearancePreference;
   readonly colorScheme: ColorScheme;
 }) {
-  const palette = COLOR_SCHEME_PALETTES[colorScheme];
+  const palette = COLOR_SCHEME_THEME_COLORS[colorScheme];
   if (appearance === "system") {
     return (
       <>
         <meta
           name="theme-color"
           media="(prefers-color-scheme: light)"
-          content={palette.light["app-surface-page"]}
+          content={palette.light}
         />
         <meta
           name="theme-color"
           media="(prefers-color-scheme: dark)"
-          content={palette.dark["app-surface-page"]}
+          content={palette.dark}
         />
       </>
     );
@@ -134,11 +142,7 @@ function ThemeColor({
   return (
     <meta
       name="theme-color"
-      content={
-        appearance === "dark"
-          ? palette.dark["app-surface-page"]
-          : palette.light["app-surface-page"]
-      }
+      content={appearance === "dark" ? palette.dark : palette.light}
     />
   );
 }

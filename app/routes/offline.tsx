@@ -35,14 +35,12 @@
 import { APP_VERSION } from "~/lib/version";
 import { getCspNonce, requireAuthenticatedSession } from "~/platform/request";
 import { BrandMark } from "~/shared/brand";
-import {
-  OfflineCaptureForm,
-  OfflineDiagnosticsPanel,
-  OfflineProvider,
-  OfflineSnapshotView,
-  OfflineChangesPanel,
-  OfflineSyncPanel,
-} from "~/shared/offline";
+import { OfflineProvider } from "~/shared/offline";
+import { OfflineCaptureForm } from "~/shared/offline/OfflineCaptureForm";
+import { OfflineChangesPanel } from "~/shared/offline/OfflineChangesPanel";
+import { OfflineDiagnosticsPanel } from "~/shared/offline/OfflineDiagnostics";
+import { OfflineSnapshotView } from "~/shared/offline/OfflineSnapshotView";
+import { OfflineSyncPanel } from "~/shared/offline/OfflineSyncPanel";
 
 import type { Route } from "./+types/offline";
 

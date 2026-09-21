@@ -196,6 +196,23 @@ jobs:
         # allowlist — a PR that changes a heading repairs the links to it.
         run: pnpm run docs:links:check
 
+      - name: D1 migration compatibility ledger matches the migrations
+        # DEPLOY-01 — the deployment order's own premise, checked.
+        #
+        # `DEPLOYMENT.md` says migrate before deploy, and the reason that is safe
+        # is that the previous Worker keeps serving a migrated database — which
+        # is what makes the deploy reversible by rolling the APPLICATION back.
+        # That is a claim about every migration in the sequence, and it was
+        # written when the sequence ended in the twenties. Four migrations since
+        # then remove something (0031, 0049, 0050, 0051), deliberately, and each
+        # closes that window.
+        #
+        # `scripts/migration-compatibility.mjs` derives the boundary by applying
+        # every migration to a throwaway SQLite database and diffing the schema
+        # after each. This step fails when a new migration changes the answer, so
+        # the operator reads a current ledger rather than a historical sentence.
+        run: pnpm run db:compat:check
+
       - name: Icon assets match the canonical geometry
         # The rasteriser and encoders are deterministic, so this regenerates in
         # memory and compares bytes: a hand-edited PNG, or a geometry change
@@ -269,6 +286,27 @@ jobs:
 
       - name: Production build
         run: pnpm run build
+
+      - name: Per-route JavaScript budget
+        # PERF-02 — the measurement that review cannot make.
+        #
+        # A route's cost is its own module plus every parent layout plus
+        # everything they statically IMPORT, and a one-line barrel import can add
+        # 100 KB to it invisibly. MEASURED on main @ `482ddd6`, three of them
+        # were: `~/shared/charts` put 111.6 KB gzip of Recharts on `/today` to
+        # draw a 2.3 KB inline SVG, `~/shared/offline` put the Settings panels on
+        # five routes that render none of them, and `root.tsx` put 78.4 KB of
+        # generated colour data in the chunk EVERY route loads.
+        #
+        # Two assertions per route: a gzip ceiling, and a list of third-party
+        # runtimes that must not be in its static graph at all. The second is the
+        # one with teeth — it names the defect rather than its size, so it
+        # survives a route legitimately growing. Runtimes are identified by a
+        # content fingerprint their own source emits, not by a chunk filename.
+        #
+        # Here rather than in `Static`, because it needs the real build and this
+        # job already has one. It adds ~2 seconds.
+        run: pnpm run perf:budget
 
       - name: Cloudflare deployment config is valid
         # DalyHub is Cloudflare-first, and until now NOTHING in CI checked that

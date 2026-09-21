@@ -210,9 +210,12 @@
 @import "./styles/health.css" layer(dh-product);
 @import "./styles/alignment.css" layer(dh-product);
 @import "./styles/relationships.css" layer(dh-product);
-@import "./styles/progress.css" layer(dh-legacy);
-/* GOAL-02 — the shared TrendLine / ComparisonBars primitives. After
-   progress.css because both are read as progress visualisations. */
+/* `progress.css` is GONE. It had held one thing — the `.dh-ring*` paint for
+ * `~/shared/charts/ProgressRing` — and that component had no consumer in the
+ * product: it was exported from the charts barrel and imported by nobody, so
+ * `.dh-ring` appeared in no markup. UNTITLED-07 had already moved the LINEAR
+ * bar to Untitled's own `ProgressBarBase`, leaving the class names as inert
+ * markup hooks. Component and stylesheet went together (CLAUDE.md rule 3). */
 @import "./styles/charts.css" layer(dh-product);
 @import "./styles/command.css" layer(dh-product);
 @import "./styles/feedback.css" layer(dh-product);
@@ -226,7 +229,7 @@
 @import "./styles/backups.css" layer(dh-product);
 @import "./styles/help.css" layer(dh-product);
 /*
- * `dh-product`, like every other module surface. The eight rules that could NOT be
+ * `dh-product`, like every other module surface. The seven rules that could NOT be
  * layered were split out below rather than dragging this whole file out of the
  * cascade with them — see `markdown-editor-codemirror.css` for the measurement
  * that forced the split.
@@ -236,7 +239,7 @@
  * NO `layer()`, and this is the architecture's ONE forced exception.
  *
  * CodeMirror injects its stylesheet at RUNTIME, which is unlayered by
- * construction, and unlayered beats every layer unconditionally. The eight rules
+ * construction, and unlayered beats every layer unconditionally. The seven rules
  * in this file are the ones that override a property CodeMirror's own sheet
  * sets on the same element, so they cannot be layered either. Nothing else is
  * in it, and `e2e/css-cascade-ownership.spec.ts` derives the permitted

@@ -90,18 +90,14 @@ import {
   type AnalyticsModel,
   type InsightWindowId,
 } from "~/kernel/analytics";
-import {
-  MeasurementTrend,
-  Sparkline,
-  type MeasurementTrendPoint,
-} from "~/shared/charts";
+import { MeasurementTrend, type MeasurementTrendPoint } from "~/shared/charts";
 import {
   CollectionLayout,
   useCollectionLoading,
 } from "~/shared/collection-layout";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
-import { CategorySplit } from "~/shared/progress";
+import { CategorySplit, Sparkline } from "~/shared/progress";
 import { SegmentedFilter } from "~/shared/segmented-filter";
 import { Skeleton } from "~/shared/skeleton";
 import { buttonClassName } from "~/shared/ui";

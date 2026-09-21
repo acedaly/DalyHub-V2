@@ -86,6 +86,21 @@ no version number to group them under.
   [`APP_SHELL_AUTH.md`](docs/development/APP_SHELL_AUTH.md#session-lifetime-on-a-trusted-personal-phone-mobile-06-2026-09-16)
   has the audit and the exact change to make if it is shorter than you want.
 
+- **Today opens with a quarter less to download.** It was fetching the whole
+  charting engine — 112 kB, compressed — to draw the small trend line beside a
+  measure, which is a hand-drawn shape that needs no charting engine at all.
+  Today now loads **28% less** than it did, and every other screen a little
+  less: Tasks, Projects, Meetings and Notes each shed between 4 and 7%.
+
+  Installing DalyHub on a phone also downloads less: **88 kB** off what the app
+  keeps for working offline. Nothing was removed from the product to get either
+  number — the same screens draw the same things, they just stop fetching parts
+  of the application they never use.
+
+  Two smaller pieces of the same tidy-up: the browser's own colour bar no longer
+  costs a table of every colour scheme to set, and a page with no editor open no
+  longer loads part of the editor.
+
 ## 3.0.0 — the interface has one system, and the cascade has an owner (2026-09-15)
 
 _Cut 2026-09-15 from `main` @ `713fc87`. Not yet deployed.

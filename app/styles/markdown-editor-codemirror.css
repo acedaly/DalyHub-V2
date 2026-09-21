@@ -23,21 +23,36 @@
  * scrollable, and axe reported a SERIOUS `scrollable-region-focusable`
  * violation — `reviews-guided.spec.ts` Journey 6, red on `main`.
  *
- * So the exception is now only what it has to be. These eight rules contest a
+ * So the exception is now only what it has to be. These seven rules contest a
  * property CodeMirror's own sheet sets on the same element, established by
  * reading its 71 injected rules rather than by guessing:
  *
- *     .cm-content      margin, padding, min-height, outline, display, box-sizing
- *     .cm-scroller     font-family, line-height, height, overflow-x, display
- *     .cm-focused      outline
- *     .cm-cursor       border-left-color
- *     .cm-dropCursor   border-left-color
- *     .cm-placeholder  color
+ *     .cm-content            margin, padding, min-height, outline, display, box-sizing
+ *     .cm-scroller           font-family, line-height, height, overflow-x, display
+ *     .cm-focused            outline
+ *     .cm-cursor             border-left-color
+ *     .cm-dropCursor         border-left-color
+ *     .cm-placeholder        color
+ *     .cm-selectionBackground  background-color
  *
- * The last three arrived later, and their story is at the bottom of this file:
- * the first narrowing of this exception moved six rules and left those behind
- * in `markdown-editor.css`, where they lost. Six became eight by measurement,
- * not by preference.
+ * Three of those arrived later, and their story is at the bottom of this file:
+ * the first narrowing of this exception moved six rules and left the caret, the
+ * drop cursor and the placeholder behind in `markdown-editor.css`, where they
+ * lost. Six became eight by measurement, not by preference.
+ *
+ * ── The list above is no longer the thing that decides ──────────────────────
+ *
+ * It is documentation now. `e2e/css-cascade-ownership.spec.ts` DERIVES the
+ * contested set from CodeMirror's live injected stylesheet, through the
+ * browser's own CSS parser, per ELEMENT rather than per class name — and it
+ * fails in BOTH directions: a layered DalyHub declaration that CodeMirror also
+ * declares on the same element (it would silently lose), and a declaration in
+ * THIS file that CodeMirror does not declare (it need not be here). Shorthands
+ * are compared as the longhands the browser expands them into, which is how the
+ * `background` shorthand below turned out to be eight declarations too wide.
+ *
+ * That matters because three successive HAND-WRITTEN versions of this list were
+ * wrong, and each was found by a person noticing a defect rather than by a test.
  *
  * CodeMirror sets NOTHING on `.cm-editor`, which is why the density caps stayed
  * in `markdown-editor.css` where product surfaces can still override them.
@@ -69,15 +84,22 @@
   caret-color: var(--dh-color-accent);
 }
 
+/*
+ * `background-color`, NOT the `background` shorthand.
+ *
+ * CodeMirror declares `background-color` on `.cm-selectionBackground` and
+ * nothing else about the background. Writing the shorthand here un-layered
+ * EIGHT further longhands — `background-image`, the four position/size
+ * longhands, `repeat`, `attachment`, `origin` and `clip` — none of which
+ * CodeMirror contests, so each was a declaration the rest of the product could
+ * no longer compose with, for no reason. MEASURED by
+ * `e2e/css-cascade-ownership.spec.ts`, which reads the longhands the browser
+ * expands a shorthand into and fails on an uncontested one.
+ */
 .dh-md-editor__cm .cm-selectionBackground,
 .dh-md-editor__cm .cm-focused .cm-selectionBackground,
 .dh-md-editor__cm .cm-line ::selection {
-  background: var(--dh-color-accent-subtle);
-}
-
-.dh-note-body .dh-md-editor__cm .cm-content {
-  font-family: var(--md-ref-typeface-plain);
-  font-size: var(--dh-text-lead-size);
+  background-color: var(--dh-color-accent-subtle);
 }
 
 .dh-note-body .dh-md-editor__cm .cm-scroller {

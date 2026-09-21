@@ -42,6 +42,8 @@ If you ever feel you need a long prompt to do a piece of work, that is a **docum
 | [`docs/decisions/ARCHITECTURE_DECISIONS.md`](docs/decisions/ARCHITECTURE_DECISIONS.md) | Why is the system built the way it is? |
 | [`docs/architecture/ARCHITECTURE_OVERVIEW.md`](docs/architecture/ARCHITECTURE_OVERVIEW.md) | How do the pieces fit together technically? |
 | [`docs/product/IMPLEMENTATION_WORKFLOW.md`](docs/product/IMPLEMENTATION_WORKFLOW.md) | What is the lifecycle of a single feature, step by step? |
+| [`docs/architecture/DALYHUB_ENGINEERING_HANDOFF.md`](docs/architecture/DALYHUB_ENGINEERING_HANDOFF.md) | I am new here and cannot ask anyone — how does DalyHub actually work, and what will I break? |
+| [`docs/architecture/DALYHUB_RESIDUAL_DEBT.md`](docs/architecture/DALYHUB_RESIDUAL_DEBT.md) | What is left, in priority order, and what was already tried? |
 | [`docs/README.md`](docs/README.md) | Where is everything? (documentation index) |
 
 ---
@@ -246,7 +248,7 @@ Two rules follow, and they are the whole of it:
 **One exception exists, and it is forced:** a library that injects its CSS at
 RUNTIME (CodeMirror does) is unlayered by construction, and unlayered beats every
 layer — so the DalyHub stylesheet that overrides it cannot be layered either.
-That is `markdown-editor-codemirror.css` — eight rules — and it is the only one. Keep such a file to the declarations the library itself sets; un-layering the whole stylesheet that contains them takes the rest of the product's ability to compose with it away, silently. If you integrate another
+That is `markdown-editor-codemirror.css` — seven rules — and it is the only one. Keep such a file to the declarations the library itself sets; un-layering the whole stylesheet that contains them takes the rest of the product's ability to compose with it away, silently. If you integrate another
 such library, say so at the import and prove your overrides contest nothing of
 Untitled's; the test derives the permitted set from the file rather than taking
 your word for it.
